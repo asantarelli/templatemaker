@@ -61,6 +61,13 @@ Zone1V         LONG
 Zone2V         LONG
 Zone3V         LONG
 FaceImageV     CSTRING(256)                                 ! optional base-layer face image path
+FontV          CSTRING(33)                                  ! gauge text font family
+LabelSizeV     LONG
+ValueSizeV     LONG
+TitleSizeV     LONG
+UnitsSizeV     LONG
+BoldLabelsV    LONG
+BoldValueV     LONG
 
 Win  WINDOW('myGaugePlus - Live Property Playground'),AT(,,668,382),CENTER,SYSTEM,GRAY,FONT('Segoe UI',9)
        PANEL,AT(4,4,326,354),BEVEL(-1)
@@ -110,6 +117,19 @@ Win  WINDOW('myGaugePlus - Live Property Playground'),AT(,,668,382),CENTER,SYSTE
            CHECK('Show numeric value'),AT(342,138,120,10),USE(ShowValueV)
            PROMPT('Value decimals:'),AT(342,154,80,10),USE(?PVdp)
            SPIN(@n1),AT(424,152,34,11),USE(ValueDPV),RANGE(0,4),STEP(1)
+           LINE,AT(342,170,314,0),USE(?LnF)
+           PROMPT('Font:'),AT(342,178,26,10),USE(?PFont)
+           COMBO(@s32),AT(372,176,150,11),USE(FontV),DROP(14),FROM('Segoe UI|Segoe UI Semibold|Arial|Arial Black|Tahoma|Verdana|Calibri|Cambria|Georgia|Times New Roman|Consolas|Courier New|Trebuchet MS|Franklin Gothic Medium|Impact')
+           PROMPT('Label size %:'),AT(342,196,70,10),USE(?PLsz)
+           SPIN(@n3),AT(414,194,44,11),USE(LabelSizeV),RANGE(30,300),STEP(10)
+           CHECK('Bold labels'),AT(470,196,90,10),USE(BoldLabelsV)
+           PROMPT('Value size %:'),AT(342,212,70,10),USE(?PVsz)
+           SPIN(@n3),AT(414,210,44,11),USE(ValueSizeV),RANGE(30,300),STEP(10)
+           CHECK('Bold value'),AT(470,212,90,10),USE(BoldValueV)
+           PROMPT('Title size %:'),AT(342,228,70,10),USE(?PTsz)
+           SPIN(@n3),AT(414,226,44,11),USE(TitleSizeV),RANGE(30,300),STEP(10)
+           PROMPT('Units size %:'),AT(342,244,70,10),USE(?PUsz)
+           SPIN(@n3),AT(414,242,44,11),USE(UnitsSizeV),RANGE(30,300),STEP(10)
          END
          TAB('&Needle && Look')
            OPTION('Needle style'),AT(340,24,220,26),BOXED,USE(NeedleStyleV),TRN
@@ -240,6 +260,9 @@ SetDefaults ROUTINE
   AnimSpeedV = 4;      StepV = 5
   Zone1V = 1;          Zone2V = 1;        Zone3V = 1
   FaceImageV = ''
+  FontV = 'Segoe UI'
+  LabelSizeV = 100;    ValueSizeV = 100;  TitleSizeV = 100;  UnitsSizeV = 100
+  BoldLabelsV = 0;     BoldValueV = 1
 
 !===========================================================================
 ApplyDraw ROUTINE
@@ -273,6 +296,13 @@ span  REAL
   G.ValueDP    = ValueDPV
   G.Title      = TitleV
   G.Units      = UnitsV
+  G.FontName   = FontV
+  G.LabelSize  = LabelSizeV
+  G.ValueSize  = ValueSizeV
+  G.TitleSize  = TitleSizeV
+  G.UnitsSize  = UnitsSizeV
+  G.LabelBold  = BoldLabelsV
+  G.ValueBold  = BoldValueV
   ! ---- needle & look ----
   G.NeedleStyle  = NeedleStyleV
   G.NeedleWidth  = NeedleWidthV

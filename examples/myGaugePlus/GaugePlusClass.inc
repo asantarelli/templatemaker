@@ -88,8 +88,15 @@ NeedleWidth        LONG
 ! ---- text ----
 Title              CSTRING(64)
 Units              CSTRING(32)
-FontName           CSTRING(32)
+FontName           CSTRING(32)                              ! font family for ALL gauge text
 FaceImage          CSTRING(261)                             ! optional image file drawn as the face's base layer (empty = none)
+! ---- text sizes (percent scale of the auto radius-relative size; 100 = default) ----
+LabelSize          LONG                                     ! tick labels
+ValueSize          LONG                                     ! numeric readout
+TitleSize          LONG                                     ! title text
+UnitsSize          LONG                                     ! units text
+LabelBold          BYTE                                     ! tick labels bold
+ValueBold          BYTE                                     ! numeric readout bold
 ! ---- color zones ----
 ZFrom              REAL,DIM(16)
 ZTo                REAL,DIM(16)

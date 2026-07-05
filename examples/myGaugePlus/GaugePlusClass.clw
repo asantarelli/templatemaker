@@ -42,6 +42,8 @@ GaugePlusClass.Construct PROCEDURE()
   SELF.NZones = 0
   SELF.AnimStepPct = 6
   SELF.FontName = 'Segoe UI'
+  SELF.LabelSize = 100; SELF.ValueSize = 100; SELF.TitleSize = 100; SELF.UnitsSize = 100
+  SELF.LabelBold = 0; SELF.ValueBold = 1
 
 GaugePlusClass.Destruct PROCEDURE()
   CODE
@@ -248,7 +250,7 @@ k      LONG
   ! ---- ticks + labels ----
   IF SELF.MajorTicks > 0
     mt = SELF.MajorTicks
-    emL = r * 0.13; IF emL < 8 THEN emL = 8.
+    emL = r * 0.13 * SELF.LabelSize / 100; IF emL < 8 THEN emL = 8.
     LOOP i = 0 TO mt
       val = SELF.MinVal + (SELF.MaxVal - SELF.MinVal) * i / mt
       ang = SELF.AngleFor(val)
@@ -257,7 +259,7 @@ k      LONG
       SELF.Cv.Line(SELF.PX(cx,ii,ang), SELF.PY(cy,ii,ang), SELF.PX(cx,io,ang), SELF.PY(cy,io,ang), 2, SELF.Cv.Argb(SELF.TickColor), 1)
       IF SELF.ShowLabels
         txt = SELF.FmtNum(val, SELF.LabelDP)
-        SELF.Cv.Text(CLIP(txt), SELF.PX(cx,r*0.55,ang), SELF.PY(cy,r*0.55,ang), emL, SELF.Cv.Argb(SELF.LabelColor), SELF.FontName, 1, 0)
+        SELF.Cv.Text(CLIP(txt), SELF.PX(cx,r*0.55,ang), SELF.PY(cy,r*0.55,ang), emL, SELF.Cv.Argb(SELF.LabelColor), SELF.FontName, 1, CHOOSE(SELF.LabelBold=1,1,0))
       END
     END
     IF SELF.MinorTicks > 0
@@ -273,14 +275,14 @@ k      LONG
   END
   ! ---- title + value readout (clustered in the lower-centre, clear of the labels) ----
   IF SELF.Title
-    SELF.Cv.Text(CLIP(SELF.Title), cx, cy + r*0.16, r*0.115, SELF.Cv.Argb(SELF.LabelColor), SELF.FontName, 1, 0)
+    SELF.Cv.Text(CLIP(SELF.Title), cx, cy + r*0.16, r*0.115 * SELF.TitleSize / 100, SELF.Cv.Argb(SELF.LabelColor), SELF.FontName, 1, 0)
   END
   IF SELF.ShowValue
-    emV = r * 0.30; IF emV < 10 THEN emV = 10.
+    emV = r * 0.30 * SELF.ValueSize / 100; IF emV < 10 THEN emV = 10.
     txt = SELF.FmtNum(SELF.Value, SELF.ValueDP)
-    SELF.Cv.Text(CLIP(txt), cx, cy + r*0.44, emV, SELF.Cv.Argb(SELF.TextColor), SELF.FontName, 1, 1)
+    SELF.Cv.Text(CLIP(txt), cx, cy + r*0.44, emV, SELF.Cv.Argb(SELF.TextColor), SELF.FontName, 1, CHOOSE(SELF.ValueBold=1,1,0))
     IF SELF.Units
-      SELF.Cv.Text(CLIP(SELF.Units), cx, cy + r*0.44 + emV*0.80, r*0.105, SELF.Cv.Argb(SELF.LabelColor), SELF.FontName, 1, 0)
+      SELF.Cv.Text(CLIP(SELF.Units), cx, cy + r*0.44 + emV*0.80, r*0.105 * SELF.UnitsSize / 100, SELF.Cv.Argb(SELF.LabelColor), SELF.FontName, 1, 0)
     END
   END
   ! ---- needle + hub ----
