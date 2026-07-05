@@ -304,7 +304,10 @@ is **no manual project step**. Three layers ship together: **`gpcanvas.c`** (the
 `SavePng`, useful for any drawing), and **`GaugePlusClass`** (the gauge, with the *same* API shape as
 `GaugeClass`: `SetRange`/`Preset`/`AddZone`/`SetValue`/`AnimateTo`/`Draw`). Same prompts and presets as
 myGauge — arc styles, range, literal-or-variable value, ticks/labels, title/units, up to 16 colored zones,
-and **eased needle animation** — plus a glossy **value/accent fill**, face-gloss and rim toggles. Three
+and **eased needle animation** — plus a glossy **value/accent fill**, face-gloss and rim toggles, an
+optional **face image** drawn as the dial's base layer (a photo/texture/logo dial, disc-clipped: set
+`Gauge.FaceImage = 'path'`), and automatic **centring for every span** (90/45/180/custom sit centred in the
+control, not just the full 270/360 dials). Three
 registrations: the **myGaugePlusControl** control template (drag-on, self-contained) and the
 **myGaugePlusGlobal** + **myGaugePlus** (window) extensions. The transparent PNG composites cleanly onto any
 window; it is **window-only** (use myGauge for report-band gauges). Copy the five files

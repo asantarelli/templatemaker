@@ -28,6 +28,7 @@ gp_fillpoly    PROCEDURE(LONG,*REAL,LONG,ULONG),RAW,NAME('_gpcanvas_fill_polygon
 gp_poly        PROCEDURE(LONG,*REAL,LONG,REAL,ULONG),RAW,NAME('_gpcanvas_polygon')
 gp_text        PROCEDURE(LONG,*CSTRING,REAL,REAL,REAL,ULONG,*CSTRING,LONG,LONG),RAW,NAME('_gpcanvas_text')
 gp_savepng     PROCEDURE(LONG,*CSTRING),LONG,RAW,NAME('_gpcanvas_save_png')
+gp_drawimg     PROCEDURE(LONG,*CSTRING,REAL,REAL,REAL,REAL),LONG,RAW,NAME('_gpcanvas_draw_image')
 gp_end         PROCEDURE(LONG),NAME('_gpcanvas_end')
 gp_lasterr     PROCEDURE(),LONG,NAME('_gpcanvas_last_error')
 gp_tempdir     PROCEDURE(*CSTRING,LONG),LONG,RAW,NAME('_gpcanvas_temp_dir')
@@ -51,6 +52,14 @@ path CSTRING(261)
   IF NOT SELF.H THEN RETURN 0.
   path = CLIP(pPath)
   RETURN CHOOSE(gp_savepng(SELF.H, path) = 0, 1, 0)
+
+AaCanvasClass.DrawImage PROCEDURE(STRING pPath,REAL pX,REAL pY,REAL pW,REAL pH)
+path CSTRING(261)
+  CODE
+  IF NOT SELF.H THEN RETURN 0.
+  path = CLIP(pPath)
+  IF NOT path THEN RETURN 0.
+  RETURN CHOOSE(gp_drawimg(SELF.H, path, pX, pY, pW, pH) = 0, 1, 0)
 
 AaCanvasClass.EndCanvas PROCEDURE
   CODE

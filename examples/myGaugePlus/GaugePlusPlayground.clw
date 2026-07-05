@@ -60,6 +60,7 @@ StepV          REAL
 Zone1V         LONG
 Zone2V         LONG
 Zone3V         LONG
+FaceImageV     CSTRING(256)                                 ! optional base-layer face image path
 
 Win  WINDOW('myGaugePlus - Live Property Playground'),AT(,,668,382),CENTER,SYSTEM,GRAY,FONT('Segoe UI',9)
        PANEL,AT(4,4,326,354),BEVEL(-1)
@@ -147,6 +148,11 @@ Win  WINDOW('myGaugePlus - Live Property Playground'),AT(,,668,382),CENTER,SYSTE
            BUTTON('Background...'),AT(342,154,120,14),USE(?BtnBackColor)
            REGION,AT(470,154,44,14),USE(?SwBack),FILL(00F0F0F0H),BEVEL(-1,-1)
            BUTTON('Reset all to defaults'),AT(342,178,140,14),USE(?BtnReset)
+           LINE,AT(342,198,314,0),USE(?Ln1)
+           PROMPT('Face image (drawn as the base layer):'),AT(342,204,220,10),USE(?PFaceImg)
+           BUTTON('Face image...'),AT(342,218,120,14),USE(?BtnFaceImage)
+           BUTTON('Clear image'),AT(470,218,90,14),USE(?BtnClearImage)
+           STRING('(none)'),AT(342,236,314,10),USE(?FaceImgName),FONT(,8)
          END
          TAB('&Anim && Zones')
            PROMPT('Timer interval (1/100 s):'),AT(342,30,110,10),USE(?PSpd)
@@ -199,6 +205,8 @@ G    GaugePlusClass
     OF ?BtnNeedleColor; IF COLORDIALOG('Needle colour', NeedleColorV)        THEN DO ApplyDraw.
     OF ?BtnBackColor;   IF COLORDIALOG('Canvas background colour', BackColorV) THEN DO ApplyDraw.
     OF ?BtnReset;       DO SetDefaults; DISPLAY; DO ApplyDraw
+    OF ?BtnFaceImage;   IF FILEDIALOG('Choose a face image', FaceImageV, 'Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*') THEN DO ApplyDraw.
+    OF ?BtnClearImage;  FaceImageV = ''; DO ApplyDraw
     OF ?BtnSweepMin;    G.AnimateTo(MinV); 0{PROP:Timer} = AnimSpeedV
     OF ?BtnSweepMax;    G.AnimateTo(MaxV); 0{PROP:Timer} = AnimSpeedV
     OF ?BtnQuit;        POST(EVENT:CloseWindow)
@@ -231,6 +239,7 @@ SetDefaults ROUTINE
   BackColorV  = COLOR:None
   AnimSpeedV = 4;      StepV = 5
   Zone1V = 1;          Zone2V = 1;        Zone3V = 1
+  FaceImageV = ''
 
 !===========================================================================
 ApplyDraw ROUTINE
@@ -282,6 +291,7 @@ span  REAL
   G.TextColor   = TextColorV
   G.NeedleColor = NeedleColorV
   G.BackColor   = BackColorV
+  G.FaceImage   = FaceImageV
   G.AnimStepPct = StepV
   ! ---- zones (rebuilt every time from the three check boxes) ----
   G.ClearZones()
@@ -303,6 +313,11 @@ SyncNums ROUTINE                                             ! live numeric read
   ?TrkNum{PROP:Text} = TrackV
   ?NwNum{PROP:Text}  = NeedleWidthV
   ?NlNum{PROP:Text}  = NeedleLenV
+  IF FaceImageV = ''
+    ?FaceImgName{PROP:Text} = '(none)'
+  ELSE
+    ?FaceImgName{PROP:Text} = FaceImageV
+  END
 
 !===========================================================================
 SyncSwatch ROUTINE                                           ! live colour chips on the Colors tab

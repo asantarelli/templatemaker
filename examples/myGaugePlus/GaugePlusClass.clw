@@ -152,11 +152,55 @@ emL    REAL
 emV    REAL
 full   BYTE
 txt    STRING(48)
+a0     REAL
+a1     REAL
+lo     REAL
+hi     REAL
+tt     REAL
+px     REAL
+py     REAL
+minx   REAL
+maxx   REAL
+miny   REAL
+maxy   REAL
+bw     REAL
+bh     REAL
+sx     REAL
+sy     REAL
+cbx    REAL
+cby    REAL
+k      LONG
   CODE
-  cx = pW * SELF.PivotXPct / 100
-  cy = pH * SELF.PivotYPct / 100
-  IF pW < pH THEN r = pW / 2 ELSE r = pH / 2.
-  r = r * SELF.RadiusPct / 100
+  !  Auto-centre: fit the tight bounding box of the drawn wedge (pivot + arc +
+  !  the value read-out band) into the control, so 90/45/180/custom spans sit
+  !  centred instead of hanging off an edge. (Fixed pivot %s only centred the
+  !  full 270/360 dials; the partial spans spilled off the left/top.)
+  a0 = SELF.StartAngle
+  a1 = SELF.StartAngle + SELF.SweepAngle
+  lo = a0; hi = a1
+  IF lo > hi
+    tt = lo; lo = hi; hi = tt
+  END
+  minx = 0; maxx = 0; miny = 0; maxy = 0                     ! the pivot (origin) is always in view
+  px = COS(a0 * GaugeP:PI/180); py = SIN(a0 * GaugeP:PI/180); DO Consider
+  px = COS(a1 * GaugeP:PI/180); py = SIN(a1 * GaugeP:PI/180); DO Consider
+  LOOP k = -360 TO 360 BY 90                                 ! cardinal extremes the arc actually passes
+    IF k >= lo AND k <= hi
+      px = COS(k * GaugeP:PI/180); py = SIN(k * GaugeP:PI/180); DO Consider
+    END
+  END
+  IF SELF.ShowValue                                          ! reserve room for the numeric read-out band
+    px = -0.42; py = -0.80; DO Consider
+    px =  0.42; py = -0.80; DO Consider
+  END
+  bw = maxx - minx; IF bw < 0.001 THEN bw = 0.001.
+  bh = maxy - miny; IF bh < 0.001 THEN bh = 0.001.
+  sx = pW / bw; sy = pH / bh
+  IF sx < sy THEN r = sx ELSE r = sy.                        ! pixels-per-unit-radius that fits the box
+  r = r * SELF.RadiusPct / 100                               ! Radius% now also sets the outer margin
+  cbx = (minx + maxx) / 2; cby = (miny + maxy) / 2           ! bbox centre, in unit coords
+  cx = pW/2 - r * cbx                                        ! place that centre at the control centre
+  cy = pH/2 + r * cby                                        ! (+ because screen Y grows downward)
   trackR = r * 0.80
   zoneR  = r * 0.93
   thick  = r * SELF.TrackPct / 100; IF thick < 3 THEN thick = 3.
@@ -172,6 +216,15 @@ txt    STRING(48)
   END
   IF SELF.ShowFace
     SELF.Cv.FillCircleGrad(cx, cy, r, SELF.Cv.Argb(SELF.FaceColor), SELF.Cv.Argb(SELF.FaceEdge))
+  END
+  IF SELF.FaceImage                                          ! optional base-layer face image (a "photo dial")
+    IF full                                                  ! clip the rectangular image down to the face disc
+      SELF.Cv.ClipPie(cx-r, cy-r, 2*r, 2*r, 0, 360)          ! (partial spans are already wedge-clipped above)
+    END
+    SELF.Cv.DrawImage(SELF.FaceImage, cx-r, cy-r, 2*r, 2*r)
+    IF full
+      SELF.Cv.ClipReset()
+    END
   END
   IF SELF.ShowGloss
     SELF.Cv.FillCircle(cx, cy - r*0.34, r*0.58, SELF.Cv.Argb(0FFFFFFh, 38)) ! soft top highlight
@@ -244,6 +297,13 @@ txt    STRING(48)
   END
   SELF.Cv.FillCircle(cx, cy, r*0.085, SELF.Cv.Argb(SELF.HubColor))
   SELF.Cv.FillCircle(cx, cy, r*0.040, SELF.Cv.Argb(0E8E8E8h))
+  RETURN
+
+Consider ROUTINE                                            ! grow the bounding box to include (px,py), unit coords
+  IF px < minx THEN minx = px.
+  IF px > maxx THEN maxx = px.
+  IF py < miny THEN miny = py.
+  IF py > maxy THEN maxy = py.
 
 !=== render to a PNG and show it ============================================
 GaugePlusClass.Draw PROCEDURE(WINDOW pWin,SIGNED pImageFeq)

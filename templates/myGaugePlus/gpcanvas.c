@@ -128,6 +128,9 @@ typedef int (WINAPI *PFN_SFAlign)(GpStringFormat, int);
 typedef int (WINAPI *PFN_DelSF)(GpStringFormat);
 typedef int (WINAPI *PFN_DrawStr)(GpGraphics, const WCHAR*, int, GpFont, const GpRectF*, GpStringFormat, GpBrush);
 typedef int (WINAPI *PFN_Save)(GpImage, const WCHAR*, const GUID*, const void*);
+typedef int (WINAPI *PFN_LoadImg)(const WCHAR*, GpImage*);
+typedef int (WINAPI *PFN_DrawImgRectI)(GpGraphics, GpImage, int, int, int, int);
+typedef int (WINAPI *PFN_SetInterp)(GpGraphics, int);
 
 static PFN_Startup   p_Startup;
 static PFN_BmpScratch p_BmpScratch;
@@ -168,6 +171,9 @@ static PFN_SFAlign   p_SFAlign, p_SFLineAlign;
 static PFN_DelSF     p_DelSF;
 static PFN_DrawStr   p_DrawStr;
 static PFN_Save      p_Save;
+static PFN_LoadImg      p_LoadImg;
+static PFN_DrawImgRectI p_DrawImgRectI;
+static PFN_SetInterp    p_SetInterp;
 
 static int        g_inited = 0;
 static ULONG_PTR  g_token = 0;
@@ -230,6 +236,9 @@ static int gp_init(void) {
     *(FARPROC*)&p_DelSF       = GetProcAddress(h, "GdipDeleteStringFormat");
     *(FARPROC*)&p_DrawStr     = GetProcAddress(h, "GdipDrawString");
     *(FARPROC*)&p_Save        = GetProcAddress(h, "GdipSaveImageToFile");
+    *(FARPROC*)&p_LoadImg      = GetProcAddress(h, "GdipLoadImageFromFile");
+    *(FARPROC*)&p_DrawImgRectI = GetProcAddress(h, "GdipDrawImageRectI");
+    *(FARPROC*)&p_SetInterp    = GetProcAddress(h, "GdipSetInterpolationMode");
 
     if (!p_Startup)    { g_err = 2; return 0; }
     if (!p_BmpScratch) { g_err = 3; return 0; }
@@ -429,6 +438,23 @@ int gpcanvas_save_png(int h, const char* path) {
     wp = widen(path); if (!wp) return -2;
     st = p_Save(c->bmp, wp, &CLSID_PNG, 0);
     LocalFree(wp);
+    return st;
+}
+
+/* Draw an image file (PNG/JPG/BMP/GIF) scaled into a dest rect. This is the
+   first-layer "photo face" for a gauge: the Clarion side clips to the face disc
+   then calls this, so the gauge art lands on top of it. 0 = ok. */
+int gpcanvas_draw_image(int h, const char* path, double x, double y,
+                        double w, double hgt) {
+    Canvas* c = cv(h); GpImage img = 0; WCHAR* wp; int st;
+    if (!c || !path || !p_LoadImg || !p_DrawImgRectI) { g_err = 700; return -1; }
+    wp = widen(path); if (!wp) return -2;
+    st = p_LoadImg(wp, &img);
+    LocalFree(wp);
+    if (st != 0 || !img) { g_err = 710 + st; return (st ? st : -3); }
+    if (p_SetInterp) p_SetInterp(c->g, 7);     /* InterpolationModeHighQualityBicubic */
+    st = p_DrawImgRectI(c->g, img, (int)x, (int)y, (int)w, (int)hgt);
+    p_DispImg(img);
     return st;
 }
 

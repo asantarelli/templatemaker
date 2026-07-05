@@ -89,6 +89,7 @@ NeedleWidth        LONG
 Title              CSTRING(64)
 Units              CSTRING(32)
 FontName           CSTRING(32)
+FaceImage          CSTRING(261)                             ! optional image file drawn as the face's base layer (empty = none)
 ! ---- color zones ----
 ZFrom              REAL,DIM(16)
 ZTo                REAL,DIM(16)

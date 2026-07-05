@@ -40,6 +40,7 @@ FillCircle         PROCEDURE(REAL pCx,REAL pCy,REAL pR,ULONG pArgb)
 Circle             PROCEDURE(REAL pCx,REAL pCy,REAL pR,REAL pPenW,ULONG pArgb)
 FillCircleGrad     PROCEDURE(REAL pCx,REAL pCy,REAL pR,ULONG pInner,ULONG pOuter)  ! radial: centre->rim
 FillRectGrad       PROCEDURE(REAL pX,REAL pY,REAL pW,REAL pH,ULONG pC1,ULONG pC2,BYTE pVertical=1) ! linear
+DrawImage          PROCEDURE(STRING pPath,REAL pX,REAL pY,REAL pW,REAL pH),BYTE,PROC ! draw an image file (PNG/JPG/BMP/GIF) scaled into a rect; 1 = ok
 ClipPie            PROCEDURE(REAL pX,REAL pY,REAL pW,REAL pH,REAL pStart,REAL pSweep) ! restrict drawing to a wedge
 ClipReset          PROCEDURE                                ! drawing returns to the whole canvas
 FillPolygon        PROCEDURE(*REAL pPts,LONG pNPts,ULONG pArgb)    ! pPts = x0,y0,x1,y1,...
