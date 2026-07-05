@@ -310,7 +310,11 @@ registrations: the **myGaugePlusControl** control template (drag-on, self-contai
 window; it is **window-only** (use myGauge for report-band gauges). Copy the five files
 (`GaugePlusClass.inc/.clw`, `AaCanvasClass.inc/.clw`, `gpcanvas.c`, all ANSI) to the redirection path. Full
 docs — how it works, prompts, the `GaugePlusClass` + `AaCanvasClass` API, and gotchas — are in
-[`docs/myGaugePlus-template.html`](docs/myGaugePlus-template.html).
+[`docs/myGaugePlus-template.html`](docs/myGaugePlus-template.html). A hand-coded, ready-to-compile
+**live property playground** — [`examples/myGaugePlus/GaugePlusPlayground.clw`](examples/myGaugePlus/GaugePlusPlayground.clw)
+(build `GaugePlusPlayground.cwproj`) — drives *every* property in real time from a tabbed panel of sliders,
+radios, check boxes and colour pickers beside a big live gauge, so you can see exactly what each option does
+before wiring the template.
 
 ### `templates/myCompress/` — pure-Clarion compression (memory + files)
 A self-contained **compression library** written entirely in **pure Clarion** — no DLL, no external
