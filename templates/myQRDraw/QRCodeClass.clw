@@ -557,9 +557,13 @@ c     LONG
 
 !=== the window helper: encode + draw into a window IMAGE control =============
 QRCodeClass.Draw PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
+savePx LONG
   CODE
   IF SELF.BuildMatrix(pValue,pEcc) = 0 THEN RETURN.          ! too large - leave the control unchanged
-  SETTARGET(,pImageFeq)                                       ! draw into the IMAGE control (window-relative, issue #5)
-  BLANK                                                       ! wipe prior graphics (no resize artifacts)
-  SELF.Paint(pImageFeq,pDark,pLight,pQuiet)
+  savePx = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1                                          ! draw in PIXELS not dialog units, so adjacent module
+  SETTARGET(,pImageFeq)                                       ! BOXes abut on exact pixel boundaries (no DLU-rounding
+  BLANK                                                       ! white seams). Window-relative target (issue #5); the
+  SELF.Paint(pImageFeq,pDark,pLight,pQuiet)                   ! retained graphics replay correctly after the restore.
   SETTARGET()                                                 ! restore previous target
+  0{PROP:Pixels} = savePx                                     ! restore the window's unit mode

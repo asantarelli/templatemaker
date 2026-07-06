@@ -328,9 +328,13 @@ runStart LONG
   END
 
 BarcodeClass.Draw PROCEDURE(SIGNED pImageFeq,LONG pType,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText)
+savePx LONG
   CODE
   IF SELF.Build(pType, pValue) = 0 THEN RETURN.              ! invalid value - leave the control unchanged
+  savePx = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1                                          ! PIXEL units: bar edges land on exact pixels (no DLU-round seams)
   SETTARGET(,pImageFeq)
   BLANK
   SELF.PaintBars(pImageFeq, pDark, pLight, pQuiet, pShowText)
   SETTARGET()
+  0{PROP:Pixels} = savePx

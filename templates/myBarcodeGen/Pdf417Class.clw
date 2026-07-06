@@ -304,9 +304,13 @@ runStart LONG
   END
 
 Pdf417Class.Draw PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet)
+savePx LONG
   CODE
   IF SELF.Build(pValue) = 0 THEN RETURN.
+  savePx = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1                                          ! PIXEL units: module BOXes abut exactly (no DLU-round seams)
   SETTARGET(,pImageFeq)
   BLANK
   SELF.Paint(pImageFeq, pDark, pLight, pQuiet)
   SETTARGET()
+  0{PROP:Pixels} = savePx

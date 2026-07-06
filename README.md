@@ -235,7 +235,9 @@ CreateProcess download, and the privacy caveat) is in [`docs/myQR-template.html`
 ### `templates/myQRDraw/` — offline QR code drawn with BOX primitives
 The **offline** companion to myQR: instead of downloading a PNG, it carries a complete **QR encoder** and
 draws every module as a filled `BOX` into an `IMAGE` control — exactly the way myPie draws a pie. **No
-internet, no `curl`, no temp files.** A **global** extension adds the encoder + the `QRDraw()` helper (add
+internet, no `curl`, no temp files.** The window `Draw` renders in **pixel units** (`0{PROP:Pixels}`), so
+adjacent module boxes abut on exact pixel boundaries — no dialog-unit rounding leaves thin white seams
+between modules (and it stays crisp across repaints; the report path keeps report units). A **global** extension adds the encoder + the `QRDraw()` helper (add
 once per app); a **procedure** extension wires it to a window, redrawing on open/resize. The value can be a
 design-time **literal** or any **Clarion variable/expression** (change it and `DO myQRDrawRepaint`). Prompts:
 image control, value, ECC level (L/M/Q/H), dark/light colors, quiet-zone width, and a **self-test** that
