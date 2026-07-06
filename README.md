@@ -263,7 +263,9 @@ when an internet round-trip is acceptable. Full programmer's documentation is in
 A generalization of myQRDraw to **nine symbologies**: the **linear (1D)** codes **Code 39, Code 128**
 (auto Code B / Code C), **Interleaved 2 of 5, EAN-13, UPC-A**, and the **2D** codes **QR, Data Matrix,
 PDF417, Aztec**. Same offline approach — encode at run time, draw with `BOX`es (1D = full-height bars +
-optional human-readable text; 2D = a module/stacked grid). Pick the **Barcode type** from a drop-list; the
+optional human-readable text; 2D = a module/stacked grid). As in myQRDraw, every window `Draw` renders in
+**pixel units** (`0{PROP:Pixels}`) so modules/bars abut on exact pixel boundaries — no dialog-unit rounding
+leaves thin white seams (the report path keeps report units). Pick the **Barcode type** from a drop-list; the
 rest is like myQRDraw (value literal-or-variable, colors, quiet zone), with **window** and **report**
 extensions. Each encoder is a self-contained ANSI Clarion class, ported from the ZXing-validated C# reference
 [`designer/BarcodeCore/`](designer/BarcodeCore/) (**42 round-trip tests**): `BarcodeClass` (1D),
