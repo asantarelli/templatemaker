@@ -60,13 +60,21 @@ BlkLenArr          LONG,DIM(8)                                ! data length of e
 NumBlocks          LONG
 Align              LONG,DIM(3)                                ! alignment-pattern centres
 NAlign             LONG
+LastDraw    GROUP               !Debug Draw, really Paint Calcs and Variables
+Side            LONG            !N + 2*Quite i.e. Dimension + 2*Boarder (aka Quite)
+Cell            LONG            !Cell Width
+QPix            LONG            !Cell * Side
+ImgXYWH         PSTRING(24)
+OffsetXY        PSTRING(12)
+            END
 ! ---- construct / destruct (auto-run) ---------------------------------------
 Construct          PROCEDURE
 Destruct           PROCEDURE
 ! ---- public methods --------------------------------------------------------
-Draw               PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
-BuildMatrix        PROCEDURE(*CSTRING pValue,LONG pEcc),BYTE
-Paint              PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet)
+Draw               PROCEDURE(SIGNED pImageFeq,  STRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet),BOOL,PROC,VIRTUAL  !Pass Clarion STRING for Value
+Draw               PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet),BOOL,PROC,VIRTUAL  !Returns FALSE if Value + Ecc is larger than 57x57 max dots
+BuildMatrix        PROCEDURE(*CSTRING pValue,LONG pEcc),BYTE,VIRTUAL
+Paint              PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet,BOOL ZeroXY=True),VIRTUAL
 ! ---- internal methods ------------------------------------------------------
 Init               PROCEDURE()
 Tbl                PROCEDURE(LONG v,LONG e,LONG ec,LONG g1b,LONG g1d,LONG g2b,LONG g2d)

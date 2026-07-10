@@ -522,48 +522,72 @@ ac       LONG
   RETURN 1
 
 !=== paint the already-built matrix into a control, in the CURRENT target =====
-QRCodeClass.Paint PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet)
+QRCodeClass.Paint PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet,BOOL ZeroXY=True)    !Pass Image Position
 ImgX  LONG
 ImgY  LONG
-imgW  LONG
-imgH  LONG
-n     LONG
-q     LONG
-side  LONG
-cell  LONG
-qpix  LONG
-offX  LONG
-offY  LONG
-r     LONG
-c     LONG
+ImgW  LONG
+ImgH  LONG
+N     LONG      !Is = Self.N the current dimension (17+4*version) max of 57 as 17*4*10
+Q     LONG      !Is = pQuite the number of Border Cells 
+Side  LONG      !Is = N + 2*Q  so Dimension + Border so Number of Boxes per Side
+Cell  LONG      !Box Side Size based on Image Size  / Side Boxes
+QPix  LONG      !Is = Cell*Side so number of Pixels on a Side
+OffX  LONG      !Offset to Center QR in Width  of Image
+OffY  LONG      !Offset to Center QR in Height of Image
+r     LONG      !Row Index of Boxes 1 to N
+c     LONG      !Column Index of Boxes 1 to N
   CODE
-  q = pQuiet; IF q < 0 THEN q = 0.
-  n = SELF.N; side = n + 2*q
-  GETPOSITION(pImageFeq,ImgX,ImgY,imgW,imgH)                 ! position AND size, target-relative
-  cell = INT(imgW/side); IF INT(imgH/side) < cell THEN cell = INT(imgH/side).
-  IF cell < 1 THEN cell = 1.                                 ! at least 1 unit per module
-  qpix = cell*side
-  offX = ImgX + INT((imgW-qpix)/2); offY = ImgY + INT((imgH-qpix)/2)   ! centre in the control
-  SETPENCOLOR(pLight)
-  BOX(ImgX,ImgY,imgW,imgH,pLight)                            ! light field (quiet zone is light too)
+  Q = pQuiet ; IF Q < 0 THEN Q = 0.
+  N = SELF.N
+  Side = N + 2*Q
+  GETPOSITION(pImageFeq,ImgX,ImgY,ImgW,ImgH)                 ! position AND size, target-relative  
+  IF ZeroXY THEN ImgX=0 ; ImgY=0.                            ! with proper SetTarget(Wnd,Image) X,Y are Zero Based
+  Cell = CHOOSE(ImgW<=ImgH, INT(ImgW/Side), INT(ImgH/Side))
+  IF Cell < 1 THEN Cell = 1.                                 ! at least 1 unit per module 
+!  Cell += 2  !A way to exceed the Image size and see if it is clipped 
+  QPix = Cell*Side
+  OffX = ImgX + INT((ImgW-QPix)/2)  ! center in the control
+  OffY = ImgY + INT((ImgH-QPix)/2)
+  IF pLight<>COLOR:None THEN                                 ! Report may specify None so Color Printer does not try to print WHITE square
+     SETPENCOLOR(pLight)
+     BOX(ImgX,ImgY,ImgW,ImgH,pLight)                         ! light field (quiet zone is light too)
+  END
   SETPENCOLOR(pDark)
   LOOP r = 0 TO n-1
     LOOP c = 0 TO n-1
       IF SELF.Cells[r+1,c+1] = 1
-        BOX(offX+(c+q)*cell, offY+(r+q)*cell, cell, cell, pDark)
+        BOX(OffX+(c+Q)*Cell, OffY+(r+Q)*Cell, Cell, Cell, pDark)
       END
     END
   END
+  CLEAR(Self.LastDraw)          !For Debug Draw, really Paint Vars
+  Self.LastDraw.Side = Side     !Is = N + 2*Q  so dimension + Boarder
+  Self.LastDraw.Cell = Cell     !Cell Width
+  Self.LastDraw.QPix = QPix
+  Self.LastDraw.ImgXYWH  = ImgX &','& ImgY &','& ImgW &','& ImgH
+  Self.LastDraw.OffsetXY = offX &','& offY   
+  RETURN
 
 !=== the window helper: encode + draw into a window IMAGE control =============
 QRCodeClass.Draw PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
 savePx LONG
+ZeroXY BOOL(True)    ! With SetTarget(Window,Image) Draw X,Y At(0,0)
+TargetNow &WINDOW
   CODE
-  IF SELF.BuildMatrix(pValue,pEcc) = 0 THEN RETURN.          ! too large - leave the control unchanged
+  IF SELF.BuildMatrix(pValue,pEcc) = 0 THEN RETURN False.     ! too large Return False - leave the control unchanged
   savePx = 0{PROP:Pixels}
-  0{PROP:Pixels} = 1                                          ! draw in PIXELS not dialog units, so adjacent module
-  SETTARGET(,pImageFeq)                                       ! BOXes abut on exact pixel boundaries (no DLU-rounding
-  BLANK                                                       ! white seams). Window-relative target (issue #5); the
-  SELF.Paint(pImageFeq,pDark,pLight,pQuiet)                   ! retained graphics replay correctly after the restore.
+  0{PROP:Pixels} = 1                                          ! draw in PIXELS not Dialog Units, so adjacent QR BOXes abut on exact pixel boundaries (no DLU-rounding white seams)
+  TargetNow &= (SYSTEM{PROP:Target})                          ! Current Target (&Window) with Focus
+  SETTARGET(TargetNow,pImageFeq)                              ! To SetTarget(Window,?Image) it MUST have a WINDOW for Clipping Region. Cannot use REPORT here
+  ! SETTARGET(,pImageFeq) ; ZeroXY=False                      ! Test bad SetTarget(,Img) w/o Window the Image is not X,Y (0,0) and Blank does all Draws
+  BLANK()                                                     ! Clipped to SetTarget(W,Image) so does not erase other Drawing
+  SELF.Paint(pImageFeq,pDark,pLight,pQuiet,ZeroXY)            ! With SetTarget(W,Image) its Paint X,Y At(0,0)
   SETTARGET()                                                 ! restore previous target
   0{PROP:Pixels} = savePx                                     ! restore the window's unit mode
+  RETURN True
+
+QRCodeClass.Draw PROCEDURE(SIGNED pImageFeq,STRING pValueStr,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
+CStrValue CSTRING(SIZE(pValueStr)+2)    !Imo a PITA that Draw took CString :( so this overload allows STRING
+    CODE
+    CStrValue=CLIP(pValueStr)
+    RETURN SELF.Draw(pImageFeq, CStrValue, pEcc,pDark,pLight,pQuiet)
