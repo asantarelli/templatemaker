@@ -237,7 +237,10 @@ The **offline** companion to myQR: instead of downloading a PNG, it carries a co
 draws every module as a filled `BOX` into an `IMAGE` control — exactly the way myPie draws a pie. **No
 internet, no `curl`, no temp files.** The window `Draw` renders in **pixel units** (`0{PROP:Pixels}`), so
 adjacent module boxes abut on exact pixel boundaries — no dialog-unit rounding leaves thin white seams
-between modules (and it stays crisp across repaints; the report path keeps report units). A **global** extension adds the encoder + the `QRDraw()` helper (add
+between modules (and it stays crisp across repaints; the report path keeps report units). The window
+`Draw` targets the image with the **two-argument `SETTARGET(Window, ?Image)`**, so its `BLANK` is clipped to
+the image rectangle and the modules paint from a `0,0` origin — several QR codes on one window no longer erase
+each other, and `Draw` also accepts a plain `STRING` value, not only a `CSTRING`. A **global** extension adds the encoder + the `QRDraw()` helper (add
 once per app); a **procedure** extension wires it to a window, redrawing on open/resize. The value can be a
 design-time **literal** or any **Clarion variable/expression** (change it and `DO myQRDrawRepaint`). Prompts:
 image control, value, ECC level (L/M/Q/H), dark/light colors, quiet-zone width, and a **self-test** that
@@ -724,6 +727,15 @@ whole tree via a hidden `taskkill /F /T /PID` (launched with `CREATE_NO_WINDOW`,
 **`Destruct`** calls `EmbedClose` as a safety net, so the view is reaped even when the host forgets the
 `EVENT:CloseWindow` handler or the app exits abnormally. Verified end-to-end: 7 Edge processes spawned, all
 reaped within ~0.5 s of closing the window, zero leftovers.
+
+**myQRDraw — clipped window Draw + a test program (v2.30.3, PR #19).** The window `QRCodeClass.Draw` now uses
+the **two-argument `SETTARGET(Window, ?Image)`** (like myGauge) so the `BLANK` is **clipped to the image
+rectangle** instead of the whole window — **multiple QR codes on one window no longer blank each other**, and
+an image sitting away from the window's left edge is no longer clipped. With a real window target the paint
+runs from a `0,0` origin, so `Paint` gained a `ZeroXY` flag, and `Draw` gained a `STRING` overload (it used to
+take only `CSTRING`). A hand-driven test app, [`templates/myQRDraw/TestQRWnd_Renz.clw`](templates/myQRDraw/TestQRWnd_Renz.clw),
+exercises every setting live with **two QR codes on one window** (proving one doesn't erase the other) and a
+checkerboard for min/max module sizing. Thanks to **Carl T. Barnes** for the fix and test program.
 
 To package everything (designer **+** templates **+** skill **+** agent) into one deliverable — .NET is
 bundled in, so nothing needs pre-installing on the target:
