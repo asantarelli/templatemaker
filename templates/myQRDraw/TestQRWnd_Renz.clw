@@ -1,6 +1,10 @@
 !Test QR Draw program written July 2026 by Carl T. Barnes based somewhat in the myQRDraw.TPL by Roberto Renz released under the MIT License
 !The purpose of this program is to try out and test the features of QRCodeClass
 
+!To paint a QR the Class relies on drawing a BOX(x,y, cell,cell,black) for each dot. For that to work
+!it must be exact. It was found that using DLUs was not exact and left lines so the Class was changed
+!to use Pixels. This tool verifies paint works with all possible parameters of ECL, Quiet and Size
+
 !Remember that you can hold your phone camera up to the generated QR Code to verify it works.
 !To test if Clipping to Image border is working in the .Paint() method set Cell += 2 so it is too big and would overrun the Image
 
@@ -23,8 +27,7 @@ DB          PROCEDURE(STRING DebugMessage)
 QRTestWnd  PROCEDURE()
 QRCodeObj  QRCodeClass
 
-cDrawValue      CSTRING(1024)
-myQRDrawValue   STRING(255)   !#PROMPT('&Value:',@s255),%myQRDrawValue,DEFAULT('https://www.softvelocity.com')
+myQRDrawValue   STRING(1024)        !#PROMPT('&Value:',@s255),%myQRDrawValue,DEFAULT('https://www.softvelocity.com')
 myQRDrawEcc     BYTE(2)             !#PROMPT('&Error correction level:',DROP('L - Low (most data)[1]|M - Medium[2]|Q - Quartile[3]|H - High (most robust)[4]')),%myQRDrawEcc,DEFAULT('2')
 !myQRDrawDark    LONG(COLOR:Black)  !#PROMPT('&Dark (foreground) color:',COLOR),%myQRDrawDark,DEFAULT(00000000H)
 !myQRDrawLight   LONG(COLOR:White)  !#PROMPT('&Light (background) color:',COLOR),%myQRDrawLight,DEFAULT(00FFFFFFH)
@@ -41,7 +44,7 @@ DrawInfo        STRING(40)
 CheckerBrdCB    BYTE        !Draw Checker Board instead of QR
 CheckerBrdVer   BYTE(10)    !Version ranges 1-10 so W=17+4 to 17+40 
 CheckerBrdCls   CLASS(QRCodeClass)
-BuildMatrix         PROCEDURE(*CSTRING NotUsed_pValue,LONG pVersion_in_pEcc),BYTE,DERIVED    !Override to Build Checker Board
+BuildMatrix         PROCEDURE(STRING NotUsed_pValue,LONG pVersion_in_pEcc),BYTE,DERIVED    !Override to Build Checker Board
                 END    
 Window WINDOW('Test QR Draw Class by Reberto Renz'),AT(,,378,225),CENTER,GRAY,IMM,SYSTEM,ICON(ICON:Application), |
             FONT('Segoe UI',9),RESIZE
@@ -115,11 +118,10 @@ DrawQrRtn ROUTINE
     SETPOSITION(?QRDrawBox  ,,,Wd+2,Wd+2) 
     0{PROP:Pixels}=TRUE ; PixelWH=?QrDrawImage{PROP:Width} ; 0{PROP:Pixels}=False 
     IF CheckerBrdCB THEN DO CheckerBoardRtn ; EXIT.
-    
-    cDrawValue=CLIP(LEFT(myQRDrawValue))  
-    !Draw  PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
-    IF ~QRCodeObj.Draw(?QrDrawImage, cDrawValue , myQRDrawEcc, myQRDrawDark, myQRDrawLight, myQRDrawQuiet) THEN 
-        Message('The '& LEN(CLIP(cDrawValue)) &' byte value: "' & CLIP(cDrawValue) &'"'& |
+
+    !Draw  PROCEDURE(SIGNED pImageFeq,STRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
+    IF ~QRCodeObj.Draw(?QrDrawImage, myQRDrawValue , myQRDrawEcc, myQRDrawDark, myQRDrawLight, myQRDrawQuiet) THEN 
+        Message('The '& LEN(CLIP(myQRDrawValue)) &' byte value: "' & CLIP(myQRDrawValue) &'"'& |
                 '|to be coded at the selected Error Correction Level '& myQRDrawEcc & |
                 '|is too much to encode in the maximum 57x57 grid.' & |
                 '||Please reduce Value, ECL or both','QR Draw',ICON:Asterisk)
@@ -167,12 +169,11 @@ DrawStaticQrOnceRtn ROUTINE     !Place a 2nd QR on Window to be sure does not ge
     GETPOSITION(?QrStaticImage,,,Wd,Ht) 
     Wd = CHOOSE(Wd<Ht,Wd,Ht) 
     SETPOSITION(?QrStaticImage,,,Wd,Wd)         !Be sure Square
-    cDrawValue=CLIP(LEFT(myQRDrawValue))
-    QRCodeObj.Draw(?QrStaticImage, cDrawValue , 4, myQRDrawDark, myQRDrawLight, 1)  
+    QRCodeObj.Draw(?QrStaticImage, myQRDrawValue , 4, myQRDrawDark, myQRDrawLight, 1)  
     DISPLAY
     EXIT
 !===============================
-CheckerBrdCls.BuildMatrix PROCEDURE(*CSTRING NotUsed_pValue,LONG pVersion_in_pEcc) !,BOOL,DERIVED  !Override to Build Checker Board
+CheckerBrdCls.BuildMatrix PROCEDURE(STRING NotUsed_pValue,LONG pVersion_in_pEcc) !,BOOL,DERIVED  !Override to Build Checker Board
 N     LONG                !This Class could be included
 r     LONG    
 c     LONG 

@@ -71,9 +71,8 @@ OffsetXY        PSTRING(12)
 Construct          PROCEDURE
 Destruct           PROCEDURE
 ! ---- public methods --------------------------------------------------------
-Draw               PROCEDURE(SIGNED pImageFeq,  STRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet),BOOL,PROC,VIRTUAL  !Pass Clarion STRING for Value
-Draw               PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet),BOOL,PROC,VIRTUAL  !Returns FALSE if Value + Ecc is larger than 57x57 max dots
-BuildMatrix        PROCEDURE(*CSTRING pValue,LONG pEcc),BYTE,VIRTUAL
+Draw               PROCEDURE(SIGNED pImageFeq,STRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet),BOOL,PROC,VIRTUAL  !Returns FALSE if Value + Ecc is larger than 57x57 max dots
+BuildMatrix        PROCEDURE(STRING pValue,LONG pEcc),BYTE,VIRTUAL
 Paint              PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet,BOOL ZeroXY=True),VIRTUAL
 ! ---- internal methods ------------------------------------------------------
 Init               PROCEDURE()
