@@ -20,6 +20,7 @@
   <ItemGroup>
     <Compile Include="YuruDemo.clw" />
     <Compile Include="YuruClass.clw" />
+    <None Include="yurucanvas.c" />
   </ItemGroup>
   <ItemGroup>
     <FileDriver Include="DOS" />

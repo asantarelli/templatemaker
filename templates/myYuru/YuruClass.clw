@@ -4,9 +4,22 @@
 !  Store this file in ANSI/CRLF (not UTF-8, not LF-only).
 ! ============================================================================
 
+  PRAGMA('compile(yurucanvas.c)')                            ! Clarion's own C compiler builds the Direct2D shim
+
   MAP
 MyAtan2  PROCEDURE(REAL pY,REAL pX),REAL                     ! two-arg arctangent (radians)
 ModI     PROCEDURE(LONG pA,LONG pB),LONG                     ! integer modulo (Clarion has no %)
+!   -- Direct2D direct-to-window shim (yuru_d2d_* -> yurucanvas.c) -----------
+    MODULE('yurucanvas.c')
+yuru_d2d_init         PROCEDURE(),LONG,NAME('_yuru_d2d_init')
+yuru_d2d_makechild    PROCEDURE(LONG,LONG,LONG,LONG,LONG),LONG,NAME('_yuru_d2d_make_child')
+yuru_d2d_movechild    PROCEDURE(LONG,LONG,LONG,LONG,LONG),NAME('_yuru_d2d_move_child')
+yuru_d2d_destroychild PROCEDURE(LONG),NAME('_yuru_d2d_destroy_child')
+yuru_d2d_beginhwnd    PROCEDURE(LONG,LONG,LONG),LONG,NAME('_yuru_d2d_begin_hwnd')
+yuru_d2d_blit         PROCEDURE(LONG,*STRING,LONG,LONG,LONG,REAL,REAL,REAL,REAL),RAW,NAME('_yuru_d2d_blit_bgr24')
+yuru_d2d_present      PROCEDURE(LONG),NAME('_yuru_d2d_present')
+yuru_d2d_end          PROCEDURE(LONG),NAME('_yuru_d2d_end')
+    END
   END
 
   INCLUDE('EQUATES.CLW'),ONCE
@@ -57,6 +70,8 @@ YuruClass.Construct  PROCEDURE
 ! ---------------------------------------------------------------------------
 YuruClass.Destruct   PROCEDURE
   CODE
+  IF SELF.HCanvas  THEN yuru_d2d_end(SELF.HCanvas)         ; SELF.HCanvas  = 0.  ! release the Direct2D target
+  IF SELF.HwndHost THEN yuru_d2d_destroychild(SELF.HwndHost); SELF.HwndHost = 0.  ! drop the child host window
   IF SELF.Inited                                              ! best-effort temp cleanup
     CurFile = SELF.FileA ; REMOVE(BmpOut)
     CurFile = SELF.FileB ; REMOVE(BmpOut)
@@ -87,6 +102,19 @@ YuruClass.Init       PROCEDURE(SIGNED pImageFeq)
     BO:iClrI  = 0
     HdrSet = 1
   END
+
+! ---------------------------------------------------------------------------
+!  Switch backend at runtime. Going back to the BMP-file path tears down the
+!  Direct2D host so the underlying IMAGE control shows again; going to Direct2D
+!  just flags it - EnsureHwnd builds the host lazily on the next Paint.
+YuruClass.SetBackend PROCEDURE(BYTE pBackend)
+  CODE
+  IF pBackend = SELF.Backend THEN RETURN.
+  IF SELF.HCanvas  THEN yuru_d2d_end(SELF.HCanvas)          ; SELF.HCanvas  = 0.
+  IF SELF.HwndHost THEN yuru_d2d_destroychild(SELF.HwndHost); SELF.HwndHost = 0.
+  SELF.D2Ready  = 0
+  SELF.D2Failed = 0
+  SELF.Backend  = pBackend
 
 ! ---------------------------------------------------------------------------
 YuruClass.Restart    PROCEDURE
@@ -130,6 +158,37 @@ B  LONG
   END
 
 ! ---------------------------------------------------------------------------
+!  Lazily create the Direct2D child host window over the IMAGE control and its
+!  render target. Called from Paint on the first Direct2D frame - by then the
+!  window (and control) is realized, so PROP:Xpos/Ypos/Width/Height are valid.
+!  Any failure sets D2Failed so we stay on the BMP-file path forever after.
+YuruClass.EnsureHwnd PROCEDURE
+wx   LONG
+wy   LONG
+ww   LONG
+wh   LONG
+save LONG
+  CODE
+  IF SELF.D2Ready OR SELF.D2Failed THEN RETURN.
+  IF ~SELF.Feq THEN RETURN.
+  IF yuru_d2d_init() < 0 THEN SELF.D2Failed = 1 ; RETURN.     ! no Direct2D on this box -> fall back
+  save = 0{PROP:Pixels}                                       ! read the control rect in PIXELS
+  0{PROP:Pixels} = 1
+  wx = SELF.Feq{PROP:Xpos} ; wy = SELF.Feq{PROP:Ypos}
+  ww = SELF.Feq{PROP:Width}; wh = SELF.Feq{PROP:Height}
+  0{PROP:Pixels} = save
+  IF ww < 4 OR wh < 4 THEN RETURN.                            ! control not realized yet - retry next frame
+  SELF.HwndHost = yuru_d2d_makechild(0{PROP:Handle}, wx, wy, ww, wh)
+  IF ~SELF.HwndHost THEN SELF.D2Failed = 1 ; RETURN.
+  SELF.HCanvas = yuru_d2d_beginhwnd(SELF.HwndHost, ww, wh)
+  IF ~SELF.HCanvas
+    yuru_d2d_destroychild(SELF.HwndHost) ; SELF.HwndHost = 0
+    SELF.D2Failed = 1 ; RETURN
+  END
+  SELF.HostW = ww ; SELF.HostH = wh
+  SELF.D2Ready = 1
+
+! ---------------------------------------------------------------------------
 YuruClass.Paint      PROCEDURE
   CODE
   IF ~SELF.Inited THEN RETURN.                                ! no control wired yet
@@ -146,6 +205,17 @@ YuruClass.Paint      PROCEDURE
   ELSE             ; SELF.Ribbon()
   END
 
+! ---- Direct2D DIRECT-TO-WINDOW: blit the frame straight to the GPU host, no file
+  IF SELF.Backend = Yuru:Direct2D AND ~SELF.D2Failed
+    SELF.EnsureHwnd()
+    IF SELF.D2Ready
+      yuru_d2d_blit(SELF.HCanvas, Pixels, CanW, CanW, 1, 0, 0, SELF.HostW, SELF.HostH) ! 1 = source is bottom-up
+      yuru_d2d_present(SELF.HCanvas)                          ! flip to the screen, re-open for next frame
+      RETURN
+    END
+  END
+
+! ---- classic BMP-file path (default, and the fallback if Direct2D is unavailable)
   SELF.Toggle = 1 - SELF.Toggle                              ! flip-flop the two temp files
   CurFile = CHOOSE(SELF.Toggle = 1, SELF.FileA, SELF.FileB)
   BO:Bits = Pixels

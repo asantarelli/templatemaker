@@ -12,11 +12,18 @@
 #!                a ready-made IMAGE with the animation already wired. Self-
 #!                contained (INCLUDEs the class itself) - no global extension needed.
 #!
-#!  REQUIRED FILES: copy YuruClass.inc AND YuruClass.clw (shipped beside this .tpl)
-#!  to a folder on the Clarion redirection path (the app folder or
-#!  \clarion12\libsrc\win). Store them in ANSI/CRLF (not UTF-8, not LF-only).
+#!  REQUIRED FILES: copy YuruClass.inc, YuruClass.clw AND yurucanvas.c (shipped
+#!  beside this .tpl) to a folder on the Clarion redirection path (the app folder
+#!  or \clarion12\libsrc\win). Store them in ANSI/CRLF (not UTF-8, not LF-only).
 #!  The app also needs the DOS file driver (add it in the app's driver list, or it
 #!  is pulled in automatically once any file uses DRIVER('DOS')).
+#!
+#!  BACKENDS: the "Rendering / Backend" prompt picks how each frame reaches the
+#!  screen. "BMP file" (default) writes a temp .bmp and reloads the IMAGE - pure
+#!  Clarion. "Direct2D GPU" hosts a child window over the IMAGE and blits each
+#!  frame straight to the GPU - no temp file, no reload. Direct2D ships with
+#!  Windows 7+ (no redistributable); yurucanvas.c is compiled in automatically by
+#!  a PRAGMA in YuruClass.clw. If the target can't be created it falls back to BMP.
 #!
 #!  API (the object is in the procedure's data - call it from any embed):
 #!    Flow.Preset   = Yuru:Ribbon        ! Ribbon/Seashell/Nebula/Lattice/Reeds/Plume
@@ -70,6 +77,10 @@ INCLUDE('YuruClass.INC'),ONCE
       #PROMPT('&Run on window open',CHECK),%myYuruRun,DEFAULT(1),AT(10)
       #PROMPT('Timer &interval (1/100 sec):',SPIN(@n4,1,500,1)),%myYuruInterval,DEFAULT(4)
     #ENDBOXED
+    #BOXED('Rendering')
+      #PROMPT('&Backend:',DROP('BMP file - compatible, no extra files[0]|Direct2D GPU - direct-to-window, no temp file[1]')),%myYuruBackend,DEFAULT('0')
+      #DISPLAY('Direct2D also needs yurucanvas.c on the redirection path (ANSI/CRLF).')
+    #ENDBOXED
   #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
@@ -86,6 +97,7 @@ Redraw:%myYuruObject EQUATE(EVENT:User + 210 + %ActiveTemplateInstance) ! privat
   CASE EVENT()
   OF EVENT:OpenWindow
     %myYuruObject.Init(%myYuruImage)
+    %myYuruObject.Backend    = %myYuruBackend                 ! Yuru:BmpFile(0) or Yuru:Direct2D(1) - set before the first Paint
     %myYuruObject.Preset     = %myYuruPreset
     %myYuruObject.InkColor   = %myYuruInk
     %myYuruObject.BackGray   = %myYuruBack
@@ -148,6 +160,10 @@ Restart:%myYuruObject ROUTINE
       #PROMPT('&Run on window open',CHECK),%myYuruCtlRun,DEFAULT(1),AT(10)
       #PROMPT('Timer &interval (1/100 sec):',SPIN(@n4,1,500,1)),%myYuruCtlInterval,DEFAULT(4)
     #ENDBOXED
+    #BOXED('Rendering')
+      #PROMPT('&Backend:',DROP('BMP file - compatible, no extra files[0]|Direct2D GPU - direct-to-window, no temp file[1]')),%myYuruCtlBackend,DEFAULT('0')
+      #DISPLAY('Direct2D also needs yurucanvas.c on the redirection path (ANSI/CRLF).')
+    #ENDBOXED
   #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
@@ -175,6 +191,7 @@ Redraw:%myYuruCtlObject EQUATE(EVENT:User + 210 + %ActiveTemplateInstance) ! pri
   CASE EVENT()
   OF EVENT:OpenWindow
     %myYuruCtlObject.Init(%myYuruCtlImage)
+    %myYuruCtlObject.Backend    = %myYuruCtlBackend           ! Yuru:BmpFile(0) or Yuru:Direct2D(1) - set before the first Paint
     %myYuruCtlObject.Preset     = %myYuruCtlPreset
     %myYuruCtlObject.InkColor   = %myYuruCtlInk
     %myYuruCtlObject.BackGray   = %myYuruCtlBack

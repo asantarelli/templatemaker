@@ -21,9 +21,10 @@ PresetTxt STRING(12)
 SpeedV    REAL(1.0)
 InkTxt    STRING(10)
 Running   BYTE(1)
+GpuMode   BYTE(0)                                            ! 1 = Direct2D GPU direct-to-window
 SaveName  STRING(261)
 
-Win      WINDOW('Yuruyurau - Animated Flow Fields'),AT(,,340,362),CENTER,SYSTEM,GRAY,|
+Win      WINDOW('Yuruyurau - Animated Flow Fields'),AT(,,340,378),CENTER,SYSTEM,GRAY,|
              FONT('Segoe UI',9),TIMER(4)
            IMAGE(''),AT(10,10,320,300),USE(?Canvas),CENTERED
            PROMPT('Preset:'),AT(10,320),USE(?PP)
@@ -37,6 +38,7 @@ Win      WINDOW('Yuruyurau - Animated Flow Fields'),AT(,,340,362),CENTER,SYSTEM,
            BUTTON('Start'),AT(10,338,42,16),USE(?Start)
            BUTTON('Stop'),AT(54,338,42,16),USE(?Stop)
            BUTTON('Reset'),AT(98,338,42,16),USE(?Restart)
+           CHECK('GPU (Direct2D)'),AT(148,342),USE(GpuMode),TIP('Blit each frame straight to a Direct2D child window - no temp .bmp')
            BUTTON('Save BMP...'),AT(258,338,72,16),USE(?Save)
          END
 
@@ -63,6 +65,7 @@ Win      WINDOW('Yuruyurau - Animated Flow Fields'),AT(,,340,362),CENTER,SYSTEM,
     OF ?Start     ; Running = 1
     OF ?Stop      ; Running = 0
     OF ?Restart   ; Flow.Restart() ; Flow.Paint()
+    OF ?GpuMode   ; Flow.SetBackend(CHOOSE(GpuMode=1, Yuru:Direct2D, Yuru:BmpFile)) ; Flow.Paint()
     OF ?Save      ; DO SaveFrame
     END
   END

@@ -21,13 +21,30 @@ Two temp files (`yuru<feq>a.bmp` / `yuru<feq>b.bmp`) are alternated so the IMAGE
 lock on the file the next frame is being written to. The internal bitmap is a fixed **400×400**; the
 IMAGE control scales it to whatever display size you give the control.
 
+## GPU direct-to-window (Direct2D)
+
+That file round-trip — write `.bmp`, reload the IMAGE — dominates the frame time. Set
+**`Flow.Backend = Yuru:Direct2D`** (or tick **GPU (Direct2D)** in the demo) and steps 3–4 disappear:
+`YuruClass` hosts a bare child window over the IMAGE control, owns a **GPU-accelerated Direct2D render
+target** on it, and each frame's pixel buffer is uploaded as a bitmap and blitted **straight to the
+screen** (`DrawBitmap` + `Present`) — no temp file, no `PROP:Text` reload. This is the same
+"direct-to-window, no PNG" path added to CapeSoft Draw / DrawPlus, ported to myYuru's per-pixel model:
+the GPU does the scale + present, the particle math stays in Clarion.
+
+- The C shim is **`yurucanvas.c`** (`yuru_d2d_*` symbols — coexists with any other D2D/GDI+ shim in the
+  app). It binds `d2d1.dll` at runtime and calls Direct2D through hand-declared COM vtables, so there is
+  **no redistributable** (Direct2D ships with Windows 7+). It's compiled in automatically by a
+  `PRAGMA('compile(yurucanvas.c)')` in `YuruClass.clw` — just keep the file on the redirection path.
+- If the target can't be created (very old Windows), it **silently falls back** to the BMP-file path.
+- `SetBackend()` switches at runtime (the demo's checkbox); going back to BMP tears down the host.
+
 ## Programs
 
 | File | What it is |
 | --- | --- |
-| `YuruDemo.clw` / `.cwproj` | The interactive demo — a live canvas with **Preset / Ink / Speed** pickers and **Start / Stop / Reset / Save BMP** buttons. Build & run this. |
+| `YuruDemo.clw` / `.cwproj` | The interactive demo — a live canvas with **Preset / Ink / Speed** pickers, a **GPU (Direct2D)** toggle, and **Start / Stop / Reset / Save BMP** buttons. Build & run this. |
 | `YuruShots.clw` / `.cwproj` | A headless render — paints one still frame of every preset to `shot_*.bmp` (used to make the montage above). Also a smoke-test of the class. |
-| `YuruClass.inc` / `YuruClass.clw` | Copies of the class (kept beside the demos so they compile standalone). The master copies live in [`../../templates/myYuru/`](../../templates/myYuru/). |
+| `YuruClass.inc` / `YuruClass.clw` / `yurucanvas.c` | Copies of the class + the Direct2D shim (kept beside the demos so they compile standalone). The master copies live in [`../../templates/myYuru/`](../../templates/myYuru/). |
 
 ## Build
 
@@ -47,6 +64,7 @@ Flow   YuruClass                       ! one object = one animation
 
   CODE
   Flow.Init(?Canvas)                    ! remember the IMAGE control (call once)
+  Flow.Backend  = Yuru:Direct2D         ! optional: GPU direct-to-window (else Yuru:BmpFile, the default)
   Flow.Preset   = Yuru:Ribbon           ! Ribbon/Seashell/Nebula/Lattice/Reeds/Plume
   Flow.InkColor = 006E760FH             ! any Clarion 00BBGGRR color (teal here)
   Flow.Speed    = 1.5                   ! time-step multiplier
