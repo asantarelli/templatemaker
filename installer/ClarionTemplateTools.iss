@@ -61,6 +61,7 @@ Source: "..\templates\*.png";              DestDir: "{#ClarionTpl}"; Tasks: clar
 Source: "..\templates\myFontChanger\*.tpl"; DestDir: "{#ClarionTpl}"; Tasks: clarion; Check: ClarionExists; Flags: ignoreversion
 Source: "..\templates\myFuncs\*.tpl";       DestDir: "{#ClarionTpl}"; Tasks: clarion; Check: ClarionExists; Flags: ignoreversion
 Source: "..\templates\myPie\*.tpl";         DestDir: "{#ClarionTpl}"; Tasks: clarion; Check: ClarionExists; Flags: ignoreversion
+Source: "..\templates\myYuru\*.tpl";        DestDir: "{#ClarionTpl}"; Tasks: clarion; Check: ClarionExists; Flags: ignoreversion
 
 ; --- optional: install the Claude skill + agent into the user's profile ---
 Source: "..\skills\*"; DestDir: "{%USERPROFILE}\.claude\skills"; Tasks: claude; Flags: ignoreversion recursesubdirs createallsubdirs

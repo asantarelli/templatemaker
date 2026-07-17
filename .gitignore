@@ -28,3 +28,8 @@ examples/**/*.edge/
 # transient render-test result files
 examples/**/_*.ini
 *_result.ini
+
+# myYuru temp render output
+examples/**/yuru*.bmp
+examples/**/shot_*.bmp
+examples/**/shot_*.png

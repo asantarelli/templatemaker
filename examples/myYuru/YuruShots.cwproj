@@ -1,0 +1,21 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{6C1F8A22-4E7B-4A29-B1D3-0F62E85C24B1}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">Win32</Platform>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>YuruShots</AssemblyName>
+    <OutputName>YuruShots</OutputName>
+    <Model>Local</Model>
+    <stack_size>32768</stack_size>
+    <CopyCore>True</CopyCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="YuruShots.clw" />
+    <Compile Include="YuruClass.clw" />
+  </ItemGroup>
+  <ItemGroup>
+    <FileDriver Include="DOS" />
+  </ItemGroup>
+  <Import Project="$(ClarionBinPath)\SoftVelocity.Build.Clarion.targets" />
+</Project>

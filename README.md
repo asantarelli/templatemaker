@@ -454,6 +454,30 @@ Full programmer's documentation — a guided tour in [`docs/my3D-template.html`]
 the **exhaustive per‑method/per‑property API reference with example code for each** in
 [`docs/my3D-reference.html`](docs/my3D-reference.html).
 
+### `templates/myYuru/` — yuruyurau animated flow-field art on a window
+Live **generative "flow-field" animation** — the pure-trigonometry particle sketches of the artist
+[@yuruyurau](https://twitter.com/yuruyurau) — playing on a Clarion **`IMAGE` control**, offline and with **no
+dependencies**. Clarion has no per-pixel canvas, so one self-contained ANSI class, **`YuruClass`**, plots
+~10,000 particles (30,000 for *Lattice*) **additively** into an in-memory **24-bit BMP** each frame — so
+overlapping points glow the way the semi-transparent p5.js originals do — writes it to a temp file and
+reloads the control (two temp files are alternated per object so the control never locks the frame being
+written). A window **`TIMER`** drives the loop. Six presets ship: **Ribbon, Seashell, Nebula, Lattice,
+Reeds** and **Plume**, each with its own natural time step; pick any **ink color** (a 10-swatch professional
+palette, no purple), the background grey, the per-point **glow**, and a **speed** multiplier. Each animation
+on a window is its **own local object**, so several can run at once. **Easiest path: a control template** —
+drag **myYuru - Yuruyurau animation** onto a window and it drops the IMAGE *and* wires the animation in one
+go, fully self-contained (it `INCLUDE`s the class itself, so no global extension is needed). Three
+registrations: the **myYuruControl** control template (drag-on, self-contained) plus the **myYuruGlobal**
+(include the class once) and **myYuru** (window) extensions, which wire the object at `EVENT:OpenWindow`,
+repaint on a private per-instance `Redraw` event, step on `EVENT:Timer`, and generate `Start:`/`Stop:`/
+`Restart:` routines you can `DO` from any embed. Copy `YuruClass.inc` + `YuruClass.clw` (**ANSI, CRLF**) to
+the redirection path; the app needs the **DOS file driver**. A hand-coded, ready-to-compile demo —
+[`examples/myYuru/YuruDemo.clw`](examples/myYuru/YuruDemo.clw) (build `YuruDemo.cwproj`) — mirrors the web app
+at `c:\ai\yuruyurau\index.html`: a live canvas with preset / ink / speed pickers and
+Start / Stop / Reset / Save buttons. The six presets, rendered by the class itself:
+
+![myYuru presets](docs/myYuru-presets.png)
+
 ## Install
 
 Copy the two folders into your Claude Code config (`~/.claude` on macOS/Linux,
