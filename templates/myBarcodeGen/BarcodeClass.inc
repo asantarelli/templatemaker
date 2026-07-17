@@ -43,20 +43,20 @@ EanPar             STRING(60)                                ! EAN first-digit p
 Construct          PROCEDURE
 Destruct           PROCEDURE
 ! ---- public methods --------------------------------------------------------
-Draw               PROCEDURE(SIGNED pImageFeq,LONG pType,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText)
-Build              PROCEDURE(LONG pType,*CSTRING pValue),BYTE
-PaintBars          PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText)
+Draw               PROCEDURE(SIGNED pImageFeq,LONG pType,STRING pValue,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText),BOOL,PROC,VIRTUAL  !Returns FALSE if failed
+Build              PROCEDURE(LONG pType,STRING pValue),BYTE,VIRTUAL
+PaintBars          PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText),VIRTUAL
 ! ---- internal --------------------------------------------------------------
 Init               PROCEDURE
 Modulo             PROCEDURE(LONG a,LONG b),LONG
 AddRun             PROCEDURE(LONG dark,LONG n)
 AddBitStr          PROCEDURE(STRING s,LONG cnt)
 AddSym39           PROCEDURE(LONG idx)
-Code39             PROCEDURE(*CSTRING data),BYTE
-Itf                PROCEDURE(*CSTRING digits),BYTE
-Code128            PROCEDURE(*CSTRING data),BYTE
-Ean13              PROCEDURE(*CSTRING digits),BYTE
-UpcA               PROCEDURE(*CSTRING digits),BYTE
-EanCheckDigit      PROCEDURE(*CSTRING d12),STRING
-UpcCheckDigit      PROCEDURE(*CSTRING d11),STRING
+Code39             PROCEDURE(STRING Data),BYTE,VIRTUAL     !0=Failed 1=Ok
+Itf                PROCEDURE(STRING Digits),BYTE,VIRTUAL
+Code128            PROCEDURE(STRING Data),BYTE,VIRTUAL
+Ean13              PROCEDURE(STRING Digits),BYTE,VIRTUAL
+UpcA               PROCEDURE(STRING Digits),BYTE,VIRTUAL
+EanCheckDigit      PROCEDURE(STRING Digits12),STRING,VIRTUAL
+UpcCheckDigit      PROCEDURE(STRING Digits11),STRING,VIRTUAL
                    END

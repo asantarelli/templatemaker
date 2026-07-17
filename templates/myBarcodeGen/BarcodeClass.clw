@@ -79,13 +79,13 @@ i  LONG
   END
 
 !=== Code 39 =================================================================
-BarcodeClass.Code39 PROCEDURE(*CSTRING data)
+BarcodeClass.Code39 PROCEDURE(STRING pData)
 s     CSTRING(256)
 i     LONG
 idx   LONG
 star  LONG
   CODE
-  s = UPPER(CLIP(data))
+  s = UPPER(CLIP(pData))
   star = INSTRING('*', SELF.C39Set, 1, 1)
   SELF.NBars = 0
   SELF.AddSym39(star)                                        ! start *
@@ -100,7 +100,7 @@ star  LONG
   RETURN 1
 
 !=== Interleaved 2 of 5 ======================================================
-BarcodeClass.Itf PROCEDURE(*CSTRING digits)
+BarcodeClass.Itf PROCEDURE(STRING pDigits)
 s   CSTRING(64)
 i   LONG
 k   LONG
@@ -109,7 +109,7 @@ sp  STRING(5)
 d1  LONG
 d2  LONG
   CODE
-  s = CLIP(digits)
+  s = CLIP(pDigits)
   LOOP i = 1 TO LEN(s)
     IF s[i] < '0' OR s[i] > '9' THEN RETURN 0.
   END
@@ -130,7 +130,7 @@ d2  LONG
   RETURN 1
 
 !=== Code 128 (auto Code B / Code C) =========================================
-BarcodeClass.Code128 PROCEDURE(*CSTRING data)
+BarcodeClass.Code128 PROCEDURE(STRING pData)
 s       CSTRING(256)
 i       LONG
 k       LONG
@@ -143,7 +143,7 @@ cc      LONG
 p       STRING(7)
 plen    LONG
   CODE
-  s = CLIP(data)
+  s = CLIP(pData)
   allDig = 1
   LOOP i = 1 TO LEN(s)
     IF s[i] < '0' OR s[i] > '9' THEN allDig = 0; BREAK.
@@ -183,46 +183,46 @@ plen    LONG
   RETURN 1
 
 !=== EAN-13 / UPC-A ==========================================================
-BarcodeClass.EanCheckDigit PROCEDURE(*CSTRING d12)
+BarcodeClass.EanCheckDigit PROCEDURE(STRING pDigits12)
 s  LONG
 i  LONG
 n  LONG
   CODE
   s = 0
-  LOOP i = 1 TO 12
-    n = VAL(d12[i]) - 48
+  LOOP i = 1 TO SIZE(pDigits12)     !Should be 12
+    n = VAL(pDigits12[i]) - 48
     IF SELF.Modulo(i,2) = 1                                  ! 1-based odd position -> weight 1
       s += n
     ELSE
       s += n * 3
     END
-  END
+  UNTIL i = 12
   RETURN CHR(48 + SELF.Modulo(10 - SELF.Modulo(s,10), 10))
 
-BarcodeClass.UpcCheckDigit PROCEDURE(*CSTRING d11)
+BarcodeClass.UpcCheckDigit PROCEDURE(STRING pDigits11)
 s  LONG
 i  LONG
 n  LONG
   CODE
   s = 0
-  LOOP i = 1 TO 11
-    n = VAL(d11[i]) - 48
+  LOOP i = 1 TO SIZE(pDigits11)     !Should be 11
+    n = VAL(pDigits11[i]) - 48
     IF SELF.Modulo(i,2) = 1                                  ! 1-based odd position -> weight 3
       s += n * 3
     ELSE
       s += n
     END
-  END
+  UNTIL i = 11
   RETURN CHR(48 + SELF.Modulo(10 - SELF.Modulo(s,10), 10))
 
-BarcodeClass.Ean13 PROCEDURE(*CSTRING digits)
+BarcodeClass.Ean13 PROCEDURE(STRING pDigits)
 s     CSTRING(20)
 i     LONG
 d     LONG
 first LONG
 par   STRING(6)
   CODE
-  s = CLIP(digits)
+  s = CLIP(pDigits)
   LOOP i = 1 TO LEN(s)
     IF s[i] < '0' OR s[i] > '9' THEN RETURN 0.
   END
@@ -252,13 +252,13 @@ par   STRING(6)
   SELF.AddBitStr('101', 3)                                   ! right guard
   RETURN 1
 
-BarcodeClass.UpcA PROCEDURE(*CSTRING digits)
+BarcodeClass.UpcA PROCEDURE(STRING pDigits)
 s    CSTRING(20)
 t    CSTRING(20)
 i    LONG
 res  BYTE
   CODE
-  s = CLIP(digits)
+  s = CLIP(pDigits)
   LOOP i = 1 TO LEN(s)
     IF s[i] < '0' OR s[i] > '9' THEN RETURN 0.
   END
@@ -273,7 +273,7 @@ res  BYTE
   RETURN res
 
 !=== dispatch + drawing ======================================================
-BarcodeClass.Build PROCEDURE(LONG pType,*CSTRING pValue)
+BarcodeClass.Build PROCEDURE(LONG pType,STRING pValue)
   CODE
   SELF.Init()
   SELF.HumanText = CLIP(pValue)
@@ -327,10 +327,10 @@ runStart LONG
     SHOW(ImgX + INT(imgW/2) - LEN(CLIP(SELF.HumanText))*2, ImgY + barH + 1, CLIP(SELF.HumanText))
   END
 
-BarcodeClass.Draw PROCEDURE(SIGNED pImageFeq,LONG pType,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText)
+BarcodeClass.Draw PROCEDURE(SIGNED pImageFeq,LONG pType,STRING pValue,LONG pDark,LONG pLight,LONG pQuiet,LONG pShowText)
 savePx LONG
   CODE
-  IF SELF.Build(pType, pValue) = 0 THEN RETURN.              ! invalid value - leave the control unchanged
+  IF SELF.Build(pType, pValue) = 0 THEN RETURN False.              ! invalid value - leave the control unchanged
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1                                          ! PIXEL units: bar edges land on exact pixels (no DLU-round seams)
   SETTARGET(,pImageFeq)
@@ -338,3 +338,4 @@ savePx LONG
   SELF.PaintBars(pImageFeq, pDark, pLight, pQuiet, pShowText)
   SETTARGET()
   0{PROP:Pixels} = savePx
+  RETURN True
