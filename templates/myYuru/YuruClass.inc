@@ -92,6 +92,7 @@ NextFrame          PROCEDURE                                 ! advance the clock
 SaveAs             PROCEDURE(STRING pFile)                   ! write the last-rendered frame to a named .bmp
 ! ---- internal -------------------------------------------------------------
 RecalcInc          PROCEDURE                                 ! derive IncR/IncG/IncB from InkColor+Brightness
+ClearBuf           PROCEDURE                                 ! fill the whole pixel buffer with BackGray (ALL() alone only does 255 bytes)
 EnsureHwnd         PROCEDURE                                 ! lazily create the Direct2D child host + target (Backend=Yuru:Direct2D)
 Plot               PROCEDURE(REAL pX,REAL pY)                ! additive plot of one point (off-canvas ignored)
 Ribbon             PROCEDURE

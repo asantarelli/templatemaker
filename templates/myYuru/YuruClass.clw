@@ -16,7 +16,8 @@ yuru_d2d_makechild    PROCEDURE(LONG,LONG,LONG,LONG,LONG),LONG,NAME('_yuru_d2d_m
 yuru_d2d_movechild    PROCEDURE(LONG,LONG,LONG,LONG,LONG),NAME('_yuru_d2d_move_child')
 yuru_d2d_destroychild PROCEDURE(LONG),NAME('_yuru_d2d_destroy_child')
 yuru_d2d_beginhwnd    PROCEDURE(LONG,LONG,LONG),LONG,NAME('_yuru_d2d_begin_hwnd')
-yuru_d2d_blit         PROCEDURE(LONG,*STRING,LONG,LONG,LONG,REAL,REAL,REAL,REAL),RAW,NAME('_yuru_d2d_blit_bgr24')
+yuru_native_frame     PROCEDURE(LONG,REAL,LONG,LONG,LONG,LONG,LONG),NAME('_yuru_native_frame') ! compute a whole frame in native C
+yuru_d2d_blitnative   PROCEDURE(LONG,REAL,REAL,REAL,REAL),NAME('_yuru_d2d_blit_native')         ! blit that frame to the GPU
 yuru_d2d_present      PROCEDURE(LONG),NAME('_yuru_d2d_present')
 yuru_d2d_end          PROCEDURE(LONG),NAME('_yuru_d2d_end')
     END
@@ -158,6 +159,24 @@ B  LONG
   END
 
 ! ---------------------------------------------------------------------------
+!  Fill the entire pixel buffer with the flat background grey. NB: Clarion's
+!  ALL(CHR(g)) only produces 255 bytes, and assigning it to the 480,000-byte
+!  buffer space-pads the rest (byte 32) - so a naive fill leaves the background
+!  at 32, NOT BackGray. Double the 255-byte seed out to cover the whole buffer.
+YuruClass.ClearBuf   PROCEDURE
+len  LONG
+cp   LONG
+  CODE
+  Pixels = ALL(CHR(SELF.BackGray))                            ! seeds the first 255 bytes
+  len = 255
+  LOOP WHILE len < NBytes
+    cp = len                                                  ! copy the correct prefix onto itself, doubling each pass
+    IF len + cp > NBytes THEN cp = NBytes - len.
+    Pixels[len+1 : len+cp] = Pixels[1 : cp]
+    len += cp
+  END
+
+! ---------------------------------------------------------------------------
 !  Lazily create the Direct2D child host window over the IMAGE control and its
 !  render target. Called from Paint on the first Direct2D frame - by then the
 !  window (and control) is realized, so PROP:Xpos/Ypos/Width/Height are valid.
@@ -193,8 +212,22 @@ YuruClass.Paint      PROCEDURE
   CODE
   IF ~SELF.Inited THEN RETURN.                                ! no control wired yet
   SELF.RecalcInc()
-  Pixels = ALL(CHR(SELF.BackGray))                            ! clear to the flat background
 
+! ---- Direct2D DIRECT-TO-WINDOW: the WHOLE frame is computed in native C and
+!      blitted straight to the GPU host - the slow Clarion particle loop below is
+!      skipped entirely. This is the real speed win, not just dropping the file.
+  IF SELF.Backend = Yuru:Direct2D AND ~SELF.D2Failed
+    SELF.EnsureHwnd()
+    IF SELF.D2Ready
+      yuru_native_frame(SELF.Preset, SELF.tVal, SELF.IncR, SELF.IncG, SELF.IncB, SELF.BackGray, CanW)
+      yuru_d2d_blitnative(SELF.HCanvas, 0, 0, SELF.HostW, SELF.HostH)
+      yuru_d2d_present(SELF.HCanvas)                          ! flip to the screen, re-open for next frame
+      RETURN
+    END
+  END
+
+! ---- classic BMP-file path (default, and the fallback if Direct2D is unavailable)
+  SELF.ClearBuf()                                             ! clear to the flat background (full buffer, not just 255 bytes)
   CASE SELF.Preset
   OF Yuru:Ribbon   ; SELF.Ribbon()
   OF Yuru:Seashell ; SELF.Seashell()
@@ -205,17 +238,6 @@ YuruClass.Paint      PROCEDURE
   ELSE             ; SELF.Ribbon()
   END
 
-! ---- Direct2D DIRECT-TO-WINDOW: blit the frame straight to the GPU host, no file
-  IF SELF.Backend = Yuru:Direct2D AND ~SELF.D2Failed
-    SELF.EnsureHwnd()
-    IF SELF.D2Ready
-      yuru_d2d_blit(SELF.HCanvas, Pixels, CanW, CanW, 1, 0, 0, SELF.HostW, SELF.HostH) ! 1 = source is bottom-up
-      yuru_d2d_present(SELF.HCanvas)                          ! flip to the screen, re-open for next frame
-      RETURN
-    END
-  END
-
-! ---- classic BMP-file path (default, and the fallback if Direct2D is unavailable)
   SELF.Toggle = 1 - SELF.Toggle                              ! flip-flop the two temp files
   CurFile = CHOOSE(SELF.Toggle = 1, SELF.FileA, SELF.FileB)
   BO:Bits = Pixels

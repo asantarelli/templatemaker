@@ -1,0 +1,21 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{9A3C2D51-7E8F-4B10-C2D4-1F73E96D35C2}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">Win32</Platform>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>YuruNativeShots</AssemblyName>
+    <OutputName>YuruNativeShots</OutputName>
+    <Model>Local</Model>
+    <stack_size>32768</stack_size>
+    <CopyCore>True</CopyCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="YuruNativeShots.clw" />
+    <None Include="yurucanvas.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <FileDriver Include="DOS" />
+  </ItemGroup>
+  <Import Project="$(ClarionBinPath)\SoftVelocity.Build.Clarion.targets" />
+</Project>

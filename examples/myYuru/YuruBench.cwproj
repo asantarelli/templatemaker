@@ -1,0 +1,22 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{B7D4E1A2-3C56-4F80-9A21-6E5F1C74B380}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">Win32</Platform>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>YuruBench</AssemblyName>
+    <OutputName>YuruBench</OutputName>
+    <Model>Local</Model>
+    <stack_size>32768</stack_size>
+    <CopyCore>True</CopyCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="YuruBench.clw" />
+    <Compile Include="YuruClass.clw" />
+    <None Include="yurucanvas.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <FileDriver Include="DOS" />
+  </ItemGroup>
+  <Import Project="$(ClarionBinPath)\SoftVelocity.Build.Clarion.targets" />
+</Project>

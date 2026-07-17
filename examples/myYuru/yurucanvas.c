@@ -44,6 +44,55 @@ extern "C" {
 HMODULE WINAPI LoadLibraryA(const char*);
 FARPROC WINAPI GetProcAddress(HMODULE, const char*);
 
+/* ---- C math ----------------------------------------------------------------
+   The Clarion C runtime does NOT link libm (sin/cos/sqrt/atan2 come back as
+   Unresolved Externals), and binding msvcrt's cdecl CRT math through function
+   pointers crashes (Clacpp defaults calls to stdcall). So we implement the four
+   functions we need in PURE C - no external calls, no linkage, no calling-
+   convention risk. Accuracy is ~1e-10 (sin/cos/sqrt) / ~1e-5 (atan2), far more
+   than enough to place particles. The engine below just calls sin()/cos()/... */
+#define YU_PI      3.14159265358979323846
+#define YU_TWO_PI  6.28318530717958647692
+#define YU_HALF_PI 1.57079632679489661923
+static double ad(double a) { return a < 0 ? -a : a; }
+
+double sqrt(double x) {                          /* range-reduced Newton-Raphson */
+    double r, m; int e, i;
+    if (x <= 0) return 0;
+    m = x; e = 0;                                /* reduce to m in [1,4): x = m * 4^e */
+    while (m >= 4) { m *= 0.25; e++; }
+    while (m <  1) { m *= 4;    e--; }
+    r = (m + 1) * 0.5;                           /* good seed on [1,4) => 6 iters = full precision */
+    for (i = 0; i < 6; i++) r = 0.5 * (r + m / r);
+    while (e > 0) { r *= 2;   e--; }             /* scale back by 2^e (cheap mults, no divides) */
+    while (e < 0) { r *= 0.5; e++; }
+    return r;
+}
+double sin(double x) {                           /* range-reduce to [-pi/2,pi/2] + Taylor */
+    double r, x2; long n;
+    n = (long)(x / YU_TWO_PI + (x >= 0 ? 0.5 : -0.5));
+    r = x - (double)n * YU_TWO_PI;               /* [-pi,pi] */
+    if      (r >  YU_HALF_PI) r =  YU_PI - r;    /* fold into [-pi/2,pi/2] */
+    else if (r < -YU_HALF_PI) r = -YU_PI - r;
+    x2 = r * r;
+    return r*(1 + x2*(-1.0/6 + x2*(1.0/120 + x2*(-1.0/5040 + x2*(1.0/362880 + x2*(-1.0/39916800))))));
+}
+double cos(double x) { return sin(x + YU_HALF_PI); }
+static double atan_unit(double z) {              /* minimax atan on |z|<=1, err ~1e-5 */
+    double z2 = z * z;
+    return z*(0.99997726 + z2*(-0.33262347 + z2*(0.19354346 + z2*(-0.11643287 + z2*(0.05265332 + z2*(-0.01172120))))));
+}
+double atan2(double y, double x) {
+    if (x == 0) { if (y > 0) return YU_HALF_PI; if (y < 0) return -YU_HALF_PI; return 0; }
+    if (ad(x) >= ad(y)) {                        /* |y/x| <= 1 */
+        double a = atan_unit(y / x);
+        if (x < 0) { if (y >= 0) a += YU_PI; else a -= YU_PI; }
+        return a;
+    }
+    if (y > 0) return  YU_HALF_PI - atan_unit(x / y);
+    return             -YU_HALF_PI - atan_unit(x / y);
+}
+
 /* ---- opaque COM interface pointers ---- */
 typedef struct ID2D1Factory      ID2D1Factory;
 typedef struct ID2D1RenderTarget ID2D1RenderTarget;
@@ -206,32 +255,153 @@ static ID2D1RenderTarget* RT(int h) {
     return g_cv[h].rt;
 }
 
-/* ---- BLIT the frame: upload the 24bpp BGR buffer as a GPU bitmap, scale it into
-   (dx,dy,dw,dh), draw. bottomup!=0 means the source rows run bottom->top (BMP
-   convention, as myYuru's buffer does). No file, no reload. ---- */
-void yuru_d2d_blit_bgr24(int h, const unsigned char* bgr, int bw, int bh, int bottomup,
-                         double dx, double dy, double dw, double dh) {
-    ID2D1RenderTarget* rt = RT(h);
-    void* bmp = 0;
-    D2D1_SIZE_U sz; D2D1_BITMAP_PROPERTIES bp; D2D1_RECT_F dst;
-    int x, y, srcrow;
-    const unsigned char* sp; unsigned char* dp;
-    if (!rt || !bgr || bw < 1 || bh < 1) return;
-    if (bw * bh > STAGE_MAX_PX) return;
-    for (y = 0; y < bh; y++) {
-        srcrow = bottomup ? (bh - 1 - y) : y;
-        sp = bgr + srcrow * bw * 3;
-        dp = g_stage + y * bw * 4;
-        for (x = 0; x < bw; x++) {
-            dp[0] = sp[0]; dp[1] = sp[1]; dp[2] = sp[2]; dp[3] = 255; /* B G R A(opaque) */
-            sp += 3; dp += 4;
-        }
+/* ==========================================================================
+ *  NATIVE PARTICLE ENGINE - the six "yuruyurau" sketches ported to C.
+ *
+ *  This is the real GPU-path win: the per-frame cost of myYuru was NEVER the
+ *  file write - it was computing 10-30k particles (trig) and plotting them
+ *  additively through Clarion string indexing (VAL(Pixels[ofs])/CHR()), which
+ *  is slow. Here the whole frame is built in native C directly into a 32-bit
+ *  PBGRA buffer, then handed to the GPU as one bitmap. The Clarion particle
+ *  loop is skipped entirely on the Direct2D backend. Formulas mirror the
+ *  Clarion YuruClass.<Preset> methods exactly (single-letter locals kept).
+ * ========================================================================== */
+static int g_frame_w = 0;   /* width of the last native frame in g_stage (square) */
+
+static unsigned char sat8(int v) { return v > 255 ? 255 : (unsigned char)v; }
+
+/* additive plot of one point into the 32-bit PBGRA buffer (top-down; off-canvas
+   ignored). Clarion assigns REAL->LONG by ROUNDING, so round here too. */
+static void plot_n(unsigned char* b, int w, double x, double y, int iR, int iG, int iB) {
+    int ix = (int)(x < 0 ? x - 0.5 : x + 0.5);
+    int iy = (int)(y < 0 ? y - 0.5 : y + 0.5);
+    int o;
+    if (ix < 0 || ix > w-1 || iy < 0 || iy > w-1) return;
+    o = (iy * w + ix) * 4;
+    b[o]   = sat8(b[o]   + iB);
+    b[o+1] = sat8(b[o+1] + iG);
+    b[o+2] = sat8(b[o+2] + iR);   /* alpha left at 255 (set on clear) */
+}
+
+static void np_ribbon(unsigned char* b, int w, double t, int iR, int iG, int iB) {
+    int i; double yY, kK, eE, dD, qQ, cC;
+    for (i = 9999; i >= 0; i--) {
+        yY = i / 235.0;
+        kK = (4 + sin(yY*2 - t)*3) * cos(i/29.0);
+        if (kK < 0.0001 && kK > -0.0001) kK = 0.0001;
+        eE = yY/8.0 - 13;
+        dD = sqrt(kK*kK + eE*eE);
+        qQ = 3*sin(kK*2) + 0.3/kK + sin(yY/25.0)*kK*(9 + 4*sin(eE*9 - dD*3 + t*2));
+        cC = dD - t;
+        plot_n(b, w, qQ + 30*cos(cC) + 200, qQ*sin(cC) + dD*39 - 220, iR, iG, iB);
     }
-    sz.w = (unsigned int)bw; sz.h = (unsigned int)bh;
+}
+static void np_seashell(unsigned char* b, int w, double t, int iR, int iG, int iB) {
+    int i; double xX, yY, kK, eE, dD, qQ, cC;
+    for (i = 9999; i >= 0; i--) {
+        xX = i % 200; yY = i / 55.0;
+        kK = 9*cos(xX/8.0);
+        eE = yY/8.0 - 12.5;
+        dD = (kK*kK + eE*eE)/99.0 + sin(t)/6.0 + 0.5;
+        qQ = 99 - eE*sin(atan2(kK,eE)*7)/dD + kK*(3 + cos(dD*dD - t)*2);
+        cC = dD/2.0 + eE/69.0 - t/16.0;
+        plot_n(b, w, qQ*sin(cC) + 200, (qQ + 19*dD)*cos(cC) + 200, iR, iG, iB);
+    }
+}
+static void np_nebula(unsigned char* b, int w, double t, int iR, int iG, int iB) {
+    int i; double xX, yY, kK, eE, dD, qQ, cC;
+    for (i = 9999; i >= 0; i--) {
+        xX = i; yY = i / 41.0;
+        kK = 5*cos(xX/19.0)*cos(yY/30.0);
+        eE = yY/8.0 - 12;
+        dD = (kK*kK + eE*eE)/59.0 + 2;
+        qQ = 4*sin(atan2(kK,eE)*9) + 9*sin(dD - t) - kK/dD*(9 + sin(dD*9 - t*16)*3);
+        cC = dD*dD/7.0 - t;
+        plot_n(b, w, qQ + 50*cos(cC) + 200, qQ*sin(cC) + dD*45 - 9, iR, iG, iB);
+    }
+}
+static void np_lattice(unsigned char* b, int w, double t, int iR, int iG, int iB) {
+    int i; double yY, kK, eE, dD, qQ, cC;
+    for (i = 29999; i >= 0; i--) {
+        yY = i / 799.0;
+        kK = 5*cos(i/48.0);
+        eE = 5*cos(yY/9.0);
+        dD = sqrt(kK*kK + eE*eE) / (6 + (i%4));
+        dD = dD*dD*dD*dD + 4;
+        qQ = kK*(3 + eE/2.0*sin(dD*8 + kK/9.0 - t)) - 3*sin(kK*dD/3.0) + ((i&1)+1)*80;
+        cC = dD - t/9.0 + (i%5);
+        plot_n(b, w, qQ*sin(cC) + 200, qQ*cos(cC - (i%2) + (i%5)*3 + 7) + 200, iR, iG, iB);
+    }
+}
+static void np_reeds(unsigned char* b, int w, double t, int iR, int iG, int iB) {
+    int i; double yY, kK, eE, dD, qQ, cC;
+    for (i = 9999; i >= 0; i--) {
+        yY = i / 790.0;
+        if (yY < 5) kK = (6 + sin((double)(((int)yY)^1))*6) * cos(i + t/4.0);
+        else        kK = (4 + cos(yY)) * cos(i + t/4.0);
+        eE = yY/3.0 - 13;
+        dD = sqrt(kK*kK + eE*eE) + sin(eE/4.0 - t)/3.0;
+        qQ = yY*kK/5.0 * (2 + sin(dD*2 + yY - t*4));
+        cC = dD/3.0 - t/2.0 + (i%2);
+        plot_n(b, w, qQ + 90*cos(cC) + 200, qQ*sin(cC) + dD*29 - 170, iR, iG, iB);
+    }
+}
+static void np_plume(unsigned char* b, int w, double t, int iR, int iG, int iB) {
+    int i; double xX, yY, kK, eE, dD, qQ, cC;
+    for (i = 9999; i >= 0; i--) {
+        xX = i; yY = i / 235.0;
+        kK = 4*cos(xX/29.0);
+        eE = yY/7.0 - 13;
+        dD = sqrt(kK*kK + eE*eE);
+        qQ = 3*sin(atan2(kK,eE)*19) + sin(yY/19.0)*kK*(9 + 2*sin(eE*9 - dD*3 + t/4.0));
+        cC = dD - t/8.0;
+        plot_n(b, w, qQ + 60*cos(cC) + 200, qQ*sin(cC) + dD*39 - 195, iR, iG, iB);
+    }
+}
+
+/* build one frame natively into g_stage (32-bit PBGRA, w x w, top-down). */
+void yuru_native_frame(int preset, double t, int iR, int iG, int iB, int backGray, int w) {
+    unsigned char* b = g_stage; int n, k;
+    if (w < 1 || w*w > STAGE_MAX_PX) return;
+    n = w * w;
+    for (k = 0; k < n; k++) {                      /* clear to the flat background, opaque */
+        b[k*4] = (unsigned char)backGray; b[k*4+1] = (unsigned char)backGray;
+        b[k*4+2] = (unsigned char)backGray; b[k*4+3] = 255;
+    }
+    switch (preset) {
+        case 2:  np_seashell(b, w, t, iR, iG, iB); break;
+        case 3:  np_nebula  (b, w, t, iR, iG, iB); break;
+        case 4:  np_lattice (b, w, t, iR, iG, iB); break;
+        case 5:  np_reeds   (b, w, t, iR, iG, iB); break;
+        case 6:  np_plume   (b, w, t, iR, iG, iB); break;
+        default: np_ribbon  (b, w, t, iR, iG, iB); break;
+    }
+    g_frame_w = w;
+}
+
+/* copy the last native frame out as 24-bit BOTTOM-UP BGR (the myYuru BMP layout),
+   for headless verification against the Clarion-rendered golden shots. */
+void yuru_native_copy24(unsigned char* dst, int w) {
+    int x, y; unsigned char* s; unsigned char* d;
+    if (!dst || w < 1 || w*w > STAGE_MAX_PX) return;
+    for (y = 0; y < w; y++) {
+        s = g_stage + y * w * 4;             /* g_stage is top-down   */
+        d = dst + (w-1 - y) * w * 3;         /* BMP rows are bottom-up */
+        for (x = 0; x < w; x++) { d[0]=s[0]; d[1]=s[1]; d[2]=s[2]; s+=4; d+=3; }
+    }
+}
+
+/* ---- BLIT the native frame in g_stage straight to the GPU target, scaled into
+   (dx,dy,dw,dh). No conversion, no file, no reload. ---- */
+void yuru_d2d_blit_native(int h, double dx, double dy, double dw, double dh) {
+    ID2D1RenderTarget* rt = RT(h); void* bmp = 0; int w = g_frame_w;
+    D2D1_SIZE_U sz; D2D1_BITMAP_PROPERTIES bp; D2D1_RECT_F dst;
+    if (!rt || w < 1) return;
+    sz.w = (unsigned int)w; sz.h = (unsigned int)w;
     bp.pixelFormat.format = 87;    /* DXGI_FORMAT_B8G8R8A8_UNORM */
     bp.pixelFormat.alphaMode = 1;  /* PREMULTIPLIED (a=255 => same as straight) */
     bp.dpiX = 0; bp.dpiY = 0;
-    if (rt->v->CreateBitmap(rt, sz, g_stage, (UINT)(bw*4), &bp, &bmp) != S_OK || !bmp) return;
+    if (rt->v->CreateBitmap(rt, sz, g_stage, (UINT)(w*4), &bp, &bmp) != S_OK || !bmp) return;
     dst.left=(float)dx; dst.top=(float)dy; dst.right=(float)(dx+dw); dst.bottom=(float)(dy+dh);
     rt->v->DrawBitmap(rt, bmp, &dst, 1.0f, 1 /*LINEAR*/, 0);
     rel(bmp);
