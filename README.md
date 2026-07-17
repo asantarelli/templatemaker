@@ -464,17 +464,31 @@ reloads the control (two temp files are alternated per object so the control nev
 written). A window **`TIMER`** drives the loop. Six presets ship: **Ribbon, Seashell, Nebula, Lattice,
 Reeds** and **Plume**, each with its own natural time step; pick any **ink color** (a 10-swatch professional
 palette, no purple), the background grey, the per-point **glow**, and a **speed** multiplier. Each animation
-on a window is its **own local object**, so several can run at once. **Easiest path: a control template** —
-drag **myYuru - Yuruyurau animation** onto a window and it drops the IMAGE *and* wires the animation in one
-go, fully self-contained (it `INCLUDE`s the class itself, so no global extension is needed). Three
-registrations: the **myYuruControl** control template (drag-on, self-contained) plus the **myYuruGlobal**
-(include the class once) and **myYuru** (window) extensions, which wire the object at `EVENT:OpenWindow`,
-repaint on a private per-instance `Redraw` event, step on `EVENT:Timer`, and generate `Start:`/`Stop:`/
-`Restart:` routines you can `DO` from any embed. Copy `YuruClass.inc` + `YuruClass.clw` (**ANSI, CRLF**) to
-the redirection path; the app needs the **DOS file driver**. A hand-coded, ready-to-compile demo —
-[`examples/myYuru/YuruDemo.clw`](examples/myYuru/YuruDemo.clw) (build `YuruDemo.cwproj`) — mirrors the web app
-at `c:\ai\yuruyurau\index.html`: a live canvas with preset / ink / speed pickers and
-Start / Stop / Reset / Save buttons. The six presets, rendered by the class itself:
+on a window is its **own local object**, so several can run at once.
+
+**Optional GPU backend (`Flow.Backend = Yuru:Direct2D`).** The BMP-file round-trip was never the real
+cost — computing 10–30k particles and plotting them additively through Clarion string indexing is. So the
+Direct2D backend does two things: it builds the **whole frame in native C** (`yuru_native_frame`, the six
+sketches ported 1:1, skipping the Clarion loop) and blits it **straight to a GPU-composited child window**
+over the IMAGE control — no temp file, no reload. On the heaviest preset (Lattice, 30k particles) that's
+**~7 → ~59 fps (8.5×)**; the lighter presets faster again. The C shim **`yurucanvas.c`** binds `d2d1.dll`
+through hand-declared COM vtables and implements `sin/cos/sqrt/atan2` in pure C, so there is still **no
+redistributable** (Direct2D ships with Windows 7+); it's compiled in automatically by a `PRAGMA` in the
+class. If the target can't be created it silently falls back to the BMP path, so the default (`Yuru:BmpFile`)
+stays pure Clarion. `SetBackend()` switches at runtime.
+
+**Easiest path: a control template** — drag **myYuru - Yuruyurau animation** onto a window and it drops the
+IMAGE *and* wires the animation in one go, fully self-contained (it `INCLUDE`s the class itself, so no global
+extension is needed). Three registrations: the **myYuruControl** control template (drag-on, self-contained)
+plus the **myYuruGlobal** (include the class once) and **myYuru** (window) extensions, which wire the object
+at `EVENT:OpenWindow`, repaint on a private per-instance `Redraw` event, step on `EVENT:Timer`, and generate
+`Start:`/`Stop:`/`Restart:` routines you can `DO` from any embed — and both templates expose a
+**Rendering → Backend** choice (BMP file or Direct2D GPU). Copy `YuruClass.inc`, `YuruClass.clw` and
+`yurucanvas.c` (**ANSI, CRLF**) to the redirection path; the app needs the **DOS file driver**. A hand-coded,
+ready-to-compile demo — [`examples/myYuru/YuruDemo.clw`](examples/myYuru/YuruDemo.clw) (build
+`YuruDemo.cwproj`) — mirrors the web app at `c:\ai\yuruyurau\index.html`: a live canvas with preset / ink /
+speed pickers, a **GPU (Direct2D)** toggle, and Start / Stop / Reset / Save buttons. The six presets, rendered
+by the class itself:
 
 ![myYuru presets](docs/myYuru-presets.png)
 
