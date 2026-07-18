@@ -775,6 +775,16 @@ take only `CSTRING`). A hand-driven test app, [`templates/myQRDraw/TestQRWnd_Ren
 exercises every setting live with **two QR codes on one window** (proving one doesn't erase the other) and a
 checkerboard for min/max module sizing. Thanks to **Carl T. Barnes** for the fix and test program.
 
+**myQRDraw & myBarcodeGen — `STRING` parameters, failure-aware `Draw`, overridable methods (v2.30.4, PRs #20 & #21).**
+The class method parameters moved from `(*CSTRING)` to standard Clarion `(STRING)` (PR #20 for `QRCodeClass`,
+PR #21 for `BarcodeClass`/`AztecClass`/`DataMatrixClass`/`Pdf417Class`) — more idiomatic for Clarion developers
+and non-breaking, since the RTL still converts a passed `CSTRING` to `STRING`. Every `Draw` now returns a
+**`BOOL`** — `False` when it can't paint (typically an invalid value for the type, e.g. a non-numeric UPC-A), so
+the caller can surface the error — and many methods became **`VIRTUAL`** so the classes can be derived and
+overridden. `EanCheckDigit`/`UpcCheckDigit` now bound their loop to the passed string's `SIZE()` to avoid an
+invalid `[slice]`. Both sets of changes were verified to compile clean against Clarion 12. Thanks again to
+**Carl T. Barnes**.
+
 To package everything (designer **+** templates **+** skill **+** agent) into one deliverable — .NET is
 bundled in, so nothing needs pre-installing on the target:
 
