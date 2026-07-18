@@ -316,7 +316,7 @@ bb   LONG
   RETURN p
 
 !=== the encoder: value -> SELF.Cells / SELF.N  (returns 1 ok, 0 = too large) =
-QRCodeClass.BuildMatrix PROCEDURE(*CSTRING pValue,LONG pEcc)
+QRCodeClass.BuildMatrix PROCEDURE(STRING pValue,LONG pEcc)
 v        LONG
 cap      LONG
 ec       LONG
@@ -569,7 +569,7 @@ c     LONG      !Column Index of Boxes 1 to N
   RETURN
 
 !=== the window helper: encode + draw into a window IMAGE control =============
-QRCodeClass.Draw PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
+QRCodeClass.Draw PROCEDURE(SIGNED pImageFeq,STRING pValue,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
 savePx LONG
 ZeroXY BOOL(True)    ! With SetTarget(Window,Image) Draw X,Y At(0,0)
 TargetNow &WINDOW
@@ -585,9 +585,3 @@ TargetNow &WINDOW
   SETTARGET()                                                 ! restore previous target
   0{PROP:Pixels} = savePx                                     ! restore the window's unit mode
   RETURN True
-
-QRCodeClass.Draw PROCEDURE(SIGNED pImageFeq,STRING pValueStr,LONG pEcc,LONG pDark,LONG pLight,LONG pQuiet)
-CStrValue CSTRING(SIZE(pValueStr)+2)    !Imo a PITA that Draw took CString :( so this overload allows STRING
-    CODE
-    CStrValue=CLIP(pValueStr)
-    RETURN SELF.Draw(pImageFeq, CStrValue, pEcc,pDark,pLight,pQuiet)
