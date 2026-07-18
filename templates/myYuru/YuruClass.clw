@@ -14,6 +14,7 @@ ModI     PROCEDURE(LONG pA,LONG pB),LONG                     ! integer modulo (C
 yuru_d2d_init         PROCEDURE(),LONG,NAME('_yuru_d2d_init')
 yuru_d2d_makechild    PROCEDURE(LONG,LONG,LONG,LONG,LONG),LONG,NAME('_yuru_d2d_make_child')
 yuru_d2d_movechild    PROCEDURE(LONG,LONG,LONG,LONG,LONG),NAME('_yuru_d2d_move_child')
+yuru_d2d_resize       PROCEDURE(LONG,LONG,LONG),NAME('_yuru_d2d_resize')
 yuru_d2d_destroychild PROCEDURE(LONG),NAME('_yuru_d2d_destroy_child')
 yuru_d2d_beginhwnd    PROCEDURE(LONG,LONG,LONG),LONG,NAME('_yuru_d2d_begin_hwnd')
 yuru_native_frame     PROCEDURE(LONG,REAL,LONG,LONG,LONG,LONG,LONG),NAME('_yuru_native_frame') ! compute a whole frame in native C
@@ -204,8 +205,39 @@ save LONG
     yuru_d2d_destroychild(SELF.HwndHost) ; SELF.HwndHost = 0
     SELF.D2Failed = 1 ; RETURN
   END
+  SELF.HostX = wx ; SELF.HostY = wy
   SELF.HostW = ww ; SELF.HostH = wh
   SELF.D2Ready = 1
+
+! ---------------------------------------------------------------------------
+!  Follow the IMAGE control when the window is resized (or the control is moved
+!  by anchoring). EnsureHwnd sizes the Direct2D host ONCE; without this the host
+!  window and its GPU back buffer stay locked at that first size, so a grown
+!  control just shows the animation boxed in its original rectangle. Re-read the
+!  control's pixel rect each frame and, only when it actually changed, move the
+!  child host and resize the render target to match. Cheap enough per frame.
+YuruClass.SyncSize   PROCEDURE
+wx   LONG
+wy   LONG
+ww   LONG
+wh   LONG
+save LONG
+  CODE
+  IF ~SELF.D2Ready THEN RETURN.
+  save = 0{PROP:Pixels}                                       ! read the control rect in PIXELS
+  0{PROP:Pixels} = 1
+  wx = SELF.Feq{PROP:Xpos} ; wy = SELF.Feq{PROP:Ypos}
+  ww = SELF.Feq{PROP:Width}; wh = SELF.Feq{PROP:Height}
+  0{PROP:Pixels} = save
+  IF ww < 4 OR wh < 4 THEN RETURN.                            ! control not realized - leave the host as-is
+  IF wx = SELF.HostX AND wy = SELF.HostY |
+     AND ww = SELF.HostW AND wh = SELF.HostH THEN RETURN.     ! nothing moved or resized
+  yuru_d2d_movechild(SELF.HwndHost, wx, wy, ww, wh)           ! reposition/resize the child host window
+  IF ww <> SELF.HostW OR wh <> SELF.HostH
+    yuru_d2d_resize(SELF.HCanvas, ww, wh)                     ! resize the GPU back buffer to match (skip on pure moves)
+  END
+  SELF.HostX = wx ; SELF.HostY = wy
+  SELF.HostW = ww ; SELF.HostH = wh
 
 ! ---------------------------------------------------------------------------
 YuruClass.Paint      PROCEDURE
@@ -219,6 +251,7 @@ YuruClass.Paint      PROCEDURE
   IF SELF.Backend = Yuru:Direct2D AND ~SELF.D2Failed
     SELF.EnsureHwnd()
     IF SELF.D2Ready
+      SELF.SyncSize()                                          ! follow window resizes/moves before drawing
       yuru_native_frame(SELF.Preset, SELF.tVal, SELF.IncR, SELF.IncG, SELF.IncB, SELF.BackGray, CanW)
       yuru_d2d_blitnative(SELF.HCanvas, 0, 0, SELF.HostW, SELF.HostH)
       yuru_d2d_present(SELF.HCanvas)                          ! flip to the screen, re-open for next frame

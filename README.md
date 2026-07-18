@@ -475,7 +475,10 @@ over the IMAGE control — no temp file, no reload. On the heaviest preset (Latt
 through hand-declared COM vtables and implements `sin/cos/sqrt/atan2` in pure C, so there is still **no
 redistributable** (Direct2D ships with Windows 7+); it's compiled in automatically by a `PRAGMA` in the
 class. If the target can't be created it silently falls back to the BMP path, so the default (`Yuru:BmpFile`)
-stays pure Clarion. `SetBackend()` switches at runtime.
+stays pure Clarion. `SetBackend()` switches at runtime. The GPU host **follows the IMAGE control** — when the
+window (and an anchored control) is resized, each frame re-reads the control's pixel rect and moves/resizes the
+child host **and** its render target to match, so the art fills the grown control instead of staying boxed in
+its original size.
 
 **Easiest path: a control template** — drag **myYuru - Yuruyurau animation** onto a window and it drops the
 IMAGE *and* wires the animation in one go, fully self-contained (it `INCLUDE`s the class itself, so no global
@@ -784,6 +787,15 @@ the caller can surface the error — and many methods became **`VIRTUAL`** so th
 overridden. `EanCheckDigit`/`UpcCheckDigit` now bound their loop to the passed string's `SIZE()` to avoid an
 invalid `[slice]`. Both sets of changes were verified to compile clean against Clarion 12. Thanks again to
 **Carl T. Barnes**.
+
+**myYuru — Direct2D backend now follows window resizes (v2.30.5).** The GPU direct-to-window host was sized
+**once**, lazily, on the first Direct2D frame and then frozen: when the window (and an anchored `IMAGE`
+control) grew, the child host window and its render target kept their original size, so the animation stayed
+boxed in the old rectangle. The class now re-reads the control's pixel rect each Direct2D frame and, only when
+it actually changed, moves/resizes the child host (`yuru_d2d_move_child`) **and** resizes the GPU back buffer
+(new `yuru_d2d_resize` → `ID2D1HwndRenderTarget::Resize`, bound at vtable index 58 and called outside the
+`BeginDraw`/`EndDraw` pair). The template also repaints on `EVENT:Sized` so a paused animation re-syncs at
+once. The BMP-file backend was never affected (the `IMAGE` control scales itself).
 
 To package everything (designer **+** templates **+** skill **+** agent) into one deliverable — .NET is
 bundled in, so nothing needs pre-installing on the target:

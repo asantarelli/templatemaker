@@ -68,6 +68,8 @@ Backend            BYTE                                      ! Yuru:BmpFile (def
 ! ---- Direct2D direct-to-window state (only used when Backend=Yuru:Direct2D) -
 HwndHost           LONG                                      ! child host HWND over the IMAGE control
 HCanvas            LONG                                      ! Direct2D render-target handle
+HostX              LONG                                      ! child host position in pixels (=the control's pixel rect)
+HostY              LONG
 HostW              LONG                                      ! child host size in pixels (=the control's pixel rect)
 HostH              LONG
 D2Ready            BYTE                                      ! host + target created and live
@@ -94,6 +96,7 @@ SaveAs             PROCEDURE(STRING pFile)                   ! write the last-re
 RecalcInc          PROCEDURE                                 ! derive IncR/IncG/IncB from InkColor+Brightness
 ClearBuf           PROCEDURE                                 ! fill the whole pixel buffer with BackGray (ALL() alone only does 255 bytes)
 EnsureHwnd         PROCEDURE                                 ! lazily create the Direct2D child host + target (Backend=Yuru:Direct2D)
+SyncSize           PROCEDURE                                 ! follow the IMAGE control when the window resizes/moves (Direct2D)
 Plot               PROCEDURE(REAL pX,REAL pY)                ! additive plot of one point (off-canvas ignored)
 Ribbon             PROCEDURE
 Seashell           PROCEDURE

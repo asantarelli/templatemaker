@@ -110,6 +110,8 @@ Redraw:%myYuruObject EQUATE(EVENT:User + 210 + %ActiveTemplateInstance) ! privat
     END
   OF Redraw:%myYuruObject
     %myYuruObject.Paint()
+  OF EVENT:Sized
+    POST(Redraw:%myYuruObject)                               ! re-sync the Direct2D host to the new control size at once
   OF EVENT:Timer
     IF Run:%myYuruObject
       %myYuruObject.NextFrame()                              ! advance the clock + repaint
@@ -204,6 +206,8 @@ Redraw:%myYuruCtlObject EQUATE(EVENT:User + 210 + %ActiveTemplateInstance) ! pri
     END
   OF Redraw:%myYuruCtlObject
     %myYuruCtlObject.Paint()
+  OF EVENT:Sized
+    POST(Redraw:%myYuruCtlObject)                            ! re-sync the Direct2D host to the new control size at once
   OF EVENT:Timer
     IF Run:%myYuruCtlObject
       %myYuruCtlObject.NextFrame()

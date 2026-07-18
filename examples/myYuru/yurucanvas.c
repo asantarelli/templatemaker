@@ -154,6 +154,11 @@ typedef struct {
     void (WINAPI* Clear)(ID2D1RenderTarget*, const D2D1_COLOR_F*);     /* 47 */
     void (WINAPI* BeginDraw)(ID2D1RenderTarget*);                     /* 48 */
     HRESULT (WINAPI* EndDraw)(ID2D1RenderTarget*, void*, void*);      /* 49 */
+    void* GetPixelFormat; void* SetDpi; void* GetDpi;                 /* 50..52 */
+    void* GetSize; void* GetPixelSize; void* GetMaximumBitmapSize;    /* 53..55 */
+    void* IsSupported;                                                /* 56 */
+    void* CheckWindowState;                                           /* 57 (ID2D1HwndRenderTarget) */
+    HRESULT (WINAPI* Resize)(ID2D1RenderTarget*, const D2D1_SIZE_U*); /* 58 (ID2D1HwndRenderTarget) */
 } ID2D1RenderTargetVtbl;
 struct ID2D1RenderTarget { ID2D1RenderTargetVtbl* v; };
 
@@ -405,6 +410,23 @@ void yuru_d2d_blit_native(int h, double dx, double dy, double dw, double dh) {
     dst.left=(float)dx; dst.top=(float)dy; dst.right=(float)(dx+dw); dst.bottom=(float)(dy+dh);
     rt->v->DrawBitmap(rt, bmp, &dst, 1.0f, 1 /*LINEAR*/, 0);
     rel(bmp);
+}
+
+/* ---- resize the HWND render target's back buffer when the host window changes
+   size. Direct2D forbids Resize() inside a BeginDraw/EndDraw pair, so close the
+   current draw first, resize, then re-open (keeping the same "always drawing"
+   invariant that begin_hwnd/present maintain). Without this the target keeps its
+   original pixel size and the frame stays boxed into it when the control grows. */
+void yuru_d2d_resize(int h, int w, int hgt) {
+    ID2D1RenderTarget* rt = RT(h);
+    D2D1_SIZE_U sz;
+    if (!rt) return;
+    if (w < 1) w = 1;  if (hgt < 1) hgt = 1;
+    if (g_cv[h].drawing) { rt->v->EndDraw(rt, 0, 0); g_cv[h].drawing = 0; }
+    sz.w = (unsigned int)w; sz.h = (unsigned int)hgt;
+    rt->v->Resize(rt, &sz);
+    g_cv[h].w = w; g_cv[h].h = hgt;
+    rt->v->BeginDraw(rt); g_cv[h].drawing = 1;
 }
 
 /* present the window canvas: EndDraw flips it to the screen, then re-open for next frame */
