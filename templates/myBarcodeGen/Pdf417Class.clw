@@ -126,7 +126,7 @@ i  LONG
   RETURN x
 
 !=== the encoder: value -> SELF.Cells / NRows / NCols  (1 ok, 0 = too large) ===
-Pdf417Class.Build PROCEDURE(*CSTRING pValue)
+Pdf417Class.Build PROCEDURE(STRING pValue)
 s       CSTRING(2200)
 n       LONG
 i       LONG
@@ -303,10 +303,10 @@ runStart LONG
     END
   END
 
-Pdf417Class.Draw PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet)
+Pdf417Class.Draw PROCEDURE(SIGNED pImageFeq,STRING pValue,LONG pDark,LONG pLight,LONG pQuiet)
 savePx LONG
   CODE
-  IF SELF.Build(pValue) = 0 THEN RETURN.
+  IF SELF.Build(pValue) = 0 THEN RETURN False.
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1                                          ! PIXEL units: module BOXes abut exactly (no DLU-round seams)
   SETTARGET(,pImageFeq)
@@ -314,3 +314,4 @@ savePx LONG
   SELF.Paint(pImageFeq, pDark, pLight, pQuiet)
   SETTARGET()
   0{PROP:Pixels} = savePx
+  RETURN True

@@ -174,7 +174,7 @@ c   LONG
   END
 
 !=== the encoder: value -> SELF.Cells / SELF.N  (1 ok, 0 = too large) =========
-DataMatrixClass.Build PROCEDURE(*CSTRING pValue)
+DataMatrixClass.Build PROCEDURE(STRING pValue)
 s       CSTRING(256)
 i       LONG
 c       LONG
@@ -284,10 +284,10 @@ c     LONG
     END
   END
 
-DataMatrixClass.Draw PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet)
+DataMatrixClass.Draw PROCEDURE(SIGNED pImageFeq,STRING pValue,LONG pDark,LONG pLight,LONG pQuiet)
 savePx LONG
   CODE
-  IF SELF.Build(pValue) = 0 THEN RETURN.
+  IF SELF.Build(pValue) = 0 THEN RETURN False.
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1                                          ! PIXEL units: module BOXes abut exactly (no DLU-round seams)
   SETTARGET(,pImageFeq)
@@ -295,3 +295,4 @@ savePx LONG
   SELF.Paint(pImageFeq, pDark, pLight, pQuiet)
   SETTARGET()
   0{PROP:Pixels} = savePx
+  RETURN True

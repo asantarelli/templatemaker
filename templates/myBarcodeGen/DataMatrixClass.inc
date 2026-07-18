@@ -38,9 +38,9 @@ SzEc               LONG,DIM(9)                                !   EC codewords
 Construct          PROCEDURE
 Destruct           PROCEDURE
 ! ---- public ----------------------------------------------------------------
-Draw               PROCEDURE(SIGNED pImageFeq,*CSTRING pValue,LONG pDark,LONG pLight,LONG pQuiet)
-Build              PROCEDURE(*CSTRING pValue),BYTE
-Paint              PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet)
+Draw               PROCEDURE(SIGNED pImageFeq,STRING pValue,LONG pDark,LONG pLight,LONG pQuiet),BOOL,PROC,VIRTUAL  !Returns FALSE if failed
+Build              PROCEDURE(STRING pValue),BYTE,VIRTUAL
+Paint              PROCEDURE(SIGNED pImageFeq,LONG pDark,LONG pLight,LONG pQuiet),VIRTUAL
 ! ---- internal --------------------------------------------------------------
 Init               PROCEDURE
 Modulo             PROCEDURE(LONG a,LONG b),LONG
