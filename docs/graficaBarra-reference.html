@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>graficaBarra — Developer's Reference / Referencia del desarrollador</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 30px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .callout b{display:block;margin-bottom:2px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.15)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>graficaBarra</h1><span class="en">Developer's Reference · v1.0</span><span class="es">Referencia del desarrollador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Concepts</span><span class="es">Conceptos</span></div>
+    <a href="#how" class="h2"><span class="en">How the class works</span><span class="es">Cómo funciona la clase</span></a>
+    <a href="#scale" class="h2"><span class="en">Scale &amp; coordinates</span><span class="es">Escala y coordenadas</span></a>
+    <a href="#modes" class="h2"><span class="en">Window vs. report</span><span class="es">Ventana vs. informe</span></a>
+    <a href="#text" class="h2"><span class="en">Text metrics</span><span class="es">Métricas de texto</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#api" class="h2"><span class="en">Class API</span><span class="es">API de la clase</span></a>
+    <a href="#palette" class="h2"><span class="en">Color palette</span><span class="es">Paleta de colores</span></a>
+    <div class="grp"><span class="en">Examples</span><span class="es">Ejemplos</span></div>
+    <a href="#ex-window" class="h2"><span class="en">Window graph</span><span class="es">Gráfico en ventana</span></a>
+    <a href="#ex-report" class="h2"><span class="en">Report graph (PDF)</span><span class="es">Gráfico en informe (PDF)</span></a>
+    <a href="#ex-data" class="h2"><span class="en">From a data file</span><span class="es">Desde un archivo</span></a>
+    <a href="#ex-standalone" class="h2"><span class="en">Without the template</span><span class="es">Sin la plantilla</span></a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>graficaBarra</h1>
+      <p class="en">Developer's reference for the <code>GraficaBarraClass</code> bar-graph engine — how it
+      works and how to drive it from code, on Clarion windows and reports.</p>
+      <p class="es">Referencia del desarrollador para el motor de gráficos de barras
+      <code>GraficaBarraClass</code> — cómo funciona y cómo usarlo desde código, en ventanas e informes de
+      Clarion.</p>
+      <span class="pill">Pure Clarion · BOX / LINE / SHOW · window + report · vector PDF</span>
+    </header>
+
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="body">
+
+<section id="over">
+  <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
+  <p class="lead en"><code>GraficaBarraClass</code> is a single, self-contained ANSI Clarion class that
+  draws a simple vertical bar graph using only the native graphics primitives <code>BOX</code>,
+  <code>LINE</code> and <code>SHOW</code>. It runs the same on a <b>window</b> (drawing into an
+  <code>IMAGE</code> control) and on a <b>report</b> (drawing straight into the printed band). On a report
+  the output is <b>vector, never a bitmap</b>, so PDF exports stay tiny and print sharp at any resolution.</p>
+  <p class="lead es"><code>GraficaBarraClass</code> es una única clase ANSI de Clarion, autónoma, que
+  dibuja un gráfico de barras verticales sencillo usando solo las primitivas gráficas nativas
+  <code>BOX</code>, <code>LINE</code> y <code>SHOW</code>. Funciona igual en una <b>ventana</b> (dibujando
+  en un control <code>IMAGE</code>) y en un <b>informe</b> (dibujando directamente en la banda impresa). En
+  un informe la salida es <b>vectorial, nunca un mapa de bits</b>, por lo que los PDF quedan diminutos y se
+  imprimen nítidos a cualquier resolución.</p>
+
+  <p class="en">You can use it two ways: through the <b>graficaBarra template</b> (which wires everything for
+  you — see <a href="graficaBarra-template.html">the template docs</a>), or <b>directly from code</b> as
+  shown here. Either way the object is plain procedure data and every property/method below is available.</p>
+  <p class="es">Puede usarla de dos maneras: mediante la <b>plantilla graficaBarra</b> (que conecta todo por
+  usted — vea <a href="graficaBarra-template.html">la documentación de la plantilla</a>), o
+  <b>directamente desde código</b> como se muestra aquí. En ambos casos el objeto es simplemente un dato del
+  procedimiento y cada propiedad/método de abajo está disponible.</p>
+
+  <h3><span class="en">The two files</span><span class="es">Los dos archivos</span></h3>
+  <table>
+    <tr><th><span class="en">File</span><span class="es">Archivo</span></th><th><span class="en">Contents</span><span class="es">Contenido</span></th></tr>
+    <tr><td><code>GraficaBarraClass.inc</code></td>
+        <td><span class="en">The class declaration: properties, the bar arrays, and the method prototypes. <code>INCLUDE</code> it once.</span>
+            <span class="es">La declaración de la clase: propiedades, los arreglos de barras y los prototipos de métodos. Hágale <code>INCLUDE</code> una vez.</span></td></tr>
+    <tr><td><code>GraficaBarraClass.clw</code></td>
+        <td><span class="en">The implementation (scale math + drawing). Auto-compiled via <code>LINK</code> — no project edit needed.</span>
+            <span class="es">La implementación (cálculo de escala + dibujo). Se compila automáticamente mediante <code>LINK</code> — sin editar el proyecto.</span></td></tr>
+  </table>
+  <div class="warn en"><b>Store them as ANSI</b> Both files must be saved ANSI (Windows-1252), not UTF-8,
+  with CRLF line ends, and placed on the Clarion redirection path (your app folder or
+  <code>\clarion12\libsrc\win</code>).</div>
+  <div class="warn es"><b>Guárdelos como ANSI</b> Ambos archivos deben guardarse en ANSI (Windows-1252), no
+  UTF-8, con fin de línea CRLF, y colocarse en la ruta de redirección de Clarion (la carpeta de su
+  aplicación o <code>\clarion12\libsrc\win</code>).</div>
+</section>
+
+<section id="how">
+  <h2><span class="en">How the class works</span><span class="es">Cómo funciona la clase</span></h2>
+  <p class="en">The design is deliberately small. You feed it <b>bars</b> (a label, a value, and an optional
+  color) and set a few <b>look</b> properties; then a single method, <code>Paint</code>, does all the
+  drawing at the current graphics target. Everything is stored in the object, so it can redraw itself at any
+  time (a window resize, a new report band) without you re-supplying the data.</p>
+  <p class="es">El diseño es deliberadamente pequeño. Usted le proporciona <b>barras</b> (una etiqueta, un
+  valor y un color opcional) y ajusta algunas propiedades de <b>apariencia</b>; luego un único método,
+  <code>Paint</code>, hace todo el dibujo en el destino gráfico actual. Todo se guarda en el objeto, de modo
+  que puede redibujarse en cualquier momento (al redimensionar una ventana, en una nueva banda del informe)
+  sin que usted vuelva a suministrar los datos.</p>
+
+  <h3><span class="en">The drawing pipeline</span><span class="es">El flujo de dibujo</span></h3>
+  <ol>
+    <li class="en"><b>Measure.</b> <code>GETPOSITION</code> reads the target control's rectangle (x, y, width, height).</li>
+    <li class="es"><b>Medir.</b> <code>GETPOSITION</code> lee el rectángulo del control destino (x, y, ancho, alto).</li>
+    <li class="en"><b>Reserve margins</b> for the title, the value labels above the bars, the scale numbers on the left, and the bar labels below — what's left is the <em>plot rectangle</em>.</li>
+    <li class="es"><b>Reservar márgenes</b> para el título, los valores sobre las barras, los números de escala a la izquierda y las etiquetas debajo — lo que queda es el <em>rectángulo de trazado</em>.</li>
+    <li class="en"><b>Compute the value axis</b> (see below) to get the low/high range mapped onto the plot height.</li>
+    <li class="es"><b>Calcular el eje de valores</b> (ver abajo) para obtener el rango bajo/alto mapeado sobre la altura del trazado.</li>
+    <li class="en"><b>Draw</b> gridlines + scale numbers, then one filled <code>BOX</code> per bar, the value/label text with <code>SHOW</code>, and finally the axis + zero baseline with <code>LINE</code>.</li>
+    <li class="es"><b>Dibujar</b> las líneas de cuadrícula + números de escala, luego un <code>BOX</code> relleno por barra, el texto de valor/etiqueta con <code>SHOW</code>, y por último el eje + línea base cero con <code>LINE</code>.</li>
+  </ol>
+  <p class="en">Because bars are drawn as vector <code>BOX</code> records and text as <code>SHOW</code>, the
+  report engine carries them into the PDF as vectors — that is the whole reason to prefer this over drawing
+  a chart into an image.</p>
+  <p class="es">Como las barras se dibujan como registros vectoriales <code>BOX</code> y el texto como
+  <code>SHOW</code>, el motor de informes los lleva al PDF como vectores — esa es toda la razón para
+  preferir esto en lugar de dibujar un gráfico dentro de una imagen.</p>
+</section>
+
+<section id="scale">
+  <h2><span class="en">Scale &amp; coordinates</span><span class="es">Escala y coordenadas</span></h2>
+  <h3><span class="en">Automatic "nice" scale</span><span class="es">Escala "redonda" automática</span></h3>
+  <p class="en">With <code>AutoScale = 1</code> (the default) the class scans your bar values and rounds the
+  maximum <em>up</em> to the nearest 1, 2 or 5 × 10<sup>k</sup> — so 42 → 50, 71 → 100, 640 → 1000. If any
+  value is negative, the minimum is rounded the same way in the other direction and the bars hang below a
+  zero baseline. Call <code>SetRange(min, max)</code> to fix the scale yourself (this turns AutoScale off).</p>
+  <p class="es">Con <code>AutoScale = 1</code> (por defecto) la clase examina los valores de las barras y
+  redondea el máximo <em>hacia arriba</em> al 1, 2 o 5 × 10<sup>k</sup> más cercano — así 42 → 50, 71 → 100,
+  640 → 1000. Si algún valor es negativo, el mínimo se redondea igual en la otra dirección y las barras
+  cuelgan por debajo de una línea base cero. Llame a <code>SetRange(min, max)</code> para fijar la escala
+  usted mismo (esto desactiva AutoScale).</p>
+
+  <h3><span class="en">Value → pixel mapping</span><span class="es">Mapeo valor → píxel</span></h3>
+  <p class="en">A value <code>v</code> maps to a y-coordinate inside the plot rectangle of height
+  <code>ph</code> (top <code>py</code>) as:</p>
+  <p class="es">Un valor <code>v</code> se mapea a una coordenada y dentro del rectángulo de trazado de
+  altura <code>ph</code> (borde superior <code>py</code>) como:</p>
+  <pre>y = py + ph - INT(ph * (v - lo) / (hi - lo))</pre>
+  <p class="en">The zero baseline sits where <code>v = 0</code> maps (at the bottom when all values are
+  positive). Each bar is a <code>BOX</code> from the baseline to its value. Screen Y grows <em>downward</em>,
+  which is why the formula subtracts from the bottom.</p>
+  <p class="es">La línea base cero está donde se mapea <code>v = 0</code> (en el fondo cuando todos los
+  valores son positivos). Cada barra es un <code>BOX</code> desde la línea base hasta su valor. La Y de
+  pantalla crece <em>hacia abajo</em>, por eso la fórmula resta desde el fondo.</p>
+  <div class="note en"><b>Same code, both targets</b> All coordinates come from <code>GETPOSITION</code> of
+  the target control, so the identical <code>Paint</code> serves a window (coordinates in dialog units) and
+  a report band (coordinates in 1/1000 inch). Only the text cell size differs — see below.</div>
+  <div class="note es"><b>Mismo código, ambos destinos</b> Todas las coordenadas provienen de
+  <code>GETPOSITION</code> del control destino, así que el mismo <code>Paint</code> sirve para una ventana
+  (coordenadas en unidades de diálogo) y para una banda de informe (coordenadas en 1/1000 de pulgada). Solo
+  cambia el tamaño de celda de texto — vea abajo.</div>
+</section>
+
+<section id="modes">
+  <h2><span class="en">Window vs. report — the <code>pWindowMode</code> flag</span><span class="es">Ventana vs. informe — el parámetro <code>pWindowMode</code></span></h2>
+  <p class="en">The difference between the two targets is one argument to <code>Paint</code>:</p>
+  <p class="es">La diferencia entre los dos destinos es un argumento de <code>Paint</code>:</p>
+  <table>
+    <tr><th><span class="en">Call</span><span class="es">Llamada</span></th><th><span class="en">Meaning</span><span class="es">Significado</span></th></tr>
+    <tr><td><code>Draw(win, ?img)</code></td>
+        <td><span class="en"><b>Window.</b> Does <code>SETTARGET(win, ?img)</code>, then <code>Paint(?img, 1)</code>. Mode 1 clears the image (<code>BLANK</code>) and uses origin 0,0 — the graphics belong to the image so they survive a repaint or resize.</span>
+            <span class="es"><b>Ventana.</b> Hace <code>SETTARGET(win, ?img)</code>, luego <code>Paint(?img, 1)</code>. El modo 1 borra la imagen (<code>BLANK</code>) y usa el origen 0,0 — los gráficos pertenecen a la imagen, por lo que sobreviven a un repintado o redimensión.</span></td></tr>
+    <tr><td><code>Paint(?place)</code></td>
+        <td><span class="en"><b>Report.</b> Mode 0 (default): no clear, and it keeps the band offset from <code>GETPOSITION</code>, drawing directly onto the band already targeted with <code>SETTARGET(Report)</code>.</span>
+            <span class="es"><b>Informe.</b> Modo 0 (por defecto): sin borrado, y mantiene el desplazamiento de la banda de <code>GETPOSITION</code>, dibujando directamente sobre la banda ya seleccionada con <code>SETTARGET(Report)</code>.</span></td></tr>
+  </table>
+  <p class="en">So on a report you always do the <code>SETTARGET</code> yourself around the <code>Paint</code>
+  call, and you use any band control (an empty <code>IMAGE</code> or a <code>BOX</code>) purely as a
+  positioning placeholder — the graph is drawn <em>over</em> that rectangle, and you hide the placeholder so
+  it never prints itself.</p>
+  <p class="es">Así que en un informe siempre hace el <code>SETTARGET</code> usted mismo alrededor de la
+  llamada a <code>Paint</code>, y usa cualquier control de banda (un <code>IMAGE</code> vacío o un
+  <code>BOX</code>) puramente como marcador de posición — el gráfico se dibuja <em>sobre</em> ese
+  rectángulo, y usted oculta el marcador para que nunca se imprima solo.</p>
+</section>
+
+<section id="text">
+  <h2><span class="en">Text metrics</span><span class="es">Métricas de texto</span></h2>
+  <p class="en">The class centers labels and right-aligns scale numbers by estimating a <b>character cell
+  size</b>, because there is no portable font-measuring call that works identically on a window DC and a
+  report band. The defaults assume roughly a 10-point font:</p>
+  <p class="es">La clase centra las etiquetas y alinea a la derecha los números de escala estimando un
+  <b>tamaño de celda de carácter</b>, porque no existe una llamada portable de medición de fuente que
+  funcione idénticamente en un DC de ventana y en una banda de informe. Los valores por defecto suponen
+  aproximadamente una fuente de 10 puntos:</p>
+  <table>
+    <tr><th><span class="en">Target</span><span class="es">Destino</span></th><th><span class="en">Cell width</span><span class="es">Ancho de celda</span></th><th><span class="en">Cell height</span><span class="es">Alto de celda</span></th></tr>
+    <tr><td><span class="en">Window (dialog units)</span><span class="es">Ventana (unidades de diálogo)</span></td><td>4</td><td>9</td></tr>
+    <tr><td><span class="en">Report (1/1000 inch)</span><span class="es">Informe (1/1000 pulgada)</span></td><td>55</td><td>130</td></tr>
+  </table>
+  <p class="en">If your report uses a noticeably larger or smaller band font, override the estimate before
+  printing:</p>
+  <p class="es">Si su informe usa una fuente de banda notablemente más grande o pequeña, sobrescriba la
+  estimación antes de imprimir:</p>
+  <pre><span class="c">! ~14pt report font: wider + taller cells</span>
+RptGraph.TextW = <span class="t">78</span>
+RptGraph.TextH = <span class="t">185</span></pre>
+</section>
+
+<section id="api">
+  <h2><span class="en">Class API</span><span class="es">API de la clase</span></h2>
+  <h3><span class="en">Methods</span><span class="es">Métodos</span></h3>
+  <table>
+    <tr><th><span class="en">Method</span><span class="es">Método</span></th><th><span class="en">Description</span><span class="es">Descripción</span></th></tr>
+    <tr><td><code>AddBar(pLabel, pValue [,pColor])</code></td>
+        <td><span class="en">Append a bar (max 48). Omit <code>pColor</code> (or pass <code>-1</code>/<code>COLOR:None</code>) for the auto palette; otherwise pass a Clarion BGR long.</span>
+            <span class="es">Agrega una barra (máx. 48). Omita <code>pColor</code> (o pase <code>-1</code>/<code>COLOR:None</code>) para la paleta automática; de lo contrario pase un long BGR de Clarion.</span></td></tr>
+    <tr><td><code>ClearBars()</code></td>
+        <td><span class="en">Remove all bars (call before re-loading from data).</span>
+            <span class="es">Elimina todas las barras (llame antes de recargar desde datos).</span></td></tr>
+    <tr><td><code>SetRange(pMin, pMax)</code></td>
+        <td><span class="en">Fix the value scale and turn <code>AutoScale</code> off.</span>
+            <span class="es">Fija la escala de valores y desactiva <code>AutoScale</code>.</span></td></tr>
+    <tr><td><code>Demo()</code></td>
+        <td><span class="en">Load six sample bars — a quick self-test.</span>
+            <span class="es">Carga seis barras de ejemplo — una prueba rápida.</span></td></tr>
+    <tr><td><code>Draw(pWin, pImageFeq)</code></td>
+        <td><span class="en"><b>Window path.</b> Targets the IMAGE, clears it, paints. Call from any embed after data changes.</span>
+            <span class="es"><b>Ruta de ventana.</b> Selecciona el IMAGE, lo borra, dibuja. Llame desde cualquier embed tras cambiar los datos.</span></td></tr>
+    <tr><td><code>Paint(pFeq [,pWindowMode])</code></td>
+        <td><span class="en"><b>Report path.</b> Paints at <code>pFeq</code>'s rectangle into the <em>current</em> target. Default mode 0 = no clear, keep the band offset.</span>
+            <span class="es"><b>Ruta de informe.</b> Dibuja en el rectángulo de <code>pFeq</code> en el destino <em>actual</em>. Modo 0 por defecto = sin borrado, mantiene el desplazamiento de banda.</span></td></tr>
+  </table>
+  <h3><span class="en">Properties</span><span class="es">Propiedades</span></h3>
+  <table>
+    <tr><th><span class="en">Property</span><span class="es">Propiedad</span></th><th><span class="en">Type / default</span><span class="es">Tipo / por defecto</span></th><th><span class="en">Meaning</span><span class="es">Significado</span></th></tr>
+    <tr><td><code>Title</code></td><td>CSTRING(64) / ''</td><td><span class="en">Centered heading above the plot.</span><span class="es">Título centrado sobre el trazado.</span></td></tr>
+    <tr><td><code>ShowValues</code> / <code>ValueDP</code></td><td>BYTE 1 / LONG 0</td><td><span class="en">Numeric value over each bar, with this many decimals.</span><span class="es">Valor numérico sobre cada barra, con estos decimales.</span></td></tr>
+    <tr><td><code>ShowLabels</code></td><td>BYTE 1</td><td><span class="en">Bar label below the baseline.</span><span class="es">Etiqueta de barra bajo la línea base.</span></td></tr>
+    <tr><td><code>ShowScale</code> / <code>ScaleDP</code></td><td>BYTE 1 / LONG 0</td><td><span class="en">Left-axis scale numbers, with this many decimals.</span><span class="es">Números de escala del eje izquierdo, con estos decimales.</span></td></tr>
+    <tr><td><code>ShowGrid</code> / <code>GridDivs</code></td><td>BYTE 1 / LONG 5</td><td><span class="en">Horizontal gridlines and how many divisions.</span><span class="es">Líneas de cuadrícula horizontales y cuántas divisiones.</span></td></tr>
+    <tr><td><code>ShowAxis</code></td><td>BYTE 1</td><td><span class="en">Draw the left axis + zero baseline.</span><span class="es">Dibuja el eje izquierdo + línea base cero.</span></td></tr>
+    <tr><td><code>AutoScale</code></td><td>BYTE 1</td><td><span class="en">1 = derive a nice scale from the data; 0 = use MinVal/MaxVal.</span><span class="es">1 = deriva una escala redonda de los datos; 0 = usa MinVal/MaxVal.</span></td></tr>
+    <tr><td><code>MinVal</code> / <code>MaxVal</code></td><td>REAL</td><td><span class="en">Fixed scale bounds (used when AutoScale = 0; set via <code>SetRange</code>).</span><span class="es">Límites de escala fija (usados cuando AutoScale = 0; se ajustan con <code>SetRange</code>).</span></td></tr>
+    <tr><td><code>BarGapPct</code></td><td>LONG 30</td><td><span class="en">Gap between bars, percent of one slot.</span><span class="es">Separación entre barras, porcentaje de un espacio.</span></td></tr>
+    <tr><td><code>TextW</code> / <code>TextH</code></td><td>LONG 0</td><td><span class="en">Char cell override (0 = auto per target).</span><span class="es">Anulación de celda de carácter (0 = automático por destino).</span></td></tr>
+    <tr><td><code>BackColor</code></td><td>LONG COLOR:None</td><td><span class="en">Whole-control background fill (None = leave transparent).</span><span class="es">Relleno de fondo de todo el control (None = deja transparente).</span></td></tr>
+    <tr><td><code>PlotColor</code></td><td>LONG COLOR:None</td><td><span class="en">Plot-area fill.</span><span class="es">Relleno del área de trazado.</span></td></tr>
+    <tr><td><code>AxisColor</code> / <code>GridColor</code> / <code>TextColor</code></td><td>LONG</td><td><span class="en">Axis, gridlines, and text colors (BGR).</span><span class="es">Colores del eje, cuadrícula y texto (BGR).</span></td></tr>
+    <tr><td><code>BarBorderColor</code></td><td>LONG COLOR:None</td><td><span class="en">Bar outline; None = border same as fill.</span><span class="es">Contorno de barra; None = borde igual al relleno.</span></td></tr>
+  </table>
+  <div class="note en"><b>Colors are BGR, not RGB</b> Clarion color longs are <code>0BBGGRRh</code>. Steel
+  blue is <code>0B6752Eh</code>. The <code>COLOR:</code> equates (e.g. <code>COLOR:Red</code>) work too.</div>
+  <div class="note es"><b>Los colores son BGR, no RGB</b> Los longs de color de Clarion son
+  <code>0BBGGRRh</code>. El azul acero es <code>0B6752Eh</code>. Los equates <code>COLOR:</code> (p. ej.
+  <code>COLOR:Red</code>) también funcionan.</div>
+</section>
+
+<section id="palette">
+  <h2><span class="en">Color palette</span><span class="es">Paleta de colores</span></h2>
+  <p class="en">Bars added without an explicit color cycle through these eight professional tones (they
+  repeat after eight):</p>
+  <p class="es">Las barras agregadas sin un color explícito recorren estos ocho tonos profesionales (se
+  repiten tras ocho):</p>
+  <table>
+    <tr><th></th><th><span class="en">Color</span><span class="es">Color</span></th><th>BGR</th></tr>
+    <tr><td><span class="sw" style="background:#2E75B6"></span></td><td><span class="en">Steel blue</span><span class="es">Azul acero</span></td><td><code>0B6752Eh</code></td></tr>
+    <tr><td><span class="sw" style="background:#2CA6A4"></span></td><td><span class="en">Teal</span><span class="es">Verde azulado</span></td><td><code>0A4A62Ch</code></td></tr>
+    <tr><td><span class="sw" style="background:#E8A33D"></span></td><td><span class="en">Amber</span><span class="es">Ámbar</span></td><td><code>03DA3E8h</code></td></tr>
+    <tr><td><span class="sw" style="background:#1F4E79"></span></td><td><span class="en">Deep navy</span><span class="es">Azul marino</span></td><td><code>0794E1Fh</code></td></tr>
+    <tr><td><span class="sw" style="background:#6A994E"></span></td><td><span class="en">Sage green</span><span class="es">Verde salvia</span></td><td><code>04E996Ah</code></td></tr>
+    <tr><td><span class="sw" style="background:#C05746"></span></td><td><span class="en">Terracotta</span><span class="es">Terracota</span></td><td><code>04657C0h</code></td></tr>
+    <tr><td><span class="sw" style="background:#64748B"></span></td><td><span class="en">Slate gray</span><span class="es">Gris pizarra</span></td><td><code>08B7464h</code></td></tr>
+    <tr><td><span class="sw" style="background:#9AA5B1"></span></td><td><span class="en">Cool gray</span><span class="es">Gris frío</span></td><td><code>0B1A59Ah</code></td></tr>
+  </table>
+</section>
+
+<section id="ex-window">
+  <h2><span class="en">Example — a bar graph on a window</span><span class="es">Ejemplo — un gráfico de barras en una ventana</span></h2>
+  <p class="en">Put an <code>IMAGE</code> control (<code>?Graph</code>) on the window as the canvas. Declare
+  the object, load bars once, and redraw whenever the window opens or resizes.</p>
+  <p class="es">Coloque un control <code>IMAGE</code> (<code>?Graph</code>) en la ventana como lienzo.
+  Declare el objeto, cargue las barras una vez, y redibuje cuando la ventana se abra o se redimensione.</p>
+  <pre><span class="c">! ---- global (once) ----</span>
+  <span class="k">INCLUDE</span>(<span class="s">'GraficaBarraClass.INC'</span>),ONCE
+
+<span class="c">! ---- procedure data ----</span>
+Ventas   GraficaBarraClass
+
+  <span class="c">! ---- inside the window's ACCEPT loop ----</span>
+  <span class="k">CASE</span> EVENT()
+  <span class="k">OF</span> EVENT:OpenWindow
+    Ventas.Title = <span class="s">'Ventas por mes'</span>
+    Ventas.AddBar(<span class="s">'Ene'</span>, <span class="t">42</span>)              <span class="c">! auto palette color</span>
+    Ventas.AddBar(<span class="s">'Feb'</span>, <span class="t">58</span>)
+    Ventas.AddBar(<span class="s">'Mar'</span>, <span class="t">35</span>, <span class="t">04657C0h</span>)    <span class="c">! explicit color (terracotta)</span>
+    Ventas.AddBar(<span class="s">'Abr'</span>, <span class="t">71</span>)
+    Ventas.Draw(Window, ?Graph)          <span class="c">! draw it</span>
+  <span class="k">OF</span> EVENT:Sized
+    Ventas.Draw(Window, ?Graph)          <span class="c">! repaint at the new size</span>
+  <span class="k">END</span></pre>
+  <div class="tip en"><b>With the template</b> The <b>graficaBarra</b> window extension writes exactly this
+  for you — including a <code>DO Refresh:Ventas</code> routine — from the prompts. Use the template unless
+  you need full manual control.</div>
+  <div class="tip es"><b>Con la plantilla</b> La extensión de ventana <b>graficaBarra</b> escribe
+  exactamente esto por usted — incluida una rutina <code>DO Refresh:Ventas</code> — a partir de las
+  opciones. Use la plantilla salvo que necesite control manual total.</div>
+</section>
+
+<section id="ex-report">
+  <h2><span class="en">Example — a bar graph on a report (small PDF)</span><span class="es">Ejemplo — un gráfico de barras en un informe (PDF pequeño)</span></h2>
+  <p class="en">Put a placeholder in the detail band — an empty <code>IMAGE</code> named <code>?GraphPlace</code>,
+  sized where the graph should print. In the <i>Before Printing Detail</i> embed, load the bars, target the
+  report, paint, then hide the placeholder so only the vector graph prints.</p>
+  <p class="es">Coloque un marcador en la banda de detalle — un <code>IMAGE</code> vacío llamado
+  <code>?GraphPlace</code>, del tamaño donde debe imprimirse el gráfico. En el embed <i>Antes de imprimir
+  el detalle</i>, cargue las barras, seleccione el informe, dibuje, y luego oculte el marcador para que solo
+  se imprima el gráfico vectorial.</p>
+  <pre><span class="c">! ---- procedure data ----</span>
+Grafico  GraficaBarraClass
+
+  <span class="c">! ---- Before Printing Detail Section embed ----</span>
+  Grafico.ClearBars()
+  Grafico.Title = <span class="s">'Resumen trimestral'</span>
+  Grafico.AddBar(<span class="s">'Q1'</span>, Reg:Q1)          <span class="c">! values from the record</span>
+  Grafico.AddBar(<span class="s">'Q2'</span>, Reg:Q2)
+  Grafico.AddBar(<span class="s">'Q3'</span>, Reg:Q3)
+  Grafico.AddBar(<span class="s">'Q4'</span>, Reg:Q4)
+
+  SETTARGET(Report)                      <span class="c">! the printed band is the draw target</span>
+  Grafico.Paint(?GraphPlace)             <span class="c">! vector BOX/LINE/SHOW into the band</span>
+  ?GraphPlace{PROP:Hide} = <span class="t">1</span>          <span class="c">! placeholder never prints itself</span>
+  SETTARGET()</pre>
+  <div class="note en"><b>Why it stays small</b> Nothing here rasterizes. Each bar is a <code>BOX</code>
+  record and each label a <code>SHOW</code>, so the PDF generator emits vector drawing operators — kilobytes,
+  not a full-page bitmap, and crisp at any zoom.</div>
+  <div class="note es"><b>Por qué queda pequeño</b> Aquí nada se rasteriza. Cada barra es un registro
+  <code>BOX</code> y cada etiqueta un <code>SHOW</code>, así que el generador de PDF emite operadores de
+  dibujo vectorial — kilobytes, no un mapa de bits de página completa, y nítido a cualquier zoom.</div>
+</section>
+
+<section id="ex-data">
+  <h2><span class="en">Example — building bars from a data file</span><span class="es">Ejemplo — construir barras desde un archivo de datos</span></h2>
+  <p class="en">The bars don't have to be hard-coded. Loop a file or queue and call <code>AddBar</code> per
+  row — clear first so a refresh doesn't stack duplicates.</p>
+  <p class="es">Las barras no tienen que estar fijas en el código. Recorra un archivo o una cola y llame a
+  <code>AddBar</code> por fila — limpie primero para que un refresco no acumule duplicados.</p>
+  <pre>LoadGraph  ROUTINE
+  Grafico.ClearBars()
+  Grafico.Title = <span class="s">'Ventas por vendedor'</span>
+  SET(Ven:ByName)
+  <span class="k">LOOP</span>
+    <span class="k">IF</span> ACCESS:Ventas.Next() <span class="k">THEN BREAK</span>.
+    Grafico.AddBar(Ven:Nombre, Ven:Total)   <span class="c">! label + value from each record</span>
+  <span class="k">END</span>
+  Grafico.Draw(Window, ?Graph)              <span class="c">! window: redraw now</span></pre>
+  <p class="en">For a fixed scale across refreshes (so bars are comparable run to run) add
+  <code>Grafico.SetRange(0, 5000)</code> before <code>Draw</code>.</p>
+  <p class="es">Para una escala fija entre refrescos (de modo que las barras sean comparables entre
+  ejecuciones) agregue <code>Grafico.SetRange(0, 5000)</code> antes de <code>Draw</code>.</p>
+</section>
+
+<section id="ex-standalone">
+  <h2><span class="en">Using the class without the template</span><span class="es">Usar la clase sin la plantilla</span></h2>
+  <p class="en">The class is independent of the template — you can drop it into any hand-coded Clarion
+  program. The minimum is: <code>INCLUDE</code> the header, declare an instance, add bars, and draw. The
+  constructor sets sensible defaults, so you only touch what you want to change.</p>
+  <p class="es">La clase es independiente de la plantilla — puede incorporarla en cualquier programa Clarion
+  escrito a mano. Lo mínimo es: hacer <code>INCLUDE</code> del encabezado, declarar una instancia, agregar
+  barras y dibujar. El constructor establece valores por defecto razonables, así que solo toca lo que quiera
+  cambiar.</p>
+  <pre>  PROGRAM
+  <span class="k">INCLUDE</span>(<span class="s">'GraficaBarraClass.INC'</span>),ONCE
+  <span class="k">MAP</span>
+  <span class="k">END</span>
+
+G   GraficaBarraClass
+Win WINDOW(<span class="s">'Demo'</span>),AT(,,320,220),SYSTEM,GRAY
+      IMAGE,AT(8,8,304,204),USE(?Graph)
+    <span class="k">END</span>
+  <span class="k">CODE</span>
+  OPEN(Win)
+  G.Demo()                       <span class="c">! six sample bars</span>
+  G.Title = <span class="s">'Prueba'</span>
+  G.Draw(Win, ?Graph)
+  ACCEPT
+    <span class="k">CASE</span> EVENT()
+    <span class="k">OF</span> EVENT:Sized ; G.Draw(Win, ?Graph)
+    <span class="k">END</span>
+  <span class="k">END</span>
+  CLOSE(Win)</pre>
+  <div class="warn en"><b>Don't forget the files</b> Copy <code>GraficaBarraClass.inc</code> and
+  <code>.clw</code> (ANSI) to the redirection path or the compile fails with "file not found". The
+  <code>LINK</code> attribute compiles the <code>.clw</code> automatically — no project step.</div>
+  <div class="warn es"><b>No olvide los archivos</b> Copie <code>GraficaBarraClass.inc</code> y
+  <code>.clw</code> (ANSI) a la ruta de redirección o la compilación fallará con "archivo no encontrado". El
+  atributo <code>LINK</code> compila el <code>.clw</code> automáticamente — sin paso de proyecto.</div>
+</section>
+
+    </div>
+    <footer>
+      <span class="en">graficaBarra v1.0 · developer's reference · pure-Clarion bar graphs · part of the templatemaker collection</span>
+      <span class="es">graficaBarra v1.0 · referencia del desarrollador · gráficos de barras en Clarion puro · parte de la colección templatemaker</span>
+    </footer>
+  </main>
+</div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('gb-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('gb-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
+</body>
+</html>

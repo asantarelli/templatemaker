@@ -321,7 +321,9 @@ registrations: **graficaBarraGlobal** (include the class once), **graficaBarra**
 **graficaBarraReport** (report). Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
 [`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy
 distribution. Full docs — prompts, class API, run-time control — in
-[`docs/graficaBarra-template.html`](docs/graficaBarra-template.html).
+[`docs/graficaBarra-template.html`](docs/graficaBarra-template.html); a bilingual (English + Spanish)
+developer's reference with worked example code is in
+[`docs/graficaBarra-reference.html`](docs/graficaBarra-reference.html).
 
 ### `templates/myGaugePlus/` — **antialiased** (GDI+) gauges/dials on windows
 The pretty sibling of myGauge. Native Clarion `ARC`/`ELLIPSE`/`LINE` have **no antialiasing**, so round
