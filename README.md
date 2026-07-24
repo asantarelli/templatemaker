@@ -61,6 +61,7 @@ templates/                      # ready-to-register Clarion templates
     GraficaBarraClass.inc       #     the bar-graph class (config + method prototypes)
     GraficaBarraClass.clw       #     the implementation (scale + BOX/LINE/SHOW drawing)
     graficaBarra.tpl            #     global include + window + report extensions
+    graficaBarra.zip            #     the three files above, zipped for easy distribution
   myGaugePlus/                  #   ANTIALIASED (GDI+) gauge/dial on windows (see below)
     gpcanvas.c                  #     GDI+ flat-API shim (bound at runtime, compiled by Clacpp)
     AaCanvasClass.inc/.clw      #     reusable antialiased 2D canvas over GDI+
@@ -317,8 +318,9 @@ control (redraw on open/resize, plus a generated `DO Refresh:<Object>` routine t
 variable/expression bar values). Bars are defined in the prompts (literal value or a field/expression, auto
 professional palette or a per-bar color); an empty list draws six sample bars as a self-test. Three
 registrations: **graficaBarraGlobal** (include the class once), **graficaBarra** (window),
-**graficaBarraReport** (report). Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path.
-Full docs — prompts, class API, run-time control — in
+**graficaBarraReport** (report). Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
+[`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy
+distribution. Full docs — prompts, class API, run-time control — in
 [`docs/graficaBarra-template.html`](docs/graficaBarra-template.html).
 
 ### `templates/myGaugePlus/` — **antialiased** (GDI+) gauges/dials on windows
