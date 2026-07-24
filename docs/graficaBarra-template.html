@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>graficaBarra — Programmer's Documentation</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .callout b{display:block;margin-bottom:2px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.15)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>graficaBarra</h1><span>Programmer's Documentation · v1.0</span></div>
+    <a href="#over">Overview</a>
+    <div class="grp">Using it</div>
+    <a href="#install" class="h2">Install &amp; register</a>
+    <a href="#window" class="h2">On a window</a>
+    <a href="#report" class="h2">On a report (vector PDF)</a>
+    <a href="#prompts" class="h2">Prompt reference</a>
+    <a href="#runtime" class="h2">Changing it at run time</a>
+    <div class="grp">Reference</div>
+    <a href="#classapi" class="h2">GraficaBarraClass API</a>
+    <a href="#palette" class="h2">Auto color palette</a>
+    <a href="#trouble" class="h2">Troubleshooting</a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>graficaBarra</h1>
+      <p>Simple bar graphs for Clarion windows <em>and</em> reports, drawn entirely with native
+      <code>BOX</code> / <code>LINE</code> / <code>SHOW</code> primitives. On a report the graph goes into
+      the band as <strong>vector primitives — never a bitmap — so PDF exports stay as small as possible</strong>.</p>
+      <span class="pill">Pure Clarion · no DLLs · window + report · ABC chain</span>
+    </header>
+    <div class="body">
+
+<section id="over">
+  <h2>Overview</h2>
+  <p class="lead">One self-contained ANSI class, <code>GraficaBarraClass</code>, holds up to 48 bars
+  (label, value, color) plus the look — title, value/scale labels, gridlines, gaps, colors, automatic or
+  fixed scale — and renders itself wherever the current graphics target is. Three template registrations
+  drive it:</p>
+  <table>
+    <tr><th>Registration</th><th>Scope</th><th>What it does</th></tr>
+    <tr><td><b>graficaBarraGlobal</b></td><td>Application (Global → Extensions)</td>
+        <td>Adds <code>INCLUDE('GraficaBarraClass.INC'),ONCE</code>. Add it once; the other two require it.</td></tr>
+    <tr><td><b>graficaBarra</b></td><td>Procedure with a WINDOW</td>
+        <td>Draws the graph into an <code>IMAGE</code> control. Redraws on open and resize, and generates a
+        <code>Refresh:&lt;Object&gt;</code> routine that re-reads variable bar values. Add once per graph —
+        several graphs per window are fine.</td></tr>
+    <tr><td><b>graficaBarraReport</b></td><td>Procedure with a REPORT</td>
+        <td>Draws the graph into the detail band at <code>%BeforePrint</code> under
+        <code>SETTARGET(Report)</code> using vector <code>BOX</code>/<code>LINE</code>/<code>SHOW</code>.
+        A placeholder control supplies only the position and size, and is hidden at print time.</td></tr>
+  </table>
+  <div class="filetree">
+    templates/graficaBarra/<br>
+    ├─ graficaBarra.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— the template set (register this)<br>
+    ├─ GraficaBarraClass.inc&nbsp;&nbsp;&nbsp;— the class (config + prototypes)<br>
+    └─ GraficaBarraClass.clw&nbsp;&nbsp;&nbsp;— the implementation (scale + drawing)
+  </div>
+  <p>Features: automatic <b>"nice" scale</b> (the maximum rounds up to 1, 2 or 5 × 10<sup>k</sup>) or a
+  fixed <code>SetRange(min,max)</code>; <b>negative values</b> hang below the zero baseline; numeric value
+  over each bar; bar labels under the baseline; left-axis scale numbers; horizontal gridlines; per-bar
+  colors or an automatic professional palette; configurable gap; an optional painted background. If the
+  bar list is left empty the graph draws <b>six sample bars</b> — a built-in self-test.</p>
+</section>
+
+<section id="install">
+  <h2>Install &amp; register</h2>
+  <ol>
+    <li>Copy <code>GraficaBarraClass.inc</code> and <code>GraficaBarraClass.clw</code> to a folder on the
+      Clarion redirection path — your app folder or <code>\clarion12\libsrc\win</code>. Keep them
+      <b>ANSI</b> (not UTF-8), CRLF line ends.</li>
+    <li>Copy <code>graficaBarra.tpl</code> anywhere convenient (e.g.
+      <code>\clarion12\accessory\template\win</code>) and register it: IDE → Setup → <b>Template
+      Registry</b> → Register → pick the .tpl.</li>
+    <li>In your app: Global → Extensions → Insert → <b>graficaBarraGlobal</b> (it is also added
+      automatically the first time you add one of the other two).</li>
+  </ol>
+</section>
+
+<section id="window">
+  <h2>On a window</h2>
+  <ol>
+    <li>Put an <code>IMAGE</code> control on the window where the graph should live (no picture needed —
+      it is just the canvas).</li>
+    <li>Procedure → Extensions → Insert → <b>graficaBarra - Draw a bar graph on this window</b>.</li>
+    <li>Pick the IMAGE control, set a title, and define the bars on the <b>Bars</b> tab.</li>
+  </ol>
+  <p>Each bar's value is either a <b>literal number</b> or a <b>variable / field / expression</b>. After
+  data changes, call the generated routine:</p>
+  <pre><span class="c">! the bars re-read their variables/expressions, then the graph redraws</span>
+DO Refresh:Graph1</pre>
+  <p>The graph redraws itself on window open and resize (the draw is POSTed as a private event so it runs
+  after the ABC resizer settles). Multiple graphs per window each target their own IMAGE, so they never
+  erase each other.</p>
+</section>
+
+<section id="report">
+  <h2>On a report — small-PDF vector output</h2>
+  <p>This is the reason graficaBarra exists: report graphs that <b>export to the smallest possible
+  PDF</b>. Instead of rasterizing into an image, the template draws the graph <b>straight into the band
+  being printed</b> with native vector primitives:</p>
+  <pre>SETTARGET(MyReport)                <span class="c">! the band being printed becomes the target</span>
+RptGraph1.Paint(?GraphPlace)       <span class="c">! BOX / LINE / SHOW vector primitives at the placeholder's rect</span>
+?GraphPlace{PROP:Hide} = 1         <span class="c">! the placeholder itself never prints</span>
+SETTARGET()</pre>
+  <p>Every bar is a filled <code>BOX</code>, the axis and gridlines are <code>LINE</code>s and all text is
+  <code>SHOW</code> — these travel through the report engine (and the PDF output generator) as vector
+  records, not pixels, so file size stays tiny and the graph prints razor-sharp at any resolution.</p>
+  <h3>Setup</h3>
+  <ol>
+    <li>In the report designer, put a <b>placeholder control in the DETAIL band</b> sized where the graph
+      should print — an empty <code>IMAGE</code> works best (a <code>BOX</code> also works). Its
+      <code>AT()</code> rectangle <em>is</em> the graph rectangle.</li>
+    <li>Procedure → Extensions → Insert → <b>graficaBarraReport - Draw a bar graph on this REPORT</b>.</li>
+    <li>Pick the placeholder, define the bars (values are usually fields/expressions — they are evaluated
+      for every record printed), done. The placeholder is hidden at print time by default so it never
+      shows itself.</li>
+  </ol>
+  <div class="note"><b>Where it draws</b>
+  The code runs in the <i>Before Printing Detail Section</i> embed, so the placeholder must be in the
+  detail band that is being printed. One graph is drawn per detail printed — for a single summary graph,
+  print one summary detail line (or use the runtime API from any embed that prints a band).</div>
+</section>
+
+<section id="prompts">
+  <h2>Prompt reference</h2>
+  <h3>General</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Disable this graph</td><td>off</td><td>Kills all generated code for this instance.</td></tr>
+    <tr><td>Object name</td><td><code>Graph&lt;n&gt;</code> / <code>RptGraph&lt;n&gt;</code></td><td>The local object's label — also names the <code>Refresh:</code> routine (window).</td></tr>
+    <tr><td>Image / placeholder control</td><td>—</td><td>Window: the IMAGE canvas. Report: the position/size placeholder in the detail band.</td></tr>
+    <tr><td>Hide the placeholder when printing</td><td>on</td><td>Report only.</td></tr>
+    <tr><td>Title text</td><td>empty</td><td>Centered over the graph.</td></tr>
+    <tr><td>Automatic scale</td><td>on</td><td>Nice round maximum (1/2/5 × 10<sup>k</sup>) from the data; untick for fixed Minimum/Maximum.</td></tr>
+  </table>
+  <h3>Look</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Show bar values / decimals</td><td>on / 0</td><td>Numeric value above each bar (below, for negative bars).</td></tr>
+    <tr><td>Show bar labels</td><td>on</td><td>Under the baseline, centered per bar, clipped to the slot width.</td></tr>
+    <tr><td>Show scale / decimals</td><td>on / 0</td><td>Left-axis numbers at each division.</td></tr>
+    <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Horizontal lines across the plot.</td></tr>
+    <tr><td>Gap between bars</td><td>30</td><td>Percent of one bar slot.</td></tr>
+    <tr><td>Colors</td><td>near-black axis/text, light-gray grid</td><td>Optional painted background (window). All colors are Clarion BGR longs.</td></tr>
+  </table>
+  <h3>Bars</h3>
+  <p>An ordered list (left to right). Per bar: <b>Label</b>, <b>Value</b> — literal number or
+  variable/field/expression — and <b>Color</b>: automatic palette (default) or an explicit color.
+  Leave the whole list empty to get the six sample self-test bars.</p>
+</section>
+
+<section id="runtime">
+  <h2>Changing it at run time</h2>
+  <p>The object is plain procedure data — drive it from any embed:</p>
+  <pre>Graph1.ClearBars()                       <span class="c">! start over</span>
+Graph1.AddBar('Ene', Ene:Total)          <span class="c">! auto palette color</span>
+Graph1.AddBar('Feb', Feb:Total, 04657C0h)<span class="c">! explicit BGR color</span>
+Graph1.Title = 'Ventas 2026'
+Graph1.SetRange(0, 200)                  <span class="c">! fixed scale (AutoScale off)</span>
+Graph1.Draw(MyWindow, ?Graph)            <span class="c">! window redraw now</span>
+<span class="c">! or, if the bars came from the template prompts:</span>
+DO Refresh:Graph1                        <span class="c">! reload prompt bars + redraw</span></pre>
+  <div class="tip"><b>Reports</b> Call the same API in a report embed before the band prints, then
+  <code>SETTARGET(Report) ; RptGraph1.Paint(?Placeholder) ; SETTARGET()</code> — or just let the
+  template's generated <code>%BeforePrint</code> code do it.</div>
+</section>
+
+<section id="classapi">
+  <h2>GraficaBarraClass API</h2>
+  <table>
+    <tr><th>Member</th><th>Meaning</th></tr>
+    <tr><td><code>AddBar(label, value [,color])</code></td><td>Append a bar (max 48). Omit color for the auto palette.</td></tr>
+    <tr><td><code>ClearBars()</code></td><td>Remove all bars.</td></tr>
+    <tr><td><code>SetRange(min, max)</code></td><td>Fixed value scale; sets <code>AutoScale = 0</code>.</td></tr>
+    <tr><td><code>Demo()</code></td><td>Loads six sample bars (self-test).</td></tr>
+    <tr><td><code>Draw(window, ?image)</code></td><td>Window path: targets the IMAGE, clears it, paints.</td></tr>
+    <tr><td><code>Paint(?feq [,windowMode])</code></td><td>Paints at <code>?feq</code>'s rectangle into the <em>current</em> target. Mode 0 (default) = report: keep the band offset, no clear.</td></tr>
+    <tr><td><code>Title</code></td><td>CSTRING(64), centered on top.</td></tr>
+    <tr><td><code>ShowValues / ValueDP</code>, <code>ShowLabels</code>, <code>ShowScale / ScaleDP</code>, <code>ShowGrid / GridDivs</code>, <code>ShowAxis</code></td><td>Feature toggles + decimals/divisions.</td></tr>
+    <tr><td><code>AutoScale, MinVal, MaxVal</code></td><td>Scale control (auto by default).</td></tr>
+    <tr><td><code>BarGapPct</code></td><td>Gap between bars, percent of a slot (default 30).</td></tr>
+    <tr><td><code>BackColor, PlotColor, AxisColor, GridColor, TextColor, BarBorderColor</code></td><td>Colors (BGR); <code>COLOR:None</code> = skip / same-as-fill.</td></tr>
+    <tr><td><code>TextW, TextH</code></td><td>Text cell metrics override (0 = auto: dialog units on windows, thousandths of an inch on reports). Tune if your report font is much bigger/smaller than ~10pt.</td></tr>
+  </table>
+</section>
+
+<section id="palette">
+  <h2>Auto color palette</h2>
+  <p>Bars without an explicit color cycle through eight professional colors (Clarion BGR longs):</p>
+  <table>
+    <tr><th></th><th>Color</th><th>BGR</th></tr>
+    <tr><td><span class="sw" style="background:#2E75B6"></span></td><td>Steel blue</td><td><code>0B6752Eh</code></td></tr>
+    <tr><td><span class="sw" style="background:#2CA6A4"></span></td><td>Teal</td><td><code>0A4A62Ch</code></td></tr>
+    <tr><td><span class="sw" style="background:#E8A33D"></span></td><td>Amber</td><td><code>03DA3E8h</code></td></tr>
+    <tr><td><span class="sw" style="background:#1F4E79"></span></td><td>Deep navy</td><td><code>0794E1Fh</code></td></tr>
+    <tr><td><span class="sw" style="background:#6A994E"></span></td><td>Sage green</td><td><code>04E996Ah</code></td></tr>
+    <tr><td><span class="sw" style="background:#C05746"></span></td><td>Terracotta</td><td><code>04657C0h</code></td></tr>
+    <tr><td><span class="sw" style="background:#64748B"></span></td><td>Slate gray</td><td><code>08B7464h</code></td></tr>
+    <tr><td><span class="sw" style="background:#9AA5B1"></span></td><td>Cool gray</td><td><code>0B1A59Ah</code></td></tr>
+  </table>
+</section>
+
+<section id="trouble">
+  <h2>Troubleshooting</h2>
+  <table>
+    <tr><th>Symptom</th><th>Cause / fix</th></tr>
+    <tr><td>"File not found: GraficaBarraClass.INC" at compile</td><td>The .inc/.clw are not on the redirection path — copy both beside the app or into <code>\clarion12\libsrc\win</code>.</td></tr>
+    <tr><td>Template will not register</td><td>The .tpl was re-saved as UTF-8 with BOM or with LF line ends — keep ANSI/CRLF.</td></tr>
+    <tr><td>Six sample bars appear instead of my data</td><td>The Bars list is empty for that instance (that's the self-test). Add bars, or feed the object with <code>AddBar()</code> from an embed.</td></tr>
+    <tr><td>Window graph doesn't update after data changes</td><td>Call <code>DO Refresh:&lt;Object&gt;</code> — bars with variable values are only re-read there (and at window open).</td></tr>
+    <tr><td>Report graph missing</td><td>The placeholder must be in the <b>detail band being printed</b>; the code runs at <i>Before Printing Detail Section</i>.</td></tr>
+    <tr><td>Report text looks too big / small</td><td>Text metrics assume roughly a 10pt band font. Set <code>RptGraph1.TextW / TextH</code> (thousandths of an inch) in an embed before printing.</td></tr>
+    <tr><td>Bars in a strange color</td><td>Clarion colors are <b>BGR</b> longs, not RGB — <code>0B6752Eh</code> is steel blue.</td></tr>
+  </table>
+</section>
+
+    </div>
+    <footer>graficaBarra v1.0 · pure-Clarion bar graphs · windows + reports (vector PDF) · part of the templatemaker collection</footer>
+  </main>
+</div>
+</body>
+</html>

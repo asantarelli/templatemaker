@@ -57,6 +57,10 @@ templates/                      # ready-to-register Clarion templates
     GaugeClass.inc              #     the gauge class (config + method prototypes)
     GaugeClass.clw              #     the implementation (geometry + native drawing)
     myGauge.tpl                 #     global include + window + report extensions
+  graficaBarra/                 #   bar graphs on windows and reports, vector on PDF (see below)
+    GraficaBarraClass.inc       #     the bar-graph class (config + method prototypes)
+    GraficaBarraClass.clw       #     the implementation (scale + BOX/LINE/SHOW drawing)
+    graficaBarra.tpl            #     global include + window + report extensions
   myGaugePlus/                  #   ANTIALIASED (GDI+) gauge/dial on windows (see below)
     gpcanvas.c                  #     GDI+ flat-API shim (bound at runtime, compiled by Clacpp)
     AaCanvasClass.inc/.clw      #     reusable antialiased 2D canvas over GDI+
@@ -298,6 +302,24 @@ on open/resize, optional animation, a generated `Refresh:<Object>` routine), and
 **reports** (a gauge per record, drawn at `%BeforePrint` under `SETTARGET(Report)`). Copy `GaugeClass.inc` +
 `GaugeClass.clw` (ANSI) to the redirection path. Full programmer's documentation — shapes, prompts, the class
 API, run-time control, and troubleshooting — is in [`docs/myGauge-template.html`](docs/myGauge-template.html).
+
+### `templates/graficaBarra/` — bar graphs on windows and reports (vector on PDF)
+A **simple bar graph** drawn entirely with native Clarion primitives (`BOX`, `LINE`, `SHOW`) — the same
+offline, no-dependency family as myPie and myGauge. One self-contained ANSI class, **`GraficaBarraClass`**,
+holds the bars (up to 48: label, value, color) and the look (title, value/scale labels, gridlines, gaps,
+colors, auto or fixed scale with a "nice" 1/2/5×10ᵏ maximum; negative values hang below the zero baseline)
+and renders itself; every graph is its **own local object**, so several per window or report just work.
+The report path is the point: **graficaBarraReport** draws the graph **straight into the band as vector
+`BOX`/`LINE`/`SHOW` primitives** under `SETTARGET(Report)` at `%BeforePrint` — never a bitmap — so a
+**PDF export stays as small as possible**. A control in the detail band (IMAGE/BOX) is used *only* as the
+position/size placeholder and is hidden at print time. On windows, **graficaBarra** draws into an `IMAGE`
+control (redraw on open/resize, plus a generated `DO Refresh:<Object>` routine that re-reads
+variable/expression bar values). Bars are defined in the prompts (literal value or a field/expression, auto
+professional palette or a per-bar color); an empty list draws six sample bars as a self-test. Three
+registrations: **graficaBarraGlobal** (include the class once), **graficaBarra** (window),
+**graficaBarraReport** (report). Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path.
+Full docs — prompts, class API, run-time control — in
+[`docs/graficaBarra-template.html`](docs/graficaBarra-template.html).
 
 ### `templates/myGaugePlus/` — **antialiased** (GDI+) gauges/dials on windows
 The pretty sibling of myGauge. Native Clarion `ARC`/`ELLIPSE`/`LINE` have **no antialiasing**, so round
