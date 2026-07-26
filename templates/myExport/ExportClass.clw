@@ -69,6 +69,11 @@ ExportClass.Kill PROCEDURE
 ! ############################################################################
 !  Everything the export knows about its columns comes from the live control,
 !  so a column the user hid, widened or dragged somewhere else is honoured.
+!
+!  Init calls this before every export, but the user may have renamed columns
+!  or un-ticked some in the dialog - and those edits must survive to the next
+!  export. So it fingerprints the LIST's layout first and only rebuilds when
+!  the layout has actually changed. Rescan() forces it.
 ExportClass.ScanColumns PROCEDURE()
 c    LONG,AUTO
 f    LONG,AUTO
@@ -78,12 +83,21 @@ w    LONG,AUTO
 ex   LONG,AUTO
 ic   LONG,AUTO
 it   LONG,AUTO
+sg   CSTRING(1025)
 h    CSTRING(129)
   CODE
   IF SELF.Cols &= NULL THEN RETURN 0 .
+  IF ~SELF.ListControl
+    FREE(SELF.Cols)
+    SELF.Sig = ''
+    RETURN 0
+  END
+  sg = SELF.LayoutSig()
+  IF sg = SELF.Sig AND RECORDS(SELF.Cols)
+    RETURN RECORDS(SELF.Cols)                             ! same layout - keep the user's choices
+  END
   FREE(SELF.Cols)
   n = 0
-  IF ~SELF.ListControl THEN RETURN 0 .
 !  Every PROPLIST read goes through a LONG first: a property returns a STRING,
 !  and the STRING '0' is logically TRUE - so ~?List{PROPLIST:Width,c} never
 !  fires on a hidden column, and a plain ?List{PROPLIST:Icon,c} is always true.
@@ -92,13 +106,9 @@ h    CSTRING(129)
     IF ~ex THEN BREAK .
     f = SELF.ListControl{PROPLIST:FieldNo,c}
     IF ~f THEN CYCLE .                                    ! a decoration, not a data column
-    w = SELF.ListControl{PROPLIST:Width,c}
-    IF SELF.VisibleOnly
-      ic = SELF.ListControl{PROPLIST:Icon,c}
-      it = SELF.ListControl{PROPLIST:IconTrn,c}
-      IF ic OR it THEN CYCLE .                            ! an icon number means nothing in a file
-      IF ~w       THEN CYCLE .                            ! the user hid this column
-    END
+    w  = SELF.ListControl{PROPLIST:Width,c}
+    ic = SELF.ListControl{PROPLIST:Icon,c}
+    it = SELF.ListControl{PROPLIST:IconTrn,c}
     n += 1
     h = CLIP(SELF.ListControl{PROPLIST:Header,c})
     LOOP p = 1 TO LEN(h)                                  ! '|' wraps a heading on screen
@@ -106,31 +116,192 @@ h    CSTRING(129)
     END
     h = CLIP(LEFT(h))
     IF ~h THEN h = 'Column' & n .
-    SELF.Cols.ColNo = c
-    SELF.Cols.FldNo = f
-    SELF.Cols.Head  = h
-    SELF.Cols.Pic   = CLIP(SELF.ListControl{PROPLIST:Picture,c})
-    SELF.Cols.Width = w
-    SELF.Cols.Tag   = SELF.SafeTag(h,n)
-    SELF.Cols.IsNum = 0
-    IF ~SELF.Q &= NULL                                    ! a real number, shown as a number?
-      IF ~ISSTRING(WHAT(SELF.Q,f))
-        IF ~SELF.Cols.Pic
-          SELF.Cols.IsNum = 1
-        ELSIF UPPER(SUB(SELF.Cols.Pic,1,2)) = '@N'        ! @D / @T / @P / @S / @E stay text
-          SELF.Cols.IsNum = 1
-        END
-      END
+    SELF.Cols.ColNo   = c
+    SELF.Cols.FldNo   = f
+    SELF.Cols.Width   = w
+    SELF.Cols.HeadDef = h
+    SELF.Cols.PicDef  = CLIP(SELF.ListControl{PROPLIST:Picture,c})
+    SELF.Cols.Head    = SELF.Cols.HeadDef
+    SELF.Cols.Pic     = SELF.Cols.PicDef
+!   Hidden and icon columns are listed but start un-ticked, so the dialog can
+!   still offer them - VisibleOnly picks the starting state, not the contents.
+    SELF.Cols.Use = 1
+    IF SELF.VisibleOnly
+      IF ic OR it OR ~w THEN SELF.Cols.Use = 0 .
     END
     ADD(SELF.Cols)
+    SELF.Classify(n)
   END
+  SELF.Sig = sg
   RETURN n
+
+
+ExportClass.Rescan PROCEDURE()
+  CODE
+  SELF.Sig = ''                                           ! forget the layout we matched against
+  RETURN SELF.ScanColumns()
+
+
+!  A fingerprint of the LIST's format. Column count, field numbers and widths
+!  are enough: if those match, it is the same layout and the user's renames,
+!  picture overrides and tick marks still apply.
+ExportClass.LayoutSig PROCEDURE()
+c    LONG,AUTO
+ex   LONG,AUTO
+sg   CSTRING(1025)
+one  CSTRING(41)
+  CODE
+  sg = ''
+  IF ~SELF.ListControl THEN RETURN sg .
+  LOOP c = 1 TO 512
+    ex = SELF.ListControl{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK .
+    one = c & ':' & SELF.ListControl{PROPLIST:FieldNo,c} & ':' & SELF.ListControl{PROPLIST:Width,c} & ';'
+    IF LEN(sg) + LEN(one) > 1024 THEN BREAK .
+    sg = sg & one
+  END
+  RETURN sg
+
+
+!  Tag (the XML/JSON name) and IsNum both follow the CURRENT heading and
+!  picture, so they are re-derived whenever either is edited.
+ExportClass.Classify PROCEDURE(LONG pCol)
+  CODE
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN .
+  SELF.Cols.Tag   = SELF.SafeTag(SELF.Cols.Head,pCol)
+  SELF.Cols.IsNum = 0
+  IF ~SELF.Q &= NULL                                      ! a real number, shown as a number?
+    IF ~ISSTRING(WHAT(SELF.Q,SELF.Cols.FldNo))
+      IF ~SELF.Cols.Pic
+        SELF.Cols.IsNum = 1
+      ELSIF UPPER(SUB(SELF.Cols.Pic,1,2)) = '@N'          ! @D / @T / @P / @S / @E stay text
+        SELF.Cols.IsNum = 1
+      END
+    END
+  END
+  PUT(SELF.Cols)
 
 
 ExportClass.Columns PROCEDURE()
   CODE
   IF SELF.Cols &= NULL THEN RETURN 0 .
   RETURN RECORDS(SELF.Cols)
+
+
+ExportClass.Selected PROCEDURE()
+i  LONG,AUTO
+n  LONG(0)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN 0 .
+  LOOP i = 1 TO RECORDS(SELF.Cols)
+    GET(SELF.Cols,i)
+    IF ~ERRORCODE() AND SELF.Cols.Use THEN n += 1 .
+  END
+  RETURN n
+
+
+! ############################################################################
+!  The column list - what the dialog edits, and what your code can drive
+! ############################################################################
+ExportClass.ResetColumns PROCEDURE
+i  LONG,AUTO
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  LOOP i = 1 TO RECORDS(SELF.Cols)
+    GET(SELF.Cols,i)
+    IF ERRORCODE() THEN CYCLE .
+    SELF.Cols.Head = SELF.Cols.HeadDef
+    SELF.Cols.Pic  = SELF.Cols.PicDef
+    SELF.Cols.Use  = 1
+    IF SELF.VisibleOnly AND ~SELF.Cols.Width THEN SELF.Cols.Use = 0 .
+    PUT(SELF.Cols)
+    SELF.Classify(i)
+  END
+
+
+ExportClass.SelectAll PROCEDURE(BYTE pOn)
+i  LONG,AUTO
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  LOOP i = 1 TO RECORDS(SELF.Cols)
+    GET(SELF.Cols,i)
+    IF ERRORCODE() THEN CYCLE .
+    SELF.Cols.Use = pOn
+    PUT(SELF.Cols)
+  END
+
+
+ExportClass.ColumnUse PROCEDURE(LONG pCol,BYTE pOn)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN .
+  SELF.Cols.Use = pOn
+  PUT(SELF.Cols)
+
+
+ExportClass.ColumnRename PROCEDURE(LONG pCol,STRING pHead)
+h  CSTRING(129)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN .
+  h = CLIP(LEFT(pHead))
+  IF ~h THEN h = SELF.Cols.HeadDef .                      ! blank means "put it back"
+  SELF.Cols.Head = h
+  PUT(SELF.Cols)
+  SELF.Classify(pCol)
+
+
+ExportClass.ColumnPicture PROCEDURE(LONG pCol,STRING pPic)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN .
+  SELF.Cols.Pic = CLIP(LEFT(pPic))                        ! blank = write the raw value
+  PUT(SELF.Cols)
+  SELF.Classify(pCol)
+
+
+ExportClass.ColumnHeading PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN '' .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN '' .
+  RETURN CLIP(SELF.Cols.Head)
+
+
+ExportClass.ColumnDefault PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN '' .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN '' .
+  RETURN CLIP(SELF.Cols.HeadDef)
+
+
+ExportClass.ColumnPic PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN '' .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN '' .
+  RETURN CLIP(SELF.Cols.Pic)
+
+
+ExportClass.ColumnDefaultPic PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN '' .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN '' .
+  RETURN CLIP(SELF.Cols.PicDef)
+
+
+ExportClass.ColumnOn PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN 0 .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN 0 .
+  RETURN SELF.Cols.Use
 
 
 ! ############################################################################
@@ -183,6 +354,20 @@ ExportClass.FormatMask PROCEDURE(LONG pFmt)
   RETURN 'All files|*.*'
 
 
+ExportClass.FormatHint PROCEDURE(LONG pFmt)
+  CODE
+  CASE pFmt
+  OF Exp:CSV     ; RETURN 'Values are quoted only where they have to be (RFC 4180).'
+  OF Exp:CSVUTF8 ; RETURN 'Carries a UTF-8 byte-order mark, so Excel reads accented text correctly.'
+  OF Exp:TSV     ; RETURN 'Tabs and line breaks inside a value become single spaces.'
+  OF Exp:XML     ; RETURN 'UTF-8. Headings become element names, so keep them simple.'
+  OF Exp:JSON    ; RETURN 'UTF-8. Numeric columns are written as numbers, not strings.'
+  OF Exp:XLSX    ; RETURN 'A real workbook: numbers as numbers, frozen headings and an auto-filter.'
+  OF Exp:HTML    ; RETURN 'A styled table - print it, or paste it into Word or Excel.'
+  END
+  RETURN ''
+
+
 ExportClass.Allowed PROCEDURE(LONG pFmt)
   CODE
   IF pFmt < 1 OR pFmt > Exp:Formats THEN RETURN 0 .
@@ -227,34 +412,80 @@ ExportClass.Note PROCEDURE(STRING pText,STRING pTitle,LONG pIcon)
 ! ############################################################################
 !  The run-time dialog:  which format, and where does it go
 ! ############################################################################
+!  The columns LIST mirrors SELF.Cols one-for-one, so a row number in the
+!  dialog IS the column's queue position - nothing to map.
+!
+!  Editing is a LIST plus buttons plus a small modal window, deliberately: an
+!  edit-in-place manager driven outside a BrowseBox is unstable, and this is
+!  both sturdier and easier to use with the keyboard.
 ExportClass.Ask PROCEDURE()
 FmtQ           QUEUE,PRE(FQ)
 FName            STRING(40)
 FId              LONG
                END
+ColQ           QUEUE,PRE(CQ)
+Mark             STRING(3)                            ! 'X' when the column is included
+Num              LONG
+Head             STRING(64)                           ! what the file will call it
+Pic              STRING(32)
+Src              STRING(64)                           ! what the LIST calls it
+               END
 i              LONG,AUTO
+row            LONG,AUTO
 Sel            LONG(1)
 Ok             BYTE(0)
+Shrink         LONG(0)
 ExpFile        CSTRING(261)
 ExpHdrs        BYTE
 ExpPics        BYTE
 ExpOpen        BYTE
-ExpWnd WINDOW('Export data'),AT(,,290,196),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
-         PANEL,AT(0,0,290,36),USE(?ExpBand),FILL(0603A1FH)
-         STRING('Export data'),AT(14,8),USE(?ExpT1),FONT('Segoe UI',12,COLOR:White,FONT:bold),TRN
-         STRING('Choose a format, then the folder and file name.'),AT(14,23),USE(?ExpT2),FONT('Segoe UI',8,0D8C8B4H),TRN
-         PROMPT('&Format:'),AT(14,53),USE(?ExpP1)
-         LIST,AT(70,51,206,10),USE(?ExpFmt),VSCROLL,DROP(8),FROM(FmtQ),FORMAT('190L(2)@s40@')
-         PROMPT('File &name:'),AT(14,73),USE(?ExpP2)
-         ENTRY(@s255),AT(70,71,188,10),USE(ExpFile),TIP('Where the exported file will be written')
-         BUTTON('...'),AT(260,71,16,10),USE(?ExpPick),TIP('Choose the folder and the file name')
-         CHECK('Include the column &headings'),AT(70,91),USE(ExpHdrs)
-         CHECK('Apply each column''s &picture'),AT(70,103),USE(ExpPics),TIP('Off = raw values, on = exactly what the list shows')
-         CHECK('&Open the file when it is done'),AT(70,115),USE(ExpOpen)
-         PANEL,AT(14,136,262,1),USE(?ExpRule),FILL(0D4D0CCH)
-         STRING(''),AT(14,144,262,10),USE(?ExpInfo),FONT('Segoe UI',8,0757575H),TRN
-         BUTTON('&Export'),AT(162,170,54,14),USE(?ExpOk),DEFAULT
-         BUTTON('Cancel'),AT(220,170,54,14),USE(?ExpCancel)
+EdHead         CSTRING(129)
+EdPic          CSTRING(33)
+EdOk           BYTE
+ExpWnd WINDOW('Export data'),AT(,,436,344),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
+         PANEL,AT(0,0,436,36),USE(?ExpBand),FILL(0603A1FH)
+         STRING('Export data'),AT(14,7),USE(?ExpT1),FONT('Segoe UI',12,COLOR:White,FONT:bold),TRN
+         STRING('Choose a format and a destination, then pick the columns.'),AT(14,23),USE(?ExpT2), |
+           FONT('Segoe UI',8,0D8C8B4H),TRN
+         PROMPT('&Format:'),AT(14,52),USE(?ExpP1)
+         LIST,AT(76,50,346,10),USE(?ExpFmt),VSCROLL,DROP(8),FROM(FmtQ),FORMAT('190L(2)@s40@')
+         PROMPT('Save &to:'),AT(14,72),USE(?ExpP2)
+         ENTRY(@s255),AT(76,70,328,10),USE(ExpFile),TIP('Where the exported file will be written')
+         BUTTON('...'),AT(406,70,16,10),USE(?ExpPick),TIP('Choose the folder and the file name')
+         STRING('Columns'),AT(14,92),USE(?ExpP3),FONT('Segoe UI',9,,FONT:bold),TRN
+         STRING(''),AT(62,92,180,10),USE(?ExpCount),FONT('Segoe UI',8,0757575H),TRN
+         STRING('Double-click or press Space to include or exclude.'),AT(242,92,180,10),USE(?ExpHint), |
+           FONT('Segoe UI',8,0757575H),TRN
+         LIST,AT(14,104,408,118),USE(?ExpCols),FROM(ColQ),VSCROLL,ALRT(MouseLeft2),ALRT(SpaceKey), |
+           FORMAT('20C|M~Use~@s3@24R(2)|M~#~@n3@136L(2)|M~Heading in the file~@s64@' & |
+                  '62L(2)|M~Picture~@s32@136L(2)|M~Column on the list~@s64@')
+         BUTTON('&Include / exclude'),AT(14,226,68,13),USE(?ExpToggle)
+         BUTTON('&Rename / picture...'),AT(86,226,74,13),USE(?ExpEdit)
+         BUTTON('&All'),AT(164,226,30,13),USE(?ExpAll)
+         BUTTON('&None'),AT(198,226,30,13),USE(?ExpNone)
+         BUTTON('&Defaults'),AT(232,226,40,13),USE(?ExpDef),TIP('Put every heading and picture back the way the list has it')
+         CHECK('Include the column &headings'),AT(14,250),USE(ExpHdrs)
+         CHECK('Apply each column''s &picture'),AT(14,262),USE(ExpPics),TIP('Off = raw values, on = exactly what the list shows')
+         CHECK('&Open the file when it is done'),AT(14,274),USE(ExpOpen)
+         PANEL,AT(14,294,408,1),USE(?ExpRule),FILL(0D4D0CCH)
+         STRING(''),AT(14,302,408,10),USE(?ExpInfo),FONT('Segoe UI',8,0757575H),TRN
+         BUTTON('&Export'),AT(308,320,54,14),USE(?ExpOk),DEFAULT
+         BUTTON('Cancel'),AT(366,320,54,14),USE(?ExpCancel)
+       END
+EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
+         PANEL,AT(0,0,258,28),USE(?EdBand),FILL(0603A1FH)
+         STRING('Column settings'),AT(12,8),USE(?EdT1),FONT('Segoe UI',10,COLOR:White,FONT:bold),TRN
+         PROMPT('On the list:'),AT(12,40),USE(?EdP0)
+         STRING(''),AT(76,40,170,10),USE(?EdSrc),FONT('Segoe UI',9,,FONT:bold),TRN
+         PROMPT('&Heading:'),AT(12,58),USE(?EdP1)
+         ENTRY(@s128),AT(76,56,170,10),USE(EdHead),TIP('What this column is called in the exported file')
+         PROMPT('&Picture:'),AT(12,76),USE(?EdP2)
+         ENTRY(@s32),AT(76,74,104,10),USE(EdPic),TIP('Blank = write the raw value')
+         BUTTON('De&fault'),AT(186,74,60,10),USE(?EdDef)
+         STRING('Blank heading = the list''s own.  Blank picture = the raw value.'), |
+           AT(12,92,234,10),USE(?EdHint),FONT('Segoe UI',8,0757575H),TRN
+         BUTTON('OK'),AT(144,106,50,13),USE(?EdOk),DEFAULT
+         BUTTON('Cancel'),AT(198,106,50,13),USE(?EdCancel)
        END
   CODE
   IF ~SELF.Columns() THEN SELF.ScanColumns() .
@@ -291,7 +522,8 @@ ExpWnd WINDOW('Export data'),AT(,,290,196),FONT('Segoe UI',9,,FONT:regular,CHARS
   ExpOpen = SELF.OpenWhenDone
   OPEN(ExpWnd)
   ?ExpFmt{PROP:Selected} = Sel
-  ?ExpInfo{PROP:Text} = SELF.Columns() & ' column(s) will be exported, exactly as the list shows them.'
+  DO FillCols
+  IF ~SELF.AllowColumns THEN DO HideCols .
   ACCEPT
     CASE EVENT()
     OF EVENT:OpenWindow
@@ -310,6 +542,7 @@ ExpWnd WINDOW('Export data'),AT(,,290,196),FONT('Segoe UI',9,,FONT:regular,CHARS
             SELF.ForceExt(SELF.Fmt)                       ! retarget the extension for them
             ExpFile       = SELF.FileName
             DISPLAY(?ExpFile)
+            DO ShowInfo
           END
         END
       END
@@ -322,12 +555,44 @@ ExpWnd WINDOW('Export data'),AT(,,290,196),FONT('Segoe UI',9,,FONT:regular,CHARS
           DISPLAY(?ExpFile)
         END
       END
+    OF ?ExpCols
+      CASE EVENT()
+      OF EVENT:AlertKey
+        CASE KEYCODE()
+        OF MouseLeft2 ; DO ToggleRow
+        OF SpaceKey   ; DO ToggleRow
+        END
+      END
+    OF ?ExpToggle
+      IF EVENT() = EVENT:Accepted THEN DO ToggleRow .
+    OF ?ExpEdit
+      IF EVENT() = EVENT:Accepted THEN DO EditRow .
+    OF ?ExpAll
+      IF EVENT() = EVENT:Accepted
+        SELF.SelectAll(1)
+        DO FillCols
+      END
+    OF ?ExpNone
+      IF EVENT() = EVENT:Accepted
+        SELF.SelectAll(0)
+        DO FillCols
+      END
+    OF ?ExpDef
+      IF EVENT() = EVENT:Accepted
+        SELF.ResetColumns()
+        DO FillCols
+      END
     OF ?ExpOk
       CASE EVENT()
       OF EVENT:Accepted
         IF ~CLIP(LEFT(ExpFile))
           SELF.Note('Please choose a file name first.','Export',ICON:Exclamation)
           SELECT(?ExpFile)
+          CYCLE
+        END
+        IF ~SELF.Selected()
+          SELF.Note('Please tick at least one column to export.','Export',ICON:Exclamation)
+          SELECT(?ExpCols)
           CYCLE
         END
         Ok = 1
@@ -349,6 +614,107 @@ ExpWnd WINDOW('Export data'),AT(,,290,196),FONT('Segoe UI',9,,FONT:regular,CHARS
     SELF.ForceExt(SELF.Fmt)
   END
   RETURN Ok
+
+!  ---- rebuild the columns list from SELF.Cols, keeping the highlight -------
+FillCols ROUTINE
+  DATA
+keep  LONG,AUTO
+c     LONG,AUTO
+  CODE
+  keep = CHOICE(?ExpCols)
+  FREE(ColQ)
+  LOOP c = 1 TO SELF.Columns()
+    GET(SELF.Cols,c)
+    IF ERRORCODE() THEN CYCLE .
+    CQ:Mark = CHOOSE(SELF.Cols.Use = 1,'X','')
+    CQ:Num  = c
+    CQ:Head = SELF.Cols.Head
+    CQ:Pic  = SELF.Cols.Pic
+    CQ:Src  = SELF.Cols.HeadDef
+    ADD(ColQ)
+  END
+  DISPLAY(?ExpCols)
+  IF keep > 0 AND keep <= RECORDS(ColQ) THEN SELECT(?ExpCols,keep) .
+  DO ShowInfo
+
+ShowInfo ROUTINE
+  ?ExpCount{PROP:Text} = '(' & SELF.Selected() & ' of ' & SELF.Columns() & ' selected)'
+  ?ExpInfo{PROP:Text}  = SELF.FormatHint(SELF.Fmt)
+
+!  ---- include / exclude the highlighted column -----------------------------
+ToggleRow ROUTINE
+  row = CHOICE(?ExpCols)
+  IF ~row THEN EXIT .
+  SELF.ColumnUse(row,1 - SELF.ColumnOn(row))
+  DO FillCols
+
+!  ---- rename it, or give it a different picture ----------------------------
+EditRow ROUTINE
+  row = CHOICE(?ExpCols)
+  IF ~row THEN EXIT .
+  EdHead = SELF.ColumnHeading(row)
+  EdPic  = SELF.ColumnPic(row)
+  EdOk   = 0
+  OPEN(EdWnd)
+  ?EdSrc{PROP:Text} = SELF.ColumnDefault(row)
+  ACCEPT
+    CASE EVENT()
+    OF EVENT:OpenWindow
+      SELECT(?EdHead)
+    END
+    CASE FIELD()
+    OF ?EdDef
+      IF EVENT() = EVENT:Accepted
+        EdHead = SELF.ColumnDefault(row)                  ! back to what the LIST itself says
+        EdPic  = SELF.ColumnDefaultPic(row)
+        DISPLAY(?EdHead)
+        DISPLAY(?EdPic)
+      END
+    OF ?EdOk
+      IF EVENT() = EVENT:Accepted
+        IF CLIP(LEFT(EdPic)) AND SUB(CLIP(LEFT(EdPic)),1,1) <> '@'
+          SELF.Note('A Clarion picture starts with @ - for example @n-11.2 or @d17.' & |
+                    Exp:CRLF & Exp:CRLF & 'Leave it blank to write the raw value.', |
+                    'Picture',ICON:Exclamation)
+          SELECT(?EdPic)
+          CYCLE
+        END
+        EdOk = 1
+        POST(EVENT:CloseWindow)
+      END
+    OF ?EdCancel
+      IF EVENT() = EVENT:Accepted THEN POST(EVENT:CloseWindow) .
+    END
+  END
+  CLOSE(EdWnd)
+  IF EdOk
+    SELF.ColumnRename(row,EdHead)
+    SELF.ColumnPicture(row,EdPic)
+    DO FillCols
+  END
+
+!  ---- no column picking: hide that block and close the gap -----------------
+HideCols ROUTINE
+  Shrink = 158                                            ! 92..250, the whole columns block
+  ?ExpT2{PROP:Text}    = 'Choose a format, then the folder and file name.'
+  ?ExpP3{PROP:Hide}    = 1
+  ?ExpCount{PROP:Hide} = 1
+  ?ExpHint{PROP:Hide}  = 1
+  ?ExpCols{PROP:Hide}  = 1
+  ?ExpToggle{PROP:Hide}= 1
+  ?ExpEdit{PROP:Hide}  = 1
+  ?ExpAll{PROP:Hide}   = 1
+  ?ExpNone{PROP:Hide}  = 1
+  ?ExpDef{PROP:Hide}   = 1
+  ?ExpHdrs{PROP:Ypos}  = 250 - Shrink
+  ?ExpPics{PROP:Ypos}  = 262 - Shrink
+  ?ExpOpen{PROP:Ypos}  = 274 - Shrink
+  ?ExpRule{PROP:Ypos}  = 294 - Shrink
+  ?ExpInfo{PROP:Ypos}  = 302 - Shrink
+  ?ExpOk{PROP:Ypos}    = 320 - Shrink
+  ?ExpCancel{PROP:Ypos}= 320 - Shrink
+  0{PROP:Height}       = 0{PROP:Height} - Shrink
+  0{PROP:Ypos}         = 0{PROP:Ypos} + Shrink / 2        ! stay centred
 
 
 ExportClass.AskFileName PROCEDURE()
@@ -406,6 +772,7 @@ s    CSTRING(65)
 ExportClass.StartFile PROCEDURE()
 i     LONG,AUTO
 n     LONG,AUTO
+out   LONG,AUTO
 w     LONG,AUTO
 dlm   STRING(1)
   CODE
@@ -418,6 +785,11 @@ dlm   STRING(1)
   IF ~n
     SELF.ErrCode = 1
     SELF.ErrText = 'There is nothing to export - this list has no data columns.'
+    RETURN 0
+  END
+  IF ~SELF.Selected()
+    SELF.ErrCode = 3
+    SELF.ErrText = 'No columns are selected for export.'
     RETURN 0
   END
   IF ~CLIP(LEFT(SELF.FileName))
@@ -434,8 +806,12 @@ dlm   STRING(1)
 !  ---- the delimited family ------------------------------------------------
   OF Exp:CSV OROF Exp:CSVUTF8 OROF Exp:TSV
     IF SELF.Headers
+      out = 0
       LOOP i = 1 TO n
-        IF i > 1 THEN SELF.Cat(dlm) .
+        GET(SELF.Cols,i)
+        IF ~SELF.Cols.Use THEN CYCLE .
+        out += 1
+        IF out > 1 THEN SELF.Cat(dlm) .
         IF SELF.Fmt = Exp:TSV
           SELF.CatFlatField(SELF.HeaderText(i))
         ELSE
@@ -478,6 +854,8 @@ dlm   STRING(1)
     IF SELF.Headers
       SELF.Cat('<thead><tr>')
       LOOP i = 1 TO n
+        GET(SELF.Cols,i)
+        IF ~SELF.Cols.Use THEN CYCLE .
         SELF.Cat('<th>')
         SELF.CatHtmlText(SELF.HeaderText(i))
         SELF.Cat('</th>')
@@ -497,18 +875,25 @@ dlm   STRING(1)
     END
     SELF.Cat('<sheetFormatPr defaultRowHeight="15"/>')
     SELF.Cat('<cols>')                                    ! carry the on-screen widths across
+    out = 0
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
+      out += 1
       w = SELF.Cols.Width / 4 + 2
       IF w < 6  THEN w = 6  .
       IF w > 70 THEN w = 70 .
-      SELF.Cat('<col min="' & i & '" max="' & i & '" width="' & w & '" customWidth="1"/>')
+      SELF.Cat('<col min="' & out & '" max="' & out & '" width="' & w & '" customWidth="1"/>')
     END
     SELF.Cat('</cols><sheetData>')
     IF SELF.Headers
       SELF.Cat('<row r="1">')
+      out = 0
       LOOP i = 1 TO n
-        SELF.Cat('<c r="' & SELF.ColRef(i) & '1" s="1" t="inlineStr"><is><t>')
+        GET(SELF.Cols,i)
+        IF ~SELF.Cols.Use THEN CYCLE .
+        out += 1
+        SELF.Cat('<c r="' & SELF.ColRef(out) & '1" s="1" t="inlineStr"><is><t>')
         SELF.CatXmlText(SELF.HeaderText(i))
         SELF.Cat('</t></is></c>')
       END
@@ -519,9 +904,13 @@ dlm   STRING(1)
 
 
 !  Append whatever is in the QUEUE BUFFER right now.
+!  `i` walks every column the LIST has; `out` counts only the ticked ones, so
+!  the file's field order and its A/B/C spreadsheet letters stay contiguous no
+!  matter which columns the user left out.
 ExportClass.AddRow PROCEDURE
 i     LONG,AUTO
 n     LONG,AUTO
+out   LONG,AUTO
 num   BYTE,AUTO
 rw    LONG,AUTO
 dlm   STRING(1)
@@ -530,11 +919,15 @@ dlm   STRING(1)
   n = SELF.Columns()
   IF ~n THEN RETURN .
   dlm = SELF.Sep()
+  out = 0
 
   CASE SELF.Fmt
   OF Exp:CSV OROF Exp:CSVUTF8 OROF Exp:TSV
     LOOP i = 1 TO n
-      IF i > 1 THEN SELF.Cat(dlm) .
+      GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
+      out += 1
+      IF out > 1 THEN SELF.Cat(dlm) .
       IF SELF.Fmt = Exp:TSV
         SELF.CatFlatField(SELF.CellText(i))
       ELSE
@@ -547,6 +940,7 @@ dlm   STRING(1)
     SELF.Cat(' <' & CLIP(SELF.RowTag) & '>' & Exp:CRLF)
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
       SELF.Cat('  <' & CLIP(SELF.Cols.Tag) & '>')
       SELF.CatXmlText(SELF.CellText(i))
       GET(SELF.Cols,i)
@@ -559,8 +953,10 @@ dlm   STRING(1)
     SELF.Cat(Exp:CRLF & '  {')
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
       num = SELF.Cols.IsNum
-      IF i > 1 THEN SELF.Cat(',') .
+      out += 1
+      IF out > 1 THEN SELF.Cat(',') .
       SELF.Cat('"')
       SELF.CatJsonText(SELF.HeaderText(i))
       SELF.Cat('":')
@@ -578,6 +974,7 @@ dlm   STRING(1)
     SELF.Cat('<tr>')
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
       IF SELF.Cols.IsNum
         SELF.Cat('<td class="n">')
       ELSE
@@ -594,11 +991,13 @@ dlm   STRING(1)
     SELF.Cat('<row r="' & rw & '">')
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
       num = SELF.Cols.IsNum
+      out += 1
       IF num                                              ! a true numeric cell: sums, sorts, charts
-        SELF.Cat('<c r="' & SELF.ColRef(i) & rw & '"><v>' & SELF.CellNumber(i) & '</v></c>')
+        SELF.Cat('<c r="' & SELF.ColRef(out) & rw & '"><v>' & SELF.CellNumber(i) & '</v></c>')
       ELSE
-        SELF.Cat('<c r="' & SELF.ColRef(i) & rw & '" t="inlineStr"><is><t>')
+        SELF.Cat('<c r="' & SELF.ColRef(out) & rw & '" t="inlineStr"><is><t>')
         SELF.CatXmlText(SELF.CellText(i))
         SELF.Cat('</t></is></c>')
       END
@@ -635,7 +1034,7 @@ ok    BYTE(0)
     SELF.Cat('</sheetData>')
     IF SELF.Headers AND SELF.RowsOut
       last = SELF.RowsOut + 1
-      SELF.Cat('<autoFilter ref="A1:' & SELF.ColRef(n) & last & '"/>')
+      SELF.Cat('<autoFilter ref="A1:' & SELF.ColRef(SELF.Selected()) & last & '"/>')
     END
     SELF.Cat('</worksheet>')
   END

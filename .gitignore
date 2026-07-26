@@ -38,3 +38,5 @@ examples/**/bench.ini
 
 # myExport demo output
 examples/**/Invoices*
+examples/**/dlg.ini
+examples/**/col.ini

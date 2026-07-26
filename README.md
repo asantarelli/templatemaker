@@ -528,9 +528,20 @@ by the class itself:
 
 ### `templates/myExport/` — export any browse or list to seven file formats
 Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
-opens a modal dialog that asks for the **format** and, through the standard Windows Save-As browser, the
-**folder and file name** — then writes **CSV**, **CSV UTF-8** (with the BOM Excel needs before it trusts
-accents), **TSV**, **XML**, **JSON**, **HTML** or a real **Excel `.xlsx`** workbook.
+opens a modal dialog that asks for the **format**, the **folder and file name** (through the standard Windows
+Save-As browser) and **which columns to send** — then writes **CSV**, **CSV UTF-8** (with the BOM Excel needs
+before it trusts accents), **TSV**, **XML**, **JSON**, **HTML** or a real **Excel `.xlsx`** workbook.
+
+**The column picker.** Every data column is listed with a tick box, so the user can leave columns out,
+**rename** one for the file, or give it a **different picture** — with the list's own heading shown alongside
+so nothing gets lost. A blank picture writes the **raw** value (handy for JSON and Excel, where an
+unformatted number beats a formatted string), and renaming also renames the XML element and the JSON key.
+**All / None / Defaults** act on the lot. The choices **survive between exports**: the generated code
+re-`Init`s before each one, so the scan fingerprints the list's layout (column count, field numbers, widths)
+and only rebuilds when that actually changes. One prompt (`AllowColumns`) hides the whole picker and shrinks
+the dialog back to format + file name if you'd rather lock it down, and every button it offers is also a
+public method — `ColumnUse`, `ColumnRename`, `ColumnPicture`, `SelectAll`, `ResetColumns` — so you can preset
+the columns from code.
 
 **No external program is needed for the Excel format.** An `.xlsx` is a ZIP of XML parts, and `ExportClass`
 writes both — the six OOXML parts *and* the ZIP container (local headers, CRC-32, central directory, EOCD) —
@@ -558,7 +569,7 @@ class has zero dependencies; if you also have **myCompress**, setting `_ExportDe
 button plus a "write all seven" self-test. Full programmer's documentation:
 [`docs/myExport-template.html`](docs/myExport-template.html).
 
-![The myExport dialog over a browse](docs/myExport-dialog.png)
+![The myExport dialog, with two columns left out, one renamed and one re-pictured](docs/myExport-dialog.png)
 
 ## Install
 

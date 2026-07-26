@@ -146,7 +146,14 @@ INCLUDE('ExportClass.INC'),ONCE
       #PROMPT('CSV &separator:',@s1),%xbDelim,DEFAULT(',')
       #PROMPT('Include the column &headings',CHECK),%xbHeaders,DEFAULT(1),AT(10)
       #PROMPT('Apply each column''s &picture',CHECK),%xbPictures,DEFAULT(1),AT(10)
-      #PROMPT('&Visible columns only (skip hidden and icon columns)',CHECK),%xbVisible,DEFAULT(1),AT(10)
+      #PROMPT('Start with &visible columns only (hidden and icon columns un-ticked)',CHECK),%xbVisible,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('Columns')
+      #PROMPT('Let the user &choose, rename and re-picture the columns',CHECK),%xbColumnUI,DEFAULT(1),AT(10)
+      #DISPLAY('On: the export dialog lists every column with a tick box, and')
+      #DISPLAY('the user can rename one or give it a different picture.')
+      #DISPLAY('Off: the dialog is just format + file name, and the columns go')
+      #DISPLAY('out exactly as the list shows them.')
     #ENDBOXED
     #BOXED('Afterwards')
       #PROMPT('&Open the file in its default program',CHECK),%xbOpenAfter,DEFAULT(1),AT(10)
@@ -222,6 +229,7 @@ INCLUDE('ExportClass.INC'),ONCE
   %xbObject.Headers      = %xbHeaders
   %xbObject.Pictures     = %xbPictures
   %xbObject.VisibleOnly  = %xbVisible
+  %xbObject.AllowColumns = %xbColumnUI
   %xbObject.OpenWhenDone = %xbOpenAfter
   %xbObject.Confirm      = %xbConfirm
   %xbObject.Allow        = %xbMask
@@ -291,7 +299,8 @@ INCLUDE('ExportClass.INC'),ONCE
       #PROMPT('CSV &separator:',@s1),%xcDelim,DEFAULT(',')
       #PROMPT('Include the column &headings',CHECK),%xcHeaders,DEFAULT(1),AT(10)
       #PROMPT('Apply each column''s &picture',CHECK),%xcPictures,DEFAULT(1),AT(10)
-      #PROMPT('&Visible columns only',CHECK),%xcVisible,DEFAULT(1),AT(10)
+      #PROMPT('Start with &visible columns only',CHECK),%xcVisible,DEFAULT(1),AT(10)
+      #PROMPT('Let the user &choose, rename and re-picture the columns',CHECK),%xcColumnUI,DEFAULT(1),AT(10)
     #ENDBOXED
     #BOXED('Afterwards')
       #PROMPT('&Open the file in its default program',CHECK),%xcOpenAfter,DEFAULT(1),AT(10)
@@ -358,6 +367,7 @@ INCLUDE('ExportClass.INC'),ONCE
 %xcObject.Headers      = %xcHeaders
 %xcObject.Pictures     = %xcPictures
 %xcObject.VisibleOnly  = %xcVisible
+%xcObject.AllowColumns = %xcColumnUI
 %xcObject.OpenWhenDone = %xcOpenAfter
 %xcObject.Confirm      = %xcConfirm
 %xcObject.Allow        = %xcMask

@@ -85,12 +85,17 @@ Exp:AllowXLSX      EQUATE(32)
 Exp:AllowHTML      EQUATE(64)
 Exp:AllowAll       EQUATE(127)
 
-! ---- one row per exportable LIST column -----------------------------------
+! ---- one row per data column found on the LIST ----------------------------
+!  Head / Pic are what the FILE gets and the user may edit them in the dialog;
+!  HeadDef / PicDef are what the LIST itself says, so "Defaults" can undo.
 ExportColumnQueue  QUEUE,TYPE
 ColNo                LONG                       ! the LIST column number
 FldNo                LONG                       ! the QUEUE field it displays
-Head                 CSTRING(129)               ! the column heading, as shown
-Pic                  CSTRING(33)                ! the column picture, as shown
+Use                  BYTE                       ! 1 = include this column in the file
+Head                 CSTRING(129)               ! the heading to write (renameable)
+Pic                  CSTRING(33)                ! the picture to apply (overridable)
+HeadDef              CSTRING(129)               ! the heading the LIST shows
+PicDef               CSTRING(33)                ! the picture the LIST shows
 Tag                  CSTRING(65)                ! Head made safe for an XML/JSON name
 IsNum                BYTE                       ! 1 = write unquoted in JSON / as a number in xlsx
 Width                LONG                       ! the column width, in dialog units
@@ -119,9 +124,10 @@ Title                CSTRING(65)                ! sheet name / XML root / HTML h
 RowTag               CSTRING(33)                ! XML element for one row (default 'Row')
 Headers              BYTE(1)                    ! write a heading row
 Pictures             BYTE(1)                    ! run each value through its column picture
-VisibleOnly          BYTE(1)                    ! skip hidden (zero width) and icon columns
+VisibleOnly          BYTE(1)                    ! start with hidden and icon columns un-ticked
 OpenWhenDone         BYTE(1)                    ! open the file in its default program
 Confirm              BYTE(1)                    ! show the "N rows exported" popup
+AllowColumns         BYTE(1)                    ! let the user pick/rename columns in the dialog
 Delim                STRING(1)                  ! CSV separator; blank = comma
 ! ---- results --------------------------------------------------------------
 RowsOut              LONG                       ! rows written by the last export
@@ -142,14 +148,29 @@ U8Cap                LONG,PROTECTED
 CrcTab               ULONG,DIM(256),PROTECTED
 CrcReady             BYTE,PROTECTED
 Started              BYTE,PROTECTED
+Sig                  CSTRING(1025),PROTECTED    ! the LIST layout the column list was built from
 
 ! ---- setup ----------------------------------------------------------------
 Construct            PROCEDURE
 Destruct             PROCEDURE
 Init                 PROCEDURE(SIGNED pList,*QUEUE pQ)
 Kill                 PROCEDURE
-ScanColumns          PROCEDURE(),LONG,PROC      ! (re)read the LIST format -> column count
-Columns              PROCEDURE(),LONG           ! how many columns will be exported
+ScanColumns          PROCEDURE(),LONG,PROC      ! read the LIST format if it changed -> column count
+Rescan               PROCEDURE(),LONG,PROC      ! force a re-read, discarding any column edits
+Columns              PROCEDURE(),LONG           ! how many data columns the LIST has
+Selected             PROCEDURE(),LONG           ! how many of them are ticked for export
+
+! ---- the column list (what the dialog edits; usable from your code too) ---
+ResetColumns         PROCEDURE()                ! back to the LIST's own headings/pictures
+SelectAll            PROCEDURE(BYTE pOn)        ! tick or untick every column
+ColumnUse            PROCEDURE(LONG pCol,BYTE pOn)         ! include/exclude one column
+ColumnRename         PROCEDURE(LONG pCol,STRING pHead)     ! blank = back to the list's heading
+ColumnPicture        PROCEDURE(LONG pCol,STRING pPic)      ! blank = raw value, no picture
+ColumnHeading        PROCEDURE(LONG pCol),STRING           ! what this column is called in the file
+ColumnDefault        PROCEDURE(LONG pCol),STRING           ! what the LIST calls it
+ColumnPic            PROCEDURE(LONG pCol),STRING
+ColumnDefaultPic     PROCEDURE(LONG pCol),STRING           ! the picture the LIST uses
+ColumnOn             PROCEDURE(LONG pCol),BYTE
 
 ! ---- the run-time dialog --------------------------------------------------
 Ask                  PROCEDURE(),BYTE,VIRTUAL   ! modal format + file name dialog. 1 = go
@@ -157,6 +178,7 @@ AskFileName          PROCEDURE(),BYTE,VIRTUAL   ! just the Save-As dialog, for S
 FormatName           PROCEDURE(LONG pFmt),STRING
 FormatExt            PROCEDURE(LONG pFmt),STRING
 FormatMask           PROCEDURE(LONG pFmt),STRING
+FormatHint           PROCEDURE(LONG pFmt),STRING           ! the one-liner shown under the dialog
 Allowed              PROCEDURE(LONG pFmt),BYTE
 SuggestName          PROCEDURE(),STRING         ! Title (or the window title) + today's date
 ForceExt             PROCEDURE(LONG pFmt)       ! swap SELF.FileName's extension to match pFmt
@@ -189,6 +211,8 @@ CatFlatField         PROCEDURE(STRING pText),PROTECTED      ! TSV: no tabs/newli
 CatXmlText           PROCEDURE(STRING pText),PROTECTED
 CatJsonText          PROCEDURE(STRING pText),PROTECTED
 CatHtmlText          PROCEDURE(STRING pText),PROTECTED
+Classify             PROCEDURE(LONG pCol),PROTECTED        ! re-derive Tag + IsNum from Head/Pic
+LayoutSig            PROCEDURE(),STRING,PROTECTED          ! a fingerprint of the LIST's format
 SafeTag              PROCEDURE(STRING pText,LONG pCol),STRING,PROTECTED
 SheetName            PROCEDURE(STRING pText),STRING,PROTECTED
 ColRef               PROCEDURE(LONG pCol),STRING,PROTECTED  ! 1 -> A, 27 -> AA

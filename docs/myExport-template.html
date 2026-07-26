@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myExport — Programmer's Documentation</title>
+<title>myExport — Programmer's Documentation / Documentación del programador</title>
 <style>
   :root{
     --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
@@ -34,7 +34,7 @@
     padding:4px 12px;border-radius:20px;font-size:12.5px}
   .body{padding:14px 52px 80px;max-width:940px}
   section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
-  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
   h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
   p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
   code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
@@ -48,6 +48,7 @@
   .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
   .danger{background:var(--red-bg);border-color:#e6b8b2;color:#7c241b}
   .callout b{display:block;margin-bottom:2px}
+  .callout b.i{display:inline;margin:0}
   table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
   th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
   th{background:#f0f4f9;color:var(--navy);font-weight:600}
@@ -55,6 +56,14 @@
   .lead{font-size:16px;color:#3a4756}
   footer{padding:24px 52px;color:var(--muted);font-size:13px}
   .top{font-size:12px;color:var(--muted);float:right}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
   .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
     border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
 </style>
@@ -62,41 +71,54 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>myExport</h1><span>Programmer's Documentation · v1.0</span></div>
-    <a href="#over">Overview</a>
-    <div class="grp">Using it</div>
-    <a href="#install" class="h2">Install &amp; register</a>
-    <a href="#button" class="h2">The Export button</a>
-    <a href="#code" class="h2">An existing button or menu</a>
-    <a href="#dialog" class="h2">The run-time dialog</a>
-    <a href="#scope" class="h2">Which records get exported</a>
-    <div class="grp">The formats</div>
-    <a href="#formats" class="h2">All seven, compared</a>
-    <a href="#excel" class="h2">Excel .xlsx</a>
-    <a href="#smaller" class="h2">Smaller workbooks</a>
-    <div class="grp">How it works</div>
-    <a href="#columns" class="h2">Reading the list</a>
-    <a href="#arch" class="h2">Architecture</a>
-    <div class="grp">Reference</div>
-    <a href="#classref" class="h2">Class reference</a>
-    <a href="#hand" class="h2">Driving it from code</a>
-    <a href="#trouble" class="h2">Troubleshooting</a>
+    <div class="brand"><h1>myExport</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#button" class="h2"><span class="en">The Export button</span><span class="es">El botón Exportar</span></a>
+    <a href="#code" class="h2"><span class="en">An existing button or menu</span><span class="es">Un botón o menú que ya tienes</span></a>
+    <a href="#dialog" class="h2"><span class="en">The run-time dialog</span><span class="es">El diálogo en ejecución</span></a>
+    <a href="#picker" class="h2"><span class="en">Choosing the columns</span><span class="es">Elegir las columnas</span></a>
+    <a href="#scope" class="h2"><span class="en">Which records get exported</span><span class="es">Qué registros se exportan</span></a>
+    <div class="grp"><span class="en">The formats</span><span class="es">Los formatos</span></div>
+    <a href="#formats" class="h2"><span class="en">All seven, compared</span><span class="es">Los siete, comparados</span></a>
+    <a href="#excel" class="h2"><span class="en">Excel .xlsx</span><span class="es">Excel .xlsx</span></a>
+    <a href="#smaller" class="h2"><span class="en">Smaller workbooks</span><span class="es">Libros más pequeños</span></a>
+    <div class="grp"><span class="en">How it works</span><span class="es">Cómo funciona</span></div>
+    <a href="#columns" class="h2"><span class="en">Reading the list</span><span class="es">Cómo lee la lista</span></a>
+    <a href="#arch" class="h2"><span class="en">Architecture</span><span class="es">Arquitectura</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#classref" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#hand" class="h2"><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
   </nav>
   <main>
     <header class="hero">
       <h1>myExport</h1>
-      <p>Put an <b>Export</b> button on any browse or list. One press asks for the format and the file
-         name, then writes <b>CSV</b>, <b>CSV&nbsp;UTF-8</b>, <b>TSV</b>, <b>XML</b>, <b>JSON</b>,
-         <b>HTML</b> or a real <b>Excel&nbsp;.xlsx</b> workbook — in pure Clarion, with nothing to deploy.</p>
-      <span class="pill">7 formats · real OOXML .xlsx · no Excel, no COM, no helper .exe · reads the list's own layout</span>
+      <p class="en">Put an <b>Export</b> button on any browse or list. One press asks for the format, the file name
+         and which columns to send, then writes <b>CSV</b>, <b>CSV&nbsp;UTF-8</b>, <b>TSV</b>, <b>XML</b>,
+         <b>JSON</b>, <b>HTML</b> or a real <b>Excel&nbsp;.xlsx</b> workbook — in pure Clarion, with nothing
+         to deploy.</p>
+      <p class="es">Pon un botón <b>Exportar</b> en cualquier browse o lista. Una pulsación pide el
+         formato, el nombre del archivo y qué columnas enviar, y escribe <b>CSV</b>, <b>CSV&nbsp;UTF-8</b>,
+         <b>TSV</b>, <b>XML</b>, <b>JSON</b>, <b>HTML</b> o un libro de <b>Excel&nbsp;.xlsx</b> de verdad —
+         en Clarion puro, sin nada que instalar.</p>
+      <span class="pill en">7 formats · real OOXML .xlsx · pick / rename / re-picture columns · no Excel, no COM, no helper .exe</span>
+      <span class="pill es">7 formatos · .xlsx OOXML real · elegir / renombrar / re-picture de columnas · sin Excel, sin COM, sin programa auxiliar</span>
     </header>
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
     <div class="body">
 
     <section id="over">
-      <h2>Overview <a href="#over" class="top">#</a></h2>
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
       <p class="lead">Drag <b>myExport&nbsp;-&nbsp;Export button</b> onto a browse window. That is the whole
-        job: you get a wired-up button, a modal dialog that asks the user for a format and a destination,
-        and seven writers behind it.</p>
+        job: you get a wired-up button, a modal dialog that asks for a format, a destination and which
+        columns to send, and seven writers behind it.</p>
       <p>The part that makes it worth having is that <b>you never describe your columns to it</b>. At the
         moment the button is pressed it reads the LIST control's own <code>FORMAT</code> — which columns
         exist, which queue field each one shows, its heading and its picture — and pulls the values out of
@@ -111,6 +133,7 @@
         <tr><td>Needs Excel installed</td><td><b>No</b> — the .xlsx is assembled byte by byte in Clarion</td></tr>
         <tr><td>Needs a DLL / OCX / COM / helper .exe</td><td><b>No</b> — nothing to redistribute</td></tr>
         <tr><td>Column setup</td><td><b>None</b> — read from the live LIST every time</td></tr>
+        <tr><td>Column control</td><td>The user ticks, renames and re-pictures columns in the dialog</td></tr>
         <tr><td>Formats</td><td>CSV, CSV UTF-8, TSV, XML, JSON, HTML, Excel .xlsx</td></tr>
         <tr><td>Records</td><td>Every record in the browse (walks the view), or just the loaded page</td></tr>
         <tr><td>Where it goes</td><td>The user picks, in a standard Save-As dialog</td></tr>
@@ -120,10 +143,41 @@
         parts and the ZIP container (local headers, CRC-32, central directory, EOCD) — so a real workbook
         comes out with no outside program in the loop. It opens in Excel, LibreOffice, Google Sheets,
         Numbers, pandas and openpyxl.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Arrastra <b>myExport&nbsp;-&nbsp;Export button</b> sobre la ventana de un browse. Eso
+        es todo: obtienes un botón ya cableado, un diálogo modal que pide el formato, el destino y qué
+        columnas enviar, y siete escritores detrás.</p>
+      <p>Lo que de verdad lo hace útil es que <b>nunca le describes tus columnas</b>. En el momento en que
+        se pulsa el botón lee el <code>FORMAT</code> del propio control LIST — qué columnas hay, qué campo
+        de la cola muestra cada una, su encabezado y su picture — y saca los valores de la cola con
+        <code>WHAT()</code>. Por eso el archivo coincide exactamente con la pantalla, incluidas las columnas
+        que el usuario reordenó, redimensionó u ocultó <i>después</i> de abrir la ventana.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myExport-dialog.png" alt="El diálogo de myExport sobre un browse"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      <table>
+        <tr><th>&nbsp;</th><th>myExport</th></tr>
+        <tr><td>¿Necesita Excel instalado?</td><td><b>No</b> — el .xlsx se arma byte a byte en Clarion</td></tr>
+        <tr><td>¿Necesita DLL / OCX / COM / programa auxiliar?</td><td><b>No</b> — no hay nada que redistribuir</td></tr>
+        <tr><td>Configuración de columnas</td><td><b>Ninguna</b> — se leen del LIST vivo cada vez</td></tr>
+        <tr><td>Control de columnas</td><td>El usuario marca, renombra y cambia el picture en el diálogo</td></tr>
+        <tr><td>Formatos</td><td>CSV, CSV UTF-8, TSV, XML, JSON, HTML, Excel .xlsx</td></tr>
+        <tr><td>Registros</td><td>Todos los del browse (recorre la vista), o solo la página cargada</td></tr>
+        <tr><td>Destino</td><td>Lo elige el usuario, en un diálogo Guardar como estándar</td></tr>
+      </table>
+      <div class="callout note"><b>Por qué no hace falta un programa en Python o C</b>
+        Un <code>.xlsx</code> es un archivo ZIP con partes XML dentro. <code>ExportClass</code> escribe las
+        dos cosas — las partes XML y el contenedor ZIP (cabeceras locales, CRC-32, directorio central,
+        EOCD) — así que sale un libro de verdad sin ningún programa externo de por medio. Se abre en Excel,
+        LibreOffice, Google Sheets, Numbers, pandas y openpyxl.</div>
+      </div>
     </section>
 
     <section id="install">
-      <h2>Install &amp; register <a href="#install" class="top">#</a></h2>
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="en">
       <ol>
         <li>Copy <code>templates/myExport/ExportClass.inc</code> and <code>ExportClass.clw</code> to a folder
           on the Clarion redirection path (your app folder, or <code>\clarion12\libsrc\win</code>). They
@@ -139,8 +193,7 @@
       </ol>
       <div class="callout tip"><b>That is the whole setup</b>
         The class's <code>LINK</code> attribute pulls <code>ExportClass.clw</code> into the build, and the
-        control template emits its own <code>INCLUDE('ExportClass.INC'),ONCE</code>. The global extension
-        <b>myExport - Global</b> is optional — add it only if you also want to call the class from
+        control template emits its own <code>INCLUDE('ExportClass.INC'),ONCE</code>. The global extension <b class="i">myExport - Global</b> is optional — add it only if you also want to call the class from
         hand-written code in procedures that have no Export button.</div>
       <div class="filetree">
 templates/myExport/<br>
@@ -151,10 +204,42 @@ templates/myExport/<br>
 examples/myExport/<br>
 &nbsp;&nbsp;ExportDemo.clw / .cwproj&nbsp;&nbsp;<span style="color:#6b7785">a runnable demo — a list and one Export button</span>
       </div>
+      </div>
+      <div class="es">
+      <ol>
+        <li>Copia <code>templates/myExport/ExportClass.inc</code> y <code>ExportClass.clw</code> a una
+          carpeta del camino de redirección de Clarion (la carpeta de tu app, o
+          <code>\clarion12\libsrc\win</code>). Deben guardarse <b class="i">en ANSI y con finales de línea
+          CRLF</b>: una copia con solo LF hace que el compilador reporte un falso
+          <code>Illegal data type: EXPORTCLASS</code> en cada uso.</li>
+        <li>Copia <code>templates/myExport/myExport.tpl</code> a tu carpeta de plantillas.</li>
+        <li>En el IDE: <b>Setup ▸ Template Registry ▸ Register</b>, y elige <code>myExport.tpl</code>.</li>
+        <li>Abre la ventana de un procedimiento browse y arrastra desde la lista de plantillas de control
+          <b>myExport - Export button for a browse/list</b> a la ventana.</li>
+        <li>En sus prompts, pon <b>List control to export</b> apuntando al LIST del browse y, para el modo
+          por defecto ("todos los registros"), el nombre del <b>Browse object</b> — <code>BRW1</code> para
+          el primer BrowseBox del procedimiento.</li>
+      </ol>
+      <div class="callout tip"><b>Esa es toda la instalación</b>
+        El atributo <code>LINK</code> de la clase mete <code>ExportClass.clw</code> en la compilación, y la
+        plantilla de control emite su propio <code>INCLUDE('ExportClass.INC'),ONCE</code>. La extensión
+        global <b class="i">myExport - Global</b> es opcional: agrégala solo si además quieres llamar a la
+        clase desde código escrito a mano en procedimientos que no tienen botón.</div>
+      <div class="filetree">
+templates/myExport/<br>
+&nbsp;&nbsp;ExportClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">el motor (configuración + prototipos)</span><br>
+&nbsp;&nbsp;ExportClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la implementación: diálogo, 7 escritores, ZIP, UTF-8</span><br>
+&nbsp;&nbsp;myExport.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">extensión global + plantilla de control + code template</span><br>
+&nbsp;&nbsp;myExport.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">los tres archivos anteriores, para distribuir</span><br>
+examples/myExport/<br>
+&nbsp;&nbsp;ExportDemo.clw / .cwproj&nbsp;&nbsp;<span style="color:#6b7785">demo que compila y corre — una lista y un botón Exportar</span>
+      </div>
+      </div>
     </section>
 
     <section id="button">
-      <h2>The Export button <a href="#button" class="top">#</a></h2>
+      <h2><span class="en">The Export button</span><span class="es">El botón Exportar</span> <a href="#button" class="top">#</a></h2>
+      <div class="en">
       <p><b>myExportButton</b> is a <code>#CONTROL</code> template: dragging it onto the window drops a
         BUTTON and generates everything behind it. It is <code>MULTI</code>, so you can put several on one
         window — one per list, or two on the same list with different format sets.</p>
@@ -170,7 +255,8 @@ examples/myExport/<br>
         <tr><td rowspan="4">Options</td><td>Title</td><td>Becomes the Excel sheet name, the XML root element and the HTML heading. Defaults to the procedure name.</td></tr>
         <tr><td>Include the column headings</td><td>Writes a heading row / uses the headings as JSON keys and XML element names.</td></tr>
         <tr><td>Apply each column's picture</td><td>On: values come out formatted exactly as displayed. Off: raw values.</td></tr>
-        <tr><td>Visible columns only</td><td>Skips zero-width (hidden) and icon columns.</td></tr>
+        <tr><td>Start with visible columns only</td><td>Hidden (zero-width) and icon columns are listed but start un-ticked.</td></tr>
+        <tr><td>Let the user choose, rename and re-picture the columns</td><td>Shows the <a href="#picker">column picker</a> in the dialog. Untick it to lock the columns down.</td></tr>
       </table>
       <h3>What it generates</h3>
       <p>An object in <code>%DataSection</code> and, in the button's <code>Accepted</code> handler, this:</p>
@@ -197,19 +283,76 @@ examples/myExport/<br>
         <code>myExport - before the export dialog opens</code> and
         <code>myExport - after the file has been written</code> let you seed
         <code>Exporter1.FileName</code> from your own logic, or post-process the file.</div>
+      </div>
+      <div class="es">
+      <p><b>myExportButton</b> es una plantilla <code>#CONTROL</code>: al arrastrarla a la ventana coloca un
+        BUTTON y genera todo lo que hay detrás. Es <code>MULTI</code>, así que puedes poner varios en una
+        misma ventana — uno por lista, o dos sobre la misma lista con distintos conjuntos de formatos.</p>
+      <h3>Prompts</h3>
+      <table>
+        <tr><th>Pestaña</th><th>Prompt</th><th>Qué hace</th></tr>
+        <tr><td rowspan="5">General</td><td>Object name</td><td>La instancia de <code>ExportClass</code>; por defecto <code>Exporter1</code>.</td></tr>
+        <tr><td>List control to export</td><td>Elige tu LIST. <b class="i">Obligatorio.</b></td></tr>
+        <tr><td>Records</td><td>Todos los registros del browse (recorre la vista) — el valor por defecto — o solo las filas cargadas en la cola. Ver <a href="#scope">más abajo</a>.</td></tr>
+        <tr><td>Browse object</td><td>El objeto BrowseBox de ABC que llena la lista: <code>BRW1</code>, <code>BRW2</code>… Solo hace falta en el modo "todos los registros".</td></tr>
+        <tr><td>Queue</td><td>Déjalo en blanco. La plantilla lo saca del atributo <code>FROM()</code> del propio LIST en tiempo de generación. Rellénalo solo si la lista se enlaza en ejecución con <code>PROP:From</code>.</td></tr>
+        <tr><td>Formats</td><td>Siete casillas</td><td>Qué formatos ofrece el diálogo. Desmarca los que tus usuarios no deban ver.</td></tr>
+        <tr><td rowspan="5">Options</td><td>Title</td><td>Se convierte en el nombre de la hoja de Excel, el elemento raíz del XML y el título del HTML. Por defecto, el nombre del procedimiento.</td></tr>
+        <tr><td>Include the column headings</td><td>Escribe una fila de encabezados, y usa los encabezados como claves JSON y nombres de elemento XML.</td></tr>
+        <tr><td>Apply each column's picture</td><td>Activado: los valores salen formateados igual que se ven. Desactivado: valores crudos.</td></tr>
+        <tr><td>Start with visible columns only</td><td>Las columnas ocultas (ancho cero) y de icono aparecen en la lista pero empiezan desmarcadas.</td></tr>
+        <tr><td>Let the user choose, rename and re-picture the columns</td><td>Muestra el <a href="#picker">selector de columnas</a> en el diálogo. Desmárcalo para dejar las columnas fijas.</td></tr>
+      </table>
+      <h3>Qué genera</h3>
+      <p>Un objeto en <code>%DataSection</code> y, en el manejador <code>Accepted</code> del botón, esto:</p>
+<pre><span class="c">! en el embed Accepted del botón</span>
+  Exporter1.Init(?Browse:1,Queue:Browse)     <span class="c">! relee la disposición viva de la lista</span>
+  Exporter1.Title        = <span class="s">'BrowseCustomers'</span>
+  Exporter1.Headers      = 1
+  Exporter1.Pictures     = 1
+  Exporter1.Allow        = 127               <span class="c">! las casillas de formato, como máscara de bits</span>
+  <span class="k">IF</span> Exporter1.Ask()                       <span class="c">! formato + carpeta + nombre de archivo</span>
+    <span class="k">IF</span> Exporter1.StartFile()
+      BRW1.Reset()                           <span class="c">! al principio del orden actual</span>
+      <span class="k">LOOP</span>
+        <span class="k">IF</span> BRW1.Next() <span class="k">THEN BREAK</span> .            <span class="c">! Level:Notify = fin de la vista</span>
+        BRW1.SetQueueRecord()                <span class="c">! registro de la vista -&gt; buffer de la cola</span>
+        Exporter1.AddRow()
+      <span class="k">END</span>
+      Exporter1.EndFile()
+      BRW1.ResetSort(1)                      <span class="c">! rellena de nuevo el browse que recorrimos</span>
+      BRW1.UpdateWindow()
+    <span class="k">END</span>
+  <span class="k">END</span></pre>
+      <div class="callout note"><b>Dos embeds ocultos</b>
+        <code>myExport - before the export dialog opens</code> y
+        <code>myExport - after the file has been written</code> te permiten preparar
+        <code>Exporter1.FileName</code> con tu propia lógica, o post-procesar el archivo.</div>
+      </div>
     </section>
 
     <section id="code">
-      <h2>Already have a button or menu item? <a href="#code" class="top">#</a></h2>
+      <h2><span class="en">Already have a button or menu item?</span><span class="es">¿Ya tienes un botón o una opción de menú?</span> <a href="#code" class="top">#</a></h2>
+      <div class="en">
       <p><b>myExportHere</b> is a <code>#CODE</code> template with the same prompts. Drop it into the
         <code>Accepted</code> embed of any existing button, menu item, toolbar entry or hot key and it emits
         the same block right there, declaring its own object in the procedure's data.</p>
       <p>Use it when the export belongs on your existing <b>File ▸ Export…</b> menu rather than on a new
         button, or when the browse window's layout is already full.</p>
+      </div>
+      <div class="es">
+      <p><b>myExportHere</b> es una plantilla <code>#CODE</code> con los mismos prompts. Suéltala en el
+        embed <code>Accepted</code> de cualquier botón, opción de menú, entrada de toolbar o tecla rápida
+        que ya tengas y emite el mismo bloque justo ahí, declarando su propio objeto en los datos del
+        procedimiento.</p>
+      <p>Úsala cuando la exportación pertenezca a tu menú <b>Archivo ▸ Exportar…</b> en vez de a un botón
+        nuevo, o cuando la ventana del browse ya esté llena.</p>
+      </div>
     </section>
 
     <section id="dialog">
-      <h2>The run-time dialog <a href="#dialog" class="top">#</a></h2>
+      <h2><span class="en">The run-time dialog</span><span class="es">El diálogo en ejecución</span> <a href="#dialog" class="top">#</a></h2>
+      <div class="en">
       <p>A modal window, centred, with a slate header band. It asks for exactly two things and offers three
         options:</p>
       <ul>
@@ -220,15 +363,147 @@ examples/myExport/<br>
         <li><b>Include the column headings</b>, <b>Apply each column's picture</b> and <b>Open the file when
           it is done</b> — the template's settings, still changeable per export.</li>
       </ul>
+      <p>Below that is the <a href="#picker">column picker</a>, then the three options and the format's
+        own one-line note.</p>
       <p>The object survives for the life of the window, so the second export remembers the first one's
-        folder, name and format.</p>
+        folder, name, format <i>and</i> column choices.</p>
       <div class="callout tip"><b>Feedback is a modal popup, never a beep</b>
         Success reports the row count and full path; a failure reports what went wrong — a folder that does
         not exist, a file already open in Excel, a full disk.</div>
+      </div>
+      <div class="es">
+      <p>Una ventana modal, centrada, con una banda superior en azul pizarra. Pide exactamente dos cosas y
+        ofrece tres opciones:</p>
+      <ul>
+        <li><b>Formato</b> — una lista desplegable que contiene solo los formatos que marcaste. Al cambiarlo
+          se ajusta sola la extensión del archivo, así que <code>Facturas.csv</code> pasa a ser
+          <code>Facturas.xlsx</code>.</li>
+        <li><b>Nombre de archivo</b> — se propone <code>&lt;Title&gt;_aaaammdd&lt;ext&gt;</code> en la carpeta
+          actual. El botón <b>…</b> abre el diálogo Guardar como de Windows (con su propio aviso de
+          sobrescritura).</li>
+        <li><b>Incluir los encabezados</b>, <b>Aplicar el picture de cada columna</b> y <b>Abrir el archivo
+          al terminar</b> — los valores de la plantilla, todavía modificables en cada exportación.</li>
+      </ul>
+      <p>Debajo está el <a href="#picker">selector de columnas</a>, luego las tres opciones y la nota de una
+        línea propia del formato.</p>
+      <p>El objeto vive mientras viva la ventana, así que la segunda exportación recuerda la carpeta, el
+        nombre, el formato <i>y</i> la elección de columnas de la primera.</p>
+      <div class="callout tip"><b>El aviso es una ventana modal, nunca un pitido</b>
+        Si va bien, informa del número de filas y la ruta completa; si falla, dice qué pasó — una carpeta
+        que no existe, un archivo abierto en Excel, un disco lleno.</div>
+      </div>
+    </section>
+
+    <section id="picker">
+      <h2><span class="en">Choosing the columns</span><span class="es">Elegir las columnas</span> <a href="#picker" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Every data column on the list is shown with a tick box. The user can leave a column
+        out, <b>rename</b> it for the file, or give it a <b>different picture</b> — and the last column
+        always shows what the list itself calls it, so nothing gets lost.</p>
+      <table>
+        <tr><th>Column in the dialog</th><th>What it shows</th></tr>
+        <tr><td><b>Use</b></td><td><code>X</code> when the column will be written. <b>Double-click</b> a row or press <b>Space</b> to flip it; <b>Include / exclude</b> does the same.</td></tr>
+        <tr><td><b>#</b></td><td>Its position on the list, so a renamed column is still findable.</td></tr>
+        <tr><td><b>Heading in the file</b></td><td>What the file will call it — the CSV/TSV heading, the XML element, the JSON key, the Excel and HTML header.</td></tr>
+        <tr><td><b>Picture</b></td><td>The Clarion picture used to format the value.</td></tr>
+        <tr><td><b>Column on the list</b></td><td>The heading the LIST itself carries — unchanged, as a reference point.</td></tr>
+      </table>
+      <h3>Rename / picture…</h3>
+      <p>Opens a small modal on the highlighted column:</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myExport-column.png" alt="The column settings popup"
+             style="max-width:100%;border:1px solid var(--line);border-radius:8px;
+                    box-shadow:0 2px 8px rgba(14,26,43,.14)"></p>
+      <ul>
+        <li><b>Heading</b> — what the column is called in the file. Leave it <b>blank</b> to put the list's
+          own heading back.</li>
+        <li><b>Picture</b> — any Clarion picture. Leave it <b>blank</b> to write the <b>raw</b> value: handy
+          for JSON and Excel, where an unformatted number is more useful than a formatted string. It is
+          checked for a leading <code>@</code> before the popup will close.</li>
+        <li><b>Default</b> — puts both back to what the list uses.</li>
+      </ul>
+      <p><b>All</b>, <b>None</b> and <b>Defaults</b> act on the whole list; <b>Defaults</b> also undoes every
+        rename and picture override. Pressing <b>Export</b> with nothing ticked is refused with a popup
+        rather than writing an empty file.</p>
+      <div class="callout note"><b>Renaming changes more than the heading</b>
+        The XML element name and the JSON key are derived from the heading, so renaming
+        <code>Customer</code> to <code>Client name</code> gives you <code>&lt;Client_name&gt;</code> and
+        <code>"Client name"</code>. Changing a picture re-decides whether the column is numeric, so clearing
+        an <code>@N</code> picture turns a formatted Excel string back into a real number — and putting a
+        <code>@D</code> picture on a date column turns it into text on purpose.</div>
+      <h3>The choices stick</h3>
+      <p>The generated code calls <code>Init()</code> before every export, and <code>Init()</code> re-reads
+        the list — so column edits would normally be wiped between exports. They are not: the scan
+        <b>fingerprints the list's layout</b> (column count, field numbers, widths) and only rebuilds when
+        that fingerprint actually changes. Export, tweak, export again — the tick marks and renames are
+        still there. If the layout genuinely changes the list is rebuilt from scratch, which is what you
+        want. <code>Rescan()</code> forces it.</p>
+      <h3>Turning it off</h3>
+      <p>Untick <b>Let the user choose, rename and re-picture the columns</b> in the template prompts (or
+        set <code>AllowColumns = 0</code>). The picker is hidden and the dialog shrinks back to just format
+        and file name — the columns then go out exactly as the list shows them.</p>
+      <div class="callout tip"><b>Hidden columns are offered, not dropped</b>
+        With <b class="i">Start with visible columns only</b> ticked (the default), a hidden or icon column is
+        <i>listed but un-ticked</i> rather than left out — so a user who wants it can still tick it back on,
+        and the default behaviour is unchanged.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Todas las columnas de datos de la lista se muestran con una casilla. El usuario puede
+        dejar fuera una columna, <b>renombrarla</b> para el archivo o darle un <b>picture distinto</b> — y
+        la última columna siempre muestra cómo la llama la lista, así no se pierde nada.</p>
+      <table>
+        <tr><th>Columna del diálogo</th><th>Qué muestra</th></tr>
+        <tr><td><b>Use</b></td><td><code>X</code> cuando la columna se va a escribir. <b class="i">Doble clic</b> en la fila o <b class="i">Espacio</b> para cambiarlo; el botón <b class="i">Include / exclude</b> hace lo mismo.</td></tr>
+        <tr><td><b>#</b></td><td>Su posición en la lista, para reconocer una columna aunque la hayas renombrado.</td></tr>
+        <tr><td><b>Heading in the file</b></td><td>Cómo la llamará el archivo: el encabezado CSV/TSV, el elemento XML, la clave JSON y el título en Excel y HTML.</td></tr>
+        <tr><td><b>Picture</b></td><td>El picture de Clarion con el que se formatea el valor.</td></tr>
+        <tr><td><b>Column on the list</b></td><td>El encabezado que lleva el LIST — sin cambios, como referencia.</td></tr>
+      </table>
+      <h3>Rename / picture…</h3>
+      <p>Abre una ventana modal pequeña sobre la columna resaltada:</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myExport-column.png" alt="La ventana de configuración de columna"
+             style="max-width:100%;border:1px solid var(--line);border-radius:8px;
+                    box-shadow:0 2px 8px rgba(14,26,43,.14)"></p>
+      <ul>
+        <li><b>Heading</b> — cómo se llama la columna en el archivo. Déjalo <b>en blanco</b> para recuperar
+          el encabezado de la lista.</li>
+        <li><b>Picture</b> — cualquier picture de Clarion. Déjalo <b>en blanco</b> para escribir el valor
+          <b>crudo</b>: muy útil en JSON y Excel, donde un número sin formatear vale más que una cadena
+          formateada. Se comprueba que empiece por <code>@</code> antes de cerrar la ventana.</li>
+        <li><b>Default</b> — devuelve ambos a lo que usa la lista.</li>
+      </ul>
+      <p><b>All</b>, <b>None</b> y <b>Defaults</b> actúan sobre toda la lista; <b>Defaults</b> además
+        deshace cada renombrado y cada cambio de picture. Pulsar <b>Export</b> sin nada marcado se rechaza
+        con un aviso en vez de escribir un archivo vacío.</p>
+      <div class="callout note"><b>Renombrar cambia más que el encabezado</b>
+        El nombre del elemento XML y la clave JSON se derivan del encabezado, así que renombrar
+        <code>Customer</code> a <code>Client name</code> te da <code>&lt;Client_name&gt;</code> y
+        <code>"Client name"</code>. Cambiar el picture vuelve a decidir si la columna es numérica: quitar un
+        picture <code>@N</code> convierte una cadena de Excel otra vez en número real, y poner un
+        <code>@D</code> en una columna de fecha la convierte en texto a propósito.</div>
+      <h3>Las elecciones se mantienen</h3>
+      <p>El código generado llama a <code>Init()</code> antes de cada exportación, e <code>Init()</code>
+        relee la lista — así que los cambios de columna se perderían entre exportaciones. No se pierden: el
+        escaneo toma una <b>huella de la disposición de la lista</b> (número de columnas, números de campo,
+        anchos) y solo reconstruye cuando esa huella cambia de verdad. Exporta, ajusta, vuelve a exportar:
+        las marcas y los renombrados siguen ahí. Si la disposición cambia realmente, la lista se reconstruye
+        desde cero, que es lo que quieres. <code>Rescan()</code> lo fuerza.</p>
+      <h3>Cómo desactivarlo</h3>
+      <p>Desmarca <b>Let the user choose, rename and re-picture the columns</b> en los prompts de la
+        plantilla (o pon <code>AllowColumns = 0</code>). El selector se oculta y el diálogo se encoge hasta
+        dejar solo el formato y el nombre de archivo — las columnas salen entonces exactamente como las
+        muestra la lista.</p>
+      <div class="callout tip"><b>Las columnas ocultas se ofrecen, no se descartan</b>
+        Con <b class="i">Start with visible columns only</b> marcado (lo normal), una columna oculta o de
+        icono aparece <i>en la lista pero sin marcar</i> en vez de quedar fuera — así el usuario que la
+        quiera puede marcarla, y el comportamiento por defecto no cambia.</div>
+      </div>
     </section>
 
     <section id="scope">
-      <h2>Which records get exported <a href="#scope" class="top">#</a></h2>
+      <h2><span class="en">Which records get exported</span><span class="es">Qué registros se exportan</span> <a href="#scope" class="top">#</a></h2>
+      <div class="en">
       <p>An ABC BrowseBox queue holds only the page of rows around what is on screen — so exporting the
         queue would export a screenful. That is why the default is <b>every record in the browse</b>:</p>
       <ul>
@@ -242,10 +517,28 @@ examples/myExport/<br>
           right choice for a hand-coded LIST + QUEUE, or for a file-loaded browse, and it does not disturb
           the browse at all.</li>
       </ul>
+      </div>
+      <div class="es">
+      <p>La cola de un BrowseBox de ABC solo guarda la página de filas alrededor de lo que se ve en
+        pantalla, así que exportar la cola exportaría una pantalla. Por eso el valor por defecto es
+        <b>todos los registros del browse</b>:</p>
+      <ul>
+        <li><b>Todos los registros (recorre la vista)</b> — <code>BRW1.Reset()</code> y luego
+          <code>BRW1.Next()</code> hasta el final, con <code>BRW1.SetQueueRecord()</code> llenando el buffer
+          de la cola en cada fila. Esto pasa por la VIEW del propio browse, así que <b>se respetan el orden
+          actual, los range limits y los filtros</b>: lo que el usuario dejó filtrado es lo que obtiene.
+          Al terminar, <code>ResetSort(1)</code> reconstruye el browse; se vuelve a mostrar desde el
+          principio del orden actual.</li>
+        <li><b>Solo las filas cargadas</b> — <code>ExportQueue()</code> recorre la cola tal cual. Es la
+          opción correcta para un LIST + QUEUE escrito a mano, o para un browse cargado por completo, y no
+          molesta al browse en absoluto.</li>
+      </ul>
+      </div>
     </section>
 
     <section id="formats">
-      <h2>All seven, compared <a href="#formats" class="top">#</a></h2>
+      <h2><span class="en">All seven, compared</span><span class="es">Los siete, comparados</span> <a href="#formats" class="top">#</a></h2>
+      <div class="en">
       <table>
         <tr><th>Format</th><th>Encoding</th><th>Notes</th></tr>
         <tr><td><b>CSV</b></td><td>System code page</td><td>RFC 4180. Quotes a field only when it holds the separator, a quote, a newline or edge spaces; quotes are doubled. Rows end CRLF.</td></tr>
@@ -256,10 +549,24 @@ examples/myExport/<br>
         <tr><td><b>Excel .xlsx</b></td><td>UTF-8</td><td>A real OOXML workbook — see below.</td></tr>
         <tr><td><b>HTML</b></td><td>UTF-8</td><td>A styled, self-contained table with a sticky-looking header, zebra rows and right-aligned numbers. Prints well and pastes into Word or Excel.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Formato</th><th>Codificación</th><th>Notas</th></tr>
+        <tr><td><b>CSV</b></td><td>Página de códigos del sistema</td><td>RFC 4180. Encomilla un campo solo cuando lleva el separador, una comilla, un salto de línea o espacios al borde; las comillas se duplican. Las filas terminan en CRLF.</td></tr>
+        <tr><td><b>CSV UTF-8</b></td><td>UTF-8 + BOM</td><td>Igual, más la marca de orden de bytes que Excel necesita para creerse que un CSV es UTF-8. <b class="i">Usa este si tus datos llevan acentos.</b></td></tr>
+        <tr><td><b>TSV</b></td><td>Página de códigos del sistema</td><td>Separado por tabuladores. Los tabuladores y saltos de línea dentro de un valor pasan a ser un espacio, porque ningún lector de TSV se pone de acuerdo en cómo escaparlos.</td></tr>
+        <tr><td><b>XML</b></td><td>UTF-8</td><td>Un elemento por columna, con el nombre sacado del encabezado y hecho válido para XML (<code>Cust Name</code> → <code>&lt;Cust_Name&gt;</code>). Entidades escapadas; caracteres de control eliminados.</td></tr>
+        <tr><td><b>JSON</b></td><td>UTF-8</td><td>Un arreglo de objetos, con las claves sacadas de los encabezados. <b class="i">Las columnas numéricas se escriben como números JSON</b>, no como cadenas; las fechas y horas siguen siendo texto.</td></tr>
+        <tr><td><b>Excel .xlsx</b></td><td>UTF-8</td><td>Un libro OOXML de verdad — ver abajo.</td></tr>
+        <tr><td><b>HTML</b></td><td>UTF-8</td><td>Una tabla con estilo, autónoma, con encabezado destacado, filas alternas y números alineados a la derecha. Se imprime bien y se pega en Word o Excel.</td></tr>
+      </table>
+      </div>
     </section>
 
     <section id="excel">
-      <h2>Excel .xlsx <a href="#excel" class="top">#</a></h2>
+      <h2><span class="en">Excel .xlsx</span><span class="es">Excel .xlsx</span> <a href="#excel" class="top">#</a></h2>
+      <div class="en">
       <p>Not a CSV with an <code>.xlsx</code> name, and not the old SpreadsheetML — a genuine OOXML package
         built here, containing six parts:</p>
 <pre>[Content_Types].xml
@@ -279,10 +586,35 @@ xl/worksheets/sheet1.xml        <span class="c">! the data</span></pre>
       <p>A column counts as numeric when the queue field is not a string <i>and</i> its picture is blank or
         an <code>@N</code> picture. A <code>@D</code> date, a <code>@T</code> time or a
         <code>@P</code> pattern stays text, which is what you want.</p>
+      </div>
+      <div class="es">
+      <p>Ni un CSV con nombre <code>.xlsx</code>, ni el viejo SpreadsheetML: un paquete OOXML genuino
+        construido aquí, con seis partes:</p>
+<pre>[Content_Types].xml
+_rels/.rels
+xl/workbook.xml                 <span class="c">! la hoja, con el nombre de Title</span>
+xl/_rels/workbook.xml.rels
+xl/styles.xml                   <span class="c">! dos formatos de celda: normal y negrita</span>
+xl/worksheets/sheet1.xml        <span class="c">! los datos</span></pre>
+      <p>La hoja no es un volcado. Lleva:</p>
+      <ul>
+        <li><b>Números como números.</b> Una columna numérica se escribe como
+          <code>&lt;v&gt;1234.56&lt;/v&gt;</code>, así que SUMA, ordenar, filtrar, tablas dinámicas y
+          gráficos funcionan. Las columnas de texto usan cadenas en línea.</li>
+        <li><b>Una fila de encabezados en negrita</b> y un <b>panel inmovilizado</b> debajo para que los
+          encabezados no se muevan.</li>
+        <li><b>Un autofiltro</b> sobre el rango usado.</li>
+        <li><b>Los anchos de columna</b> heredados de los anchos en pantalla.</li>
+      </ul>
+      <p>Una columna cuenta como numérica cuando el campo de la cola no es una cadena <i>y</i> su picture
+        está vacío o es un picture <code>@N</code>. Una fecha <code>@D</code>, una hora <code>@T</code> o un
+        patrón <code>@P</code> se quedan como texto, que es lo que quieres.</p>
+      </div>
     </section>
 
     <section id="smaller">
-      <h2>Smaller workbooks (optional) <a href="#smaller" class="top">#</a></h2>
+      <h2><span class="en">Smaller workbooks (optional)</span><span class="es">Libros más pequeños (opcional)</span> <a href="#smaller" class="top">#</a></h2>
+      <div class="en">
       <p>By default the archive members are <b>stored</b> — a valid but uncompressed ZIP — which keeps
         <code>ExportClass</code> dependency-free. If you also have the sibling <b>myCompress</b> template,
         one line switches the parts to real DEFLATE:</p>
@@ -294,10 +626,25 @@ _ExportDeflate_    <span class="k">EQUATE</span>(1)     <span class="c">! was 0<
       <div class="callout note"><b>Stored is still correct</b>
         Excel, LibreOffice, openpyxl and every other reader open a stored ZIP without complaint. Turn
         DEFLATE on for size, not for compatibility.</div>
+      </div>
+      <div class="es">
+      <p>Por defecto los miembros del archivo se guardan <b>sin comprimir</b> — un ZIP válido pero
+        almacenado — lo que mantiene a <code>ExportClass</code> libre de dependencias. Si además tienes la
+        plantilla hermana <b>myCompress</b>, una sola línea pasa las partes a DEFLATE de verdad:</p>
+<pre><span class="c">! al principio de ExportClass.inc</span>
+_ExportDeflate_    <span class="k">EQUATE</span>(1)     <span class="c">! antes 0</span></pre>
+      <p>Pon <code>CompressClass.inc</code> y <code>CompressClass.clw</code> en el camino de redirección y
+        recompila. No cambia nada más: la misma API, la misma salida, un archivo más pequeño. En una
+        exportación real el libro suele bajar a la décima parte de su tamaño sin comprimir.</p>
+      <div class="callout note"><b>Sin comprimir también es correcto</b>
+        Excel, LibreOffice, openpyxl y cualquier otro lector abren un ZIP almacenado sin quejarse. Activa
+        DEFLATE por tamaño, no por compatibilidad.</div>
+      </div>
     </section>
 
     <section id="columns">
-      <h2>How it reads the list <a href="#columns" class="top">#</a></h2>
+      <h2><span class="en">How it reads the list</span><span class="es">Cómo lee la lista</span> <a href="#columns" class="top">#</a></h2>
+      <div class="en">
       <p><code>ScanColumns</code> walks the control's format and builds a small queue of exportable columns:</p>
 <pre><span class="k">LOOP</span> c = 1 <span class="k">TO</span> 512
   ex = ?List{PROPLIST:Exists,c}   ; <span class="k">IF</span> ~ex <span class="k">THEN BREAK</span> .
@@ -311,14 +658,37 @@ value = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f
       <p>This is the same recipe the shipped <code>brwext.clw</code> uses to read a browse cell, so it
         behaves the way Clarion itself does.</p>
       <div class="callout warn"><b>Read every property into a LONG first</b>
-        A Clarion property read returns a <b>string</b>, and the string <code>'0'</code> is logically
-        <b>true</b>. <code>IF ~?List{PROPLIST:Width,c}</code> therefore never fires on a hidden column, and
+        A Clarion property read returns a <b class="i">string</b>, and the string <code>'0'</code> is logically
+        <b class="i">true</b>. <code>IF ~?List{PROPLIST:Width,c}</code> therefore never fires on a hidden column, and
         <code>IF ?List{PROPLIST:Icon,c}</code> is true for every column. Assigning to a LONG first forces
         the numeric conversion. <code>ExportClass</code> does this; it is worth remembering in your own code.</div>
+      </div>
+      <div class="es">
+      <p><code>ScanColumns</code> recorre el formato del control y arma una pequeña cola con las columnas
+        exportables:</p>
+<pre><span class="k">LOOP</span> c = 1 <span class="k">TO</span> 512
+  ex = ?List{PROPLIST:Exists,c}   ; <span class="k">IF</span> ~ex <span class="k">THEN BREAK</span> .
+  f  = ?List{PROPLIST:FieldNo,c}  ; <span class="k">IF</span> ~f  <span class="k">THEN CYCLE</span> .   <span class="c">! adorno, no dato</span>
+  w  = ?List{PROPLIST:Width,c}                                <span class="c">! 0 = el usuario la ocultó</span>
+  h  = ?List{PROPLIST:Header,c}                               <span class="c">! será el encabezado del archivo</span>
+  p  = ?List{PROPLIST:Picture,c}                              <span class="c">! formatea el valor</span>
+<span class="k">END</span>
+<span class="c">! ...y después, por cada fila:</span>
+valor = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f),p)</pre>
+      <p>Es la misma receta que usa el <code>brwext.clw</code> que viene con Clarion para leer una celda de
+        un browse, así que se comporta como el propio Clarion.</p>
+      <div class="callout warn"><b>Lee cada propiedad en un LONG primero</b>
+        Leer una propiedad en Clarion devuelve una <b class="i">cadena</b>, y la cadena <code>'0'</code> es
+        lógicamente <b class="i">verdadera</b>. Por eso <code>IF ~?List{PROPLIST:Width,c}</code> nunca se
+        cumple en una columna oculta, y <code>IF ?List{PROPLIST:Icon,c}</code> es verdadero para todas las
+        columnas. Asignar primero a un LONG fuerza la conversión numérica.
+        <code>ExportClass</code> lo hace; conviene recordarlo en tu propio código.</div>
+      </div>
     </section>
 
     <section id="arch">
-      <h2>Architecture <a href="#arch" class="top">#</a></h2>
+      <h2><span class="en">Architecture</span><span class="es">Arquitectura</span> <a href="#arch" class="top">#</a></h2>
+      <div class="en">
       <ul>
         <li><b>One growable buffer</b> holds the file being built (<code>Buf</code>), doubling as needed. A
           second (<code>Arc</code>) assembles the ZIP; a third (<code>U8</code>) is UTF-8 scratch.</li>
@@ -334,16 +704,53 @@ value = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f
         <li><b>The class knows nothing about ABC.</b> It takes a control number and a queue; the browse walk
           lives in the generated code. So it works just as well in a legacy or hand-coded app.</li>
       </ul>
+      </div>
+      <div class="es">
+      <ul>
+        <li><b>Un búfer que crece</b> guarda el archivo que se está armando (<code>Buf</code>), duplicando
+          su tamaño cuando hace falta. Un segundo (<code>Arc</code>) monta el ZIP; un tercero
+          (<code>U8</code>) es el borrador UTF-8.</li>
+        <li><b>El escapado va por tramos.</b> Cada escapador copia de una sola vez el tramo limpio más largo
+          y solo entonces emite un escape, así que los datos normales cuestan un append por celda en vez de
+          uno por carácter.</li>
+        <li><b>La conversión a UTF-8 se salta cuando no hace nada.</b> El texto puramente ASCII ya es UTF-8
+          válido, así que se recorre el búfer una vez y se copia tal cual; solo el texto con bytes altos
+          pasa por <code>MultiByteToWideChar</code> / <code>WideCharToMultiByte</code>.</li>
+        <li><b>Escribir es una sola llamada de Win32.</b> <code>CreateFileA</code> / <code>WriteFile</code> /
+          <code>CloseHandle</code> desde <code>MODULE('win32')</code> — todo el búfer en una escritura, sin
+          driver y sin bucle registro a registro.</li>
+        <li><b>La clase no sabe nada de ABC.</b> Recibe un número de control y una cola; el recorrido del
+          browse vive en el código generado. Por eso funciona igual de bien en una app legacy o escrita a
+          mano.</li>
+      </ul>
+      </div>
     </section>
 
     <section id="classref">
-      <h2>Class reference <a href="#classref" class="top">#</a></h2>
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#classref" class="top">#</a></h2>
+      <div class="en">
       <h3>Setting up</h3>
       <table>
         <tr><th>Member</th><th>Type</th><th>Meaning</th></tr>
-        <tr><td><code>Init(feq, queue)</code></td><td>method</td><td>Bind to a LIST and its queue, and scan the columns. Call it again before each export to pick up layout changes.</td></tr>
-        <tr><td><code>ScanColumns()</code></td><td>LONG</td><td>Re-read the format; returns the exportable column count.</td></tr>
-        <tr><td><code>Columns()</code></td><td>LONG</td><td>How many columns will be written.</td></tr>
+        <tr><td><code>Init(feq, queue)</code></td><td>method</td><td>Bind to a LIST and its queue, and scan the columns. Safe to call before every export — it keeps the user's column edits unless the layout changed.</td></tr>
+        <tr><td><code>ScanColumns()</code></td><td>LONG</td><td>Re-read the format if it changed; returns the column count.</td></tr>
+        <tr><td><code>Rescan()</code></td><td>LONG</td><td>Force a re-read, discarding every column edit.</td></tr>
+        <tr><td><code>Columns()</code></td><td>LONG</td><td>How many data columns the list has.</td></tr>
+        <tr><td><code>Selected()</code></td><td>LONG</td><td>How many of them are ticked for export.</td></tr>
+      </table>
+      <h3>The column list</h3>
+      <p>Everything the picker does is a public method, so you can preset or lock the columns from code —
+        <code>pCol</code> is the column's position in the list, 1..<code>Columns()</code>.</p>
+      <table>
+        <tr><th>Method</th><th>Meaning</th></tr>
+        <tr><td><code>ColumnUse(pCol, on)</code></td><td>Include or exclude one column.</td></tr>
+        <tr><td><code>SelectAll(on)</code></td><td>Tick or untick every column.</td></tr>
+        <tr><td><code>ColumnRename(pCol, head)</code></td><td>What the file calls it; blank restores the list's heading.</td></tr>
+        <tr><td><code>ColumnPicture(pCol, pic)</code></td><td>The picture to apply; blank writes the raw value.</td></tr>
+        <tr><td><code>ResetColumns()</code></td><td>Undo every rename, picture override and tick.</td></tr>
+        <tr><td><code>ColumnOn(pCol)</code></td><td>BYTE — is it ticked?</td></tr>
+        <tr><td><code>ColumnHeading(pCol)</code> / <code>ColumnPic(pCol)</code></td><td>The current heading / picture.</td></tr>
+        <tr><td><code>ColumnDefault(pCol)</code> / <code>ColumnDefaultPic(pCol)</code></td><td>What the LIST itself uses.</td></tr>
       </table>
       <h3>Options</h3>
       <table>
@@ -354,7 +761,8 @@ value = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f
         <tr><td><code>FileName</code></td><td>blank</td><td>Full path of the file to write.</td></tr>
         <tr><td><code>Headers</code></td><td>1</td><td>Write a heading row.</td></tr>
         <tr><td><code>Pictures</code></td><td>1</td><td>Run each value through its column picture.</td></tr>
-        <tr><td><code>VisibleOnly</code></td><td>1</td><td>Skip hidden and icon columns.</td></tr>
+        <tr><td><code>VisibleOnly</code></td><td>1</td><td>Hidden and icon columns start un-ticked (they are still listed).</td></tr>
+        <tr><td><code>AllowColumns</code></td><td>1</td><td>Show the column picker in the dialog. 0 hides it and shrinks the dialog.</td></tr>
         <tr><td><code>OpenWhenDone</code></td><td>1</td><td>Open the file in its default program.</td></tr>
         <tr><td><code>Confirm</code></td><td>1</td><td>Show the success / failure popup.</td></tr>
         <tr><td><code>Delim</code></td><td><code>','</code></td><td>CSV separator — set it to <code>';'</code> for European locales.</td></tr>
@@ -378,10 +786,72 @@ value = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f
         <tr><td><code>RowsOut</code></td><td>LONG</td><td>Rows written by the last export.</td></tr>
         <tr><td><code>ErrCode</code> / <code>ErrText</code></td><td>LONG / CSTRING</td><td>0 = fine; otherwise what went wrong, in words.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <h3>Preparación</h3>
+      <table>
+        <tr><th>Miembro</th><th>Tipo</th><th>Significado</th></tr>
+        <tr><td><code>Init(feq, queue)</code></td><td>método</td><td>Enlaza con un LIST y su cola, y escanea las columnas. Es seguro llamarlo antes de cada exportación: conserva los cambios de columna del usuario salvo que la disposición haya cambiado.</td></tr>
+        <tr><td><code>ScanColumns()</code></td><td>LONG</td><td>Relee el formato si cambió; devuelve el número de columnas.</td></tr>
+        <tr><td><code>Rescan()</code></td><td>LONG</td><td>Fuerza la relectura, descartando todos los cambios de columna.</td></tr>
+        <tr><td><code>Columns()</code></td><td>LONG</td><td>Cuántas columnas de datos tiene la lista.</td></tr>
+        <tr><td><code>Selected()</code></td><td>LONG</td><td>Cuántas están marcadas para exportar.</td></tr>
+      </table>
+      <h3>La lista de columnas</h3>
+      <p>Todo lo que hace el selector es un método público, así que puedes preparar o fijar las columnas
+        desde código — <code>pCol</code> es la posición de la columna en la lista, de 1 a
+        <code>Columns()</code>.</p>
+      <table>
+        <tr><th>Método</th><th>Significado</th></tr>
+        <tr><td><code>ColumnUse(pCol, on)</code></td><td>Incluye o excluye una columna.</td></tr>
+        <tr><td><code>SelectAll(on)</code></td><td>Marca o desmarca todas.</td></tr>
+        <tr><td><code>ColumnRename(pCol, head)</code></td><td>Cómo la llama el archivo; en blanco recupera el encabezado de la lista.</td></tr>
+        <tr><td><code>ColumnPicture(pCol, pic)</code></td><td>El picture a aplicar; en blanco escribe el valor crudo.</td></tr>
+        <tr><td><code>ResetColumns()</code></td><td>Deshace cada renombrado, cambio de picture y marca.</td></tr>
+        <tr><td><code>ColumnOn(pCol)</code></td><td>BYTE — ¿está marcada?</td></tr>
+        <tr><td><code>ColumnHeading(pCol)</code> / <code>ColumnPic(pCol)</code></td><td>El encabezado / picture actual.</td></tr>
+        <tr><td><code>ColumnDefault(pCol)</code> / <code>ColumnDefaultPic(pCol)</code></td><td>Lo que usa el propio LIST.</td></tr>
+      </table>
+      <h3>Opciones</h3>
+      <table>
+        <tr><th>Miembro</th><th>Por defecto</th><th>Significado</th></tr>
+        <tr><td><code>Title</code></td><td><code>'Data'</code></td><td>Nombre de hoja, raíz XML, título HTML, y base del nombre de archivo propuesto.</td></tr>
+        <tr><td><code>Allow</code></td><td><code>127</code></td><td>Máscara de bits de los formatos ofrecidos — <code>Exp:AllowCSV</code>, <code>Exp:AllowXLSX</code>, … o <code>Exp:AllowAll</code>.</td></tr>
+        <tr><td><code>Fmt</code></td><td><code>Exp:CSV</code></td><td>El formato elegido. Ponlo tú mismo para saltarte el diálogo.</td></tr>
+        <tr><td><code>FileName</code></td><td>vacío</td><td>Ruta completa del archivo a escribir.</td></tr>
+        <tr><td><code>Headers</code></td><td>1</td><td>Escribe una fila de encabezados.</td></tr>
+        <tr><td><code>Pictures</code></td><td>1</td><td>Pasa cada valor por el picture de su columna.</td></tr>
+        <tr><td><code>VisibleOnly</code></td><td>1</td><td>Las columnas ocultas y de icono empiezan desmarcadas (siguen apareciendo).</td></tr>
+        <tr><td><code>AllowColumns</code></td><td>1</td><td>Muestra el selector de columnas en el diálogo. 0 lo oculta y encoge el diálogo.</td></tr>
+        <tr><td><code>OpenWhenDone</code></td><td>1</td><td>Abre el archivo con su programa predeterminado.</td></tr>
+        <tr><td><code>Confirm</code></td><td>1</td><td>Muestra el aviso de éxito / error.</td></tr>
+        <tr><td><code>Delim</code></td><td><code>','</code></td><td>Separador CSV — ponlo a <code>';'</code> para configuraciones regionales europeas.</td></tr>
+        <tr><td><code>RowTag</code></td><td><code>'Row'</code></td><td>Elemento XML de una fila.</td></tr>
+      </table>
+      <h3>Hacer el trabajo</h3>
+      <table>
+        <tr><th>Método</th><th>Devuelve</th><th>Significado</th></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>El diálogo modal. 1 = adelante, 0 = cancelado. Es VIRTUAL — redefínelo si quieres tu propio diálogo.</td></tr>
+        <tr><td><code>AskFileName()</code></td><td>BYTE</td><td>Solo el diálogo Guardar como, para el formato actual.</td></tr>
+        <tr><td><code>ExportQueue()</code></td><td>BYTE</td><td>Escribe todos los registros de la cola enlazada.</td></tr>
+        <tr><td><code>Run()</code></td><td>BYTE</td><td><code>Ask()</code> + <code>ExportQueue()</code>.</td></tr>
+        <tr><td><code>StartFile()</code></td><td>BYTE</td><td>Empieza; escribe el preámbulo y la fila de encabezados.</td></tr>
+        <tr><td><code>AddRow()</code></td><td>—</td><td>Añade la fila que hay ahora mismo en el buffer de la cola.</td></tr>
+        <tr><td><code>EndFile()</code></td><td>BYTE</td><td>Termina, escribe a disco y opcionalmente lo abre.</td></tr>
+        <tr><td><code>CellText(col)</code></td><td>STRING</td><td>VIRTUAL — redefínelo para transformar un valor de salida.</td></tr>
+        <tr><td><code>HeaderText(col)</code></td><td>STRING</td><td>VIRTUAL — redefínelo para renombrar una columna en el archivo.</td></tr>
+      </table>
+      <h3>Resultados</h3>
+      <table>
+        <tr><td><code>RowsOut</code></td><td>LONG</td><td>Filas escritas en la última exportación.</td></tr>
+        <tr><td><code>ErrCode</code> / <code>ErrText</code></td><td>LONG / CSTRING</td><td>0 = todo bien; si no, qué falló, en palabras.</td></tr>
+      </table>
+      </div>
     </section>
 
     <section id="hand">
-      <h2>Driving it from code <a href="#hand" class="top">#</a></h2>
+      <h2><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span> <a href="#hand" class="top">#</a></h2>
+      <div class="en">
       <p>A hand-coded LIST over a plain QUEUE needs three lines:</p>
 <pre>Exporter1.Init(?List,MyQueue)
 Exporter1.Title = <span class="s">'Invoices'</span>
@@ -406,10 +876,48 @@ Exporter1.OpenWhenDone = 0                   <span class="c">! do not launch Exc
     Exporter1.EndFile()
   <span class="k">END</span>
 <span class="k">END</span></pre>
+      </div>
+      <div class="es">
+      <p>Un LIST escrito a mano sobre una QUEUE normal necesita tres líneas:</p>
+<pre>Exporter1.Init(?List,MyQueue)
+Exporter1.Title = <span class="s">'Facturas'</span>
+Exporter1.Run()                              <span class="c">! diálogo y luego escribir</span></pre>
+      <p>Para escribir un archivo sin diálogo alguno — un proceso nocturno, un botón de "mándame esto":</p>
+<pre>Exporter1.Init(?List,MyQueue)
+Exporter1.Title        = <span class="s">'Facturas'</span>
+Exporter1.Fmt          = Exp:XLSX
+Exporter1.FileName     = <span class="s">'C:\reportes\facturas.xlsx'</span>
+Exporter1.Confirm      = 0                   <span class="c">! sin aviso</span>
+Exporter1.OpenWhenDone = 0                   <span class="c">! no abrir Excel</span>
+<span class="k">IF</span> ~Exporter1.ExportQueue()
+  <span class="c">! Exporter1.ErrText dice por qué</span>
+<span class="k">END</span></pre>
+      <p>Para elegir o fijar las columnas desde código, sin tocar el diálogo:</p>
+<pre>Exporter1.Init(?List,MyQueue)
+Exporter1.SelectAll(0)                       <span class="c">! empezar sin ninguna</span>
+Exporter1.ColumnUse(1,1)                     <span class="c">! solo las columnas 1, 2 y 5</span>
+Exporter1.ColumnUse(2,1)
+Exporter1.ColumnUse(5,1)
+Exporter1.ColumnRename(2,<span class="s">'Nombre del cliente'</span>)
+Exporter1.ColumnPicture(5,<span class="s">''</span>)             <span class="c">! valor crudo, sin picture</span>
+Exporter1.AllowColumns = 0                   <span class="c">! y que el usuario no lo cambie</span>
+Exporter1.Run()</pre>
+      <p>Para exportar algo que no es un recorrido de cola — una VIEW, un archivo, un conjunto calculado —
+        maneja tú mismo los tres métodos de escritura:</p>
+<pre><span class="k">IF</span> Exporter1.Ask()
+  <span class="k">IF</span> Exporter1.StartFile()
+    <span class="c">! llena el BUFFER de la cola como quieras, y luego:</span>
+    Exporter1.AddRow()
+    ...
+    Exporter1.EndFile()
+  <span class="k">END</span>
+<span class="k">END</span></pre>
+      </div>
     </section>
 
     <section id="trouble">
-      <h2>Troubleshooting <a href="#trouble" class="top">#</a></h2>
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
       <table>
         <tr><th>Symptom</th><th>Cause and fix</th></tr>
         <tr><td><code>Illegal data type: EXPORTCLASS</code></td><td><code>ExportClass.inc</code> has LF-only line endings, or is UTF-8. Save it as <b>ANSI with CRLF</b>.</td></tr>
@@ -418,16 +926,50 @@ Exporter1.OpenWhenDone = 0                   <span class="c">! do not launch Exc
         <tr><td><code>Unknown identifier: BRW1</code> when compiling</td><td>The <b>Browse object</b> prompt does not match the real BrowseBox object name. Check the BrowseBox extension's Classes tab.</td></tr>
         <tr><td>Accents look wrong in Excel</td><td>Use <b>CSV UTF-8</b> rather than plain CSV — Excel needs the BOM. Or export <b>.xlsx</b>, which is always UTF-8.</td></tr>
         <tr><td>Excel shows numbers as text</td><td>The column has a non-<code>@N</code> picture, so it is treated as text on purpose. Untick <b>Apply each column's picture</b>, or give the column an <code>@N</code> picture.</td></tr>
-        <tr><td>A column you wanted is missing</td><td>It is hidden (zero width) or an icon column. Untick <b>Visible columns only</b>.</td></tr>
+        <tr><td>A column you wanted is missing</td><td>It is un-ticked in the picker — hidden and icon columns start that way. Tick it, or untick <b>Start with visible columns only</b> so they all start on.</td></tr>
+        <tr><td>A rename or tick was forgotten between exports</td><td>The list's layout changed (a column added, removed, re-sized or re-ordered), so the column list was rebuilt. Expected.</td></tr>
+        <tr><td>"A Clarion picture starts with @"</td><td>The picture typed into the column popup is not a picture. Leave it blank for the raw value.</td></tr>
         <tr><td>"Could not create …"</td><td>The folder does not exist, or the file is open in Excel. The popup names the path.</td></tr>
         <tr><td>The browse jumps to the top after exporting</td><td>Expected: walking the view then <code>ResetSort(1)</code> re-displays from the top of the current sort order. Use the queue-only mode if that matters more than completeness.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa y solución</th></tr>
+        <tr><td><code>Illegal data type: EXPORTCLASS</code></td><td><code>ExportClass.inc</code> tiene finales de línea solo LF, o está en UTF-8. Guárdalo en <b class="i">ANSI con CRLF</b>.</td></tr>
+        <tr><td>El botón no genera nada</td><td>La plantilla no encontró la cola. O el LIST no tiene atributo <code>FROM()</code> (se enlaza en ejecución) — rellena el prompt <b class="i">Queue</b> — o el prompt <b class="i">List control</b> está vacío.</td></tr>
+        <tr><td>Solo salió una pantalla de filas</td><td><b class="i">Records</b> está en "solo las filas cargadas". Cámbialo a "todos los registros del browse" y pon el <b class="i">Browse object</b>.</td></tr>
+        <tr><td><code>Unknown identifier: BRW1</code> al compilar</td><td>El prompt <b class="i">Browse object</b> no coincide con el nombre real del objeto BrowseBox. Míralo en la pestaña Classes de la extensión BrowseBox.</td></tr>
+        <tr><td>Los acentos se ven mal en Excel</td><td>Usa <b class="i">CSV UTF-8</b> en vez de CSV a secas: Excel necesita el BOM. O exporta <b class="i">.xlsx</b>, que siempre es UTF-8.</td></tr>
+        <tr><td>Excel muestra los números como texto</td><td>La columna tiene un picture que no es <code>@N</code>, así que se trata como texto a propósito. Desmarca <b class="i">Apply each column's picture</b>, o dale a la columna un picture <code>@N</code>.</td></tr>
+        <tr><td>Falta una columna que querías</td><td>Está desmarcada en el selector — las ocultas y las de icono empiezan así. Márcala, o desmarca <b class="i">Start with visible columns only</b> para que todas empiecen activas.</td></tr>
+        <tr><td>Se perdió un renombrado o una marca entre exportaciones</td><td>Cambió la disposición de la lista (una columna añadida, quitada, redimensionada o reordenada), así que la lista de columnas se reconstruyó. Es lo esperado.</td></tr>
+        <tr><td>"A Clarion picture starts with @"</td><td>El picture escrito en la ventana de columna no es un picture. Déjalo en blanco para el valor crudo.</td></tr>
+        <tr><td>"Could not create …"</td><td>La carpeta no existe, o el archivo está abierto en Excel. El aviso indica la ruta.</td></tr>
+        <tr><td>El browse salta al principio tras exportar</td><td>Es lo esperado: recorrer la vista y luego <code>ResetSort(1)</code> vuelve a mostrar desde el principio del orden actual. Usa el modo "solo la cola" si eso te importa más que la exhaustividad.</td></tr>
+      </table>
+      </div>
     </section>
 
     </div>
-    <footer>myExport · Programmer's Documentation · part of the templatemaker template set ·
-      pure Clarion, no external dependencies.</footer>
+    <footer>
+      <span class="en">myExport · Programmer's Documentation · part of the templatemaker template set ·
+        pure Clarion, no external dependencies.</span>
+      <span class="es">myExport · Documentación del programador · parte de la colección templatemaker ·
+        Clarion puro, sin dependencias externas.</span>
+    </footer>
   </main>
 </div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mx-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mx-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
 </body>
 </html>
