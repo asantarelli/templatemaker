@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myGaugePlus — Programmer's Documentation</title>
+<title>myGaugePlus — Programmer's Documentation / Documentación del programador</title>
 <style>
   :root{
     --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
@@ -34,7 +34,7 @@
     padding:4px 12px;border-radius:20px;font-size:12.5px;margin-right:8px}
   .body{padding:14px 52px 80px;max-width:940px}
   section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
-  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
   h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
   p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
   code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
@@ -59,41 +59,61 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 26px}
   @media(max-width:880px){.shot{float:none;width:100%;max-width:320px;display:block;margin:0 0 16px}
     .grid2{grid-template-columns:1fr}}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  /* .callout b is display:block for the callout TITLE, so inline
+     emphasis inside callout text needs to opt back in */
+  .callout b.i{display:inline;margin:0}
 </style>
 </head>
 <body>
 <div class="wrap">
 <nav>
-  <div class="brand"><h1>myGaugePlus</h1><span>Antialiased GDI+ gauges</span></div>
-  <a href="#overview">Overview</a>
-  <a href="#how">How it works</a>
-  <a href="#install">Install &amp; files</a>
-  <div class="grp">Templates</div>
-  <a class="h2" href="#t-global">Global extension</a>
-  <a class="h2" href="#t-proc">Window extension</a>
-  <a class="h2" href="#t-control">Control template</a>
-  <a href="#prompts">Prompt reference</a>
-  <div class="grp">Classes</div>
-  <a class="h2" href="#gaugeplus">GaugePlusClass</a>
-  <a class="h2" href="#aacanvas">AaCanvasClass</a>
-  <a href="#code">Hand-coded use</a>
-  <a href="#notes">Notes &amp; gotchas</a>
+  <div class="brand"><h1>myGaugePlus</h1><span class="en">Antialiased GDI+ gauges</span><span class="es">Medidores GDI+ suavizados</span></div>
+  <a href="#overview"><span class="en">Overview</span><span class="es">Resumen</span></a>
+  <a href="#how"><span class="en">How it works</span><span class="es">Cómo funciona</span></a>
+  <a href="#install"><span class="en">Install &amp; files</span><span class="es">Instalación y archivos</span></a>
+  <div class="grp"><span class="en">Templates</span><span class="es">Plantillas</span></div>
+  <a href="#t-global" class="h2"><span class="en">Global extension</span><span class="es">Extensión global</span></a>
+  <a class="h2 en" href="#t-proc">Window extension</a><a class="h2 es" href="#t-proc-es">Extensión de ventana</a>
+  <a class="h2 en" href="#t-control">Control template</a><a class="h2 es" href="#t-control-es">Plantilla de control</a>
+  <a href="#prompts"><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></a>
+  <div class="grp"><span class="en">Classes</span><span class="es">Clases</span></div>
+  <a href="#gaugeplus" class="h2"><span class="en">GaugePlusClass</span><span class="es">GaugePlusClass</span></a>
+  <a href="#aacanvas" class="h2"><span class="en">AaCanvasClass</span><span class="es">AaCanvasClass</span></a>
+  <a href="#code"><span class="en">Hand-coded use</span><span class="es">Uso desde código</span></a>
+  <a href="#notes"><span class="en">Notes &amp; gotchas</span><span class="es">Notas y trampas</span></a>
 </nav>
 <main>
 <header class="hero">
   <h1>myGaugePlus</h1>
-  <p>Beautiful, <b>antialiased</b> analog gauges and dials for Clarion — smooth arcs with rounded
+  <p class="en">Beautiful, <b>antialiased</b> analog gauges and dials for Clarion — smooth arcs with rounded
      caps, a glossy radial-gradient face, an antialiased needle and crisp text. The pretty,
      GDI&#43;-rendered sibling of the native-graphics <a href="myGauge-template.html">myGauge</a> set.</p>
-  <span class="pill">No external dependency</span>
-  <span class="pill">Windows · gdiplus.dll</span>
-  <span class="pill">v1.0</span>
+  <p class="es">Medidores y diales analógicos <b>suavizados</b> (antialiasing) para Clarion — arcos
+     limpios con extremos redondeados, una carátula con degradado radial brillante, aguja suavizada y texto
+     nítido. El hermano bonito, dibujado con GDI&#43;, del conjunto de gráficos nativos
+     <a href="myGauge-template.html">myGauge</a>.</p>
+  <span class="pill en">No external dependency</span><span class="pill es">Sin dependencias externas</span>
+  <span class="pill en">Windows · gdiplus.dll</span><span class="pill es">Windows · gdiplus.dll</span>
+  <span class="pill en">v1.0</span><span class="pill es">v1.0</span>
 </header>
+<div class="langbar">
+  <button id="btn-en" onclick="setLang('en')">English</button>
+  <button id="btn-es" onclick="setLang('es')">Español</button>
+</div>
+
 <div class="body">
 
 <section id="overview">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>Overview</h2>
+      <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
+      <div class="en">
   <img class="shot" src="myGaugePlus-preview.png" alt="An antialiased speedometer rendered by myGaugePlus">
   <p class="lead">Clarion's native <code>ARC</code>/<code>ELLIPSE</code>/<code>LINE</code>/<code>POLYGON</code>
      primitives have no antialiasing, so circular gauges drawn with them look jagged. <b>myGaugePlus</b>
@@ -114,11 +134,36 @@
      Use <b>myGaugePlus</b> when looks matter (dashboards, KPI tiles, kiosks). Use the original
      <a href="myGauge-template.html">myGauge</a> when you need <b>report-band</b> gauges or want a pure
      native-graphics draw with zero PNG/temp-file traffic — myGaugePlus is window-only.</div>
-</section>
+      </div>
+      <div class="es">
+  <img class="shot" src="myGaugePlus-preview.png" alt="Un velocímetro suavizado dibujado por myGaugePlus">
+  <p class="lead">Las primitivas nativas de Clarion <code>ARC</code>/<code>ELLIPSE</code>/<code>LINE</code>/<code>POLYGON</code>
+     no tienen suavizado, así que los medidores circulares dibujados con ellas se ven dentados.
+     <b>myGaugePlus</b> dibuja cada píxel con <b>GDI&#43;</b>, sobre un mapa de bits ARGB de 32 bits, y
+     muestra el resultado como un PNG en un control <code>IMAGE</code>.</p>
+  <p>El aspecto que obtienes sin configurar nada:</p>
+  <ul>
+    <li><b>Carátula brillante</b> — un degradado radial de un centro claro a un borde gris suave, con un
+        barrido de brillo opcional.</li>
+    <li><b>Arcos limpios</b> — la pista, el relleno de valor en color y las zonas de aviso van todos
+        suavizados y con extremos redondeados.</li>
+    <li><b>Texto nítido</b> — etiquetas de marcas suavizadas, una lectura grande del valor y título/unidades,
+        en cualquier tipografía.</li>
+    <li><b>Animación</b> — un barrido de aguja con suavizado de movimiento, movido por el timer de la ventana.</li>
+  </ul>
+  <p>No lleva <b>nada que redistribuir</b>: <code>gdiplus.dll</code> viene con todas las versiones de Windows
+     desde XP, y el puente hacia ella es un pequeño archivo C que compila el propio compilador de Clarion.</p>
+  <div class="callout note"><b>¿Qué plantilla de medidor debo usar?</b>
+     Usa <b class="i">myGaugePlus</b> cuando importe el aspecto (paneles, mosaicos de KPI, quioscos). Usa el
+     <a href="myGauge-template.html">myGauge</a> original cuando necesites medidores en <b class="i">bandas de
+     informe</b> o quieras un dibujo nativo puro sin tráfico de PNG ni archivos temporales — myGaugePlus es
+     solo para ventanas.</div>
+      </div>
+    </section>
 
 <section id="how">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>How it works</h2>
+      <h2><span class="en">How it works</span><span class="es">Cómo funciona</span></h2>
+      <div class="en">
   <p>Three layers, each shipped beside the template:</p>
   <table>
     <tr><th>File</th><th>Role</th></tr>
@@ -142,11 +187,37 @@
      <code>gpcanvas.c</code> is compiled by a <code>PRAGMA('compile(gpcanvas.c)')</code> inside
      <code>AaCanvasClass.clw</code>, and the classes' <code>LINK</code> attributes pull everything into the
      build. You only add the template — no manual project edits.</div>
-</section>
+      </div>
+      <div class="es">
+  <p>Tres capas, todas incluidas junto a la plantilla:</p>
+  <table>
+    <tr><th>Archivo</th><th>Función</th></tr>
+    <tr><td><code>gpcanvas.c</code></td><td>Una pequeña capa en C. Enlaza en ejecución con la API <i>plana</i>
+        de GDI&#43; (<code>LoadLibrary("gdiplus.dll")</code> + <code>GetProcAddress</code>) y expone un lienzo
+        de modo inmediato muy simple. Clarion lo compila solo — ver abajo.</td></tr>
+    <tr><td><code>AaCanvasClass</code></td><td>Una envoltura reutilizable de <b>lienzo suavizado</b>:
+        <code>BeginCanvas</code>, <code>Arc</code>, <code>Line</code>, <code>FillCircle</code>,
+        <code>FillCircleGrad</code>, <code>Polygon</code>, <code>Text</code>, <code>SavePng</code>. Sirve para
+        cualquier dibujo, no solo medidores.</td></tr>
+    <tr><td><code>GaugePlusClass</code></td><td>El medidor en sí, construido sobre el lienzo. Misma forma de
+        API que la <code>GaugeClass</code> nativa (<code>SetRange</code>/<code>Preset</code>/<code>AddZone</code>/
+        <code>SetValue</code>/<code>AnimateTo</code>/<code>Draw</code>).</td></tr>
+  </table>
+  <p><code>GaugePlusClass.Draw(window, ?image)</code> lee el tamaño en <b>píxeles</b> del control de imagen,
+     dibuja el medidor en un PNG dentro de <code>%TEMP%</code> y apunta el control a ese archivo
+     (<code>?image{PROP:Text}=archivo</code>). Como el resultado es una imagen normal, Clarion se encarga
+     gratis de repintarla y redimensionarla. Se alternan dos nombres de archivo temporal en cada fotograma
+     para que la animación recargue de forma fiable.</p>
+  <div class="callout tip"><b>Cero configuración de proyecto</b>
+     <code>gpcanvas.c</code> lo compila un <code>PRAGMA('compile(gpcanvas.c)')</code> dentro de
+     <code>AaCanvasClass.clw</code>, y los atributos <code>LINK</code> de las clases meten todo en la
+     compilación. Tú solo agregas la plantilla — sin editar el proyecto a mano.</div>
+      </div>
+    </section>
 
 <section id="install">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>Install &amp; required files</h2>
+      <h2><span class="en">Install &amp; required files</span><span class="es">Instalación y archivos necesarios</span></h2>
+      <div class="en">
   <p>Copy these five files (shipped beside <code>myGaugePlus.tpl</code>) to a folder on your Clarion
      <b>redirection path</b> — your app folder or <code>\clarion12\libsrc\win</code>. Save them all as
      <b>ANSI</b> (not UTF-8):</p>
@@ -158,11 +229,25 @@
   <p>Register <code>myGaugePlus.tpl</code> in the IDE (<i>Setup ▸ Template Registry ▸ Register</i>), then add
      the templates to your app. You only ever <code>INCLUDE</code> <code>GaugePlusClass.INC</code> — it pulls
      in <code>AaCanvasClass.INC</code> for you.</p>
-</section>
+      </div>
+      <div class="es">
+  <p>Copia estos cinco archivos (que vienen junto a <code>myGaugePlus.tpl</code>) a una carpeta de tu
+     <b>camino de redirección</b> de Clarion — la carpeta de tu app o <code>\clarion12\libsrc\win</code>.
+     Guárdalos todos en <b>ANSI</b> (no UTF-8):</p>
+  <ul>
+    <li><code>GaugePlusClass.inc</code> &nbsp;·&nbsp; <code>GaugePlusClass.clw</code></li>
+    <li><code>AaCanvasClass.inc</code> &nbsp;·&nbsp; <code>AaCanvasClass.clw</code></li>
+    <li><code>gpcanvas.c</code></li>
+  </ul>
+  <p>Registra <code>myGaugePlus.tpl</code> en el IDE (<i>Setup ▸ Template Registry ▸ Register</i>) y agrega
+     las plantillas a tu app. Solo necesitas hacer <code>INCLUDE</code> de <code>GaugePlusClass.INC</code>:
+     ella incluye <code>AaCanvasClass.INC</code> por ti.</p>
+      </div>
+    </section>
 
 <section id="t-global">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>Templates</h2>
+      <h2><span class="en">Templates</span><span class="es">Plantillas</span></h2>
+      <div class="en">
   <h3 id="t-global-h">1 · myGaugePlusGlobal — global extension</h3>
   <p>Add it <b>once</b>, at the application (global) level. It emits
      <code>INCLUDE('GaugePlusClass.INC'),ONCE</code> so the classes are available everywhere. Required by the
@@ -181,11 +266,34 @@
   <p>The easy path: drag it onto a window and it <b>drops a ready-made IMAGE</b> and wires the gauge to it in
      one go. <code>WINDOW, MULTI</code> — drop as many as you like. It is fully self-contained (it INCLUDEs the
      class itself), so it does <b>not</b> require the global extension.</p>
-</section>
+      </div>
+      <div class="es">
+  <h3>1 · myGaugePlusGlobal — extensión global</h3>
+  <p>Agrégala <b>una sola vez</b>, a nivel de aplicación (global). Emite
+     <code>INCLUDE('GaugePlusClass.INC'),ONCE</code> para que las clases estén disponibles en todas partes.
+     La necesita la extensión de ventana (no hace falta si solo usas la plantilla de control, que es
+     autosuficiente).</p>
+
+  <h3 id="t-proc-es">2 · myGaugePlus — extensión de procedimiento (ventana)</h3>
+  <p>Agrégala <b>una vez por medidor</b> en un procedimiento con ventana. Le pones nombre al objeto del
+     medidor y eliges un control <code>IMAGE</code> existente donde dibujar. Puedes tener varios medidores por
+     ventana — cada instancia recibe su propio objeto. El cableado vive en <code>TakeWindowEvent</code> con
+     <code>PRIORITY(2000)</code>: configura el objeto en <code>EVENT:OpenWindow</code>, repinta ante un evento
+     privado de redibujo y ante <code>EVENT:Sized</code>, y (si quieres) mueve la aguja en
+     <code>EVENT:Timer</code>.</p>
+  <p>Se genera una ROUTINE <code>Refresh:<i>Objeto</i></code> por instancia; haz
+     <code>DO Refresh:Gauge1</code> después de cambiar un valor enlazado cuando no estés animando.</p>
+
+  <h3 id="t-control-es">3 · myGaugePlusControl — plantilla de control</h3>
+  <p>El camino fácil: arrástrala a una ventana y <b>coloca un IMAGE ya listo</b> y le cablea el medidor de una
+     sola vez. <code>WINDOW, MULTI</code> — pon tantos como quieras. Es totalmente autosuficiente (incluye la
+     clase ella misma), así que <b>no</b> necesita la extensión global.</p>
+      </div>
+    </section>
 
 <section id="prompts">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>Prompt reference</h2>
+      <h2><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></h2>
+      <div class="en">
   <p>Both the window and control templates share the same tabs:</p>
   <table>
     <tr><th>Tab</th><th>Prompts</th></tr>
@@ -200,11 +308,28 @@
     <tr><td><b>Zones</b></td><td>A MULTI list of coloured bands — each a from/to value range and a colour
         (e.g. green 0–60, amber 60–85, red 85–100).</td></tr>
   </table>
-</section>
+      </div>
+      <div class="es">
+  <p>Las plantillas de ventana y de control comparten las mismas pestañas:</p>
+  <table>
+    <tr><th>Pestaña</th><th>Prompts</th></tr>
+    <tr><td><b>General</b></td><td>Nombre del objeto; control de imagen; <b>estilo</b> del medidor (180
+        semicírculo, 270 velocímetro, 360 dial, 90 cuarto, 45 arco estrecho, o ángulos de inicio/barrido
+        personalizados); mínimo/máximo; valor como literal o como variable/expresión enlazada.</td></tr>
+    <tr><td><b>Ticks &amp; text</b></td><td>Número de marcas mayores y menores; mostrar etiquetas + decimales
+        de etiqueta; título; unidades; mostrar el valor numérico + sus decimales.</td></tr>
+    <tr><td><b>Look</b></td><td>Estilo/ancho/color de la aguja; color de <b>valor/acento</b>; colores del
+        <b>centro</b> y del <b>borde</b> de la carátula; colores de pista, marcas y texto; mostrar brillo /
+        aro / relleno del arco de valor; animación (activar, intervalo del timer, % de paso por tick).</td></tr>
+    <tr><td><b>Zones</b></td><td>Una lista MULTI de bandas de color — cada una con un rango desde/hasta y un
+        color (por ejemplo verde 0–60, ámbar 60–85, rojo 85–100).</td></tr>
+  </table>
+      </div>
+    </section>
 
 <section id="gaugeplus">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>GaugePlusClass — API</h2>
+      <h2><span class="en">GaugePlusClass</span><span class="es">GaugePlusClass</span></h2>
+      <div class="en">
   <p>The object is declared in your procedure's data; call it from any embed.</p>
   <h3>Methods</h3>
   <table>
@@ -243,11 +368,52 @@
     <tr><td><code>Title</code>, <code>Units</code>, <code>FontName</code></td><td>Readout text &amp; font.</td></tr>
   </table>
   </div>
-</section>
+      </div>
+      <div class="es">
+  <p>El objeto se declara en los datos de tu procedimiento; llámalo desde cualquier embed.</p>
+  <h3>Métodos</h3>
+  <table>
+    <tr><th>Método</th><th>Descripción</th></tr>
+    <tr><td><code>SetRange(min, max)</code></td><td>Fija el rango de valores.</td></tr>
+    <tr><td><code>Preset(style)</code></td><td>Aplica una forma predefinida: 1=180°, 2=270°, 3=360°, 4=90°,
+        5=45°.</td></tr>
+    <tr><td><code>SetSpan(start, sweep)</code></td><td>Geometría a medida — ángulo inicial y barrido en grados
+        (convención matemática: antihorario desde las 3 en punto; barrido negativo = horario).</td></tr>
+    <tr><td><code>SetValue(v)</code></td><td>Pone la aguja en un valor al instante (limitado al rango).</td></tr>
+    <tr><td><code>AnimateTo(v)</code></td><td>Fija un objetivo de animación; la aguja se acerca en cada
+        <code>AnimStep</code>.</td></tr>
+    <tr><td><code>AnimStep()</code>, BYTE</td><td>Avanza un paso hacia el objetivo; devuelve 1 si se movió
+        (para que quien llama repinte).</td></tr>
+    <tr><td><code>AddZone(from, to, color)</code></td><td>Agrega una banda de aviso en un rango de valores
+        (máx. 16). <code>color</code> es un <code>COLOR</code> de Clarion.</td></tr>
+    <tr><td><code>ClearZones()</code></td><td>Quita todas las zonas.</td></tr>
+    <tr><td><code>Draw(window, ?image)</code></td><td>Dibuja el medidor y lo muestra en el control IMAGE.</td></tr>
+  </table>
+  <h3>Propiedades principales</h3>
+  <div class="grid2">
+  <table>
+    <tr><th>Propiedad</th><th>Qué es</th></tr>
+    <tr><td><code>MajorTicks</code>, <code>MinorTicks</code></td><td>Divisiones de las marcas.</td></tr>
+    <tr><td><code>ValueDP</code>, <code>LabelDP</code></td><td>Decimales.</td></tr>
+    <tr><td><code>NeedleStyle</code></td><td>1=triángulo, 0=línea.</td></tr>
+    <tr><td><code>NeedleWidth</code>, <code>NeedleColor</code></td><td>Tamaño y color de la aguja.</td></tr>
+    <tr><td><code>ValueColor</code></td><td>El arco de valor relleno / acento.</td></tr>
+  </table>
+  <table>
+    <tr><th>Propiedad</th><th>Qué es</th></tr>
+    <tr><td><code>FaceColor</code>, <code>FaceEdge</code></td><td>Tonos del centro y del borde de la carátula.</td></tr>
+    <tr><td><code>TrackColor</code>, <code>TickColor</code></td><td>Pista vacía y marcas.</td></tr>
+    <tr><td><code>TextColor</code>, <code>LabelColor</code></td><td>Lectura y etiquetas de marcas.</td></tr>
+    <tr><td><code>ShowFace / ShowRim / ShowGloss</code></td><td>Elementos de la carátula, on/off.</td></tr>
+    <tr><td><code>Title</code>, <code>Units</code>, <code>FontName</code></td><td>Texto de lectura y tipografía.</td></tr>
+  </table>
+  </div>
+      </div>
+    </section>
 
 <section id="aacanvas">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>AaCanvasClass — the reusable antialiased canvas</h2>
+      <h2><span class="en">AaCanvasClass</span><span class="es">AaCanvasClass</span></h2>
+      <div class="en">
   <p>You can use the canvas on its own for any antialiased drawing. Angles are GDI&#43; convention (degrees,
      0 = 3 o'clock, clockwise); colours come from <code>Argb()</code>.</p>
   <table>
@@ -267,11 +433,33 @@
     <tr><td><code>Argb(clarionColor [,alpha])</code>, ULONG</td><td>Convert a Clarion COLOR to GDI&#43;
         0xAARRGGBB.</td></tr>
   </table>
-</section>
+      </div>
+      <div class="es">
+  <p>Puedes usar el lienzo por su cuenta para cualquier dibujo suavizado. Los ángulos siguen la convención de
+     GDI&#43; (grados, 0 = las 3 en punto, sentido horario); los colores salen de <code>Argb()</code>.</p>
+  <table>
+    <tr><th>Método</th><th>Descripción</th></tr>
+    <tr><td><code>BeginCanvas(w, h)</code>, BYTE</td><td>Crea un lienzo ARGB de w×h. 1 = correcto.</td></tr>
+    <tr><td><code>ClearCanvas(argb)</code></td><td>Rellena el lienzo (usa <code>Argb(COLOR:None)</code> para
+        transparente).</td></tr>
+    <tr><td><code>Arc(x,y,w,h, start,sweep, penW, argb [,round])</code></td><td>Arco trazado.</td></tr>
+    <tr><td><code>Line(x1,y1,x2,y2, penW, argb [,round])</code></td><td>Línea trazada.</td></tr>
+    <tr><td><code>FillCircle / Circle(cx,cy,r, …)</code></td><td>Círculo relleno / con contorno.</td></tr>
+    <tr><td><code>FillCircleGrad(cx,cy,r, inner, outer)</code></td><td>Relleno con degradado radial.</td></tr>
+    <tr><td><code>Pie(x,y,w,h, start,sweep, argb)</code></td><td>Sector relleno.</td></tr>
+    <tr><td><code>FillPolygon / Polygon(pts[], n, …)</code></td><td>Polígono relleno / con contorno.</td></tr>
+    <tr><td><code>Text(s, x,y, emPx, argb [,font,align,style])</code></td><td>Texto suavizado. align 0/1/2 =
+        izquierda/centro/derecha; bits de estilo 1=negrita 2=cursiva.</td></tr>
+    <tr><td><code>SavePng(path)</code>, BYTE / <code>EndCanvas()</code></td><td>Guarda el PNG / libera.</td></tr>
+    <tr><td><code>Argb(clarionColor [,alpha])</code>, ULONG</td><td>Convierte un COLOR de Clarion a
+        0xAARRGGBB de GDI&#43;.</td></tr>
+  </table>
+      </div>
+    </section>
 
 <section id="code">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>Hand-coded use</h2>
+      <h2><span class="en">Hand-coded use</span><span class="es">Uso desde código</span></h2>
+      <div class="en">
   <p>You don't need the template — the classes work standalone:</p>
 <pre><span class="c">! one gauge object in your procedure's data</span>
 Speedo   GaugePlusClass
@@ -290,11 +478,32 @@ Speedo   GaugePlusClass
   <p>See the buildable examples in <code>examples/myGaugePlus/</code>: <code>AaTest.clw</code> (canvas
      self-test), <code>GaugePlusTest.clw</code> (headless gauge render) and <code>GaugePlusDemo.clw</code> (a
      live, animated window).</p>
-</section>
+      </div>
+      <div class="es">
+  <p>No necesitas la plantilla — las clases funcionan por su cuenta:</p>
+<pre><span class="c">! un objeto medidor en los datos de tu procedimiento</span>
+Speedo   GaugePlusClass
+
+  <span class="k">CODE</span>
+  Speedo.SetRange(<span class="t">0</span>, <span class="t">220</span>)
+  Speedo.Preset(GaugeP:Arc270)
+  Speedo.MajorTicks = <span class="t">11</span>; Speedo.MinorTicks = <span class="t">1</span>
+  Speedo.AddZone(<span class="t">170</span>, <span class="t">220</span>, <span class="t">02020E0h</span>)   <span class="c">! zona roja (COLOR de Clarion)</span>
+  Speedo.Title = <span class="s">'SPEED'</span>; Speedo.Units = <span class="s">'km/h'</span>
+  Speedo.SetValue(<span class="t">146</span>)
+  Speedo.Draw(Window, ?Img)             <span class="c">! dibujar y mostrar</span>
+  <span class="c">! ... más tarde, para un barrido suave con el timer de la ventana:</span>
+  Speedo.AnimateTo(<span class="t">80</span>)
+  <span class="k">IF</span> Speedo.AnimStep() <span class="k">THEN</span> Speedo.Draw(Window, ?Img).</pre>
+  <p>Mira los ejemplos que compilan en <code>examples/myGaugePlus/</code>: <code>AaTest.clw</code>
+     (autoprueba del lienzo), <code>GaugePlusTest.clw</code> (dibujo del medidor sin ventana) y
+     <code>GaugePlusDemo.clw</code> (una ventana viva y animada).</p>
+      </div>
+    </section>
 
 <section id="notes">
-  <span class="top"><a href="#">top ↑</a></span>
-  <h2>Notes &amp; gotchas</h2>
+      <h2><span class="en">Notes &amp; gotchas</span><span class="es">Notas y trampas</span></h2>
+      <div class="en">
   <ul>
     <li><b>Transparency.</b> By default the canvas background is transparent, so a round gauge composites
         cleanly onto any window colour. Set <code>BackColor</code> if you want a solid backdrop.</li>
@@ -308,11 +517,42 @@ Speedo   GaugePlusClass
   <div class="callout note"><b>Under the hood</b> The C shim hand-declares the few Win32 functions it needs
      (Clarion's bundled compiler has no Windows SDK headers) and spells the stdcall convention
      <code>pascal</code>. None of this concerns the template user — it just compiles.</div>
-</section>
+      </div>
+      <div class="es">
+  <ul>
+    <li><b>Transparencia.</b> Por defecto el fondo del lienzo es transparente, así que un medidor redondo se
+        compone limpiamente sobre cualquier color de ventana. Usa <code>BackColor</code> si quieres un fondo
+        sólido.</li>
+    <li><b>Solo ventanas.</b> Como dibuja vía PNG y con el tamaño en píxeles de la ventana, myGaugePlus
+        funciona en ventanas, no en bandas de informe. Para medidores en informes usa el
+        <a href="myGauge-template.html">myGauge</a> nativo.</li>
+    <li><b>Archivos temporales.</b> Cada medidor escribe dos PNG pequeños en <code>%TEMP%</code>
+        (<code>gplus_<i>feq</i>_a/_b.png</code>), alternados para que la animación recargue bien.</li>
+    <li><b>Código ANSI.</b> Como con todos los include/fuente de Clarion aquí, guarda los cinco archivos en
+        ANSI con finales de línea CRLF.</li>
+  </ul>
+  <div class="callout note"><b>Por dentro</b> La capa en C declara a mano las pocas funciones de Win32 que
+     necesita (el compilador que trae Clarion no tiene los headers del SDK de Windows) y escribe la convención
+     stdcall como <code>pascal</code>. Nada de esto le concierne a quien usa la plantilla — simplemente
+     compila.</div>
+      </div>
+    </section>
 
 </div>
-<footer>myGaugePlus v1.0 — antialiased GDI&#43; gauges for Clarion 12. Part of the templatemaker set.</footer>
+<footer><span class="en">myGaugePlus v1.0 — antialiased GDI&#43; gauges for Clarion 12. Part of the templatemaker set.</span>
+      <span class="es">myGaugePlus v1.0 — medidores GDI&#43; suavizados para Clarion 12. Parte de la colección templatemaker.</span></footer>
 </main>
 </div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mgp-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mgp-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
 </body>
 </html>

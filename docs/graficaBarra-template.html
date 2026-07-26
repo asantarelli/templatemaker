@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>graficaBarra — Programmer's Documentation</title>
+<title>graficaBarra — Programmer's Documentation / Documentación del programador</title>
 <style>
   :root{
     --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
@@ -34,7 +34,7 @@
     padding:4px 12px;border-radius:20px;font-size:12.5px}
   .body{padding:14px 52px 80px;max-width:940px}
   section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
-  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
   h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
   p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
   code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
@@ -56,36 +56,57 @@
   .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
     border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
   .sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.15)}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  /* .callout b is display:block for the callout TITLE, so inline
+     emphasis inside callout text needs to opt back in */
+  .callout b.i{display:inline;margin:0}
 </style>
 </head>
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>graficaBarra</h1><span>Programmer's Documentation · v1.0</span></div>
-    <a href="#over">Overview</a>
-    <div class="grp">Using it</div>
-    <a href="#install" class="h2">Install &amp; register</a>
-    <a href="#window" class="h2">On a window</a>
-    <a href="#report" class="h2">On a report (vector PDF)</a>
-    <a href="#prompts" class="h2">Prompt reference</a>
-    <a href="#runtime" class="h2">Changing it at run time</a>
-    <div class="grp">Reference</div>
-    <a href="#classapi" class="h2">GraficaBarraClass API</a>
-    <a href="#palette" class="h2">Auto color palette</a>
-    <a href="#trouble" class="h2">Troubleshooting</a>
+    <div class="brand"><h1>graficaBarra</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#window" class="h2"><span class="en">On a window</span><span class="es">En una ventana</span></a>
+    <a href="#report" class="h2"><span class="en">On a report (vector PDF)</span><span class="es">En un informe (PDF vectorial)</span></a>
+    <a href="#prompts" class="h2"><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></a>
+    <a href="#runtime" class="h2"><span class="en">Changing it at run time</span><span class="es">Cambiarlo en ejecución</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#classapi" class="h2"><span class="en">GraficaBarraClass API</span><span class="es">API de GraficaBarraClass</span></a>
+    <a href="#palette" class="h2"><span class="en">Auto color palette</span><span class="es">Paleta de colores automática</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
   </nav>
   <main>
     <header class="hero">
       <h1>graficaBarra</h1>
-      <p>Simple bar graphs for Clarion windows <em>and</em> reports, drawn entirely with native
+      <p class="en">Simple bar graphs for Clarion windows <em>and</em> reports, drawn entirely with native
       <code>BOX</code> / <code>LINE</code> / <code>SHOW</code> primitives. On a report the graph goes into
       the band as <strong>vector primitives — never a bitmap — so PDF exports stay as small as possible</strong>.</p>
-      <span class="pill">Pure Clarion · no DLLs · window + report · ABC chain</span>
+      <p class="es">Gráficos de barras sencillos para ventanas <em>e</em> informes de Clarion, dibujados
+      por completo con las primitivas nativas <code>BOX</code> / <code>LINE</code> / <code>SHOW</code>. En un
+      informe el gráfico entra en la banda como <strong>primitivas vectoriales — nunca un mapa de bits — así
+      que los PDF salen lo más pequeños posible</strong>.</p>
+      <span class="pill en">Pure Clarion · no DLLs · window + report · ABC chain</span><span class="pill es">Clarion puro · sin DLLs · ventana + informe · cadena ABC</span>
     </header>
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
     <div class="body">
 
 <section id="over">
-  <h2>Overview</h2>
+      <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
+      <div class="en">
   <p class="lead">One self-contained ANSI class, <code>GraficaBarraClass</code>, holds up to 48 bars
   (label, value, color) plus the look — title, value/scale labels, gridlines, gaps, colors, automatic or
   fixed scale — and renders itself wherever the current graphics target is. Three template registrations
@@ -117,10 +138,46 @@
   over each bar; bar labels under the baseline; left-axis scale numbers; horizontal gridlines; per-bar
   colors or an automatic professional palette; configurable gap; an optional painted background. If the
   bar list is left empty the graph draws <b>six sample bars</b> — a built-in self-test.</p>
-</section>
+      </div>
+      <div class="es">
+  <p class="lead">Una sola clase ANSI autosuficiente, <code>GraficaBarraClass</code>, guarda hasta 48 barras
+  (etiqueta, valor, color) y además el aspecto — título, etiquetas de valor y escala, líneas de rejilla,
+  separación, colores, escala automática o fija — y se dibuja donde esté apuntando el destino gráfico actual.
+  La manejan tres registros de plantilla:</p>
+  <table>
+    <tr><th>Registro</th><th>Ámbito</th><th>Qué hace</th></tr>
+    <tr><td><b>graficaBarraGlobal</b></td><td>Aplicación (Global → Extensions)</td>
+        <td>Agrega <code>INCLUDE('GraficaBarraClass.INC'),ONCE</code>. Ponla una vez; las otras dos la necesitan.</td></tr>
+    <tr><td><b>graficaBarra</b></td><td>Procedimiento con WINDOW</td>
+        <td>Dibuja el gráfico en un control <code>IMAGE</code>. Se redibuja al abrir y al redimensionar, y genera
+        una rutina <code>Refresh:&lt;Objeto&gt;</code> que vuelve a leer los valores variables de las barras.
+        Agrégala una vez por gráfico — varios gráficos por ventana no son problema.</td></tr>
+    <tr><td><b>graficaBarraReport</b></td><td>Procedimiento con REPORT</td>
+        <td>Dibuja el gráfico en la banda de detalle en <code>%BeforePrint</code>, bajo
+        <code>SETTARGET(Report)</code>, con <code>BOX</code>/<code>LINE</code>/<code>SHOW</code> vectoriales.
+        Un control marcador aporta solo la posición y el tamaño, y se oculta al imprimir.</td></tr>
+  </table>
+  <div class="note"><b>¿Quieres manejarlo desde código?</b> Para ver cómo funciona la clase por dentro y
+  ejemplos resueltos (en inglés y español), consulta la
+  <a href="graficaBarra-reference.html">referencia del desarrollador</a>.</div>
+  <div class="filetree">
+    templates/graficaBarra/<br>
+    ├─ graficaBarra.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— el conjunto de plantillas (registra este)<br>
+    ├─ GraficaBarraClass.inc&nbsp;&nbsp;&nbsp;— la clase (configuración + prototipos)<br>
+    └─ GraficaBarraClass.clw&nbsp;&nbsp;&nbsp;— la implementación (escala + dibujo)
+  </div>
+  <p>Características: <b>escala "bonita" automática</b> (el máximo redondea hacia arriba a 1, 2 o 5 ×
+  10<sup>k</sup>) o un <code>SetRange(min,max)</code> fijo; los <b>valores negativos</b> cuelgan por debajo de
+  la línea de cero; valor numérico sobre cada barra; etiquetas de barra bajo la línea base; números de escala
+  en el eje izquierdo; líneas de rejilla horizontales; colores por barra o una paleta profesional automática;
+  separación configurable; y un fondo pintado opcional. Si dejas la lista de barras vacía, el gráfico dibuja
+  <b>seis barras de ejemplo</b> — una autoprueba incorporada.</p>
+      </div>
+    </section>
 
 <section id="install">
-  <h2>Install &amp; register</h2>
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></h2>
+      <div class="en">
   <ol>
     <li>Copy <code>GraficaBarraClass.inc</code> and <code>GraficaBarraClass.clw</code> to a folder on the
       Clarion redirection path — your app folder or <code>\clarion12\libsrc\win</code>. Keep them
@@ -131,10 +188,24 @@
     <li>In your app: Global → Extensions → Insert → <b>graficaBarraGlobal</b> (it is also added
       automatically the first time you add one of the other two).</li>
   </ol>
-</section>
+      </div>
+      <div class="es">
+  <ol>
+    <li>Copia <code>GraficaBarraClass.inc</code> y <code>GraficaBarraClass.clw</code> a una carpeta del camino
+      de redirección de Clarion — la carpeta de tu app o <code>\clarion12\libsrc\win</code>. Mantenlos en
+      <b>ANSI</b> (no UTF-8), con finales de línea CRLF.</li>
+    <li>Copia <code>graficaBarra.tpl</code> donde te resulte cómodo (por ejemplo
+      <code>\clarion12\accessory\template\win</code>) y regístralo: IDE → Setup → <b>Template
+      Registry</b> → Register → elige el .tpl.</li>
+    <li>En tu app: Global → Extensions → Insert → <b>graficaBarraGlobal</b> (también se agrega sola la primera
+      vez que insertas una de las otras dos).</li>
+  </ol>
+      </div>
+    </section>
 
 <section id="window">
-  <h2>On a window</h2>
+      <h2><span class="en">On a window</span><span class="es">En una ventana</span></h2>
+      <div class="en">
   <ol>
     <li>Put an <code>IMAGE</code> control on the window where the graph should live (no picture needed —
       it is just the canvas).</li>
@@ -148,10 +219,27 @@ DO Refresh:Graph1</pre>
   <p>The graph redraws itself on window open and resize (the draw is POSTed as a private event so it runs
   after the ABC resizer settles). Multiple graphs per window each target their own IMAGE, so they never
   erase each other.</p>
-</section>
+      </div>
+      <div class="es">
+  <ol>
+    <li>Pon un control <code>IMAGE</code> en la ventana donde deba ir el gráfico (no necesita imagen — es
+      solo el lienzo).</li>
+    <li>Procedimiento → Extensions → Insert → <b>graficaBarra - Draw a bar graph on this window</b>.</li>
+    <li>Elige el control IMAGE, pon un título y define las barras en la pestaña <b>Bars</b>.</li>
+  </ol>
+  <p>El valor de cada barra es o un <b>número literal</b> o una <b>variable / campo / expresión</b>. Después
+  de que cambien los datos, llama a la rutina generada:</p>
+  <pre><span class="c">! las barras releen sus variables/expresiones y el gráfico se redibuja</span>
+DO Refresh:Graph1</pre>
+  <p>El gráfico se redibuja solo al abrir la ventana y al redimensionar (el dibujo se envía con POST como
+  evento privado para que ocurra después de que el redimensionador de ABC se asiente). Varios gráficos en una
+  ventana apuntan cada uno a su propio IMAGE, así que nunca se borran entre sí.</p>
+      </div>
+    </section>
 
 <section id="report">
-  <h2>On a report — small-PDF vector output</h2>
+      <h2><span class="en">On a report — small-PDF vector output</span><span class="es">En un informe — salida vectorial, PDF pequeño</span></h2>
+      <div class="en">
   <p>This is the reason graficaBarra exists: report graphs that <b>export to the smallest possible
   PDF</b>. Instead of rasterizing into an image, the template draws the graph <b>straight into the band
   being printed</b> with native vector primitives:</p>
@@ -176,10 +264,39 @@ SETTARGET()</pre>
   The code runs in the <i>Before Printing Detail Section</i> embed, so the placeholder must be in the
   detail band that is being printed. One graph is drawn per detail printed — for a single summary graph,
   print one summary detail line (or use the runtime API from any embed that prints a band).</div>
-</section>
+      </div>
+      <div class="es">
+  <p>Esta es la razón de ser de graficaBarra: gráficos en informes que <b>exportan al PDF más pequeño
+  posible</b>. En lugar de rasterizar a una imagen, la plantilla dibuja el gráfico <b>directamente en la banda
+  que se está imprimiendo</b> con primitivas vectoriales nativas:</p>
+  <pre>SETTARGET(MyReport)                <span class="c">! la banda que se imprime pasa a ser el destino</span>
+RptGraph1.Paint(?GraphPlace)       <span class="c">! BOX / LINE / SHOW vectoriales en el rectángulo del marcador</span>
+?GraphPlace{PROP:Hide} = 1         <span class="c">! el marcador en sí nunca se imprime</span>
+SETTARGET()</pre>
+  <p>Cada barra es un <code>BOX</code> relleno, el eje y la rejilla son <code>LINE</code>s y todo el texto es
+  <code>SHOW</code> — todo eso viaja por el motor de informes (y por el generador de PDF) como registros
+  vectoriales, no como píxeles, así que el archivo se queda diminuto y el gráfico se imprime nítido a
+  cualquier resolución.</p>
+  <h3>Puesta en marcha</h3>
+  <ol>
+    <li>En el diseñador de informes, pon un <b>control marcador en la banda DETAIL</b> del tamaño que deba
+      tener el gráfico — un <code>IMAGE</code> vacío va perfecto (un <code>BOX</code> también sirve). Su
+      rectángulo <code>AT()</code> <em>es</em> el rectángulo del gráfico.</li>
+    <li>Procedimiento → Extensions → Insert → <b>graficaBarraReport - Draw a bar graph on this REPORT</b>.</li>
+    <li>Elige el marcador, define las barras (los valores suelen ser campos/expresiones — se evalúan en cada
+      registro que se imprime) y listo. El marcador se oculta al imprimir por defecto, así que nunca se ve.</li>
+  </ol>
+  <div class="note"><b>Dónde dibuja</b>
+  El código va en el embed <i>Before Printing Detail Section</i>, así que el marcador tiene que estar en la
+  banda de detalle que se imprime. Se dibuja un gráfico por cada detalle impreso — para un único gráfico de
+  resumen, imprime una sola línea de detalle de resumen (o usa la API en ejecución desde cualquier embed que
+  imprima una banda).</div>
+      </div>
+    </section>
 
 <section id="prompts">
-  <h2>Prompt reference</h2>
+      <h2><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></h2>
+      <div class="en">
   <h3>General</h3>
   <table>
     <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
@@ -204,10 +321,38 @@ SETTARGET()</pre>
   <p>An ordered list (left to right). Per bar: <b>Label</b>, <b>Value</b> — literal number or
   variable/field/expression — and <b>Color</b>: automatic palette (default) or an explicit color.
   Leave the whole list empty to get the six sample self-test bars.</p>
-</section>
+      </div>
+      <div class="es">
+  <h3>General</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Disable this graph</td><td>off</td><td>Elimina todo el código generado de esta instancia.</td></tr>
+    <tr><td>Object name</td><td><code>Graph&lt;n&gt;</code> / <code>RptGraph&lt;n&gt;</code></td><td>La etiqueta del objeto local — también da nombre a la rutina <code>Refresh:</code> (ventana).</td></tr>
+    <tr><td>Image / placeholder control</td><td>—</td><td>Ventana: el IMAGE que hace de lienzo. Informe: el marcador de posición/tamaño en la banda de detalle.</td></tr>
+    <tr><td>Hide the placeholder when printing</td><td>on</td><td>Solo informes.</td></tr>
+    <tr><td>Title text</td><td>vacío</td><td>Centrado sobre el gráfico.</td></tr>
+    <tr><td>Automatic scale</td><td>on</td><td>Máximo redondo (1/2/5 × 10<sup>k</sup>) calculado de los datos; desmárcalo para fijar Mínimo/Máximo.</td></tr>
+  </table>
+  <h3>Look</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Show bar values / decimals</td><td>on / 0</td><td>Valor numérico sobre cada barra (debajo, si la barra es negativa).</td></tr>
+    <tr><td>Show bar labels</td><td>on</td><td>Bajo la línea base, centradas por barra, recortadas al ancho del hueco.</td></tr>
+    <tr><td>Show scale / decimals</td><td>on / 0</td><td>Números del eje izquierdo en cada división.</td></tr>
+    <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Líneas horizontales a lo ancho del área de dibujo.</td></tr>
+    <tr><td>Gap between bars</td><td>30</td><td>Porcentaje del hueco de una barra.</td></tr>
+    <tr><td>Colors</td><td>eje/texto casi negro, rejilla gris claro</td><td>Fondo pintado opcional (ventana). Todos los colores son longs BGR de Clarion.</td></tr>
+  </table>
+  <h3>Bars</h3>
+  <p>Una lista ordenada (de izquierda a derecha). Por barra: <b>Label</b>, <b>Value</b> — número literal o
+  variable/campo/expresión — y <b>Color</b>: paleta automática (por defecto) o un color explícito.
+  Deja la lista entera vacía para obtener las seis barras de autoprueba.</p>
+      </div>
+    </section>
 
 <section id="runtime">
-  <h2>Changing it at run time</h2>
+      <h2><span class="en">Changing it at run time</span><span class="es">Cambiarlo en ejecución</span></h2>
+      <div class="en">
   <p>The object is plain procedure data — drive it from any embed:</p>
   <pre>Graph1.ClearBars()                       <span class="c">! start over</span>
 Graph1.AddBar('Ene', Ene:Total)          <span class="c">! auto palette color</span>
@@ -220,10 +365,26 @@ DO Refresh:Graph1                        <span class="c">! reload prompt bars + 
   <div class="tip"><b>Reports</b> Call the same API in a report embed before the band prints, then
   <code>SETTARGET(Report) ; RptGraph1.Paint(?Placeholder) ; SETTARGET()</code> — or just let the
   template's generated <code>%BeforePrint</code> code do it.</div>
-</section>
+      </div>
+      <div class="es">
+  <p>El objeto es sencillamente un dato del procedimiento — manéjalo desde cualquier embed:</p>
+  <pre>Graph1.ClearBars()                       <span class="c">! empezar de cero</span>
+Graph1.AddBar('Ene', Ene:Total)          <span class="c">! color de la paleta automática</span>
+Graph1.AddBar('Feb', Feb:Total, 04657C0h)<span class="c">! color BGR explícito</span>
+Graph1.Title = 'Ventas 2026'
+Graph1.SetRange(0, 200)                  <span class="c">! escala fija (AutoScale apagado)</span>
+Graph1.Draw(MyWindow, ?Graph)            <span class="c">! redibujar la ventana ahora</span>
+<span class="c">! o, si las barras vinieron de los prompts de la plantilla:</span>
+DO Refresh:Graph1                        <span class="c">! recargar las barras del prompt y redibujar</span></pre>
+  <div class="tip"><b>Informes</b> Llama a la misma API en un embed del informe antes de que se imprima la
+  banda, y luego <code>SETTARGET(Report) ; RptGraph1.Paint(?Marcador) ; SETTARGET()</code> — o simplemente deja
+  que lo haga el código <code>%BeforePrint</code> que genera la plantilla.</div>
+      </div>
+    </section>
 
 <section id="classapi">
-  <h2>GraficaBarraClass API</h2>
+      <h2><span class="en">GraficaBarraClass API</span><span class="es">API de GraficaBarraClass</span></h2>
+      <div class="en">
   <table>
     <tr><th>Member</th><th>Meaning</th></tr>
     <tr><td><code>AddBar(label, value [,color])</code></td><td>Append a bar (max 48). Omit color for the auto palette.</td></tr>
@@ -239,10 +400,29 @@ DO Refresh:Graph1                        <span class="c">! reload prompt bars + 
     <tr><td><code>BackColor, PlotColor, AxisColor, GridColor, TextColor, BarBorderColor</code></td><td>Colors (BGR); <code>COLOR:None</code> = skip / same-as-fill.</td></tr>
     <tr><td><code>TextW, TextH</code></td><td>Text cell metrics override (0 = auto: dialog units on windows, thousandths of an inch on reports). Tune if your report font is much bigger/smaller than ~10pt.</td></tr>
   </table>
-</section>
+      </div>
+      <div class="es">
+  <table>
+    <tr><th>Miembro</th><th>Significado</th></tr>
+    <tr><td><code>AddBar(label, value [,color])</code></td><td>Añade una barra (máx. 48). Omite el color para usar la paleta automática.</td></tr>
+    <tr><td><code>ClearBars()</code></td><td>Quita todas las barras.</td></tr>
+    <tr><td><code>SetRange(min, max)</code></td><td>Escala de valores fija; pone <code>AutoScale = 0</code>.</td></tr>
+    <tr><td><code>Demo()</code></td><td>Carga seis barras de ejemplo (autoprueba).</td></tr>
+    <tr><td><code>Draw(window, ?image)</code></td><td>Camino de ventana: apunta al IMAGE, lo limpia y pinta.</td></tr>
+    <tr><td><code>Paint(?feq [,windowMode])</code></td><td>Pinta en el rectángulo de <code>?feq</code> sobre el destino <em>actual</em>. Modo 0 (por defecto) = informe: conserva el desplazamiento de la banda y no limpia.</td></tr>
+    <tr><td><code>Title</code></td><td>CSTRING(64), centrado arriba.</td></tr>
+    <tr><td><code>ShowValues / ValueDP</code>, <code>ShowLabels</code>, <code>ShowScale / ScaleDP</code>, <code>ShowGrid / GridDivs</code>, <code>ShowAxis</code></td><td>Interruptores de cada elemento + decimales/divisiones.</td></tr>
+    <tr><td><code>AutoScale, MinVal, MaxVal</code></td><td>Control de la escala (automática por defecto).</td></tr>
+    <tr><td><code>BarGapPct</code></td><td>Separación entre barras, en porcentaje de un hueco (30 por defecto).</td></tr>
+    <tr><td><code>BackColor, PlotColor, AxisColor, GridColor, TextColor, BarBorderColor</code></td><td>Colores (BGR); <code>COLOR:None</code> = omitir / igual que el relleno.</td></tr>
+    <tr><td><code>TextW, TextH</code></td><td>Sustituye las medidas de la celda de texto (0 = automático: unidades de diálogo en ventanas, milésimas de pulgada en informes). Ajústalo si la fuente de tu informe es mucho mayor o menor que ~10pt.</td></tr>
+  </table>
+      </div>
+    </section>
 
 <section id="palette">
-  <h2>Auto color palette</h2>
+      <h2><span class="en">Auto color palette</span><span class="es">Paleta de colores automática</span></h2>
+      <div class="en">
   <p>Bars without an explicit color cycle through eight professional colors (Clarion BGR longs):</p>
   <table>
     <tr><th></th><th>Color</th><th>BGR</th></tr>
@@ -255,10 +435,26 @@ DO Refresh:Graph1                        <span class="c">! reload prompt bars + 
     <tr><td><span class="sw" style="background:#64748B"></span></td><td>Slate gray</td><td><code>08B7464h</code></td></tr>
     <tr><td><span class="sw" style="background:#9AA5B1"></span></td><td>Cool gray</td><td><code>0B1A59Ah</code></td></tr>
   </table>
-</section>
+      </div>
+      <div class="es">
+  <p>Las barras sin color explícito van rotando por ocho colores profesionales (longs BGR de Clarion):</p>
+  <table>
+    <tr><th></th><th>Color</th><th>BGR</th></tr>
+    <tr><td><span class="sw" style="background:#2E75B6"></span></td><td>Azul acero</td><td><code>0B6752Eh</code></td></tr>
+    <tr><td><span class="sw" style="background:#2CA6A4"></span></td><td>Verde azulado</td><td><code>0A4A62Ch</code></td></tr>
+    <tr><td><span class="sw" style="background:#E8A33D"></span></td><td>Ámbar</td><td><code>03DA3E8h</code></td></tr>
+    <tr><td><span class="sw" style="background:#1F4E79"></span></td><td>Azul marino profundo</td><td><code>0794E1Fh</code></td></tr>
+    <tr><td><span class="sw" style="background:#6A994E"></span></td><td>Verde salvia</td><td><code>04E996Ah</code></td></tr>
+    <tr><td><span class="sw" style="background:#C05746"></span></td><td>Terracota</td><td><code>04657C0h</code></td></tr>
+    <tr><td><span class="sw" style="background:#64748B"></span></td><td>Gris pizarra</td><td><code>08B7464h</code></td></tr>
+    <tr><td><span class="sw" style="background:#9AA5B1"></span></td><td>Gris frío</td><td><code>0B1A59Ah</code></td></tr>
+  </table>
+      </div>
+    </section>
 
 <section id="trouble">
-  <h2>Troubleshooting</h2>
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></h2>
+      <div class="en">
   <table>
     <tr><th>Symptom</th><th>Cause / fix</th></tr>
     <tr><td>"File not found: GraficaBarraClass.INC" at compile</td><td>The .inc/.clw are not on the redirection path — copy both beside the app or into <code>\clarion12\libsrc\win</code>.</td></tr>
@@ -269,11 +465,36 @@ DO Refresh:Graph1                        <span class="c">! reload prompt bars + 
     <tr><td>Report text looks too big / small</td><td>Text metrics assume roughly a 10pt band font. Set <code>RptGraph1.TextW / TextH</code> (thousandths of an inch) in an embed before printing.</td></tr>
     <tr><td>Bars in a strange color</td><td>Clarion colors are <b>BGR</b> longs, not RGB — <code>0B6752Eh</code> is steel blue.</td></tr>
   </table>
-</section>
+      </div>
+      <div class="es">
+  <table>
+    <tr><th>Síntoma</th><th>Causa / solución</th></tr>
+    <tr><td>"File not found: GraficaBarraClass.INC" al compilar</td><td>El .inc/.clw no están en el camino de redirección — copia los dos junto a la app o dentro de <code>\clarion12\libsrc\win</code>.</td></tr>
+    <tr><td>La plantilla no se registra</td><td>El .tpl se volvió a guardar como UTF-8 con BOM o con finales LF — mantenlo en ANSI/CRLF.</td></tr>
+    <tr><td>Salen seis barras de ejemplo en vez de mis datos</td><td>La lista Bars está vacía en esa instancia (eso es la autoprueba). Agrega barras, o alimenta el objeto con <code>AddBar()</code> desde un embed.</td></tr>
+    <tr><td>El gráfico de la ventana no se actualiza al cambiar los datos</td><td>Llama a <code>DO Refresh:&lt;Objeto&gt;</code> — las barras con valores variables solo se releen ahí (y al abrir la ventana).</td></tr>
+    <tr><td>Falta el gráfico del informe</td><td>El marcador tiene que estar en la <b>banda de detalle que se imprime</b>; el código va en <i>Before Printing Detail Section</i>.</td></tr>
+    <tr><td>El texto del informe se ve muy grande o muy pequeño</td><td>Las medidas de texto suponen una fuente de banda de unos 10pt. Ajusta <code>RptGraph1.TextW / TextH</code> (milésimas de pulgada) en un embed antes de imprimir.</td></tr>
+    <tr><td>Las barras salen de un color raro</td><td>Los colores de Clarion son longs <b>BGR</b>, no RGB — <code>0B6752Eh</code> es azul acero.</td></tr>
+  </table>
+      </div>
+    </section>
 
     </div>
-    <footer>graficaBarra v1.0 · pure-Clarion bar graphs · windows + reports (vector PDF) · part of the templatemaker collection</footer>
+    <footer><span class="en">graficaBarra v1.0 · pure-Clarion bar graphs · windows + reports (vector PDF) · part of the templatemaker collection</span>
+      <span class="es">graficaBarra v1.0 · gráficos de barras en Clarion puro · ventanas + informes (PDF vectorial) · parte de la colección templatemaker</span></footer>
   </main>
 </div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('gbt-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('gbt-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
 </body>
 </html>
