@@ -163,6 +163,18 @@ INCLUDE('ExportClass.INC'),ONCE
       #PROMPT('&Suggest this folder (blank = the current directory):',@s128),%xbFolder,DEFAULT('')
       #DISPLAY('Only a suggestion - the user still picks the folder and name.')
     #ENDBOXED
+    #BOXED('Remember the last export')
+      #PROMPT('Remember the &user''s choices between runs',CHECK),%xbPersist,DEFAULT(1),AT(10)
+      #DISPLAY('Saves the format, the folder, the three tick boxes and the whole')
+      #DISPLAY('column list (which are on, renames, pictures) when an export')
+      #DISPLAY('succeeds, and restores them the next time the dialog opens.')
+      #ENABLE(%xbPersist)
+        #PROMPT('&Profile name (blank = this procedure):',@s64),%xbProfile,DEFAULT('')
+        #PROMPT('I&NI file (blank = the application''s own .INI):',@s128),%xbIniFile,DEFAULT('')
+        #DISPLAY('Each profile remembers its own settings, so two browses never')
+        #DISPLAY('overwrite each other.')
+      #ENDENABLE
+    #ENDBOXED
   #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
@@ -233,6 +245,17 @@ INCLUDE('ExportClass.INC'),ONCE
   %xbObject.OpenWhenDone = %xbOpenAfter
   %xbObject.Confirm      = %xbConfirm
   %xbObject.Allow        = %xbMask
+#IF(%xbPersist)
+  %xbObject.Persist      = 1                               ! restore/save the choices between runs
+#IF(%xbProfile)
+  %xbObject.Profile      = '%xbProfile'
+#ELSE
+  %xbObject.Profile      = '%Procedure'
+#ENDIF
+#IF(%xbIniFile)
+  %xbObject.IniFile      = '%xbIniFile'
+#ENDIF
+#ENDIF
 #IF(%xbFolder)
   IF ~%xbObject.FileName                                   ! only the first time
     %xbObject.FileName = CLIP('%xbFolder') & '\' & %xbObject.SuggestName()
@@ -306,6 +329,10 @@ INCLUDE('ExportClass.INC'),ONCE
       #PROMPT('&Open the file in its default program',CHECK),%xcOpenAfter,DEFAULT(1),AT(10)
       #PROMPT('Show the "N rows exported" &confirmation',CHECK),%xcConfirm,DEFAULT(1),AT(10)
       #PROMPT('&Suggest this folder (blank = the current directory):',@s128),%xcFolder,DEFAULT('')
+      #PROMPT('Remember the &user''s choices between runs',CHECK),%xcPersist,DEFAULT(1),AT(10)
+      #ENABLE(%xcPersist)
+        #PROMPT('&Profile name (blank = this procedure):',@s64),%xcProfile,DEFAULT('')
+      #ENDENABLE
     #ENDBOXED
   #ENDTAB
 #ENDSHEET
@@ -371,6 +398,14 @@ INCLUDE('ExportClass.INC'),ONCE
 %xcObject.OpenWhenDone = %xcOpenAfter
 %xcObject.Confirm      = %xcConfirm
 %xcObject.Allow        = %xcMask
+#IF(%xcPersist)
+%xcObject.Persist      = 1
+#IF(%xcProfile)
+%xcObject.Profile      = '%xcProfile'
+#ELSE
+%xcObject.Profile      = '%Procedure'
+#ENDIF
+#ENDIF
 #IF(%xcFolder)
 IF ~%xcObject.FileName
   %xcObject.FileName = CLIP('%xcFolder') & '\' & %xcObject.SuggestName()

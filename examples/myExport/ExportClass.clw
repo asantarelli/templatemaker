@@ -13,6 +13,7 @@
       exMB2WC( UNSIGNED CodePage, ULONG dwFlags, *STRING lpMultiByteStr, SIGNED cbMultiByte, *STRING lpWideCharStr, SIGNED cchWideChar ),SIGNED,RAW,PASCAL,NAME('MultiByteToWideChar')
       exWC2MB( UNSIGNED CodePage, ULONG dwFlags, *STRING lpWideCharStr, SIGNED cchWideChar, *STRING lpMultiByteStr, SIGNED cbMultiByte, LONG lpDefaultChar, LONG lpUsedDefault ),SIGNED,RAW,PASCAL,NAME('WideCharToMultiByte')
       exShellExec( LONG hwnd, *CSTRING lpOperation, *CSTRING lpFile, *CSTRING lpParameters, *CSTRING lpDirectory, SIGNED nShowCmd ),ULONG,PASCAL,RAW,PROC,NAME('ShellExecuteA')
+      exModuleFile( LONG hModule, *CSTRING lpFilename, ULONG nSize ),ULONG,RAW,PASCAL,NAME('GetModuleFileNameA')
     END
   END
 
@@ -199,6 +200,152 @@ n  LONG(0)
     IF ~ERRORCODE() AND SELF.Cols.Use THEN n += 1 .
   END
   RETURN n
+
+
+! ############################################################################
+!  Remembering the last export
+! ############################################################################
+!  Everything the user chose in the dialog - the format, the folder, the three
+!  option ticks and the whole column list - is written to an INI section when
+!  an export succeeds, and read back the next time the dialog opens.
+!
+!  The saved columns are keyed by position and guarded by SigKey(), a short
+!  fingerprint of the LIST's layout. If the browse gains, loses or re-sizes a
+!  column the fingerprint no longer matches and the stale column settings are
+!  ignored - the format, folder and flags still come back.
+
+!  IniFile if you set one, otherwise <the running exe>.INI beside the program.
+ExportClass.IniPath PROCEDURE()
+nm  CSTRING(261)
+n   ULONG,AUTO
+i   LONG,AUTO
+cut LONG(0)
+  CODE
+  IF CLIP(LEFT(SELF.IniFile)) THEN RETURN CLIP(LEFT(SELF.IniFile)) .
+  nm = ''
+  n  = exModuleFile(0,nm,260)
+  IF ~n THEN RETURN '' .                                  ! no path: GETINI falls back to WIN.INI
+  LOOP i = LEN(nm) TO 1 BY -1
+    IF nm[i] = '\' OR nm[i] = '/' THEN BREAK .
+    IF nm[i] = '.' THEN cut = i; BREAK .
+  END
+  IF cut THEN nm = SUB(nm,1,cut-1) .
+  RETURN CLIP(nm) & '.INI'
+
+
+ExportClass.IniSection PROCEDURE()
+p  CSTRING(65)
+  CODE
+  p = CLIP(LEFT(SELF.Profile))
+  IF ~p THEN p = SELF.SafeTag(SELF.Title,0) .
+  RETURN 'myExport_' & p
+
+
+!  A short, INI-safe stand-in for the layout fingerprint: the column count plus
+!  a rolling checksum kept small enough that a LONG never overflows.
+ExportClass.SigKey PROCEDURE()
+sg   CSTRING(1025)
+i    LONG,AUTO
+sum  LONG(0)
+  CODE
+  sg = SELF.LayoutSig()
+  LOOP i = 1 TO LEN(sg)
+    sum = (sum * 31 + VAL(sg[i])) % 99991
+  END
+  RETURN SELF.Columns() & 'x' & sum
+
+
+ExportClass.FolderOf PROCEDURE(STRING pPath)
+n  CSTRING(261)
+i  LONG,AUTO
+  CODE
+  n = CLIP(LEFT(pPath))
+  LOOP i = LEN(n) TO 1 BY -1
+    IF n[i] = '\' OR n[i] = '/' THEN RETURN SUB(n,1,i-1) .
+  END
+  RETURN ''
+
+
+ExportClass.LoadSettings PROCEDURE
+f     CSTRING(261)
+sect  CSTRING(80)
+fold  CSTRING(261)
+v     CSTRING(161)
+i     LONG,AUTO
+  CODE
+  SELF.Loaded = 1
+  f    = SELF.IniPath()
+  sect = SELF.IniSection()
+  SELF.Fmt          = GETINI(sect,'Fmt',SELF.Fmt,f)
+  SELF.Headers      = GETINI(sect,'Headers',SELF.Headers,f)
+  SELF.Pictures     = GETINI(sect,'Pictures',SELF.Pictures,f)
+  SELF.OpenWhenDone = GETINI(sect,'OpenWhenDone',SELF.OpenWhenDone,f)
+  fold = GETINI(sect,'Folder','',f)
+  IF CLIP(fold)                                           ! same folder, a freshly-dated name
+    SELF.FileName = CLIP(fold) & '\' & SELF.SuggestName()
+    SELF.ForceExt(SELF.Fmt)
+  END
+  IF GETINI(sect,'Sig','',f) <> SELF.SigKey() THEN RETURN .  ! layout changed - keep the live columns
+  LOOP i = 1 TO SELF.Columns()
+    GET(SELF.Cols,i)
+    IF ERRORCODE() THEN CYCLE .
+    SELF.Cols.Use = GETINI(sect,'C' & i & '.Use',SELF.Cols.Use,f)
+    v = GETINI(sect,'C' & i & '.Head','',f)
+    IF CLIP(v) THEN SELF.Cols.Head = CLIP(v) .
+    v = GETINI(sect,'C' & i & '.Pic','',f)                 ! stored with a leading '=' so that a
+    IF SUB(v,1,1) = '='                                    ! deliberately BLANK picture survives
+      SELF.Cols.Pic = CLIP(SUB(v,2,32))
+    END
+    PUT(SELF.Cols)
+    SELF.Classify(i)
+  END
+
+
+ExportClass.SaveSettings PROCEDURE
+f     CSTRING(261)
+sect  CSTRING(80)
+i     LONG,AUTO
+  CODE
+  f    = SELF.IniPath()
+  sect = SELF.IniSection()
+  PUTINI(sect,'Fmt',SELF.Fmt,f)
+  PUTINI(sect,'Headers',SELF.Headers,f)
+  PUTINI(sect,'Pictures',SELF.Pictures,f)
+  PUTINI(sect,'OpenWhenDone',SELF.OpenWhenDone,f)
+  PUTINI(sect,'Folder',SELF.FolderOf(SELF.FileName),f)
+  PUTINI(sect,'Sig',SELF.SigKey(),f)
+  LOOP i = 1 TO SELF.Columns()
+    GET(SELF.Cols,i)
+    IF ERRORCODE() THEN CYCLE .
+    PUTINI(sect,'C' & i & '.Use',SELF.Cols.Use,f)
+    IF SELF.Cols.Head <> SELF.Cols.HeadDef                 ! only store what the user changed
+      PUTINI(sect,'C' & i & '.Head',CLIP(SELF.Cols.Head),f)
+    ELSE
+      PUTINI(sect,'C' & i & '.Head','',f)
+    END
+    IF SELF.Cols.Pic <> SELF.Cols.PicDef
+      PUTINI(sect,'C' & i & '.Pic','=' & CLIP(SELF.Cols.Pic),f)
+    ELSE
+      PUTINI(sect,'C' & i & '.Pic','',f)
+    END
+  END
+
+
+ExportClass.ForgetSettings PROCEDURE
+f     CSTRING(261)
+sect  CSTRING(80)
+i     LONG,AUTO
+  CODE
+  f    = SELF.IniPath()
+  sect = SELF.IniSection()
+  PUTINI(sect,'Sig','',f)                                 ! kills the column half on the next load
+  PUTINI(sect,'Folder','',f)
+  LOOP i = 1 TO SELF.Columns()
+    PUTINI(sect,'C' & i & '.Use','',f)
+    PUTINI(sect,'C' & i & '.Head','',f)
+    PUTINI(sect,'C' & i & '.Pic','',f)
+  END
+  SELF.Loaded = 0
 
 
 ! ############################################################################
@@ -493,6 +640,10 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
     SELF.Note('There is nothing to export - this list has no data columns.','Export',ICON:Exclamation)
     RETURN 0
   END
+!  Pick up where the user left off last time. This runs after the generated
+!  code has applied the template's defaults, so the saved choices win - which
+!  is the point.
+  IF SELF.Persist AND ~SELF.Loaded THEN SELF.LoadSettings() .
   LOOP i = 1 TO Exp:Formats
     IF ~SELF.Allowed(i) THEN CYCLE .
     FQ:FName = SELF.FormatName(i)
@@ -1063,6 +1214,7 @@ ok    BYTE(0)
     IF SELF.Confirm THEN SELF.Note(SELF.ErrText,'Export failed',ICON:Hand) .
     RETURN 0
   END
+  IF SELF.Persist THEN SELF.SaveSettings() .              ! remember how they left it
   IF SELF.Confirm
     SELF.Note(CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & ' row(s) exported to' & Exp:CRLF & Exp:CRLF & |
               CLIP(SELF.FileName),'Export complete',ICON:Asterisk)

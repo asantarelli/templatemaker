@@ -129,6 +129,10 @@ OpenWhenDone         BYTE(1)                    ! open the file in its default p
 Confirm              BYTE(1)                    ! show the "N rows exported" popup
 AllowColumns         BYTE(1)                    ! let the user pick/rename columns in the dialog
 Delim                STRING(1)                  ! CSV separator; blank = comma
+! ---- remembering the last export ------------------------------------------
+Persist              BYTE(0)                    ! 1 = save/restore the choices between runs
+Profile              CSTRING(65)                ! which saved profile; blank = derived from Title
+IniFile              CSTRING(261)               ! where to save; blank = the app's own .INI
 ! ---- results --------------------------------------------------------------
 RowsOut              LONG                       ! rows written by the last export
 ErrCode              LONG                       ! 0 = ok
@@ -149,6 +153,7 @@ CrcTab               ULONG,DIM(256),PROTECTED
 CrcReady             BYTE,PROTECTED
 Started              BYTE,PROTECTED
 Sig                  CSTRING(1025),PROTECTED    ! the LIST layout the column list was built from
+Loaded               BYTE,PROTECTED             ! the saved settings have been read back once
 
 ! ---- setup ----------------------------------------------------------------
 Construct            PROCEDURE
@@ -170,6 +175,11 @@ ColumnHeading        PROCEDURE(LONG pCol),STRING           ! what this column is
 ColumnDefault        PROCEDURE(LONG pCol),STRING           ! what the LIST calls it
 ColumnPic            PROCEDURE(LONG pCol),STRING
 ColumnDefaultPic     PROCEDURE(LONG pCol),STRING           ! the picture the LIST uses
+
+! ---- remembering the last export -----------------------------------------
+LoadSettings         PROCEDURE()                ! restore format, folder, flags and columns
+SaveSettings         PROCEDURE()                ! done for you after a successful export
+ForgetSettings       PROCEDURE()                ! wipe this profile's saved settings
 ColumnOn             PROCEDURE(LONG pCol),BYTE
 
 ! ---- the run-time dialog --------------------------------------------------
@@ -213,6 +223,10 @@ CatJsonText          PROCEDURE(STRING pText),PROTECTED
 CatHtmlText          PROCEDURE(STRING pText),PROTECTED
 Classify             PROCEDURE(LONG pCol),PROTECTED        ! re-derive Tag + IsNum from Head/Pic
 LayoutSig            PROCEDURE(),STRING,PROTECTED          ! a fingerprint of the LIST's format
+SigKey               PROCEDURE(),STRING,PROTECTED          ! that fingerprint, short enough for an INI
+IniPath              PROCEDURE(),STRING,PROTECTED          ! IniFile, or <the exe>.INI
+IniSection           PROCEDURE(),STRING,PROTECTED          ! [myExport_<profile>]
+FolderOf             PROCEDURE(STRING pPath),STRING,PROTECTED
 SafeTag              PROCEDURE(STRING pText,LONG pCol),STRING,PROTECTED
 SheetName            PROCEDURE(STRING pText),STRING,PROTECTED
 ColRef               PROCEDURE(LONG pCol),STRING,PROTECTED  ! 1 -> A, 27 -> AA

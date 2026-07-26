@@ -79,6 +79,7 @@
     <a href="#code" class="h2"><span class="en">An existing button or menu</span><span class="es">Un botón o menú que ya tienes</span></a>
     <a href="#dialog" class="h2"><span class="en">The run-time dialog</span><span class="es">El diálogo en ejecución</span></a>
     <a href="#picker" class="h2"><span class="en">Choosing the columns</span><span class="es">Elegir las columnas</span></a>
+    <a href="#remember" class="h2"><span class="en">Remembering the last export</span><span class="es">Recordar la última exportación</span></a>
     <a href="#scope" class="h2"><span class="en">Which records get exported</span><span class="es">Qué registros se exportan</span></a>
     <div class="grp"><span class="en">The formats</span><span class="es">Los formatos</span></div>
     <a href="#formats" class="h2"><span class="en">All seven, compared</span><span class="es">Los siete, comparados</span></a>
@@ -257,6 +258,7 @@ examples/myExport/<br>
         <tr><td>Apply each column's picture</td><td>On: values come out formatted exactly as displayed. Off: raw values.</td></tr>
         <tr><td>Start with visible columns only</td><td>Hidden (zero-width) and icon columns are listed but start un-ticked.</td></tr>
         <tr><td>Let the user choose, rename and re-picture the columns</td><td>Shows the <a href="#picker">column picker</a> in the dialog. Untick it to lock the columns down.</td></tr>
+        <tr><td>Remember the user's choices between runs</td><td>Saves the format, folder, tick boxes and column list on a successful export and restores them next time — see <a href="#remember">Remembering the last export</a>.</td></tr>
       </table>
       <h3>What it generates</h3>
       <p>An object in <code>%DataSection</code> and, in the button's <code>Accepted</code> handler, this:</p>
@@ -302,6 +304,7 @@ examples/myExport/<br>
         <tr><td>Apply each column's picture</td><td>Activado: los valores salen formateados igual que se ven. Desactivado: valores crudos.</td></tr>
         <tr><td>Start with visible columns only</td><td>Las columnas ocultas (ancho cero) y de icono aparecen en la lista pero empiezan desmarcadas.</td></tr>
         <tr><td>Let the user choose, rename and re-picture the columns</td><td>Muestra el <a href="#picker">selector de columnas</a> en el diálogo. Desmárcalo para dejar las columnas fijas.</td></tr>
+        <tr><td>Remember the user's choices between runs</td><td>Guarda el formato, la carpeta, las casillas y la lista de columnas cuando la exportación va bien, y los restaura la próxima vez — ver <a href="#remember">Recordar la última exportación</a>.</td></tr>
       </table>
       <h3>Qué genera</h3>
       <p>Un objeto en <code>%DataSection</code> y, en el manejador <code>Accepted</code> del botón, esto:</p>
@@ -498,6 +501,113 @@ examples/myExport/<br>
         Con <b class="i">Start with visible columns only</b> marcado (lo normal), una columna oculta o de
         icono aparece <i>en la lista pero sin marcar</i> en vez de quedar fuera — así el usuario que la
         quiera puede marcarla, y el comportamiento por defecto no cambia.</div>
+      </div>
+    </section>
+
+    <section id="remember">
+      <h2><span class="en">Remembering the last export</span><span class="es">Recordar la última exportación</span> <a href="#remember" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Tick <b>Remember the user's choices between runs</b> and the export dialog comes back
+        exactly as they left it — same format, same folder, same tick boxes, same columns — not just for the
+        life of the window, but the next time the program runs.</p>
+      <p>When an export succeeds the settings are written to an INI section; when the dialog next opens they
+        are read back. What is stored:</p>
+      <ul>
+        <li>the <b>format</b> and the <b>folder</b> (the file name itself is re-suggested with today's date,
+          so you get <code>Invoices_20260726.xlsx</code> rather than yesterday's name);</li>
+        <li><b>Include the column headings</b>, <b>Apply each column's picture</b> and <b>Open the file when
+          it is done</b>;</li>
+        <li>the whole <b>column list</b> — which are ticked, every rename, every picture override.</li>
+      </ul>
+      <h3>Where it is stored</h3>
+      <p>By default, in <code>&lt;your program&gt;.INI</code> beside the executable, under a section named
+        after the profile:</p>
+<pre>[myExport_BrowseInvoices]
+Fmt=5
+Headers=0
+Folder=C:\reports
+Sig=5x19591
+C2.Head=Client name          <span class="c">! only what the user actually changed</span>
+C3.Use=0
+C4.Pic==@n12.4</pre>
+      <p>The <b>Profile</b> prompt names the section and defaults to the procedure name, so two browses in
+        the same application never overwrite each other's settings. Point <b>INI file</b> somewhere else if
+        you keep your settings in a specific file.</p>
+      <h3>When the browse changes</h3>
+      <div class="callout note"><b>Stale column settings are discarded, not misapplied</b>
+        <code>Sig</code> is a short fingerprint of the list's layout (column count, field numbers, widths).
+        If you add, remove or resize a column the fingerprint no longer matches and the saved <i>column</i>
+        settings are ignored — so a rename never lands on the wrong column. The format, folder and tick boxes
+        still come back.</div>
+      <h3>From code</h3>
+      <table>
+        <tr><th>Member</th><th>Meaning</th></tr>
+        <tr><td><code>Persist</code></td><td>BYTE — 1 = save on success and restore when the dialog opens.</td></tr>
+        <tr><td><code>Profile</code></td><td>Which saved profile to use; blank derives one from <code>Title</code>.</td></tr>
+        <tr><td><code>IniFile</code></td><td>Where to store it; blank = <code>&lt;the exe&gt;.INI</code>.</td></tr>
+        <tr><td><code>LoadSettings()</code></td><td>Restore now — <code>Ask()</code> calls it for you the first time.</td></tr>
+        <tr><td><code>SaveSettings()</code></td><td>Save now — a successful <code>EndFile()</code> calls it for you.</td></tr>
+        <tr><td><code>ForgetSettings()</code></td><td>Wipe this profile, so the next export starts from the template's defaults.</td></tr>
+      </table>
+      <p>The pair is also useful without the dialog — restore a saved profile, then export unattended:</p>
+<pre>Exporter1.Persist = 1
+Exporter1.Profile = <span class="s">'BrowseInvoices'</span>
+Exporter1.LoadSettings()                     <span class="c">! same columns and format as last time</span>
+Exporter1.FileName = <span class="s">'C:\nightly\invoices.xlsx'</span>
+Exporter1.Confirm  = 0
+Exporter1.ExportQueue()</pre>
+      </div>
+      <div class="es">
+      <p class="lead">Marca <b>Remember the user's choices between runs</b> y el diálogo de exportación vuelve
+        a aparecer tal como lo dejaron — mismo formato, misma carpeta, mismas casillas, mismas columnas — y no
+        solo mientras la ventana sigue abierta, sino la próxima vez que se ejecute el programa.</p>
+      <p>Cuando una exportación termina bien, los ajustes se escriben en una sección de un INI; al abrir el
+        diálogo la próxima vez, se vuelven a leer. Lo que se guarda:</p>
+      <ul>
+        <li>el <b>formato</b> y la <b>carpeta</b> (el nombre del archivo se vuelve a proponer con la fecha de
+          hoy, así que obtienes <code>Invoices_20260726.xlsx</code> y no el nombre de ayer);</li>
+        <li><b>Incluir los encabezados</b>, <b>Aplicar el picture de cada columna</b> y <b>Abrir el archivo al
+          terminar</b>;</li>
+        <li>la <b>lista de columnas</b> entera — cuáles están marcadas, cada renombrado y cada cambio de
+          picture.</li>
+      </ul>
+      <h3>Dónde se guarda</h3>
+      <p>Por defecto, en <code>&lt;tu programa&gt;.INI</code> junto al ejecutable, en una sección con el
+        nombre del perfil:</p>
+<pre>[myExport_BrowseInvoices]
+Fmt=5
+Headers=0
+Folder=C:\reportes
+Sig=5x19591
+C2.Head=Nombre del cliente   <span class="c">! solo lo que el usuario cambió de verdad</span>
+C3.Use=0
+C4.Pic==@n12.4</pre>
+      <p>El prompt <b>Profile</b> da nombre a la sección y por defecto toma el nombre del procedimiento, así
+        que dos browses de la misma aplicación nunca se pisan los ajustes. Apunta <b>INI file</b> a otro sitio
+        si guardas tu configuración en un archivo concreto.</p>
+      <h3>Cuando el browse cambia</h3>
+      <div class="callout note"><b>Los ajustes de columna caducados se descartan, no se aplican mal</b>
+        <code>Sig</code> es una huella corta de la disposición de la lista (número de columnas, números de
+        campo, anchos). Si agregas, quitas o redimensionas una columna, la huella ya no coincide y los ajustes
+        <i>de columna</i> guardados se ignoran — así que un renombrado nunca cae en la columna equivocada. El
+        formato, la carpeta y las casillas sí vuelven.</div>
+      <h3>Desde código</h3>
+      <table>
+        <tr><th>Miembro</th><th>Significado</th></tr>
+        <tr><td><code>Persist</code></td><td>BYTE — 1 = guardar al terminar bien y restaurar al abrir el diálogo.</td></tr>
+        <tr><td><code>Profile</code></td><td>Qué perfil guardado usar; en blanco se deriva de <code>Title</code>.</td></tr>
+        <tr><td><code>IniFile</code></td><td>Dónde guardarlo; en blanco = <code>&lt;el exe&gt;.INI</code>.</td></tr>
+        <tr><td><code>LoadSettings()</code></td><td>Restaurar ahora — <code>Ask()</code> lo llama por ti la primera vez.</td></tr>
+        <tr><td><code>SaveSettings()</code></td><td>Guardar ahora — un <code>EndFile()</code> correcto lo llama por ti.</td></tr>
+        <tr><td><code>ForgetSettings()</code></td><td>Borra este perfil, para que la próxima exportación arranque con los valores de la plantilla.</td></tr>
+      </table>
+      <p>La pareja también sirve sin diálogo — restaura un perfil guardado y exporta sin intervención:</p>
+<pre>Exporter1.Persist = 1
+Exporter1.Profile = <span class="s">'BrowseInvoices'</span>
+Exporter1.LoadSettings()                     <span class="c">! mismas columnas y formato que la última vez</span>
+Exporter1.FileName = <span class="s">'C:\nocturno\facturas.xlsx'</span>
+Exporter1.Confirm  = 0
+Exporter1.ExportQueue()</pre>
       </div>
     </section>
 
@@ -763,6 +873,9 @@ valor = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f
         <tr><td><code>Pictures</code></td><td>1</td><td>Run each value through its column picture.</td></tr>
         <tr><td><code>VisibleOnly</code></td><td>1</td><td>Hidden and icon columns start un-ticked (they are still listed).</td></tr>
         <tr><td><code>AllowColumns</code></td><td>1</td><td>Show the column picker in the dialog. 0 hides it and shrinks the dialog.</td></tr>
+        <tr><td><code>Persist</code></td><td>0</td><td>Remember the choices between runs (the template sets this to 1 by default).</td></tr>
+        <tr><td><code>Profile</code></td><td>blank</td><td>Which saved profile; blank derives one from <code>Title</code>.</td></tr>
+        <tr><td><code>IniFile</code></td><td>blank</td><td>Where the settings live; blank = <code>&lt;the exe&gt;.INI</code>.</td></tr>
         <tr><td><code>OpenWhenDone</code></td><td>1</td><td>Open the file in its default program.</td></tr>
         <tr><td><code>Confirm</code></td><td>1</td><td>Show the success / failure popup.</td></tr>
         <tr><td><code>Delim</code></td><td><code>','</code></td><td>CSV separator — set it to <code>';'</code> for European locales.</td></tr>
@@ -823,6 +936,9 @@ valor = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f
         <tr><td><code>Pictures</code></td><td>1</td><td>Pasa cada valor por el picture de su columna.</td></tr>
         <tr><td><code>VisibleOnly</code></td><td>1</td><td>Las columnas ocultas y de icono empiezan desmarcadas (siguen apareciendo).</td></tr>
         <tr><td><code>AllowColumns</code></td><td>1</td><td>Muestra el selector de columnas en el diálogo. 0 lo oculta y encoge el diálogo.</td></tr>
+        <tr><td><code>Persist</code></td><td>0</td><td>Recuerda las elecciones entre ejecuciones (la plantilla lo pone en 1 por defecto).</td></tr>
+        <tr><td><code>Profile</code></td><td>vacío</td><td>Qué perfil guardado; en blanco se deriva de <code>Title</code>.</td></tr>
+        <tr><td><code>IniFile</code></td><td>vacío</td><td>Dónde viven los ajustes; en blanco = <code>&lt;el exe&gt;.INI</code>.</td></tr>
         <tr><td><code>OpenWhenDone</code></td><td>1</td><td>Abre el archivo con su programa predeterminado.</td></tr>
         <tr><td><code>Confirm</code></td><td>1</td><td>Muestra el aviso de éxito / error.</td></tr>
         <tr><td><code>Delim</code></td><td><code>','</code></td><td>Separador CSV — ponlo a <code>';'</code> para configuraciones regionales europeas.</td></tr>

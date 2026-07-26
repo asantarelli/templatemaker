@@ -543,6 +543,15 @@ the dialog back to format + file name if you'd rather lock it down, and every bu
 public method — `ColumnUse`, `ColumnRename`, `ColumnPicture`, `SelectAll`, `ResetColumns` — so you can preset
 the columns from code.
 
+**It remembers how you left it.** With `Persist` on (the default), a successful export writes the format,
+the folder, the three tick boxes and the entire column list — which are on, every rename, every picture
+override — into an INI section, and the dialog restores them the next time the *program* runs, not just
+the next time the window opens. The section is named from a **profile** (the procedure name by default),
+so two browses never overwrite each other, and a short fingerprint of the list's layout guards the column
+half: add or resize a column and the stale column settings are discarded rather than landing on the wrong
+column, while the format and folder still come back. `LoadSettings` / `SaveSettings` / `ForgetSettings`
+are public, so an unattended nightly export can restore a saved profile and run with no dialog at all.
+
 **No external program is needed for the Excel format.** An `.xlsx` is a ZIP of XML parts, and `ExportClass`
 writes both — the six OOXML parts *and* the ZIP container (local headers, CRC-32, central directory, EOCD) —
 so there is no helper `.exe`, no Python, no COM automation, no Excel installation and nothing to redistribute.
