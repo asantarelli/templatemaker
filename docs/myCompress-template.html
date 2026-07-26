@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myCompress — Programmer's Documentation</title>
+<title>myCompress — Programmer's Documentation / Documentación del programador</title>
 <style>
   :root{
     --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
@@ -34,7 +34,7 @@
     padding:4px 12px;border-radius:20px;font-size:12.5px}
   .body{padding:14px 52px 80px;max-width:940px}
   section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
-  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
   h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
   p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
   code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
@@ -57,41 +57,62 @@
   .top{font-size:12px;color:var(--muted);float:right}
   .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
     border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  /* .callout b is display:block for the callout TITLE, so inline
+     emphasis inside callout text needs to opt back in */
+  .callout b.i{display:inline;margin:0}
 </style>
 </head>
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>myCompress</h1><span>Programmer's Documentation · v1.0</span></div>
-    <a href="#over">Overview</a>
-    <div class="grp">Using it</div>
-    <a href="#install" class="h2">Install &amp; register</a>
-    <a href="#quick" class="h2">Quick start</a>
-    <a href="#memory" class="h2">Compressing memory</a>
-    <a href="#files" class="h2">Compressing files</a>
-    <a href="#formats" class="h2">Formats &amp; interop</a>
-    <a href="#config" class="h2">Run-time control</a>
-    <div class="grp">How it works</div>
-    <a href="#arch" class="h2">Architecture</a>
-    <a href="#cengine" class="h2">C fast-path (4× faster)</a>
-    <a href="#oracle" class="h2">The .NET oracle</a>
-    <div class="grp">Reference</div>
-    <a href="#classref" class="h2">Class reference</a>
-    <a href="#errors" class="h2">Error codes</a>
-    <a href="#trouble" class="h2">Troubleshooting</a>
+    <div class="brand"><h1>myCompress</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#quick" class="h2"><span class="en">Quick start</span><span class="es">Inicio rápido</span></a>
+    <a href="#memory" class="h2"><span class="en">Compressing memory</span><span class="es">Comprimir en memoria</span></a>
+    <a href="#files" class="h2"><span class="en">Compressing files</span><span class="es">Comprimir archivos</span></a>
+    <a href="#formats" class="h2"><span class="en">Formats &amp; interop</span><span class="es">Formatos e interoperabilidad</span></a>
+    <a href="#config" class="h2"><span class="en">Run-time control</span><span class="es">Control en ejecución</span></a>
+    <div class="grp"><span class="en">How it works</span><span class="es">Cómo funciona</span></div>
+    <a href="#arch" class="h2"><span class="en">Architecture</span><span class="es">Arquitectura</span></a>
+    <a href="#cengine" class="h2"><span class="en">C fast-path (4× faster)</span><span class="es">Vía rápida en C (4× más rápido)</span></a>
+    <a href="#oracle" class="h2"><span class="en">The .NET oracle</span><span class="es">El oráculo .NET</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#classref" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#errors" class="h2"><span class="en">Error codes</span><span class="es">Códigos de error</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
   </nav>
   <main>
     <header class="hero">
       <h1>myCompress</h1>
-      <p>A self-contained <b>compression library</b> for Clarion — DEFLATE, zlib and gzip implemented in
+      <p class="en">A self-contained <b>compression library</b> for Clarion — DEFLATE, zlib and gzip implemented in
          <b>pure Clarion</b>. Compress and decompress memory buffers and files, in formats that
          interoperate with gzip, 7-Zip, browsers and .NET. No DLL, no external library.</p>
-      <span class="pill">RFC 1951/1950/1952 · memory + files · gzip/zlib/raw · one global object · pure Clarion</span>
+      <p class="es">Una <b>biblioteca de compresión</b> autosuficiente para Clarion — DEFLATE, zlib y gzip
+         implementados en <b>Clarion puro</b>. Comprime y descomprime búferes de memoria y archivos, en
+         formatos que interoperan con gzip, 7-Zip, los navegadores y .NET. Sin DLL, sin bibliotecas
+         externas.</p>
+      <span class="pill en">RFC 1951/1950/1952 · memory + files · gzip/zlib/raw · one global object · pure Clarion</span><span class="pill es">RFC 1951/1950/1952 · memoria + archivos · gzip/zlib/raw · un objeto global · Clarion puro</span>
     </header>
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
     <div class="body">
 
     <section id="over">
-      <h2>Overview <a href="#over" class="top">#</a></h2>
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
       <p class="lead">myCompress adds <b>one global object</b> to your application — a <code>CompressClass</code>
         instance you can reach from any procedure or embed — and through it compress or decompress data,
         either in memory or on disk, using the standard DEFLATE family of formats.</p>
@@ -113,10 +134,36 @@
         Unlike the drawing templates there is no per-window or per-report wiring — compression is driven
         entirely from your own code. You add a single <b>global</b> extension; everything else is method
         calls on the global object.</div>
+      </div>
+      <div class="es">
+      <p class="lead">myCompress agrega <b>un objeto global</b> a tu aplicación — una instancia de
+        <code>CompressClass</code> que puedes usar desde cualquier procedimiento o embed — y con ella
+        comprimes o descomprimes datos, en memoria o en disco, usando la familia estándar de formatos
+        DEFLATE.</p>
+      <p>Es hermana de <b>myQRDraw</b> y <b>myBarcodeGen</b>: una clase Clarion ANSI autosuficiente que hace
+        trabajo de verdad sin ninguna dependencia externa. El códec es una implementación desde cero de la
+        <b>RFC 1951 (DEFLATE)</b> con las envolturas <b>RFC 1950 (zlib)</b> y <b>RFC 1952 (gzip)</b>, así que
+        un <code>.gz</code> que escriba se abre en cualquier herramienta, y lee cualquier flujo
+        <code>.gz</code> / zlib / raw que esas herramientas produzcan.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myCompress</th></tr>
+        <tr><td>¿Necesita internet o DLL?</td><td><b>No</b> — Clarion puro, todo se calcula localmente</td></tr>
+        <tr><td>Descompresión (INFLATE)</td><td>Completa: stored + Huffman fijo y dinámico — lee cualquier cosa estándar</td></tr>
+        <tr><td>Compresión (DEFLATE)</td><td>LZ77 (buscador con cadenas hash) + Huffman fijo; Nivel 0 = sin comprimir</td></tr>
+        <tr><td>Trabaja sobre</td><td>Búferes de memoria <i>y</i> archivos</td></tr>
+        <tr><td>Formatos</td><td>DEFLATE crudo, zlib, gzip — todos interoperables</td></tr>
+        <tr><td>Integridad</td><td>Sumas CRC32 (gzip) y Adler32 (zlib) incorporadas</td></tr>
+      </table>
+      <div class="callout note"><b>Un solo registro</b>
+        A diferencia de las plantillas de dibujo, aquí no hay cableado por ventana ni por informe: la
+        compresión la manejas enteramente desde tu código. Agregas una única extensión <b class="i">global</b>;
+        todo lo demás son llamadas a métodos del objeto global.</div>
+      </div>
     </section>
 
     <section id="install">
-      <h2>Install &amp; register <a href="#install" class="top">#</a></h2>
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="en">
       <ol>
         <li>Copy <code>templates/myCompress/CompressClass.inc</code> and <code>CompressClass.clw</code> to a
           folder on the Clarion redirection path (your app folder, or <code>\clarion12\libsrc\win</code>).
@@ -132,10 +179,28 @@
         automatically; the <code>ONCE</code> include guard means it is safe even if another template also
         pulls it in. The object is multi-DLL aware out of the box (defined in the root DLL, imported
         elsewhere).</div>
+      </div>
+      <div class="es">
+      <ol>
+        <li>Copia <code>templates/myCompress/CompressClass.inc</code> y <code>CompressClass.clw</code> a una
+          carpeta del camino de redirección de Clarion (la carpeta de tu app, o
+          <code>\clarion12\libsrc\win</code>). <b>Tienen que estar guardados en ANSI</b>, no en UTF-8.</li>
+        <li>Copia <code>templates/myCompress/myCompress.tpl</code> a tu carpeta de plantillas.</li>
+        <li>En el IDE: <b>Setup ▸ Template Registry ▸ Register</b>, y elige <code>myCompress.tpl</code>.</li>
+        <li>En las <b>Extensions globales</b> de la aplicación, agrega <b>myCompress - Global Compressor</b>
+          (una sola vez). Pon el <b>nombre del objeto</b> (por defecto <code>Zip</code>) y, si quieres, el
+          <b>formato</b> y el <b>nivel</b> predeterminados.</li>
+      </ol>
+      <div class="callout tip"><b>Esa es toda la instalación</b>
+        El atributo <code>LINK</code> de la clase mete <code>CompressClass.clw</code> en la compilación solo;
+        la guarda <code>ONCE</code> del include hace que sea seguro incluso si otra plantilla también la trae.
+        El objeto entiende multi-DLL de fábrica (se define en la DLL raíz y se importa en el resto).</div>
+      </div>
     </section>
 
     <section id="quick">
-      <h2>Quick start <a href="#quick" class="top">#</a></h2>
+      <h2><span class="en">Quick start</span><span class="es">Inicio rápido</span> <a href="#quick" class="top">#</a></h2>
+      <div class="en">
       <p>From any embed, call the global object (named in the prompts; <code>Zip</code> below):</p>
       <pre><span class="c">! ---- memory: compress a string, then get it back ----</span>
 loc:raw    STRING(5000)
@@ -165,10 +230,45 @@ back       STRING(5000)
         Every method here is <b>length-explicit</b>: you pass a <code>LONG</code> length in and get a
         <code>LONG</code> length back. Store that length next to the bytes (e.g. in a separate field, or a
         4-byte prefix) — if you let trailing spaces creep in, the data is corrupt.</div>
+      </div>
+      <div class="es">
+      <p>Desde cualquier embed, llama al objeto global (el nombre lo pones en los prompts; abajo,
+        <code>Zip</code>):</p>
+      <pre><span class="c">! ---- memoria: comprimir una cadena y recuperarla ----</span>
+loc:raw    STRING(5000)
+loc:rawLen LONG
+packed     &amp;STRING
+n          LONG
+back       STRING(5000)
+  <span class="k">CODE</span>
+  loc:raw    = <span class="s">'…los bytes que quieras empaquetar…'</span>
+  loc:rawLen = 5000                          <span class="c">! la longitud REAL — ver la nota sobre binarios</span>
+  packed &amp;= <span class="k">NEW</span> STRING(Zip.MaxCompressed(loc:rawLen))
+  n = Zip.Compress(loc:raw, loc:rawLen, packed)      <span class="c">! n = bytes comprimidos, o -1</span>
+  <span class="k">IF</span> n &gt; 0
+    Zip.Decompress(packed, n, back)                  <span class="c">! back ya es igual a loc:raw</span>
+  <span class="k">END</span>
+  <span class="k">DISPOSE</span>(packed)
+
+<span class="c">! ---- archivos: una llamada en cada sentido ----</span>
+  <span class="k">IF</span> Zip.CompressFile(<span class="s">'report.txt'</span>, <span class="s">'report.txt.gz'</span>)
+    <span class="c">! report.txt.gz ya se abre en 7-Zip / gunzip / cualquier navegador</span>
+  <span class="k">END</span>
+  <span class="k">IF</span> Zip.DecompressFile(<span class="s">'archive.gz'</span>, <span class="s">'archive.out'</span>)   <span class="c">! lee cualquier .gz estándar</span>
+  <span class="k">END</span></pre>
+      <div class="callout danger"><b>Pasa siempre la longitud — nunca confíes en <code>LEN()</code></b>
+        Un <code>STRING</code> de Clarion es de longitud fija y se rellena con <b class="i">espacios</b>; no
+        recuerda cuántos bytes son "de verdad", y los datos comprimidos contienen <code>0</code>s y espacios
+        como cualquier otro byte. Todos los métodos de aquí son <b class="i">explícitos en la longitud</b>:
+        pasas un <code>LONG</code> de entrada y recibes un <code>LONG</code> de vuelta. Guarda esa longitud
+        junto a los bytes (en otro campo, o como prefijo de 4 bytes) — si dejas que se cuelen espacios finales,
+        los datos quedan corruptos.</div>
+      </div>
     </section>
 
     <section id="memory">
-      <h2>Compressing memory <a href="#memory" class="top">#</a></h2>
+      <h2><span class="en">Compressing memory</span><span class="es">Comprimir en memoria</span> <a href="#memory" class="top">#</a></h2>
+      <div class="en">
       <p>The two memory methods are length-explicit and write into a caller-supplied output buffer:</p>
       <ul>
         <li><code>Compress(*STRING pIn, LONG pInLen, *STRING pOut)</code> — returns the compressed byte
@@ -191,10 +291,39 @@ Name     STRING(60)
 MyRecS STRING(SIZE(MyRec)),OVER(MyRec)        <span class="c">! a byte view over the group</span>
   <span class="k">CODE</span>
   n = Zip.Compress(MyRecS, SIZE(MyRec), packed)</pre>
+      </div>
+      <div class="es">
+      <p>Los dos métodos de memoria son explícitos en la longitud y escriben en un búfer de salida que tú
+        proporcionas:</p>
+      <ul>
+        <li><code>Compress(*STRING pIn, LONG pInLen, *STRING pOut)</code> — devuelve la cantidad de bytes
+          comprimidos, o <code>-1</code> si hay error. <code>pOut</code> debe tener al menos
+          <code>Zip.MaxCompressed(pInLen)</code> bytes.</li>
+        <li><code>Decompress(*STRING pIn, LONG pInLen, *STRING pOut)</code> — devuelve la cantidad de bytes
+          originales, o <code>-1</code>. <code>pOut</code> debe ser lo bastante grande para los datos
+          descomprimidos (normalmente lo sabes por tu propio formato, o lo guardas junto al bloque
+          comprimido).</li>
+        <li><code>MaxCompressed(LONG pInLen)</code> — el tamaño seguro que hay que reservar para el búfer de
+          salida de una compresión (los datos incompresibles pueden crecer un poco, más la cabecera y el
+          cierre).</li>
+      </ul>
+      <p><b>Cualquier memoria, no solo cadenas.</b> Un parámetro <code>*STRING</code> acepta un
+        <code>STRING</code> superpuesto sobre lo que sea — un <code>GROUP</code>, el registro de una cola, un
+        <code>BLOB</code> que hayas cargado — así que puedes comprimir estructuras arbitrarias:</p>
+      <pre>MyRec  GROUP
+Id       LONG
+Name     STRING(60)
+…
+       END
+MyRecS STRING(SIZE(MyRec)),OVER(MyRec)        <span class="c">! una vista de bytes sobre el grupo</span>
+  <span class="k">CODE</span>
+  n = Zip.Compress(MyRecS, SIZE(MyRec), packed)</pre>
+      </div>
     </section>
 
     <section id="files">
-      <h2>Compressing files <a href="#files" class="top">#</a></h2>
+      <h2><span class="en">Compressing files</span><span class="es">Comprimir archivos</span> <a href="#files" class="top">#</a></h2>
+      <div class="en">
       <p>The file methods read the whole source file, run it through the same engine, and write the result —
         returning <code>1</code> on success, <code>0</code> on failure (with <code>Zip.ErrText</code> set):</p>
       <ul>
@@ -207,10 +336,27 @@ MyRecS STRING(SIZE(MyRec)),OVER(MyRec)        <span class="c">! a byte view over
         Files are loaded fully into memory for v1, which is ideal for documents, reports and exports up to
         tens of MB. True chunked streaming for multi-GB files is a planned enhancement; until then, size
         your expectations to available memory.</div>
+      </div>
+      <div class="es">
+      <p>Los métodos de archivo leen el archivo de origen completo, lo pasan por el mismo motor y escriben el
+        resultado — devolviendo <code>1</code> si va bien y <code>0</code> si falla (con
+        <code>Zip.ErrText</code> puesto):</p>
+      <ul>
+        <li><code>CompressFile(STRING pSrc, STRING pDst)</code> — escribe <code>pDst</code> en el
+          <code>Format</code> actual (gzip por defecto, así que ponle extensión <code>.gz</code>).</li>
+        <li><code>DecompressFile(STRING pSrc, STRING pDst)</code> — detecta solo si es gzip / zlib / raw y
+          escribe los bytes decodificados.</li>
+      </ul>
+      <div class="callout warn"><b>Archivo entero en memoria (en esta versión)</b>
+        En la v1 los archivos se cargan completos en memoria, lo cual va perfecto para documentos, informes y
+        exportaciones de hasta decenas de MB. El streaming real por trozos para archivos de varios GB está
+        planeado; hasta entonces, ajusta tus expectativas a la memoria disponible.</div>
+      </div>
     </section>
 
     <section id="formats">
-      <h2>Formats &amp; interop <a href="#formats" class="top">#</a></h2>
+      <h2><span class="en">Formats &amp; interop</span><span class="es">Formatos e interoperabilidad</span> <a href="#formats" class="top">#</a></h2>
+      <div class="en">
       <p>Set <code>Zip.Format</code> before a call (or pick the default in the prompts). The three formats
         are the standard DEFLATE family:</p>
       <table>
@@ -227,16 +373,37 @@ MyRecS STRING(SIZE(MyRec)),OVER(MyRec)        <span class="c">! a byte view over
         reads but which is a little larger than zlib's best (zlib adds <i>dynamic</i> Huffman). Decompression
         already handles dynamic-Huffman input from any encoder. Dynamic-Huffman <i>output</i> for tighter
         ratios is the next planned step.</div>
+      </div>
+      <div class="es">
+      <p>Pon <code>Zip.Format</code> antes de una llamada (o elige el valor por defecto en los prompts). Los
+        tres formatos son la familia estándar de DEFLATE:</p>
+      <table>
+        <tr><th>Formato</th><th>Equate</th><th>Envoltura</th><th>Lee / escribe con</th></tr>
+        <tr><td>gzip</td><td><code>Cmp:Gzip</code> (2)</td><td>cabecera de 10 bytes + <b>CRC32</b> + ISIZE</td><td>gzip / gunzip, 7-Zip, navegadores, <code>GZipStream</code> de .NET, <code>*.gz</code></td></tr>
+        <tr><td>zlib</td><td><code>Cmp:Zlib</code> (1)</td><td>cabecera de 2 bytes + <b>Adler32</b></td><td>zlib, <code>ZLibStream</code> de .NET, contenidos PNG/HTTP</td></tr>
+        <tr><td>raw</td><td><code>Cmp:Raw</code> (0)</td><td>ninguna — flujo DEFLATE pelado</td><td><code>DeflateStream</code> de .NET, incrustarlo en tu propio contenedor</td></tr>
+      </table>
+      <p><b>La descompresión detecta sola el formato</b> — <code>Decompress</code> / <code>DecompressFile</code>
+        olfatean la firma de gzip (<code>1F 8B</code>) y la comprobación de cabecera de zlib, y si no,
+        asumen DEFLATE crudo — así que no necesitas saber en qué formato viene un bloque para leerlo.</p>
+      <div class="callout note"><b>Ratio de compresión</b>
+        El compresor usa por ahora codificación <b class="i">Huffman fija</b> (más el emparejado LZ77), que
+        todos los decodificadores leen pero que sale un poco más grande que lo mejor de zlib (zlib añade
+        Huffman <i>dinámico</i>). La descompresión ya maneja entrada con Huffman dinámico de cualquier
+        codificador. Producir Huffman dinámico a la <i>salida</i>, para ratios más ajustados, es el siguiente
+        paso previsto.</div>
+      </div>
     </section>
 
     <section id="config">
-      <h2>Run-time control <a href="#config" class="top">#</a></h2>
+      <h2><span class="en">Run-time control</span><span class="es">Control en ejecución</span> <a href="#config" class="top">#</a></h2>
+      <div class="en">
       <p>The object exposes a few public properties; set them any time before a call:</p>
       <table>
         <tr><th>Property</th><th>Meaning</th></tr>
         <tr><td><code>Level</code></td><td><code>0</code> = stored (no compression, valid container), <code>1</code> fast … <code>9</code> best. Higher levels search the match chains harder. Default <code>6</code>.</td></tr>
         <tr><td><code>Format</code></td><td><code>Cmp:Raw</code> / <code>Cmp:Zlib</code> / <code>Cmp:Gzip</code>. Default <code>Cmp:Gzip</code>.</td></tr>
-        <tr><td><code>ErrCode</code> / <code>ErrText</code></td><td>After any call: <code>0</code> = ok, negative = the error (see <a href="#errors">Error codes</a>); <code>ErrText</code> is the readable companion.</td></tr>
+        <tr><td><code>ErrCode</code> / <code>ErrText</code></td><td>After any call: <code>0</code> = ok, negative = the error (see <a href="#errors"><span class="en">Error codes</span><span class="es">Códigos de error</span></a>); <code>ErrText</code> is the readable companion.</td></tr>
       </table>
       <pre>  Zip.Level  = <span class="s">9</span>                    <span class="c">! squeeze harder for an archive</span>
   Zip.Format = Cmp:Zlib            <span class="c">! emit a zlib stream for an HTTP payload</span>
@@ -246,10 +413,30 @@ MyRecS STRING(SIZE(MyRec)),OVER(MyRec)        <span class="c">! a byte view over
       <div class="callout tip"><b>Sanity check at startup</b>
         <code>IF ~Zip.SelfTest()</code> round-trips a known buffer through all three formats and returns
         <code>1</code> on success — a one-line smoke test you can run once when the program starts.</div>
+      </div>
+      <div class="es">
+      <p>El objeto expone unas pocas propiedades públicas; ponlas cuando quieras antes de una llamada:</p>
+      <table>
+        <tr><th>Propiedad</th><th>Significado</th></tr>
+        <tr><td><code>Level</code></td><td><code>0</code> = almacenado (sin comprimir, contenedor válido), <code>1</code> rápido … <code>9</code> máximo. Los niveles altos buscan más en las cadenas de coincidencias. Por defecto <code>6</code>.</td></tr>
+        <tr><td><code>Format</code></td><td><code>Cmp:Raw</code> / <code>Cmp:Zlib</code> / <code>Cmp:Gzip</code>. Por defecto <code>Cmp:Gzip</code>.</td></tr>
+        <tr><td><code>ErrCode</code> / <code>ErrText</code></td><td>Tras cualquier llamada: <code>0</code> = correcto, negativo = el error (ver <a href="#errors">Códigos de error</a>); <code>ErrText</code> es su versión legible.</td></tr>
+      </table>
+      <pre>  Zip.Level  = <span class="s">9</span>                    <span class="c">! apretar más para un archivo comprimido</span>
+  Zip.Format = Cmp:Zlib            <span class="c">! emitir un flujo zlib para un contenido HTTP</span>
+  <span class="k">IF</span> Zip.Compress(raw, rawLen, out) &lt; <span class="s">0</span>
+    Message(<span class="s">'Falló la compresión: '</span> &amp; Zip.ErrText)
+  <span class="k">END</span></pre>
+      <div class="callout tip"><b>Comprobación al arrancar</b>
+        <code>IF ~Zip.SelfTest()</code> pasa un búfer conocido por los tres formatos de ida y vuelta y
+        devuelve <code>1</code> si todo salió bien — una prueba de humo de una línea para ejecutar al iniciar
+        el programa.</div>
+      </div>
     </section>
 
     <section id="arch">
-      <h2>Architecture <a href="#arch" class="top">#</a></h2>
+      <h2><span class="en">Architecture</span><span class="es">Arquitectura</span> <a href="#arch" class="top">#</a></h2>
+      <div class="en">
       <div class="filetree">templates/myCompress/
 ├─ <b>CompressClass.inc</b>   the class: config, equates, method prototypes
 ├─ <b>CompressClass.clw</b>   the engine (inflate, deflate, containers, checksums)
@@ -266,10 +453,33 @@ designer/CompressCore/        the .NET golden-vector oracle (validation)</div>
         decodes canonically bit-by-bit. Output grows a class-owned buffer; for back-reference copies the
         engine reserves space up front so the buffer never moves mid-copy (which also makes overlapping
         runs — the heart of run-length compression — fall out for free).</p>
+      </div>
+      <div class="es">
+      <div class="filetree">templates/myCompress/
+├─ <b>CompressClass.inc</b>   la clase: configuración, equates, prototipos
+├─ <b>CompressClass.clw</b>   el motor (inflate, deflate, contenedores, sumas)
+└─ <b>myCompress.tpl</b>      una extensión global (agrega el objeto compartido)
+designer/CompressCore/        el oráculo .NET de vectores dorados (validación)</div>
+      <p>La clase es autosuficiente igual que el codificador de myQRDraw: un
+        <code>CLASS,TYPE,MODULE,LINK</code> cuyo <code>.clw</code> abre con un <code>MEMBER</code> pelado y un
+        <code>MAP</code> a nivel de módulo (para que resuelvan las funciones intrínsecas de
+        <code>BUILTINS.CLW</code> y las llamadas de archivo de Win32). Todo el estado de trabajo — búferes,
+        los acumuladores de bits, las cadenas hash de LZ77, las tablas de decodificación Huffman — vive en
+        miembros de la clase, así que la única instancia global es reutilizable y el códec no tiene efectos
+        secundarios globales.</p>
+      <p>La disposición de bits sigue la RFC al pie de la letra: DEFLATE empaqueta los bits
+        <b>de menos a más significativo</b>, mientras que los códigos Huffman se definen <b>de más a menos</b>,
+        así que el escritor invierte los bits de cada código antes de empaquetarlo y el lector decodifica
+        canónicamente bit a bit. La salida hace crecer un búfer propio de la clase; para las copias de
+        retro-referencia el motor reserva espacio por adelantado para que el búfer nunca se mueva a mitad de
+        una copia (lo que además hace que las repeticiones solapadas — el corazón de la compresión por
+        longitud de series — salgan gratis).</p>
+      </div>
     </section>
 
     <section id="cengine">
-      <h2>C fast-path (4× faster) <a href="#cengine" class="top">#</a></h2>
+      <h2><span class="en">C fast-path (4× faster)</span><span class="es">Vía rápida en C (4× más rápido)</span> <a href="#cengine" class="top">#</a></h2>
+      <div class="en">
       <p class="lead">The pure-Clarion codec is fast enough for most work, but for big files or high
         throughput there is an optional <b>C engine</b> — <code>mc.c</code>, our own DEFLATE port — that
         compiles with <b>Clarion's own C compiler</b> and makes compression about <b>4× faster</b>, with no
@@ -303,10 +513,50 @@ designer/CompressCore/        the .NET golden-vector oracle (validation)</div>
       <div class="callout warn"><b>Single-threaded</b>
         The C engine uses file-scope work tables, so it is single-threaded. If you compress from multiple
         threads concurrently, leave the C fast-path off and use the per-instance pure-Clarion engine.</div>
+      </div>
+      <div class="es">
+      <p class="lead">El códec en Clarion puro es suficientemente rápido para casi todo, pero para archivos
+        grandes o mucho volumen existe un <b>motor en C</b> opcional — <code>mc.c</code>, nuestro propio
+        DEFLATE portado — que compila con <b>el propio compilador de C de Clarion</b> y hace la compresión
+        unas <b>4× más rápida</b>, sin DLL externa y sin bibliotecas de terceros.</p>
+      <table>
+        <tr><th>Motor</th><th>Comprimir (4 MB, nivel 6)</th><th>Descomprimir</th><th>Tamaño</th></tr>
+        <tr><td>Clarion puro (por defecto)</td><td>~844 ms</td><td>~15 ms</td><td>491 KB</td></tr>
+        <tr><td><b>Vía rápida en C</b></td><td><b>~200 ms</b></td><td>~15 ms</td><td>485 KB (ventana completa de 32 KB)</td></tr>
+      </table>
+      <p>Es el <b>mismo algoritmo</b> en C — un port limpio de nuestro <code>Deflate</code> de Clarion, no
+        miniz/zlib/StringTheory — así que produce una salida compatible byte a byte (los dos motores
+        interoperan libremente: comprime con uno y descomprime con el otro). Además, en C no existe el límite
+        de arreglos de 64&nbsp;KB de Clarion, así que el buscador usa la ventana DEFLATE completa de
+        32&nbsp;KB, lo que da un ratio incluso algo <i>mejor</i>.</p>
+      <h3>Cómo activarlo</h3>
+      <p>Se elige en la extensión — sin tocar código:</p>
+      <ol>
+        <li>Copia los archivos del motor en C al camino de redirección, junto a los
+          <code>CompressClass.inc</code>/<code>.clw</code> base: <code>CompressClassC.inc</code>,
+          <code>CompressClassC.clw</code> y <code>mc.c</code>.</li>
+        <li>En la extensión <b>myCompress - Global Compressor</b>, pon <b>Compression engine</b> en
+          <b>C fast-path</b>.</li>
+        <li>Genera y compila. Tu código no cambia — mismo nombre de objeto, misma API.</li>
+      </ol>
+      <div class="callout note"><b>Cómo funciona el cambio — es una subclase</b>
+        <code>CompressClassC</code> es una subclase fina de <code>CompressClass</code> que hace
+        <code>PRAGMA('compile(mc.c)')</code> del motor en C y redefine los puntos de entrada virtuales
+        <code>Wrap</code> / <code>Unwrap</code> para llamarlo; la API pública se hereda sin cambios. El prompt
+        del motor simplemente declara el objeto global como <code>CompressClass</code> (Clarion puro)
+        <b class="i">o</b> como <code>CompressClassC</code> (vía rápida en C) — así que la elección vive en la
+        <b class="i">plantilla</b>, y una app en Clarion puro no arrastra <b class="i">ni mc.c ni la
+        subclase</b>.</div>
+      <div class="callout warn"><b>De un solo hilo</b>
+        El motor en C usa tablas de trabajo a nivel de archivo, así que es de un solo hilo. Si comprimes desde
+        varios hilos a la vez, deja apagada la vía rápida en C y usa el motor en Clarion puro, que es por
+        instancia.</div>
+      </div>
     </section>
 
     <section id="oracle">
-      <h2>The .NET oracle <a href="#oracle" class="top">#</a></h2>
+      <h2><span class="en">The .NET oracle</span><span class="es">El oráculo .NET</span> <a href="#oracle" class="top">#</a></h2>
+      <div class="en">
       <p>Clarion cannot be run from CI, so — as with <code>QrCodeCore</code> and <code>BarcodeCore</code> —
         a small .NET tool, <code>designer/CompressCore/</code>, is the independent reference. .NET's own
         <code>GZipStream</code> / <code>ZLibStream</code> / <code>DeflateStream</code> are the validated
@@ -323,10 +573,32 @@ dotnet run --project designer/CompressCore -- vectors ./vectors
 dotnet run --project designer/CompressCore -- verify  ./vectors    <span class="c"># checks the Clarion gzip output</span></pre>
       <p>The corpus deliberately spans the code paths: empty, single byte, long compressible text, long
         runs, binary with NUL bytes, incompressible random data, and an all-zero buffer.</p>
+      </div>
+      <div class="es">
+      <p>Clarion no se puede ejecutar desde un CI, así que — igual que con <code>QrCodeCore</code> y
+        <code>BarcodeCore</code> — una pequeña herramienta .NET, <code>designer/CompressCore/</code>, hace de
+        referencia independiente. Los propios <code>GZipStream</code> / <code>ZLibStream</code> /
+        <code>DeflateStream</code> de .NET son el codificador/decodificador ya validado, así que no hay nada
+        que reimplementar; la herramienta cierra el círculo en los dos sentidos:</p>
+      <ul>
+        <li><b>Prueba de INFLATE</b> — <code>.NET</code> comprime un corpus; el
+          <code>DecompressFile</code> de Clarion tiene que reproducir los bytes originales.</li>
+        <li><b>Prueba de DEFLATE</b> — <code>CompressFile</code> de Clarion escribe un <code>.gz</code>; .NET
+          lo descomprime y confirma que coincide.</li>
+      </ul>
+      <pre><span class="c"># generar los vectores dorados (caseN.bin + caseN.bin.gz/.zz/.raw + manifiesto)</span>
+dotnet run --project designer/CompressCore -- vectors ./vectors
+<span class="c"># …que la app Clarion haga DecompressFile de cada .bin.gz y CompressFile de cada .bin a .bin.cgz…</span>
+dotnet run --project designer/CompressCore -- verify  ./vectors    <span class="c"># revisa la salida gzip de Clarion</span></pre>
+      <p>El corpus recorre a propósito todos los caminos del código: vacío, un solo byte, texto largo
+        compresible, series largas, binario con bytes NUL, datos aleatorios incompresibles y un búfer todo a
+        ceros.</p>
+      </div>
     </section>
 
     <section id="classref">
-      <h2>Class reference <a href="#classref" class="top">#</a></h2>
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#classref" class="top">#</a></h2>
+      <div class="en">
       <p class="lead">Everything myCompress does lives in one class, <code>CompressClass</code>. This chapter
         is the full anatomy: how it's declared, the equates it ships, its lifecycle, and every public method
         with its parameters and return value.</p>
@@ -416,10 +688,103 @@ dotnet run --project designer/CompressCore -- verify  ./vectors    <span class="
         <tr><td>Huffman</td><td><code>BuildHuff</code> (canonical table from code lengths), <code>DecodeSym</code> (bit-by-bit decode).</td></tr>
         <tr><td>Output</td><td><code>ResetOut</code>/<code>EnsureOut</code>/<code>PutByte</code> — the grow-as-needed result buffer.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <p class="lead">Todo lo que hace myCompress vive en una clase, <code>CompressClass</code>. Este capítulo
+        es su anatomía completa: cómo se declara, los equates que trae, su ciclo de vida y cada método público
+        con sus parámetros y su valor de retorno.</p>
+
+      <h3>Declaración</h3>
+      <pre>CompressClass <span class="k">CLASS</span>,<span class="k">TYPE</span>,<span class="k">MODULE</span>(<span class="s">'CompressClass.CLW'</span>),<span class="k">LINK</span>(<span class="s">'CompressClass.CLW'</span>)</pre>
+      <ul>
+        <li><code>TYPE</code> — es un tipo, así que declaras tu propia instancia con nombre (la plantilla
+          declara una global, <code>Zip</code>). Podrías declarar más para configuraciones independientes.</li>
+        <li><code>MODULE</code>/<code>LINK</code> — el motor se compila en su propio objeto y se enlaza
+          automáticamente.</li>
+        <li>El <code>.clw</code> lleva un <code>MEMBER</code> pelado + un <code>MAP</code> de módulo (que
+          integra <code>BUILTINS.CLW</code> y las llamadas de archivo de <code>kernel32</code>). Sin estado
+          externo — seguro en apps multi-DLL y entre hilos.</li>
+      </ul>
+
+      <h3>Equates</h3>
+      <table>
+        <tr><th>Equate</th><th>Valor</th><th>Significado</th></tr>
+        <tr><td><code>Cmp:Raw</code></td><td>0</td><td>DEFLATE crudo — sin cabecera ni cierre.</td></tr>
+        <tr><td><code>Cmp:Zlib</code></td><td>1</td><td>Envoltura zlib — cabecera de 2 bytes + Adler32.</td></tr>
+        <tr><td><code>Cmp:Gzip</code></td><td>2</td><td>Envoltura gzip — cabecera de 10 bytes + CRC32 + ISIZE.</td></tr>
+      </table>
+
+      <h3>Ciclo de vida</h3>
+      <p><code>Construct</code> se ejecuta solo: pone <code>Level = 6</code>, <code>Format = Cmp:Gzip</code> y
+        construye las tablas de una sola vez (la tabla CRC32, las tablas de base+extra de longitud/distancia y
+        la tabla de códigos Huffman fijos) mediante <code>Init</code>. <code>Destruct</code> libera el búfer
+        de salida interno. No hay nada más que limpiar.</p>
+
+      <h3>Métodos públicos</h3>
+      <p>Las longitudes son <code>LONG</code>; los búferes son <code>*STRING</code> (pasados por referencia,
+        nunca copiados). Un retorno negativo (o <code>0</code> en los métodos de archivo) significa fallo —
+        lee <code>ErrText</code>.</p>
+      <table>
+        <tr><th>Prototipo</th><th>Parámetros</th><th>Devuelve / efecto</th></tr>
+        <tr>
+          <td><code>Compress(*STRING pIn, LONG pInLen, *STRING pOut)</code></td>
+          <td><code>pIn</code>/<code>pInLen</code> — los bytes a empaquetar y cuántos son. <code>pOut</code> — búfer de salida, ≥ <code>MaxCompressed(pInLen)</code>.</td>
+          <td>Comprime en <code>pOut</code> con el <code>Format</code> y el <code>Level</code> actuales. Devuelve los bytes comprimidos, o <code>-1</code>.</td>
+        </tr>
+        <tr>
+          <td><code>Decompress(*STRING pIn, LONG pInLen, *STRING pOut)</code></td>
+          <td><code>pIn</code>/<code>pInLen</code> — los bytes comprimidos. <code>pOut</code> — búfer de salida, suficiente para el original.</td>
+          <td>Detecta gzip/zlib/raw y descomprime en <code>pOut</code>. Devuelve los bytes originales, o <code>-1</code>.</td>
+        </tr>
+        <tr>
+          <td><code>MaxCompressed(LONG pInLen)</code></td>
+          <td><code>pInLen</code> — el tamaño de entrada.</td>
+          <td>La cantidad segura de bytes a reservar para el búfer de salida de una compresión.</td>
+        </tr>
+        <tr>
+          <td><code>CompressFile(STRING pSrc, STRING pDst)</code></td>
+          <td><code>pSrc</code>/<code>pDst</code> — rutas de origen y destino.</td>
+          <td>Comprime el archivo entero en el <code>Format</code> actual. Devuelve <code>1</code> bien / <code>0</code> mal.</td>
+        </tr>
+        <tr>
+          <td><code>DecompressFile(STRING pSrc, STRING pDst)</code></td>
+          <td><code>pSrc</code>/<code>pDst</code> — rutas de origen y destino.</td>
+          <td>Detecta el formato y descomprime a <code>pDst</code>. Devuelve <code>1</code> / <code>0</code>.</td>
+        </tr>
+        <tr>
+          <td><code>SelfTest()</code></td>
+          <td>—</td>
+          <td>Pasa un búfer conocido por raw, zlib y gzip de ida y vuelta y comprueba que los bytes vuelven idénticos. Devuelve <code>1</code> si pasa.</td>
+        </tr>
+      </table>
+
+      <h3>Propiedades públicas</h3>
+      <table>
+        <tr><th>Propiedad</th><th>Tipo</th><th>Significado</th></tr>
+        <tr><td><code>Level</code></td><td>BYTE</td><td>0 almacenado, 1 rápido … 9 máximo (6 por defecto).</td></tr>
+        <tr><td><code>Format</code></td><td>BYTE</td><td><code>Cmp:Raw</code>/<code>Cmp:Zlib</code>/<code>Cmp:Gzip</code> (gzip por defecto).</td></tr>
+        <tr><td><code>ErrCode</code></td><td>LONG</td><td>0 correcto, &lt;0 error tras la última llamada.</td></tr>
+        <tr><td><code>ErrText</code></td><td>CSTRING</td><td>Descripción legible de <code>ErrCode</code>.</td></tr>
+      </table>
+
+      <h3>Ayudantes internos</h3>
+      <p>No los vas a llamar, pero son el motor — útiles al leer <code>CompressClass.clw</code>:</p>
+      <table>
+        <tr><th>Grupo</th><th>Métodos</th></tr>
+        <tr><td>Contenedores</td><td><code>Wrap</code> / <code>Unwrap</code> — ponen o detectan la cabecera y el cierre gzip/zlib alrededor del flujo crudo.</td></tr>
+        <tr><td>Comprimir</td><td><code>Deflate</code> (LZ77 + Huffman fijo), <code>DeflateStored</code> (Nivel 0).</td></tr>
+        <tr><td>Descomprimir</td><td><code>Inflate</code>, <code>BuildFixed</code>, <code>ReadDynamic</code>, <code>InflateBlock</code>.</td></tr>
+        <tr><td>Sumas de control</td><td><code>CRC32</code> (gzip), <code>Adler32</code> (zlib).</td></tr>
+        <tr><td>E/S de bits</td><td><code>PutBits</code>/<code>PutHuff</code>/<code>RevBits</code>/<code>FlushBits</code> (escritura); <code>GetBits</code>/<code>ByteIn</code>/<code>AlignByte</code> (lectura).</td></tr>
+        <tr><td>Huffman</td><td><code>BuildHuff</code> (tabla canónica a partir de longitudes de código), <code>DecodeSym</code> (decodificación bit a bit).</td></tr>
+        <tr><td>Salida</td><td><code>ResetOut</code>/<code>EnsureOut</code>/<code>PutByte</code> — el búfer de resultado que crece según hace falta.</td></tr>
+      </table>
+      </div>
     </section>
 
     <section id="errors">
-      <h2>Error codes <a href="#errors" class="top">#</a></h2>
+      <h2><span class="en">Error codes</span><span class="es">Códigos de error</span> <a href="#errors" class="top">#</a></h2>
+      <div class="en">
       <p>After any call, <code>ErrCode = 0</code> means success; a negative value (and <code>ErrText</code>)
         explains a failure:</p>
       <table>
@@ -433,10 +798,27 @@ dotnet run --project designer/CompressCore -- verify  ./vectors    <span class="
         <tr><td>-8 / -9</td><td>Output buffer too small</td><td><code>pOut</code> not big enough — grow it (use <code>MaxCompressed</code> for compress).</td></tr>
         <tr><td>-20 / -21 / -22</td><td>Cannot open / create / short write file</td><td>File path, permissions, or disk.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <p>Tras cualquier llamada, <code>ErrCode = 0</code> significa éxito; un valor negativo (y
+        <code>ErrText</code>) explica el fallo:</p>
+      <table>
+        <tr><th>Código</th><th>ErrText</th><th>Causa habitual</th></tr>
+        <tr><td>-1</td><td>Unexpected end of compressed data</td><td>Entrada truncada o con longitud equivocada.</td></tr>
+        <tr><td>-2</td><td>Bad Huffman code in stream</td><td>Datos corruptos o que no son DEFLATE.</td></tr>
+        <tr><td>-3</td><td>Stored block length check failed</td><td>Bloque almacenado corrupto.</td></tr>
+        <tr><td>-4</td><td>Invalid DEFLATE block type</td><td>No es un flujo DEFLATE.</td></tr>
+        <tr><td>-5 / -6</td><td>Bad length / distance symbol</td><td>Datos comprimidos corruptos.</td></tr>
+        <tr><td>-7</td><td>Distance too far back</td><td>Retro-referencia corrupta.</td></tr>
+        <tr><td>-8 / -9</td><td>Output buffer too small</td><td><code>pOut</code> no es lo bastante grande — agrándalo (usa <code>MaxCompressed</code> al comprimir).</td></tr>
+        <tr><td>-20 / -21 / -22</td><td>Cannot open / create / short write file</td><td>Ruta, permisos o disco.</td></tr>
+      </table>
+      </div>
     </section>
 
     <section id="trouble">
-      <h2>Troubleshooting <a href="#trouble" class="top">#</a></h2>
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
       <table>
         <tr><th>Symptom</th><th>Cause / fix</th></tr>
         <tr><td>Decompressed data has trailing spaces / wrong length</td><td>You relied on <code>LEN()</code> or a padded <code>STRING</code>. Always carry the exact length returned by <code>Compress</code> and pass it to <code>Decompress</code>.</td></tr>
@@ -446,12 +828,38 @@ dotnet run --project designer/CompressCore -- verify  ./vectors    <span class="
         <tr><td>.gz won't open in 7-Zip</td><td>Make sure you wrote in gzip format (<code>Zip.Format = Cmp:Gzip</code>, the default) and stored the file with the exact returned length.</td></tr>
         <tr><td>Other tool's .gz won't decompress here</td><td>Confirm it is gzip/zlib/raw DEFLATE (not zip/7z/bzip2/zstd). myCompress reads the DEFLATE family only.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa / solución</th></tr>
+        <tr><td>Los datos descomprimidos traen espacios de más o una longitud rara</td><td>Confiaste en <code>LEN()</code> o en un <code>STRING</code> rellenado. Lleva siempre la longitud exacta que devolvió <code>Compress</code> y pásasela a <code>Decompress</code>.</td></tr>
+        <tr><td>Compress devuelve -1</td><td><code>pOut</code> es demasiado pequeño — reserva <code>Zip.MaxCompressed(len)</code>.</td></tr>
+        <tr><td>"Unresolved external" en una función intrínseca</td><td>El <code>.clw</code> tiene que abrir con un <code>MEMBER</code> pelado y un <code>MAP</code> de módulo para que resuelva <code>BUILTINS.CLW</code>. No los quites.</td></tr>
+        <tr><td>La plantilla no se registra</td><td>Vuelve a guardar los archivos de la clase en <b>ANSI</b>, no en UTF-8.</td></tr>
+        <tr><td>El .gz no abre en 7-Zip</td><td>Asegúrate de haber escrito en formato gzip (<code>Zip.Format = Cmp:Gzip</code>, el valor por defecto) y de haber guardado el archivo con la longitud exacta devuelta.</td></tr>
+        <tr><td>Un .gz de otra herramienta no se descomprime aquí</td><td>Confirma que sea gzip/zlib/DEFLATE crudo (no zip/7z/bzip2/zstd). myCompress lee solo la familia DEFLATE.</td></tr>
+      </table>
+      </div>
     </section>
 
     </div>
-    <footer>myCompress · Programmer's Documentation · part of the templatemaker template set ·
-      pure Clarion, no external dependencies.</footer>
+    <footer>
+      <span class="en">myCompress · Programmer's Documentation · part of the templatemaker template set ·
+      pure Clarion, no external dependencies.</span>
+      <span class="es">myCompress · Documentación del programador · parte de la colección templatemaker · Clarion puro, sin dependencias externas.</span>
+    </footer>
   </main>
 </div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mcp-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mcp-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
 </body>
 </html>
