@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>myPdfSign — Programmer's Documentation</title>
+<title>myPdfSign — Programmer's Documentation / Documentación del programador</title>
 <style>
   :root{
     --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
@@ -34,7 +34,7 @@
     padding:4px 12px;border-radius:20px;font-size:12.5px}
   .body{padding:14px 52px 80px;max-width:940px}
   section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
-  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
   h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
   p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
   code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
@@ -57,42 +57,63 @@
   .top{font-size:12px;color:var(--muted);float:right}
   .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
     border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  /* .callout b is display:block for the callout TITLE, so inline
+     emphasis inside callout text needs to opt back in */
+  .callout b.i{display:inline;margin:0}
 </style>
 </head>
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>myPdfSign</h1><span>Programmer's Documentation · v1.0</span></div>
-    <a href="#over">Overview</a>
-    <div class="grp">Using it</div>
-    <a href="#install" class="h2">Install &amp; register</a>
-    <a href="#quick" class="h2">Quick start</a>
-    <a href="#memory" class="h2">Reading from memory</a>
-    <a href="#startup" class="h2">Startup self-test</a>
-    <a href="#scope" class="h2">Scope &amp; honesty</a>
-    <div class="grp">How it works</div>
-    <a href="#how" class="h2">The four steps</a>
-    <a href="#arch" class="h2">Architecture</a>
-    <a href="#oracle" class="h2">The .NET oracle</a>
-    <div class="grp">Reference</div>
-    <a href="#classref" class="h2">Class reference</a>
-    <a href="#props" class="h2">Properties</a>
-    <a href="#methods" class="h2">Methods</a>
-    <a href="#trouble" class="h2">Troubleshooting</a>
+    <div class="brand"><h1>myPdfSign</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#quick" class="h2"><span class="en">Quick start</span><span class="es">Inicio rápido</span></a>
+    <a href="#memory" class="h2"><span class="en">Reading from memory</span><span class="es">Leer desde memoria</span></a>
+    <a href="#startup" class="h2"><span class="en">Startup self-test</span><span class="es">Autoprueba al arrancar</span></a>
+    <a href="#scope" class="h2"><span class="en">Scope &amp; honesty</span><span class="es">Alcance y honestidad</span></a>
+    <div class="grp"><span class="en">How it works</span><span class="es">Cómo funciona</span></div>
+    <a href="#how" class="h2"><span class="en">The four steps</span><span class="es">Los cuatro pasos</span></a>
+    <a href="#arch" class="h2"><span class="en">Architecture</span><span class="es">Arquitectura</span></a>
+    <a href="#oracle" class="h2"><span class="en">The .NET oracle</span><span class="es">El oráculo .NET</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#classref" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#props" class="h2"><span class="en">Properties</span><span class="es">Propiedades</span></a>
+    <a href="#methods" class="h2"><span class="en">Methods</span><span class="es">Métodos</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
   </nav>
   <main>
     <header class="hero">
       <h1>myPdfSign</h1>
-      <p>A self-contained <b>signed-PDF reader</b> for Clarion — open a digitally-signed PDF and report
+      <p class="en">A self-contained <b>signed-PDF reader</b> for Clarion — open a digitally-signed PDF and report
          <b>who signed it</b> straight out of the embedded PKCS#7 / CMS signature, in <b>pure Clarion</b>.
          Signer certificate, issuing CA, signing time, and a tamper hint. No DLL, no external library,
          no network.</p>
-      <span class="pill">PKCS#7 / CMS · DER ASN.1 reader · signer identity + integrity hint · one global object · pure Clarion</span>
+      <p class="es">Un <b>lector de PDF firmados</b> autosuficiente para Clarion — abre un PDF firmado
+         digitalmente e informa de <b>quién lo firmó</b>, directamente desde la firma PKCS#7 / CMS incrustada,
+         en <b>Clarion puro</b>. Certificado del firmante, autoridad emisora, hora de firma y una pista de
+         manipulación. Sin DLL, sin bibliotecas externas, sin red.</p>
+      <span class="pill en">PKCS#7 / CMS · DER ASN.1 reader · signer identity + integrity hint · one global object · pure Clarion</span><span class="pill es">PKCS#7 / CMS · lector DER ASN.1 · identidad del firmante + pista de integridad · un objeto global · Clarion puro</span>
     </header>
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
     <div class="body">
 
     <section id="over">
-      <h2>Overview <a href="#over" class="top">#</a></h2>
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
       <p class="lead">myPdfSign adds <b>one global object</b> to your application — a <code>PdfSignClass</code>
         instance you can reach from any procedure or embed — and through it open a signed PDF and read the
         <b>authoritative signer identity</b> that lives inside the document's PKCS#7 signature.</p>
@@ -115,10 +136,38 @@
         Unlike the drawing templates there is no per-window or per-report wiring — reading is driven entirely
         from your own code. You add a single <b>global</b> extension; everything else is method calls on the
         global object.</div>
+      </div>
+      <div class="es">
+      <p class="lead">myPdfSign agrega <b>un objeto global</b> a tu aplicación — una instancia de
+        <code>PdfSignClass</code> que puedes usar desde cualquier procedimiento o embed — y con ella abres un
+        PDF firmado y lees la <b>identidad autorizada del firmante</b> que vive dentro de la firma PKCS#7 del
+        documento.</p>
+      <p>Es hermana de <b>myCompress</b>, <b>myQRDraw</b> y <b>myBarcodeGen</b>: una clase Clarion ANSI
+        autosuficiente que hace trabajo de verdad sin ninguna dependencia externa. Dado un PDF firmado
+        encuentra el diccionario de firma, decodifica de hexadecimal el bloque <b>PKCS#7 / CMS SignedData</b>
+        incrustado y recorre el DER con un lector ASN.1 minúsculo para sacar el Subject del certificado del
+        firmante, la CA emisora y la hora de firma — además de los campos de intención legibles que escribió
+        el firmante y una comprobación de integridad de todo el archivo.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myPdfSign</th></tr>
+        <tr><td>¿Necesita internet o DLL?</td><td><b>No</b> — Clarion puro, todo se analiza localmente</td></tr>
+        <tr><td>Quién firmó (Subject)</td><td>CN / O / OU / correo, leídos del certificado por OID</td></tr>
+        <tr><td>CA emisora</td><td>Common Name del emisor (distinto del sujeto)</td></tr>
+        <tr><td>Cuándo se firmó</td><td><code>SignTime</code> — ISO-8601 UTC, de los atributos <i>firmados</i> del PKCS#7</td></tr>
+        <tr><td>Intención de la firma</td><td>Los <code>/Name</code>, <code>/Reason</code>, <code>/Location</code>, <code>/SubFilter</code> del diccionario</td></tr>
+        <tr><td>Pista de integridad</td><td><code>CoversWholeFile</code> — 1 = el <code>/ByteRange</code> cubre el archivo, 0 = se añadieron bytes después de firmar</td></tr>
+        <tr><td>Trabaja sobre</td><td>Archivos <i>y</i> búferes de memoria</td></tr>
+      </table>
+      <div class="callout note"><b>Un solo registro</b>
+        A diferencia de las plantillas de dibujo, aquí no hay cableado por ventana ni por informe: la lectura
+        la manejas enteramente desde tu código. Agregas una única extensión <b class="i">global</b>; todo lo
+        demás son llamadas a métodos del objeto global.</div>
+      </div>
     </section>
 
     <section id="install">
-      <h2>Install &amp; register <a href="#install" class="top">#</a></h2>
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="en">
       <ol>
         <li>Copy <code>templates/myPdfSign/PdfSignClass.inc</code> and <code>PdfSignClass.clw</code> to a
           folder on the Clarion redirection path (your app folder, or <code>\clarion12\libsrc\win</code>).
@@ -143,10 +192,40 @@
       <p>The class methods are non-VIRTUAL and the <code>CLASS</code> carries an unconditional <code>LINK</code>,
         so each target links its own copy of <code>PdfSignClass.clw</code> — only the shared instance needs
         exporting.</p>
+      </div>
+      <div class="es">
+      <ol>
+        <li>Copia <code>templates/myPdfSign/PdfSignClass.inc</code> y <code>PdfSignClass.clw</code> a una
+          carpeta del camino de redirección de Clarion (la carpeta de tu app, o
+          <code>\clarion12\libsrc\win</code>). <b>Tienen que estar guardados en ANSI</b>, no en UTF-8.</li>
+        <li>Copia <code>templates/myPdfSign/myPdfSign.tpl</code> a tu carpeta de plantillas.</li>
+        <li>En el IDE: <b>Setup ▸ Template Registry ▸ Register</b>, y elige <code>myPdfSign.tpl</code>.</li>
+        <li>En las <b>Extensions globales</b> de la aplicación, agrega
+          <b>myPdfSign - Global signed-PDF reader</b> (una sola vez). Pon el <b>nombre del objeto</b> (por
+          defecto <code>PdfSig</code>).</li>
+      </ol>
+      <div class="callout tip"><b>Esa es toda la instalación</b>
+        El atributo <code>LINK</code> de la clase mete <code>PdfSignClass.clw</code> en la compilación solo; la
+        guarda <code>ONCE</code> del include hace que sea seguro incluso si otra plantilla también la trae. El
+        objeto entiende multi-DLL de fábrica.</div>
+      <h3>Manejo multi-DLL</h3>
+      <p>La instancia del lector es <b>dato global</b>, así que — exactamente igual que myCompress — la
+        plantilla la hace consciente de multi-DLL con los símbolos <code>%DefaultExternal</code> /
+        <code>%DefaultExport</code> de ABC:</p>
+      <ul>
+        <li><b>Definida</b> en la compilación de EXE único o en la DLL raíz (<code>PdfSig&nbsp;&nbsp;PdfSignClass</code>).</li>
+        <li><b>EXTERNAL</b> (importada) en cualquier otra DLL/EXE que la use (<code>…,EXTERNAL,DLL(dll_mode)</code>).</li>
+        <li><b>Exportada</b> desde la DLL raíz para que esas importaciones resuelvan.</li>
+      </ul>
+      <p>Los métodos de la clase no son VIRTUAL y el <code>CLASS</code> lleva un <code>LINK</code>
+        incondicional, así que cada destino enlaza su propia copia de <code>PdfSignClass.clw</code> — solo hay
+        que exportar la instancia compartida.</p>
+      </div>
     </section>
 
     <section id="quick">
-      <h2>Quick start <a href="#quick" class="top">#</a></h2>
+      <h2><span class="en">Quick start</span><span class="es">Inicio rápido</span> <a href="#quick" class="top">#</a></h2>
+      <div class="en">
       <p>From any embed, call the global object (named in the prompts; <code>PdfSig</code> below). This is the
         example shipped in the template's instructions:</p>
       <pre>  <span class="k">IF</span> PdfSig.ReadFile(<span class="s">'contract.pdf'</span>)
@@ -166,12 +245,37 @@
         After a successful read every result property is filled in.</p>
       <div class="callout note"><b>Report() — the canonical identity block</b>
         <code>PdfSig.Report()</code> returns the same <code>key=value</code> block the .NET oracle publishes
-        as ground truth (see <a href="#oracle">The .NET oracle</a>). It is handy for logging, diffing, or
+        as ground truth (see <a href="#oracle"><span class="en">The .NET oracle</span><span class="es">El oráculo .NET</span></a>). It is handy for logging, diffing, or
         showing the full extracted identity at a glance.</div>
+      </div>
+      <div class="es">
+      <p>Desde cualquier embed, llama al objeto global (el nombre lo pones en los prompts; abajo,
+        <code>PdfSig</code>). Este es el ejemplo que viene en las instrucciones de la plantilla:</p>
+      <pre>  <span class="k">IF</span> PdfSig.ReadFile(<span class="s">'contrato.pdf'</span>)
+    <span class="k">IF</span> PdfSig.Signed
+      Message(<span class="s">'Firmado por '</span> &amp; CLIP(PdfSig.SubjectCN) &amp;|
+              <span class="s">'|correo : '</span>    &amp; CLIP(PdfSig.SubjectEmail) &amp;|
+              <span class="s">'|emitido por '</span> &amp; CLIP(PdfSig.IssuerCN) &amp;|
+              <span class="s">'|firmado el '</span>  &amp; CLIP(PdfSig.SignTime) &amp;|
+              <span class="s">'|motivo : '</span>    &amp; CLIP(PdfSig.Reason) &amp;|
+              <span class="s">'|íntegro : '</span>   &amp; CHOOSE(PdfSig.CoversWholeFile=<span class="s">1</span>,<span class="s">'sí'</span>,<span class="s">'NO'</span>))
+    <span class="k">ELSE</span>
+      Message(<span class="s">'Este PDF no está firmado.'</span>)
+    <span class="k">END</span>
+  <span class="k">END</span></pre>
+      <p><code>ReadFile</code> devuelve <code>1</code> cuando consiguió analizar el archivo (mira
+        <code>Signed</code> para saber si de verdad había una firma, y <code>ErrText</code> si algo salió mal).
+        Tras una lectura correcta, todas las propiedades de resultado quedan rellenas.</p>
+      <div class="callout note"><b>Report() — el bloque de identidad canónico</b>
+        <code>PdfSig.Report()</code> devuelve el mismo bloque <code>clave=valor</code> que el oráculo .NET
+        publica como verdad de referencia (ver <a href="#oracle">El oráculo .NET</a>). Va muy bien para
+        registros, comparaciones o para mostrar de un vistazo toda la identidad extraída.</div>
+      </div>
     </section>
 
     <section id="memory">
-      <h2>Reading from memory <a href="#memory" class="top">#</a></h2>
+      <h2><span class="en">Reading from memory</span><span class="es">Leer desde memoria</span> <a href="#memory" class="top">#</a></h2>
+      <div class="en">
       <p>If the PDF is already in a memory buffer — pulled from a BLOB, a download, or another in-memory
         source — parse it directly with <code>Read</code> instead of <code>ReadFile</code>:</p>
       <pre>buf    &amp;STRING                                  <span class="c">! the PDF bytes already in memory</span>
@@ -191,10 +295,33 @@ bufLen LONG                                     <span class="c">! the REAL byte 
       <p><code>Read</code> parses the buffer in place and does not take ownership of it. <code>ReadFile</code>,
         by contrast, allocates and owns its own copy of the bytes (freed by the destructor or on the next
         read).</p>
+      </div>
+      <div class="es">
+      <p>Si el PDF ya está en un búfer de memoria — sacado de un BLOB, de una descarga o de otra fuente en
+        memoria — analízalo directamente con <code>Read</code> en vez de <code>ReadFile</code>:</p>
+      <pre>buf    &amp;STRING                                  <span class="c">! los bytes del PDF, ya en memoria</span>
+bufLen LONG                                     <span class="c">! la cantidad REAL de bytes</span>
+  <span class="k">CODE</span>
+  <span class="c">! …cargar buf / bufLen desde un BLOB, una cola o una descarga…</span>
+  <span class="k">IF</span> PdfSig.Read(buf, bufLen) <span class="k">AND</span> PdfSig.Signed
+    Message(<span class="s">'Firmado por '</span> &amp; CLIP(PdfSig.SubjectCN) &amp;|
+            <span class="s">'|organización : '</span> &amp; CLIP(PdfSig.SubjectO) &amp;|
+            <span class="s">'|unidad : '</span>       &amp; CLIP(PdfSig.SubjectOU))
+  <span class="k">END</span></pre>
+      <div class="callout danger"><b>Pasa la longitud real — nunca confíes en <code>LEN()</code></b>
+        Un <code>STRING</code> de Clarion es de longitud fija y se rellena con <b class="i">espacios</b>; no
+        recuerda cuántos bytes son "de verdad", y un PDF es binario. Pasa siempre en <code>pLen</code> la
+        cantidad exacta de bytes que cargaste — si se cuelan espacios finales, la comprobación de archivo
+        completo del <code>/ByteRange</code> (y el recorrido DER cerca del final del búfer) saldrán mal.</div>
+      <p><code>Read</code> analiza el búfer en el sitio y no se apropia de él. <code>ReadFile</code>, en
+        cambio, reserva y es dueño de su propia copia de los bytes (que libera el destructor o la siguiente
+        lectura).</p>
+      </div>
     </section>
 
     <section id="startup">
-      <h2>Startup self-test <a href="#startup" class="top">#</a></h2>
+      <h2><span class="en">Startup self-test</span><span class="es">Autoprueba al arrancar</span> <a href="#startup" class="top">#</a></h2>
+      <div class="en">
       <p>Run a one-line smoke test once when the program starts. <code>SelfTest()</code> parses a tiny
         built-in signed PDF and returns <code>1</code> when the parser produced the expected identity:</p>
       <pre>  <span class="k">IF</span> ~PdfSig.SelfTest()
@@ -202,10 +329,22 @@ bufLen LONG                                     <span class="c">! the REAL byte 
   <span class="k">END</span></pre>
       <p>This confirms the DER/ASN.1 reader and the dictionary scan are wired correctly before you depend on
         them in production.</p>
+      </div>
+      <div class="es">
+      <p>Ejecuta una prueba de humo de una línea al arrancar el programa. <code>SelfTest()</code> analiza un
+        PDF firmado diminuto que lleva dentro y devuelve <code>1</code> cuando el analizador produjo la
+        identidad esperada:</p>
+      <pre>  <span class="k">IF</span> ~PdfSig.SelfTest()
+    Message(<span class="s">'Falló la autoprueba de myPdfSign — revisa que PdfSignClass.clw esté al día.'</span>)
+  <span class="k">END</span></pre>
+      <p>Esto confirma que el lector DER/ASN.1 y el rastreo del diccionario están bien conectados antes de que
+        dependas de ellos en producción.</p>
+      </div>
     </section>
 
     <section id="scope">
-      <h2>Scope &amp; honesty <a href="#scope" class="top">#</a></h2>
+      <h2><span class="en">Scope &amp; honesty</span><span class="es">Alcance y honestidad</span> <a href="#scope" class="top">#</a></h2>
+      <div class="en">
       <div class="callout warn"><b>What myPdfSign answers — and what it does NOT</b>
         myPdfSign surfaces the <b>named signer identity</b> (the certificate Subject, issuing CA and signing
         time) <b>plus an integrity hint</b> (<code>CoversWholeFile</code>). It does <b>NOT</b> cryptographically
@@ -219,10 +358,29 @@ bufLen LONG                                     <span class="c">! the REAL byte 
       <p>One subtlety worth knowing: <code>SignTime</code> is read from the PKCS#7 <b>signed attributes</b>
         (the authenticated <code>signingTime</code>), <i>not</i> from the dictionary's spoofable <code>/M</code>
         entry — so it reflects what the signer's tooling actually committed to at signing time.</p>
+      </div>
+      <div class="es">
+      <div class="callout warn"><b>Qué responde myPdfSign — y qué NO</b>
+        myPdfSign saca a la luz la <b class="i">identidad nombrada del firmante</b> (el Subject del
+        certificado, la CA emisora y la hora de firma) <b class="i">más una pista de integridad</b>
+        (<code>CoversWholeFile</code>). <b class="i">NO</b> verifica criptográficamente la firma RSA/ECDSA, y
+        <b class="i">NO</b> valida la cadena de confianza del certificado — no hay comprobación de hash, ni
+        consulta de revocación, ni evaluación de confianza en la CA.</div>
+      <p>Así que la pregunta que responde es exactamente: <b>«¿quién figura <i>nombrado</i> como firmante, y se
+        añadió algo después de firmar?»</b>. Toma la identidad como <b>afirmada por el documento</b>: es
+        criptográficamente <i>extraíble</i> del PKCS#7 incrustado, pero <b>no está criptográficamente
+        verificada</b>. Es la herramienta correcta para clasificar, mostrar en auditorías, indexar y enrutar;
+        no sustituye a una biblioteca completa de validación de firmas cuando está en juego el no repudio
+        legal.</p>
+      <p>Un matiz que conviene saber: <code>SignTime</code> se lee de los <b>atributos firmados</b> del PKCS#7
+        (el <code>signingTime</code> autenticado), <i>no</i> de la entrada <code>/M</code> del diccionario, que
+        es falsificable — así que refleja lo que la herramienta del firmante realmente comprometió al firmar.</p>
+      </div>
     </section>
 
     <section id="how">
-      <h2>How it works <a href="#how" class="top">#</a></h2>
+      <h2><span class="en">How it works</span><span class="es">Cómo funciona</span> <a href="#how" class="top">#</a></h2>
+      <div class="en">
       <p>No crypto math — identity and integrity only. The reader is four steps:</p>
       <ol>
         <li><b>Find the signature dictionary.</b> Scan the PDF for <code>/ByteRange [ … ]</code> and
@@ -248,10 +406,40 @@ bufLen LONG                                     <span class="c">! the REAL byte 
           <code>CoversWholeFile = 1</code>; if bytes were appended after signing, the second segment no longer
           reaches the end and <code>CoversWholeFile = 0</code> — a tamper / incremental-update hint.</li>
       </ol>
+      </div>
+      <div class="es">
+      <p>Nada de matemáticas criptográficas — solo identidad e integridad. El lector son cuatro pasos:</p>
+      <ol>
+        <li><b>Encontrar el diccionario de firma.</b> Recorre el PDF buscando <code>/ByteRange [ … ]</code> y
+          <code>/Contents &lt;hex&gt;</code> — las entradas que lleva toda firma PDF separada.</li>
+        <li><b>Decodificar <code>/Contents</code> de hexadecimal.</b> La cadena hex entre los signos de menor
+          y mayor decodifica al bloque <b>PKCS#7 SignedData</b> codificado en DER (los ceros finales
+          reservados se ignoran — DER se autodelimita, así que se recorta a la longitud real del objeto).</li>
+        <li><b>Recorrer el DER.</b> Un lector ASN.1 minúsculo de etiqueta/longitud baja por
+          <code>ContentInfo → SignedData → certificates[0] → Certificate → tbsCertificate</code>, y luego lee
+          los RDN de Subject e Issuer <b>por OID</b>, y el <code>signingTime</code> de los atributos
+          autenticados:
+          <table>
+            <tr><th>Campo</th><th>OID</th></tr>
+            <tr><td>commonName (CN)</td><td><code>2.5.4.3</code></td></tr>
+            <tr><td>organizationName (O)</td><td><code>2.5.4.10</code></td></tr>
+            <tr><td>organizationalUnitName (OU)</td><td><code>2.5.4.11</code></td></tr>
+            <tr><td>emailAddress</td><td><code>1.2.840.113549.1.9.1</code></td></tr>
+            <tr><td>signingTime (atributo firmado)</td><td><code>1.2.840.113549.1.9.5</code></td></tr>
+          </table>
+        </li>
+        <li><b>Comprobar que cubre todo el archivo.</b> Confirma que los dos segmentos del
+          <code>/ByteRange</code> (<code>[0, a)</code> y <code>[b, len-b)</code>) juntos abarcan el archivo
+          actual entero. Si es así, <code>CoversWholeFile = 1</code>; si se añadieron bytes después de firmar,
+          el segundo segmento ya no llega al final y <code>CoversWholeFile = 0</code> — una pista de
+          manipulación o de actualización incremental.</li>
+      </ol>
+      </div>
     </section>
 
     <section id="arch">
-      <h2>Architecture <a href="#arch" class="top">#</a></h2>
+      <h2><span class="en">Architecture</span><span class="es">Arquitectura</span> <a href="#arch" class="top">#</a></h2>
+      <div class="en">
       <div class="filetree">templates/myPdfSign/
 ├─ <b>PdfSignClass.inc</b>   the class: result fields, working buffers, method prototypes
 ├─ <b>PdfSignClass.clw</b>   the engine (dictionary scan, hex decode, DER/ASN.1 walk)
@@ -270,10 +458,33 @@ designer/PdfSignCore/         the .NET golden-fixture oracle (validation)</div>
         whole-file check. Underneath, <code>DerHdr</code> / <code>DerNext</code> / <code>DerInto</code> are the
         tag/length primitives that <code>ParseSigner</code>, <code>GetAttr</code> and <code>GetSignTime</code>
         use to walk to the certificate's RDNs and the signed <code>signingTime</code>.</p>
+      </div>
+      <div class="es">
+      <div class="filetree">templates/myPdfSign/
+├─ <b>PdfSignClass.inc</b>   la clase: campos de resultado, búferes de trabajo, prototipos
+├─ <b>PdfSignClass.clw</b>   el motor (rastreo del diccionario, decodificación hex, recorrido DER/ASN.1)
+└─ <b>myPdfSign.tpl</b>      una extensión global (agrega el objeto compartido)
+designer/PdfSignCore/         el oráculo .NET de fixtures dorados (validación)</div>
+      <p>La clase es autosuficiente igual que el códec de myCompress: un
+        <code>CLASS,TYPE,MODULE,LINK</code> cuyo <code>.clw</code> abre con un <code>MEMBER</code> pelado y un
+        <code>MAP</code> a nivel de módulo (para que resuelvan las intrínsecas de <code>BUILTINS.CLW</code> y
+        las llamadas de archivo de Win32). Todo el estado de trabajo — los bytes del PDF cargado, el bloque DER
+        decodificado con su longitud recortada y cada campo de resultado — vive en miembros de la clase, así
+        que la única instancia global es reutilizable y no tiene efectos secundarios globales.</p>
+      <p>Por dentro se separa limpiamente en una capa de <b>estructura PDF</b> y una capa <b>DER/ASN.1</b>.
+        <code>FindContents</code> localiza el <code>/Contents &lt;hex&gt;</code>, <code>HexToDer</code> lo
+        decodifica, <code>GetParen</code> / <code>GetName</code> leen las entradas <code>/Clave(…)</code> y
+        <code>/Clave/valor</code> del diccionario, y <code>ByteRangeCovers</code> hace la comprobación de
+        archivo completo. Por debajo, <code>DerHdr</code> / <code>DerNext</code> / <code>DerInto</code> son las
+        primitivas de etiqueta/longitud que <code>ParseSigner</code>, <code>GetAttr</code> y
+        <code>GetSignTime</code> usan para llegar a los RDN del certificado y al <code>signingTime</code>
+        firmado.</p>
+      </div>
     </section>
 
     <section id="oracle">
-      <h2>The .NET oracle <a href="#oracle" class="top">#</a></h2>
+      <h2><span class="en">The .NET oracle</span><span class="es">El oráculo .NET</span> <a href="#oracle" class="top">#</a></h2>
+      <div class="en">
       <p>Clarion cannot be run from CI, so — as with <code>CompressCore</code> and <code>QrCodeCore</code> —
         a small .NET tool, <code>designer/PdfSignCore/</code>, is the independent reference. .NET owns the
         trusted building blocks (X.509 certificate creation and PKCS#7 / CMS via <code>SignedCms</code>), so
@@ -299,10 +510,38 @@ dotnet run --project designer/PdfSignCore -- verify  ./vectors    <span class="c
         Health Trust) — which is <b>deliberately tampered</b> by appending bytes after <code>%%EOF</code>, and
         which the Clarion class correctly reports as <code>CoversWholeFile=0</code>. The
         <code>selfcheck</code> command manufactures and re-parses every case in-memory as a fast sanity pass.</p>
+      </div>
+      <div class="es">
+      <p>Clarion no se puede ejecutar desde un CI, así que — igual que con <code>CompressCore</code> y
+        <code>QrCodeCore</code> — una pequeña herramienta .NET, <code>designer/PdfSignCore/</code>, hace de
+        referencia independiente. .NET tiene las piezas de confianza (creación de certificados X.509 y PKCS#7 /
+        CMS mediante <code>SignedCms</code>), así que la herramienta <b>fabrica</b> los fixtures y además
+        <b>publica la verdad de referencia</b> que el lado Clarion tiene que reproducir.</p>
+      <ul>
+        <li><b>Fabricación</b> — para cada caso crea una <b>CA raíz</b> de verdad, luego un <b>certificado
+          hoja firmado por esa CA</b> (para que el DN del emisor sea genuinamente distinto del DN del sujeto),
+          arma un PDF mínimo de una página con un campo de firma AcroForm, y escribe una firma <b>PKCS#7
+          separada</b> sobre un <code>/ByteRange</code> correcto, con el <code>signingTime</code> en los
+          atributos <i>firmados</i>.</li>
+        <li><b>Verdad de referencia</b> — vuelve a analizar cada PDF terminado con <code>SignedCms</code> y
+          escribe un bloque de identidad clave=valor <code>caseN.expected.txt</code> que el PDF debe
+          producir.</li>
+      </ul>
+      <pre><span class="c"># fabricar caseN.pdf + caseN.expected.txt + manifiesto</span>
+dotnet run --project designer/PdfSignCore -- vectors ./vectors
+<span class="c"># …que la app Clarion haga Read de cada caseN.pdf y escriba Report() en caseN.actual.txt…</span>
+dotnet run --project designer/PdfSignCore -- verify  ./vectors    <span class="c"># compara lo real con lo esperado</span></pre>
+      <p>Los tres casos de prueba pasan: <b>case1</b> (Alice Anderson, Redding Assessments / Redding Root CA),
+        <b>case2</b> (Bob Builder, Acme Construction Ltd / Acme Internal CA) y <b>case3</b> (Carol O'Neil,
+        Health Trust) — que está <b>manipulado a propósito</b> añadiendo bytes después de <code>%%EOF</code>, y
+        que la clase Clarion informa correctamente como <code>CoversWholeFile=0</code>. El comando
+        <code>selfcheck</code> fabrica y vuelve a analizar todos los casos en memoria como comprobación rápida.</p>
+      </div>
     </section>
 
     <section id="classref">
-      <h2>Class reference <a href="#classref" class="top">#</a></h2>
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#classref" class="top">#</a></h2>
+      <div class="en">
       <p class="lead">Everything myPdfSign does lives in one class, <code>PdfSignClass</code>. This chapter is
         the full anatomy: how it's declared, its lifecycle, and every public property and method.</p>
 
@@ -323,10 +562,35 @@ dotnet run --project designer/PdfSignCore -- verify  ./vectors    <span class="c
         <code>ReadFile</code> / <code>Read</code> resets the results first (via the internal <code>Reset</code>)
         and then refills them. <code>ReadFile</code> owns the bytes it loads; <code>Destruct</code> frees that
         buffer and the decoded DER. Nothing else needs cleanup.</p>
+      </div>
+      <div class="es">
+      <p class="lead">Todo lo que hace myPdfSign vive en una clase, <code>PdfSignClass</code>. Este capítulo es
+        su anatomía completa: cómo se declara, su ciclo de vida y cada propiedad y método público.</p>
+
+      <h3>Declaración</h3>
+      <pre>PdfSignClass <span class="k">CLASS</span>,<span class="k">TYPE</span>,<span class="k">MODULE</span>(<span class="s">'PdfSignClass.CLW'</span>),<span class="k">LINK</span>(<span class="s">'PdfSignClass.CLW'</span>)</pre>
+      <ul>
+        <li><code>TYPE</code> — es un tipo, así que declaras tu propia instancia con nombre (la plantilla
+          declara una global, <code>PdfSig</code>). Podrías declarar más si necesitaras lectores
+          independientes.</li>
+        <li><code>MODULE</code>/<code>LINK</code> — el motor se compila en su propio objeto y se enlaza
+          automáticamente.</li>
+        <li>El <code>.clw</code> lleva un <code>MEMBER</code> pelado + un <code>MAP</code> de módulo (que
+          integra <code>BUILTINS.CLW</code> y las llamadas de archivo). Sin estado externo — seguro en apps
+          multi-DLL y entre hilos.</li>
+      </ul>
+
+      <h3>Ciclo de vida</h3>
+      <p><code>Construct</code> se ejecuta solo y limpia los campos de resultado. Cada llamada a
+        <code>ReadFile</code> / <code>Read</code> primero reinicia los resultados (con el <code>Reset</code>
+        interno) y después los vuelve a llenar. <code>ReadFile</code> es dueño de los bytes que carga;
+        <code>Destruct</code> libera ese búfer y el DER decodificado. No hay nada más que limpiar.</p>
+      </div>
     </section>
 
     <section id="props">
-      <h2>Properties <a href="#props" class="top">#</a></h2>
+      <h2><span class="en">Properties</span><span class="es">Propiedades</span> <a href="#props" class="top">#</a></h2>
+      <div class="en">
       <p>All result properties are filled by <code>ReadFile</code> / <code>Read</code>. The strings are
         <code>CSTRING</code> — <code>CLIP()</code> them for display.</p>
       <table>
@@ -347,10 +611,34 @@ dotnet run --project designer/PdfSignCore -- verify  ./vectors    <span class="c
         <tr><td><code>ErrCode</code></td><td>LONG</td><td><code>0</code> = ok, <code>&lt;0</code> = the error from the last call.</td></tr>
         <tr><td><code>ErrText</code></td><td>CSTRING(128)</td><td>Human-readable companion to <code>ErrCode</code>.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <p>Todas las propiedades de resultado las llenan <code>ReadFile</code> / <code>Read</code>. Las cadenas
+        son <code>CSTRING</code> — pásalas por <code>CLIP()</code> para mostrarlas.</p>
+      <table>
+        <tr><th>Propiedad</th><th>Tipo</th><th>Significado</th></tr>
+        <tr><td><code>Signed</code></td><td>BYTE</td><td><code>1</code> = se encontró y analizó una firma; <code>0</code> = el PDF no está firmado.</td></tr>
+        <tr><td><code>SigCount</code></td><td>LONG</td><td>Número de diccionarios de firma que hay en el archivo.</td></tr>
+        <tr><td><code>SubjectCN</code></td><td>CSTRING(256)</td><td>Subject del certificado del firmante — Common Name (quién firmó).</td></tr>
+        <tr><td><code>SubjectO</code></td><td>CSTRING(256)</td><td>Subject del firmante — Organización.</td></tr>
+        <tr><td><code>SubjectOU</code></td><td>CSTRING(256)</td><td>Subject del firmante — Unidad organizativa.</td></tr>
+        <tr><td><code>SubjectEmail</code></td><td>CSTRING(256)</td><td>Subject del firmante — correo electrónico (el RDN <code>emailAddress</code>).</td></tr>
+        <tr><td><code>IssuerCN</code></td><td>CSTRING(256)</td><td>Autoridad certificadora emisora — Common Name.</td></tr>
+        <tr><td><code>SignTime</code></td><td>CSTRING(32)</td><td>Hora de firma, ISO-8601 UTC, de los atributos <i>firmados</i> del PKCS#7 (no del falsificable <code>/M</code>).</td></tr>
+        <tr><td><code>SignerName</code></td><td>CSTRING(256)</td><td>El <code>/Name</code> del diccionario — el nombre que el firmante se puso a sí mismo.</td></tr>
+        <tr><td><code>Reason</code></td><td>CSTRING(256)</td><td>El <code>/Reason</code> del diccionario.</td></tr>
+        <tr><td><code>Location</code></td><td>CSTRING(256)</td><td>El <code>/Location</code> del diccionario.</td></tr>
+        <tr><td><code>SubFilter</code></td><td>CSTRING(64)</td><td>El <code>/SubFilter</code> del diccionario (p. ej. <code>adbe.pkcs7.detached</code>).</td></tr>
+        <tr><td><code>CoversWholeFile</code></td><td>BYTE</td><td><code>1</code> = el <code>/ByteRange</code> cubre todo el archivo; <code>0</code> = se añadieron bytes después de firmar (pista de manipulación o actualización incremental).</td></tr>
+        <tr><td><code>ErrCode</code></td><td>LONG</td><td><code>0</code> = correcto, <code>&lt;0</code> = el error de la última llamada.</td></tr>
+        <tr><td><code>ErrText</code></td><td>CSTRING(128)</td><td>Versión legible de <code>ErrCode</code>.</td></tr>
+      </table>
+      </div>
     </section>
 
     <section id="methods">
-      <h2>Methods <a href="#methods" class="top">#</a></h2>
+      <h2><span class="en">Methods</span><span class="es">Métodos</span> <a href="#methods" class="top">#</a></h2>
+      <div class="en">
       <p>The four public methods. <code>ReadFile</code> / <code>Read</code> / <code>SelfTest</code> return a
         <code>BYTE</code> (<code>1</code> = ok); <code>Report</code> returns a <code>STRING</code>.</p>
       <table>
@@ -386,10 +674,50 @@ dotnet run --project designer/PdfSignCore -- verify  ./vectors    <span class="c
         <tr><td>DER (ASN.1) reader</td><td><code>DerHdr</code> (parse tag+length), <code>DerNext</code> (skip past a TLV), <code>DerInto</code> (descend into a constructed TLV).</td></tr>
         <tr><td>Signer extraction</td><td><code>ParseSigner</code> (walk to Subject / Issuer / SignTime), <code>GetAttr</code> (read an RDN value by OID pattern), <code>GetSignTime</code> (the <code>signingTime</code> signed attribute).</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <p>Los cuatro métodos públicos. <code>ReadFile</code> / <code>Read</code> / <code>SelfTest</code>
+        devuelven un <code>BYTE</code> (<code>1</code> = correcto); <code>Report</code> devuelve un
+        <code>STRING</code>.</p>
+      <table>
+        <tr><th>Prototipo</th><th>Parámetros</th><th>Devuelve / efecto</th></tr>
+        <tr>
+          <td><code>ReadFile(STRING pPath),BYTE</code></td>
+          <td><code>pPath</code> — ruta al PDF en disco.</td>
+          <td>Carga el archivo (con su propia copia de los bytes) y lo analiza. Devuelve <code>1</code> cuando lo analizó — luego mira <code>Signed</code> para saber si había firma, y <code>ErrText</code> ante cualquier fallo.</td>
+        </tr>
+        <tr>
+          <td><code>Read(*STRING pPdf, LONG pLen),BYTE</code></td>
+          <td><code>pPdf</code> — un PDF que ya está en memoria. <code>pLen</code> — su cantidad real de bytes.</td>
+          <td>Analiza el búfer en el sitio (no se apropia de él). Devuelve <code>1</code> si lo analizó. Llena las mismas propiedades de resultado que <code>ReadFile</code>.</td>
+        </tr>
+        <tr>
+          <td><code>Report(),STRING</code></td>
+          <td>—</td>
+          <td>Devuelve el bloque de identidad <code>clave=valor</code> que coincide con la salida esperada del oráculo <code>PdfSignCore</code> — para registros, comparaciones o para mostrar.</td>
+        </tr>
+        <tr>
+          <td><code>SelfTest(),BYTE</code></td>
+          <td>—</td>
+          <td>Analiza un PDF firmado diminuto que lleva dentro y comprueba la identidad extraída. Devuelve <code>1</code> si pasa — una prueba de humo de una línea al arrancar.</td>
+        </tr>
+      </table>
+
+      <h3>Ayudantes internos</h3>
+      <p>No los vas a llamar, pero son el motor — útiles al leer <code>PdfSignClass.clw</code>:</p>
+      <table>
+        <tr><th>Grupo</th><th>Métodos</th></tr>
+        <tr><td>Ciclo de vida</td><td><code>Construct</code> / <code>Destruct</code> / <code>Reset</code> — limpian y liberan los campos de resultado y los búferes.</td></tr>
+        <tr><td>Estructura PDF</td><td><code>FindContents</code> (localiza <code>/Contents &lt;hex&gt;</code>), <code>HexToDer</code> (hex → DER), <code>GetParen</code> (<code>/Clave(…)</code>), <code>GetName</code> (<code>/Clave/valor</code>), <code>ByteRangeCovers</code> (comprobación de archivo completo), <code>IsHex</code>.</td></tr>
+        <tr><td>Lector DER (ASN.1)</td><td><code>DerHdr</code> (lee etiqueta+longitud), <code>DerNext</code> (salta un TLV), <code>DerInto</code> (baja dentro de un TLV construido).</td></tr>
+        <tr><td>Extracción del firmante</td><td><code>ParseSigner</code> (llega a Subject / Issuer / SignTime), <code>GetAttr</code> (lee el valor de un RDN por patrón de OID), <code>GetSignTime</code> (el atributo firmado <code>signingTime</code>).</td></tr>
+      </table>
+      </div>
     </section>
 
     <section id="trouble">
-      <h2>Troubleshooting <a href="#trouble" class="top">#</a></h2>
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
       <table>
         <tr><th>Symptom</th><th>Cause / fix</th></tr>
         <tr><td><code>ReadFile</code> returns 1 but <code>Signed = 0</code></td><td>The PDF has no signature dictionary — it is genuinely unsigned. Check <code>SigCount</code>.</td></tr>
@@ -398,14 +726,41 @@ dotnet run --project designer/PdfSignCore -- verify  ./vectors    <span class="c
         <tr><td>Empty <code>SubjectEmail</code> / <code>SubjectOU</code></td><td>The certificate simply did not carry that RDN. Only OIDs present in the Subject are filled; the e-mail must be an explicit <code>emailAddress</code> RDN, not only a SAN extension.</td></tr>
         <tr><td>"Unresolved external" on a built-in</td><td>The <code>.clw</code> must open with a bare <code>MEMBER</code> and a module-level <code>MAP</code> so <code>BUILTINS.CLW</code> resolves. Don't remove them.</td></tr>
         <tr><td>Template won't register</td><td>Re-save the class files as <b>ANSI</b>, not UTF-8.</td></tr>
-        <tr><td>I need to know the signature is cryptographically valid</td><td>Out of scope — see <a href="#scope">Scope &amp; honesty</a>. myPdfSign extracts the named identity and the whole-file hint; it does not verify the RSA/ECDSA signature or the trust chain.</td></tr>
+        <tr><td>I need to know the signature is cryptographically valid</td><td>Out of scope — see <a href="#scope"><span class="en">Scope &amp; honesty</span><span class="es">Alcance y honestidad</span></a>. myPdfSign extracts the named identity and the whole-file hint; it does not verify the RSA/ECDSA signature or the trust chain.</td></tr>
       </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa / solución</th></tr>
+        <tr><td><code>ReadFile</code> devuelve 1 pero <code>Signed = 0</code></td><td>El PDF no tiene diccionario de firma — de verdad no está firmado. Mira <code>SigCount</code>.</td></tr>
+        <tr><td><code>Read</code> se equivoca cerca del final del búfer</td><td>Pasaste un <code>pLen</code> equivocado (o un <code>STRING</code> rellenado). Pasa siempre la cantidad exacta de bytes que cargaste.</td></tr>
+        <tr><td><code>CoversWholeFile = 0</code> en un archivo de confianza</td><td>Hay bytes después del <code>/ByteRange</code> firmado — una actualización incremental o contenido añadido después de firmar. Eso es exactamente lo que informa esta bandera.</td></tr>
+        <tr><td><code>SubjectEmail</code> / <code>SubjectOU</code> vacíos</td><td>El certificado sencillamente no traía ese RDN. Solo se llenan los OID presentes en el Subject; el correo tiene que ser un RDN <code>emailAddress</code> explícito, no solo una extensión SAN.</td></tr>
+        <tr><td>"Unresolved external" en una función intrínseca</td><td>El <code>.clw</code> tiene que abrir con un <code>MEMBER</code> pelado y un <code>MAP</code> de módulo para que resuelva <code>BUILTINS.CLW</code>. No los quites.</td></tr>
+        <tr><td>La plantilla no se registra</td><td>Vuelve a guardar los archivos de la clase en <b>ANSI</b>, no en UTF-8.</td></tr>
+        <tr><td>Necesito saber que la firma es criptográficamente válida</td><td>Está fuera de alcance — ver <a href="#scope">Alcance y honestidad</a>. myPdfSign extrae la identidad nombrada y la pista de archivo completo; no verifica la firma RSA/ECDSA ni la cadena de confianza.</td></tr>
+      </table>
+      </div>
     </section>
 
     </div>
-    <footer>myPdfSign · Programmer's Documentation · part of the templatemaker template set ·
-      pure Clarion, no external dependencies.</footer>
+    <footer>
+      <span class="en">myPdfSign · Programmer's Documentation · part of the templatemaker template set ·
+      pure Clarion, no external dependencies.</span>
+      <span class="es">myPdfSign · Documentación del programador · parte de la colección templatemaker · Clarion puro, sin dependencias externas.</span>
+    </footer>
   </main>
 </div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mps-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mps-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
 </body>
 </html>
