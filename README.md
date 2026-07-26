@@ -78,6 +78,11 @@ templates/                      # ready-to-register Clarion templates
     PdfSignClass.inc            #     the reader class (config + method prototypes)
     PdfSignClass.clw            #     the implementation (PDF parse + PKCS#7/DER walk)
     myPdfSign.tpl               #     one global extension (the shared object)
+  myExport/                     #   export any browse/list to 7 file formats (see below)
+    ExportClass.inc             #     the export engine (config + method prototypes)
+    ExportClass.clw             #     the implementation (dialog + 7 writers + ZIP + UTF-8)
+    myExport.tpl                #     global extension + Export-button control + code template
+    myExport.zip                #     the three files above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 installer/                      # builds the installer + a portable single-file exe
 README.md
@@ -520,6 +525,40 @@ speed pickers, a **GPU (Direct2D)** toggle, and Start / Stop / Reset / Save butt
 by the class itself:
 
 ![myYuru presets](docs/myYuru-presets.png)
+
+### `templates/myExport/` — export any browse or list to seven file formats
+Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
+opens a modal dialog that asks for the **format** and, through the standard Windows Save-As browser, the
+**folder and file name** — then writes **CSV**, **CSV UTF-8** (with the BOM Excel needs before it trusts
+accents), **TSV**, **XML**, **JSON**, **HTML** or a real **Excel `.xlsx`** workbook.
+
+**No external program is needed for the Excel format.** An `.xlsx` is a ZIP of XML parts, and `ExportClass`
+writes both — the six OOXML parts *and* the ZIP container (local headers, CRC-32, central directory, EOCD) —
+so there is no helper `.exe`, no Python, no COM automation, no Excel installation and nothing to redistribute.
+The workbook is not a renamed CSV: **numeric columns become real numeric cells** (`<v>1234.56</v>`, so SUM,
+sorting, filtering and charts work), with a **bold heading row**, a **frozen pane**, an **auto-filter** and the
+**column widths carried over from the screen**. Validated end-to-end against `openpyxl`.
+
+**You never describe your columns to it.** At click time it reads the LIST control's own `FORMAT` —
+`PROPLIST:Exists` / `FieldNo` / `Header` / `Picture` — and pulls values with `WHAT(Queue,FieldNo)`, the same
+recipe the shipped `brwext.clw` uses. So the file matches the screen exactly, including columns the *user*
+re-ordered, resized or hid after the window opened. The **queue is discovered at generate time** from the
+LIST's own `FROM()` attribute (`EXTRACT(%ControlStatement,'FROM',1)` — what the shipped BrowseBox does), so
+there is nothing to type. By default it walks the **whole browse view** (`BRW1.Reset()` → `Next()` →
+`SetQueueRecord()`), honouring the current sort order, range limits and filters — not just the page of rows
+the ABC queue happens to hold; a queue-only mode is one prompt away for hand-coded lists.
+
+Three registrations: **myExportButton** (the drag-on control template, `MULTI`, self-contained),
+**myExportHere** (a code template for an existing button, menu item or toolbar entry) and **myExportGlobal**
+(optional — only if you want the class in procedures with no button). Copy `ExportClass.inc` and
+`ExportClass.clw` (**ANSI, CRLF**) to the redirection path. `.xlsx` parts are **stored** by default so the
+class has zero dependencies; if you also have **myCompress**, setting `_ExportDeflate_` to 1 in
+`ExportClass.inc` switches them to real DEFLATE and shrinks a big workbook by roughly 10×. A runnable demo —
+[`examples/myExport/ExportDemo.clw`](examples/myExport/ExportDemo.clw) — is a plain list with one Export
+button plus a "write all seven" self-test. Full programmer's documentation:
+[`docs/myExport-template.html`](docs/myExport-template.html).
+
+![The myExport dialog over a browse](docs/myExport-dialog.png)
 
 ## Install
 

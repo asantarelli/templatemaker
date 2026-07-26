@@ -35,3 +35,6 @@ examples/**/shot_*.bmp
 examples/**/shot_*.png
 examples/**/native_*.bmp
 examples/**/bench.ini
+
+# myExport demo output
+examples/**/Invoices*

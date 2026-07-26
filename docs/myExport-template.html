@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myExport — Programmer's Documentation</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:14px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .danger{background:var(--red-bg);border-color:#e6b8b2;color:#7c241b}
+  .callout b{display:block;margin-bottom:2px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .top{font-size:12px;color:var(--muted);float:right}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>myExport</h1><span>Programmer's Documentation · v1.0</span></div>
+    <a href="#over">Overview</a>
+    <div class="grp">Using it</div>
+    <a href="#install" class="h2">Install &amp; register</a>
+    <a href="#button" class="h2">The Export button</a>
+    <a href="#code" class="h2">An existing button or menu</a>
+    <a href="#dialog" class="h2">The run-time dialog</a>
+    <a href="#scope" class="h2">Which records get exported</a>
+    <div class="grp">The formats</div>
+    <a href="#formats" class="h2">All seven, compared</a>
+    <a href="#excel" class="h2">Excel .xlsx</a>
+    <a href="#smaller" class="h2">Smaller workbooks</a>
+    <div class="grp">How it works</div>
+    <a href="#columns" class="h2">Reading the list</a>
+    <a href="#arch" class="h2">Architecture</a>
+    <div class="grp">Reference</div>
+    <a href="#classref" class="h2">Class reference</a>
+    <a href="#hand" class="h2">Driving it from code</a>
+    <a href="#trouble" class="h2">Troubleshooting</a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>myExport</h1>
+      <p>Put an <b>Export</b> button on any browse or list. One press asks for the format and the file
+         name, then writes <b>CSV</b>, <b>CSV&nbsp;UTF-8</b>, <b>TSV</b>, <b>XML</b>, <b>JSON</b>,
+         <b>HTML</b> or a real <b>Excel&nbsp;.xlsx</b> workbook — in pure Clarion, with nothing to deploy.</p>
+      <span class="pill">7 formats · real OOXML .xlsx · no Excel, no COM, no helper .exe · reads the list's own layout</span>
+    </header>
+    <div class="body">
+
+    <section id="over">
+      <h2>Overview <a href="#over" class="top">#</a></h2>
+      <p class="lead">Drag <b>myExport&nbsp;-&nbsp;Export button</b> onto a browse window. That is the whole
+        job: you get a wired-up button, a modal dialog that asks the user for a format and a destination,
+        and seven writers behind it.</p>
+      <p>The part that makes it worth having is that <b>you never describe your columns to it</b>. At the
+        moment the button is pressed it reads the LIST control's own <code>FORMAT</code> — which columns
+        exist, which queue field each one shows, its heading and its picture — and pulls the values out of
+        the queue with <code>WHAT()</code>. The file therefore matches the screen exactly, including
+        columns your user re-ordered, resized or hid <i>after</i> the window opened.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myExport-dialog.png" alt="The myExport dialog over a browse"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      <table>
+        <tr><th>&nbsp;</th><th>myExport</th></tr>
+        <tr><td>Needs Excel installed</td><td><b>No</b> — the .xlsx is assembled byte by byte in Clarion</td></tr>
+        <tr><td>Needs a DLL / OCX / COM / helper .exe</td><td><b>No</b> — nothing to redistribute</td></tr>
+        <tr><td>Column setup</td><td><b>None</b> — read from the live LIST every time</td></tr>
+        <tr><td>Formats</td><td>CSV, CSV UTF-8, TSV, XML, JSON, HTML, Excel .xlsx</td></tr>
+        <tr><td>Records</td><td>Every record in the browse (walks the view), or just the loaded page</td></tr>
+        <tr><td>Where it goes</td><td>The user picks, in a standard Save-As dialog</td></tr>
+      </table>
+      <div class="callout note"><b>Why there is no Python or C helper</b>
+        An <code>.xlsx</code> is a ZIP archive of XML parts. <code>ExportClass</code> writes both — the XML
+        parts and the ZIP container (local headers, CRC-32, central directory, EOCD) — so a real workbook
+        comes out with no outside program in the loop. It opens in Excel, LibreOffice, Google Sheets,
+        Numbers, pandas and openpyxl.</div>
+    </section>
+
+    <section id="install">
+      <h2>Install &amp; register <a href="#install" class="top">#</a></h2>
+      <ol>
+        <li>Copy <code>templates/myExport/ExportClass.inc</code> and <code>ExportClass.clw</code> to a folder
+          on the Clarion redirection path (your app folder, or <code>\clarion12\libsrc\win</code>). They
+          <b>must be stored in ANSI with CRLF line endings</b> — an LF-only copy makes the compiler report a
+          bogus <code>Illegal data type: EXPORTCLASS</code> at every use site.</li>
+        <li>Copy <code>templates/myExport/myExport.tpl</code> into your template folder.</li>
+        <li>In the IDE: <b>Setup ▸ Template Registry ▸ Register</b>, pick <code>myExport.tpl</code>.</li>
+        <li>Open a browse procedure's window, and from the control-template list drag
+          <b>myExport - Export button for a browse/list</b> onto the window.</li>
+        <li>In its prompts, set <b>List control to export</b> to your browse's LIST, and (for the default
+          "every record" mode) the <b>Browse object</b> name — <code>BRW1</code> for the first BrowseBox on
+          the procedure.</li>
+      </ol>
+      <div class="callout tip"><b>That is the whole setup</b>
+        The class's <code>LINK</code> attribute pulls <code>ExportClass.clw</code> into the build, and the
+        control template emits its own <code>INCLUDE('ExportClass.INC'),ONCE</code>. The global extension
+        <b>myExport - Global</b> is optional — add it only if you also want to call the class from
+        hand-written code in procedures that have no Export button.</div>
+      <div class="filetree">
+templates/myExport/<br>
+&nbsp;&nbsp;ExportClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the engine (config + method prototypes)</span><br>
+&nbsp;&nbsp;ExportClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the implementation: dialog, 7 writers, ZIP, UTF-8</span><br>
+&nbsp;&nbsp;myExport.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">global extension + control template + code template</span><br>
+&nbsp;&nbsp;myExport.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the three files above, for distribution</span><br>
+examples/myExport/<br>
+&nbsp;&nbsp;ExportDemo.clw / .cwproj&nbsp;&nbsp;<span style="color:#6b7785">a runnable demo — a list and one Export button</span>
+      </div>
+    </section>
+
+    <section id="button">
+      <h2>The Export button <a href="#button" class="top">#</a></h2>
+      <p><b>myExportButton</b> is a <code>#CONTROL</code> template: dragging it onto the window drops a
+        BUTTON and generates everything behind it. It is <code>MULTI</code>, so you can put several on one
+        window — one per list, or two on the same list with different format sets.</p>
+      <h3>Prompts</h3>
+      <table>
+        <tr><th>Tab</th><th>Prompt</th><th>What it does</th></tr>
+        <tr><td rowspan="5">General</td><td>Object name</td><td>The <code>ExportClass</code> instance, default <code>Exporter1</code>.</td></tr>
+        <tr><td>List control to export</td><td>Pick your LIST. <b>Required.</b></td></tr>
+        <tr><td>Records</td><td>Every record in the browse (walks the view) — the default — or only the rows currently loaded in the queue. See <a href="#scope">below</a>.</td></tr>
+        <tr><td>Browse object</td><td>The ABC BrowseBox object that fills the list: <code>BRW1</code>, <code>BRW2</code>… Only needed for the "every record" mode.</td></tr>
+        <tr><td>Queue</td><td>Leave blank. The template reads it out of the LIST's own <code>FROM()</code> attribute at generate time. Fill it in only if the list is bound at run time with <code>PROP:From</code>.</td></tr>
+        <tr><td>Formats</td><td>Seven checkboxes</td><td>Which formats the dialog offers. Untick the ones your users should not see.</td></tr>
+        <tr><td rowspan="4">Options</td><td>Title</td><td>Becomes the Excel sheet name, the XML root element and the HTML heading. Defaults to the procedure name.</td></tr>
+        <tr><td>Include the column headings</td><td>Writes a heading row / uses the headings as JSON keys and XML element names.</td></tr>
+        <tr><td>Apply each column's picture</td><td>On: values come out formatted exactly as displayed. Off: raw values.</td></tr>
+        <tr><td>Visible columns only</td><td>Skips zero-width (hidden) and icon columns.</td></tr>
+      </table>
+      <h3>What it generates</h3>
+      <p>An object in <code>%DataSection</code> and, in the button's <code>Accepted</code> handler, this:</p>
+<pre><span class="c">! in the button's Accepted embed</span>
+  Exporter1.Init(?Browse:1,Queue:Browse)     <span class="c">! re-reads the list's live layout</span>
+  Exporter1.Title        = <span class="s">'BrowseCustomers'</span>
+  Exporter1.Headers      = 1
+  Exporter1.Pictures     = 1
+  Exporter1.Allow        = 127               <span class="c">! the format checkboxes, as a bit mask</span>
+  <span class="k">IF</span> Exporter1.Ask()                       <span class="c">! format + folder + file name</span>
+    <span class="k">IF</span> Exporter1.StartFile()
+      BRW1.Reset()                           <span class="c">! the top of the current sort order</span>
+      <span class="k">LOOP</span>
+        <span class="k">IF</span> BRW1.Next() <span class="k">THEN BREAK</span> .            <span class="c">! Level:Notify = end of the view</span>
+        BRW1.SetQueueRecord()                <span class="c">! view record -&gt; the queue buffer</span>
+        Exporter1.AddRow()
+      <span class="k">END</span>
+      Exporter1.EndFile()
+      BRW1.ResetSort(1)                      <span class="c">! refill the browse we just walked</span>
+      BRW1.UpdateWindow()
+    <span class="k">END</span>
+  <span class="k">END</span></pre>
+      <div class="callout note"><b>Two hidden embeds</b>
+        <code>myExport - before the export dialog opens</code> and
+        <code>myExport - after the file has been written</code> let you seed
+        <code>Exporter1.FileName</code> from your own logic, or post-process the file.</div>
+    </section>
+
+    <section id="code">
+      <h2>Already have a button or menu item? <a href="#code" class="top">#</a></h2>
+      <p><b>myExportHere</b> is a <code>#CODE</code> template with the same prompts. Drop it into the
+        <code>Accepted</code> embed of any existing button, menu item, toolbar entry or hot key and it emits
+        the same block right there, declaring its own object in the procedure's data.</p>
+      <p>Use it when the export belongs on your existing <b>File ▸ Export…</b> menu rather than on a new
+        button, or when the browse window's layout is already full.</p>
+    </section>
+
+    <section id="dialog">
+      <h2>The run-time dialog <a href="#dialog" class="top">#</a></h2>
+      <p>A modal window, centred, with a slate header band. It asks for exactly two things and offers three
+        options:</p>
+      <ul>
+        <li><b>Format</b> — a drop list holding only the formats you ticked. Changing it retargets the file
+          extension automatically, so <code>Invoices.csv</code> becomes <code>Invoices.xlsx</code>.</li>
+        <li><b>File name</b> — pre-filled with <code>&lt;Title&gt;_yyyymmdd&lt;ext&gt;</code> in the current
+          folder. <b>…</b> opens the standard Windows Save-As browser (with its own overwrite warning).</li>
+        <li><b>Include the column headings</b>, <b>Apply each column's picture</b> and <b>Open the file when
+          it is done</b> — the template's settings, still changeable per export.</li>
+      </ul>
+      <p>The object survives for the life of the window, so the second export remembers the first one's
+        folder, name and format.</p>
+      <div class="callout tip"><b>Feedback is a modal popup, never a beep</b>
+        Success reports the row count and full path; a failure reports what went wrong — a folder that does
+        not exist, a file already open in Excel, a full disk.</div>
+    </section>
+
+    <section id="scope">
+      <h2>Which records get exported <a href="#scope" class="top">#</a></h2>
+      <p>An ABC BrowseBox queue holds only the page of rows around what is on screen — so exporting the
+        queue would export a screenful. That is why the default is <b>every record in the browse</b>:</p>
+      <ul>
+        <li><b>Every record (walks the view)</b> — <code>BRW1.Reset()</code> then
+          <code>BRW1.Next()</code> to the end, with <code>BRW1.SetQueueRecord()</code> filling the queue
+          buffer for each row. This goes through the browse's own VIEW, so <b>the current sort order, range
+          limits and filters all apply</b> — what the user narrowed the browse down to is what they get.
+          Afterwards <code>ResetSort(1)</code> rebuilds the browse; it re-displays from the top of the
+          current sort order.</li>
+        <li><b>Only the loaded rows</b> — <code>ExportQueue()</code> walks the queue itself. This is the
+          right choice for a hand-coded LIST + QUEUE, or for a file-loaded browse, and it does not disturb
+          the browse at all.</li>
+      </ul>
+    </section>
+
+    <section id="formats">
+      <h2>All seven, compared <a href="#formats" class="top">#</a></h2>
+      <table>
+        <tr><th>Format</th><th>Encoding</th><th>Notes</th></tr>
+        <tr><td><b>CSV</b></td><td>System code page</td><td>RFC 4180. Quotes a field only when it holds the separator, a quote, a newline or edge spaces; quotes are doubled. Rows end CRLF.</td></tr>
+        <tr><td><b>CSV UTF-8</b></td><td>UTF-8 + BOM</td><td>Identical, plus the byte-order mark Excel needs before it will believe a CSV is UTF-8. <b>Use this one if your data has accents.</b></td></tr>
+        <tr><td><b>TSV</b></td><td>System code page</td><td>Tab separated. Tabs and newlines inside a value become single spaces, since no TSV reader agrees on escaping.</td></tr>
+        <tr><td><b>XML</b></td><td>UTF-8</td><td>One element per column, named from the heading made XML-safe (<code>Cust Name</code> → <code>&lt;Cust_Name&gt;</code>). Entities escaped; control characters removed.</td></tr>
+        <tr><td><b>JSON</b></td><td>UTF-8</td><td>An array of objects, keys from the headings. <b>Numeric columns are written as JSON numbers</b>, not strings; dates and times stay text.</td></tr>
+        <tr><td><b>Excel .xlsx</b></td><td>UTF-8</td><td>A real OOXML workbook — see below.</td></tr>
+        <tr><td><b>HTML</b></td><td>UTF-8</td><td>A styled, self-contained table with a sticky-looking header, zebra rows and right-aligned numbers. Prints well and pastes into Word or Excel.</td></tr>
+      </table>
+    </section>
+
+    <section id="excel">
+      <h2>Excel .xlsx <a href="#excel" class="top">#</a></h2>
+      <p>Not a CSV with an <code>.xlsx</code> name, and not the old SpreadsheetML — a genuine OOXML package
+        built here, containing six parts:</p>
+<pre>[Content_Types].xml
+_rels/.rels
+xl/workbook.xml                 <span class="c">! the sheet, named from Title</span>
+xl/_rels/workbook.xml.rels
+xl/styles.xml                   <span class="c">! two cell formats: normal and bold</span>
+xl/worksheets/sheet1.xml        <span class="c">! the data</span></pre>
+      <p>The sheet is not a dump. It carries:</p>
+      <ul>
+        <li><b>Numbers as numbers.</b> A numeric column becomes <code>&lt;v&gt;1234.56&lt;/v&gt;</code>, so
+          SUM, sorting, filtering, pivot tables and charts all work. Text columns use inline strings.</li>
+        <li><b>A bold heading row</b>, and a <b>frozen pane</b> under it so the headings stay put.</li>
+        <li><b>An auto-filter</b> across the used range.</li>
+        <li><b>Column widths</b> carried over from the widths on screen.</li>
+      </ul>
+      <p>A column counts as numeric when the queue field is not a string <i>and</i> its picture is blank or
+        an <code>@N</code> picture. A <code>@D</code> date, a <code>@T</code> time or a
+        <code>@P</code> pattern stays text, which is what you want.</p>
+    </section>
+
+    <section id="smaller">
+      <h2>Smaller workbooks (optional) <a href="#smaller" class="top">#</a></h2>
+      <p>By default the archive members are <b>stored</b> — a valid but uncompressed ZIP — which keeps
+        <code>ExportClass</code> dependency-free. If you also have the sibling <b>myCompress</b> template,
+        one line switches the parts to real DEFLATE:</p>
+<pre><span class="c">! at the top of ExportClass.inc</span>
+_ExportDeflate_    <span class="k">EQUATE</span>(1)     <span class="c">! was 0</span></pre>
+      <p>Put <code>CompressClass.inc</code> and <code>CompressClass.clw</code> on the redirection path and
+        rebuild. Nothing else changes — same API, same output, smaller file. On a real export the workbook
+        typically drops to a tenth of its stored size.</p>
+      <div class="callout note"><b>Stored is still correct</b>
+        Excel, LibreOffice, openpyxl and every other reader open a stored ZIP without complaint. Turn
+        DEFLATE on for size, not for compatibility.</div>
+    </section>
+
+    <section id="columns">
+      <h2>How it reads the list <a href="#columns" class="top">#</a></h2>
+      <p><code>ScanColumns</code> walks the control's format and builds a small queue of exportable columns:</p>
+<pre><span class="k">LOOP</span> c = 1 <span class="k">TO</span> 512
+  ex = ?List{PROPLIST:Exists,c}   ; <span class="k">IF</span> ~ex <span class="k">THEN BREAK</span> .
+  f  = ?List{PROPLIST:FieldNo,c}  ; <span class="k">IF</span> ~f  <span class="k">THEN CYCLE</span> .   <span class="c">! decoration, not data</span>
+  w  = ?List{PROPLIST:Width,c}                                <span class="c">! 0 = the user hid it</span>
+  h  = ?List{PROPLIST:Header,c}                               <span class="c">! becomes the file's heading</span>
+  p  = ?List{PROPLIST:Picture,c}                              <span class="c">! formats the value</span>
+<span class="k">END</span>
+<span class="c">! ...and then, per row:</span>
+value = <span class="k">FORMAT</span>(<span class="k">WHAT</span>(Queue:Browse,f),p)</pre>
+      <p>This is the same recipe the shipped <code>brwext.clw</code> uses to read a browse cell, so it
+        behaves the way Clarion itself does.</p>
+      <div class="callout warn"><b>Read every property into a LONG first</b>
+        A Clarion property read returns a <b>string</b>, and the string <code>'0'</code> is logically
+        <b>true</b>. <code>IF ~?List{PROPLIST:Width,c}</code> therefore never fires on a hidden column, and
+        <code>IF ?List{PROPLIST:Icon,c}</code> is true for every column. Assigning to a LONG first forces
+        the numeric conversion. <code>ExportClass</code> does this; it is worth remembering in your own code.</div>
+    </section>
+
+    <section id="arch">
+      <h2>Architecture <a href="#arch" class="top">#</a></h2>
+      <ul>
+        <li><b>One growable buffer</b> holds the file being built (<code>Buf</code>), doubling as needed. A
+          second (<code>Arc</code>) assembles the ZIP; a third (<code>U8</code>) is UTF-8 scratch.</li>
+        <li><b>Escaping is chunked.</b> Each escaper copies the longest clean run in one <code>Cat</code>
+          and only then emits an escape, so ordinary data costs one append per cell rather than one per
+          character.</li>
+        <li><b>UTF-8 conversion is skipped when it is a no-op.</b> Pure-ASCII text already is valid UTF-8,
+          so the buffer is scanned once and copied straight through; only text with high bytes goes through
+          <code>MultiByteToWideChar</code> / <code>WideCharToMultiByte</code>.</li>
+        <li><b>Writing is one Win32 call.</b> <code>CreateFileA</code> / <code>WriteFile</code> /
+          <code>CloseHandle</code> from <code>MODULE('win32')</code> — the whole buffer in a single write,
+          no driver, no record-at-a-time loop.</li>
+        <li><b>The class knows nothing about ABC.</b> It takes a control number and a queue; the browse walk
+          lives in the generated code. So it works just as well in a legacy or hand-coded app.</li>
+      </ul>
+    </section>
+
+    <section id="classref">
+      <h2>Class reference <a href="#classref" class="top">#</a></h2>
+      <h3>Setting up</h3>
+      <table>
+        <tr><th>Member</th><th>Type</th><th>Meaning</th></tr>
+        <tr><td><code>Init(feq, queue)</code></td><td>method</td><td>Bind to a LIST and its queue, and scan the columns. Call it again before each export to pick up layout changes.</td></tr>
+        <tr><td><code>ScanColumns()</code></td><td>LONG</td><td>Re-read the format; returns the exportable column count.</td></tr>
+        <tr><td><code>Columns()</code></td><td>LONG</td><td>How many columns will be written.</td></tr>
+      </table>
+      <h3>Options</h3>
+      <table>
+        <tr><th>Member</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>Title</code></td><td><code>'Data'</code></td><td>Sheet name, XML root, HTML heading, and the basis of the suggested file name.</td></tr>
+        <tr><td><code>Allow</code></td><td><code>127</code></td><td>Bit mask of offered formats — <code>Exp:AllowCSV</code>, <code>Exp:AllowXLSX</code>, … or <code>Exp:AllowAll</code>.</td></tr>
+        <tr><td><code>Fmt</code></td><td><code>Exp:CSV</code></td><td>The chosen format. Set it yourself to skip the dialog.</td></tr>
+        <tr><td><code>FileName</code></td><td>blank</td><td>Full path of the file to write.</td></tr>
+        <tr><td><code>Headers</code></td><td>1</td><td>Write a heading row.</td></tr>
+        <tr><td><code>Pictures</code></td><td>1</td><td>Run each value through its column picture.</td></tr>
+        <tr><td><code>VisibleOnly</code></td><td>1</td><td>Skip hidden and icon columns.</td></tr>
+        <tr><td><code>OpenWhenDone</code></td><td>1</td><td>Open the file in its default program.</td></tr>
+        <tr><td><code>Confirm</code></td><td>1</td><td>Show the success / failure popup.</td></tr>
+        <tr><td><code>Delim</code></td><td><code>','</code></td><td>CSV separator — set it to <code>';'</code> for European locales.</td></tr>
+        <tr><td><code>RowTag</code></td><td><code>'Row'</code></td><td>XML element for one row.</td></tr>
+      </table>
+      <h3>Doing the work</h3>
+      <table>
+        <tr><th>Method</th><th>Returns</th><th>Meaning</th></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>The modal dialog. 1 = go ahead, 0 = cancelled. VIRTUAL — override it for your own dialog.</td></tr>
+        <tr><td><code>AskFileName()</code></td><td>BYTE</td><td>Just the Save-As browser, for the current format.</td></tr>
+        <tr><td><code>ExportQueue()</code></td><td>BYTE</td><td>Write every record in the bound queue.</td></tr>
+        <tr><td><code>Run()</code></td><td>BYTE</td><td><code>Ask()</code> + <code>ExportQueue()</code>.</td></tr>
+        <tr><td><code>StartFile()</code></td><td>BYTE</td><td>Begin; writes the preamble and heading row.</td></tr>
+        <tr><td><code>AddRow()</code></td><td>—</td><td>Append the row currently in the queue buffer.</td></tr>
+        <tr><td><code>EndFile()</code></td><td>BYTE</td><td>Finish, write to disk, optionally open it.</td></tr>
+        <tr><td><code>CellText(col)</code></td><td>STRING</td><td>VIRTUAL — override to reshape a value on its way out.</td></tr>
+        <tr><td><code>HeaderText(col)</code></td><td>STRING</td><td>VIRTUAL — override to rename a column in the file.</td></tr>
+      </table>
+      <h3>Results</h3>
+      <table>
+        <tr><td><code>RowsOut</code></td><td>LONG</td><td>Rows written by the last export.</td></tr>
+        <tr><td><code>ErrCode</code> / <code>ErrText</code></td><td>LONG / CSTRING</td><td>0 = fine; otherwise what went wrong, in words.</td></tr>
+      </table>
+    </section>
+
+    <section id="hand">
+      <h2>Driving it from code <a href="#hand" class="top">#</a></h2>
+      <p>A hand-coded LIST over a plain QUEUE needs three lines:</p>
+<pre>Exporter1.Init(?List,MyQueue)
+Exporter1.Title = <span class="s">'Invoices'</span>
+Exporter1.Run()                              <span class="c">! dialog, then write</span></pre>
+      <p>To write a file with no dialog at all — a nightly job, a "mail this to me" button:</p>
+<pre>Exporter1.Init(?List,MyQueue)
+Exporter1.Title        = <span class="s">'Invoices'</span>
+Exporter1.Fmt          = Exp:XLSX
+Exporter1.FileName     = <span class="s">'C:\reports\invoices.xlsx'</span>
+Exporter1.Confirm      = 0                   <span class="c">! no popup</span>
+Exporter1.OpenWhenDone = 0                   <span class="c">! do not launch Excel</span>
+<span class="k">IF</span> ~Exporter1.ExportQueue()
+  <span class="c">! Exporter1.ErrText says why</span>
+<span class="k">END</span></pre>
+      <p>To export something that is not a queue walk at all — a VIEW, a file, a computed set — drive the
+        three writing methods yourself:</p>
+<pre><span class="k">IF</span> Exporter1.Ask()
+  <span class="k">IF</span> Exporter1.StartFile()
+    <span class="c">! fill the queue BUFFER however you like, then:</span>
+    Exporter1.AddRow()
+    ...
+    Exporter1.EndFile()
+  <span class="k">END</span>
+<span class="k">END</span></pre>
+    </section>
+
+    <section id="trouble">
+      <h2>Troubleshooting <a href="#trouble" class="top">#</a></h2>
+      <table>
+        <tr><th>Symptom</th><th>Cause and fix</th></tr>
+        <tr><td><code>Illegal data type: EXPORTCLASS</code></td><td><code>ExportClass.inc</code> has LF-only line endings, or is UTF-8. Save it as <b>ANSI with CRLF</b>.</td></tr>
+        <tr><td>The button generates nothing</td><td>The template could not find a queue. Either the LIST has no <code>FROM()</code> attribute (it is bound at run time) — fill in the <b>Queue</b> prompt — or the <b>List control</b> prompt is empty.</td></tr>
+        <tr><td>Only a screenful of rows came out</td><td><b>Records</b> is set to "only the rows currently loaded". Switch it to "every record in the browse" and set the <b>Browse object</b>.</td></tr>
+        <tr><td><code>Unknown identifier: BRW1</code> when compiling</td><td>The <b>Browse object</b> prompt does not match the real BrowseBox object name. Check the BrowseBox extension's Classes tab.</td></tr>
+        <tr><td>Accents look wrong in Excel</td><td>Use <b>CSV UTF-8</b> rather than plain CSV — Excel needs the BOM. Or export <b>.xlsx</b>, which is always UTF-8.</td></tr>
+        <tr><td>Excel shows numbers as text</td><td>The column has a non-<code>@N</code> picture, so it is treated as text on purpose. Untick <b>Apply each column's picture</b>, or give the column an <code>@N</code> picture.</td></tr>
+        <tr><td>A column you wanted is missing</td><td>It is hidden (zero width) or an icon column. Untick <b>Visible columns only</b>.</td></tr>
+        <tr><td>"Could not create …"</td><td>The folder does not exist, or the file is open in Excel. The popup names the path.</td></tr>
+        <tr><td>The browse jumps to the top after exporting</td><td>Expected: walking the view then <code>ResetSort(1)</code> re-displays from the top of the current sort order. Use the queue-only mode if that matters more than completeness.</td></tr>
+      </table>
+    </section>
+
+    </div>
+    <footer>myExport · Programmer's Documentation · part of the templatemaker template set ·
+      pure Clarion, no external dependencies.</footer>
+  </main>
+</div>
+</body>
+</html>
