@@ -339,7 +339,21 @@ colours and at 1 bit, and the banding you would expect at 16- and 15-bit:
 
 ![every colour format](docs/myImage-colormodes.png)
 
-Three registrations: **myImageGlobal** (include the class once), **myImage** (a procedure extension —
+**Two drop-on controls, if you would rather not touch the extension at all.** Drop **myImage - Image view**
+on a window and you have a working image; drop **myImage - Image tools panel** beside it, point it at the
+view's IMAGE control, and you get open / save / turn / mirror / flip / zoom / fit / reset, a colour-format
+list and the effects — wired up, with nothing to type on both sides:
+
+![the image view and tools control templates](docs/myImage-controls.png)
+
+The two find each other through the view's **IMAGE control field equate** — the view names everything it
+declares after it, and the panel derives the same names from the same control. Nothing to keep in step, and
+several views on one window never collide. The view keeps a **master** copy and a **working** copy, so
+switching 256 colours → black & white → back to 24-bit costs nothing: each conversion starts again from the
+master instead of eating into what is left.
+
+Five registrations: **myImageGlobal** (include the class once), **myImageView** + **myImageTools** (the two
+control templates above), **myImage** (a procedure extension —
 an image object bound to an `IMAGE` control, with generated `Refresh:` and `Show:` routines, and prompts
 for the whole recipe: load, rotate, resize, adjust, convert, save), and **myImageConvert** (a *code*
 template — drop it in any embed to convert one file into another format, colour format and size in a

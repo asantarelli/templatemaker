@@ -424,6 +424,434 @@ Show:%miObject ROUTINE
 #ELSE
     %pRes = %pObj.SaveFile(%pTo)
 #ENDCASE
+#!#############################################################################
+#!  CONTROL TEMPLATE - myImageView  -  drop an image viewer onto a window
+#!#############################################################################
+#!  Populates an IMAGE control AND everything behind it: the picture object,
+#!  a master copy, and the routines that load, rebuild and show it. Drop it and
+#!  you have a working image view - no extension to add, nothing to wire up.
+#!
+#!  It keeps TWO images: the MASTER (as loaded, plus any permanent turn or
+#!  resize) and the working copy the colour format is applied to. That is what
+#!  lets the tools panel switch between 256 colours and black & white all day
+#!  without the picture degrading a little more each time.
+#!
+#!  Everything it declares is keyed off the IMAGE control's own field equate,
+#!  so the tools panel can find it by pointing at the same control - no name to
+#!  keep in step, and several views on one window never collide.
+#!#############################################################################
+#CONTROL(myImageView,'myImage - Image view (drag onto a window)'),WINDOW,MULTI,REQ(myImageGlobal),DESCRIPTION('Image view ' & %mvImage),HLP('~myImage.htm')
+  CONTROLS
+    IMAGE,AT(,,240,180),USE(?ImgView)
+  END
+#SHEET
+  #TAB('&General')
+    #BOXED('The view')
+      #PROMPT('&Disable this view',CHECK),%mvDisable,DEFAULT(0),AT(10)
+      #DISPLAY('Everything this view declares is named after the IMAGE control')
+      #DISPLAY('it just dropped, so point the tools panel at the same control')
+      #DISPLAY('and the two find each other.')
+    #ENDBOXED
+    #BOXED('What to load when the window opens')
+      #PROMPT('&Load:',DROP('Nothing[N]|A fixed file name[F]|A variable or expression[V]|A test card[T]')),%mvSource,DEFAULT('T')
+      #ENABLE(%mvSource='F')
+        #PROMPT('File &name:',@s255),%mvFile,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%mvSource='V')
+        #PROMPT('&Variable / expression:',@s255),%mvFileVar,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%mvSource='T')
+        #PROMPT('Test card &width:',SPIN(@n5,16,4000,16)),%mvCardW,DEFAULT(640)
+        #PROMPT('Test card &height:',SPIN(@n5,16,4000,16)),%mvCardH,DEFAULT(480)
+      #ENDENABLE
+      #PROMPT('If the file will not load, tell the user',CHECK),%mvWarn,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('How it meets the control')
+      #PROMPT('&Fit:',DROP('Proportional (pad)[1]|Contain (no pad)[4]|Cover (crop)[2]|Stretch[0]|Centred 1:1[3]')),%mvFit,DEFAULT('1')
+      #PROMPT('Pad / background color:',COLOR),%mvPad,DEFAULT(00FFFFFFH)
+    #ENDBOXED
+    #BOXED('Colour format to start in')
+      #PROMPT('&Colour:',DROP('As loaded[0]|32-bit true colour + alpha[1]|24-bit true colour[2]|16-bit high colour[3]|15-bit high colour[4]|256 colours[5]|16 colours[6]|256 greys[7]|16 greys[8]|4 greys[9]|Black and white[10]|Web-safe 216[11]')),%mvMode,DEFAULT('0')
+      #PROMPT('&Dither',CHECK),%mvDither,DEFAULT(0),AT(10)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#ATSTART
+  #DECLARE(%mvImage)
+  #DECLARE(%mvKey)
+  #DECLARE(%mvCp)
+  #FOR(%Control),WHERE(%ControlInstance=%ActiveTemplateInstance)
+    #IF(%ControlOriginal='?ImgView')
+      #SET(%mvImage,%Control)
+    #ENDIF
+  #ENDFOR
+  #SET(%mvKey,SUB(%mvImage,2,250))
+  #SET(%mvCp,INSTRING(':',%mvKey,1,1))
+  #LOOP,WHILE(%mvCp>0)
+    #SET(%mvKey,SUB(%mvKey,1,%mvCp-1) & '_' & SUB(%mvKey,%mvCp+1,250))
+    #SET(%mvCp,INSTRING(':',%mvKey,1,1))
+  #ENDLOOP
+#ENDAT
+#!
+#AT(%DataSection),WHERE(%mvDisable=0)
+%mvKey:Master        ImageClass                              ! as loaded, plus any permanent turn
+%mvKey:Pic           ImageClass                              ! the working copy that is on screen
+%mvKey:Mode          LONG                                    ! colour format, live - the tools panel writes here
+%mvKey:Dither        BYTE
+%mvKey:Thresh        LONG
+%mvKey:Src           CSTRING(261)                            ! what was loaded, so Reset can reload it
+%mvKey:Redraw        EQUATE(EVENT:User + 230 + %ActiveTemplateInstance)
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%mvDisable=0)
+  CASE EVENT()
+  OF EVENT:OpenWindow
+    %mvKey:Mode = %mvMode
+    %mvKey:Dither = %mvDither
+    %mvKey:Thresh = 128
+    DO %mvKey:Load
+  OF EVENT:Sized
+    DO %mvKey:Show
+  OF %mvKey:Redraw
+    DO %mvKey:Rebuild
+  END
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%mvDisable=0)
+!  Load the source into the MASTER, then build the working copy from it.
+%mvKey:Load ROUTINE
+#CASE(%mvSource)
+#OF('F')
+    %mvKey:Src = '%mvFile'
+#OF('V')
+    %mvKey:Src = CLIP(%mvFileVar)
+#ENDCASE
+#CASE(%mvSource)
+#OF('F')
+#OROF('V')
+    IF NOT %mvKey:Master.LoadFile(%mvKey:Src)
+#IF(%mvWarn)
+      MESSAGE('Could not read ' & CLIP(%mvKey:Src), '%Procedure', ICON:Exclamation)
+#ENDIF
+    END
+#OF('T')
+    %mvKey:Master.TestCard(%mvCardW, %mvCardH)
+    %mvKey:Src = ''
+#ENDCASE
+    DO %mvKey:Rebuild
+
+!  Working copy = master + the colour format that is selected right now. Doing
+!  it this way means changing colour format never eats into the picture: it is
+!  always derived from the master in one step.
+%mvKey:Rebuild ROUTINE
+    IF %mvKey:Master.Ok()
+      %mvKey:Master.CloneInto(%mvKey:Pic)
+      IF %mvKey:Mode > 0
+        %mvKey:Pic.Convert(%mvKey:Mode, %mvKey:Dither, %mvKey:Thresh)
+      END
+    END
+    DO %mvKey:Show
+
+%mvKey:Show ROUTINE
+    IF %mvKey:Pic.Ok()
+      %mvKey:Pic.Draw(%Window, %mvImage, %mvFit, %mvKey:Pic.ArgbOf(%mvPad))
+    END
+#ENDAT
+#!#############################################################################
+#!  CONTROL TEMPLATE - myImageTools  -  the toolbar that drives it
+#!#############################################################################
+#!  A strip of buttons plus a colour-format list, wired straight to an image.
+#!  Point it at the IMAGE control of a myImageView and it drives that; or name
+#!  a myImage extension's object and it drives that instead.
+#!
+#!  Turn, mirror, flip, zoom and fit change the MASTER, so they stack up the way
+#!  you would expect. The colour list only ever re-derives the working copy from
+#!  the master, so you can go 256 colours -> black & white -> back to 24-bit and
+#!  the picture is none the worse for it.
+#!
+#!  Not MULTI: one toolbar per window, which is what lets its own controls use
+#!  real USE variables (a feq-only CHECK can never show its initial state).
+#!#############################################################################
+#CONTROL(myImageTools,'myImage - Image tools panel (drag onto a window)'),WINDOW,REQ(myImageGlobal),DESCRIPTION('Image tools'),HLP('~myImage.htm')
+  CONTROLS
+    GROUP('Image tools'),USE(?ImgTool:Group),AT(,,360,54),BOXED
+      BUTTON('&Open...'),AT(8,12,46,14),USE(?ImgTool:Open),TIP('Open an image file')
+      BUTTON('&Save...'),AT(50,0,46,14),USE(?ImgTool:Save),TIP('Save the picture as it looks now')
+      BUTTON('Rot &L'),AT(50,0,26,14),USE(?ImgTool:RotL),TIP('Rotate left')
+      BUTTON('Rot &R'),AT(30,0,26,14),USE(?ImgTool:RotR),TIP('Rotate right')
+      BUTTON('M&irror'),AT(30,0,34,14),USE(?ImgTool:Mirror),TIP('Flip left to right')
+      BUTTON('Fli&p'),AT(38,0,26,14),USE(?ImgTool:Flip),TIP('Flip top to bottom')
+      BUTTON('-'),AT(30,0,22,14),USE(?ImgTool:ZoomOut),TIP('Zoom out 20%')
+      BUTTON('+'),AT(26,0,22,14),USE(?ImgTool:ZoomIn),TIP('Zoom in 25%')
+      BUTTON('&Fit'),AT(26,0,26,14),USE(?ImgTool:Fit),TIP('Shrink to fit the view')
+      BUTTON('&Reset'),AT(30,0,34,14),USE(?ImgTool:Reset),TIP('Load it again and start over')
+      PROMPT('Colour:'),AT(-310,22,38,10),USE(?ImgTool:ModeP)
+      LIST,AT(40,-2,150,11),USE(?ImgTool:Mode),DROP(12),FROM('As loaded|32-bit true colour + alpha|24-bit true colour|16-bit high colour|15-bit high colour|256 colours|16 colours|256 greys|16 greys|4 greys|Black and white|Web-safe 216')
+      CHECK('&Dither'),AT(156,1,44,10),USE(ImgTool:Dither),TIP('Floyd-Steinberg error diffusion')
+      BUTTON('&Grey'),AT(48,-2,26,14),USE(?ImgTool:Grey),TIP('Greyscale')
+      BUTTON('I&nvert'),AT(30,0,32,14),USE(?ImgTool:Invert),TIP('Invert')
+      BUTTON('Sepi&a'),AT(36,0,32,14),USE(?ImgTool:Sepia),TIP('Sepia')
+    END
+  END
+#SHEET
+  #TAB('&General')
+    #BOXED('What it drives')
+      #PROMPT('&Disable this panel',CHECK),%mtDisable,DEFAULT(0),AT(10)
+      #PROMPT('Drive:',DROP('A myImage view control[V]|A myImage extension object[E]')),%mtLink,DEFAULT('V')
+      #ENABLE(%mtLink='V')
+        #PROMPT('The view''s &IMAGE control:',CONTROL),%mtImage
+        #DISPLAY('Pick the IMAGE that the myImage view control dropped. The')
+        #DISPLAY('panel works out every name it needs from that one control,')
+        #DISPLAY('so there is nothing to keep in step.')
+      #ENDENABLE
+      #ENABLE(%mtLink='E')
+        #PROMPT('The extension''s &Object name:',@s64),%mtObject,DEFAULT('Pic1')
+        #DISPLAY('Type the same Object name you gave the myImage extension on')
+        #DISPLAY('this procedure. Colour changes apply straight to that object,')
+        #DISPLAY('and Reset runs its Refresh: routine.')
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('Which tools to show')
+      #PROMPT('&Open and Save',CHECK),%mtShowFile,DEFAULT(1),AT(10)
+      #PROMPT('&Turn (rotate, mirror, flip)',CHECK),%mtShowTurn,DEFAULT(1),AT(10)
+      #PROMPT('&Zoom and Fit',CHECK),%mtShowZoom,DEFAULT(1),AT(10)
+      #PROMPT('&Colour format list',CHECK),%mtShowMode,DEFAULT(1),AT(10)
+      #PROMPT('&Effects (grey, invert, sepia)',CHECK),%mtShowFx,DEFAULT(1),AT(10)
+      #PROMPT('&Reset',CHECK),%mtShowReset,DEFAULT(1),AT(10)
+      #DISPLAY('Anything unticked is hidden when the window opens - the buttons')
+      #DISPLAY('stay on the window so you can turn them back on later.')
+    #ENDBOXED
+    #BOXED('Saving')
+      #PROMPT('Default save format:',DROP('From the file extension[0]|PNG[4]|JPEG[3]|BMP[1]|GIF[2]|TIFF[5]|Targa[9]|PCX[10]|PNM[11]|QOI[12]')),%mtSaveFmt,DEFAULT('0')
+      #PROMPT('JPEG quality:',SPIN(@n3,1,100,5)),%mtQuality,DEFAULT(85)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#ATSTART
+  #DECLARE(%mtKey)
+  #DECLARE(%mtCp)
+  #DECLARE(%mtObj)
+  #DECLARE(%mtMaster)
+  #DECLARE(%mtRebuild)
+  #DECLARE(%mtReload)
+  #DECLARE(%mtLive)
+  #SET(%mtLive,0)
+  #IF(%mtLink='E')
+    #SET(%mtObj,%mtObject)
+    #SET(%mtMaster,%mtObject)
+    #SET(%mtRebuild,'DO Show:' & %mtObject)
+    #SET(%mtReload,'DO Refresh:' & %mtObject)
+  #ELSE
+    #SET(%mtKey,SUB(%mtImage,2,250))
+    #SET(%mtCp,INSTRING(':',%mtKey,1,1))
+    #LOOP,WHILE(%mtCp>0)
+      #SET(%mtKey,SUB(%mtKey,1,%mtCp-1) & '_' & SUB(%mtKey,%mtCp+1,250))
+      #SET(%mtCp,INSTRING(':',%mtKey,1,1))
+    #ENDLOOP
+    #SET(%mtObj,%mtKey & ':Pic')
+    #SET(%mtMaster,%mtKey & ':Master')
+    #SET(%mtRebuild,'DO ' & %mtKey & ':Rebuild')
+    #SET(%mtReload,'DO ' & %mtKey & ':Load')
+    #SET(%mtLive,1)
+  #ENDIF
+#ENDAT
+#!
+#AT(%DataSectionBeforeWindow),WHERE(%mtDisable=0)
+ImgTool:Dither       BYTE                                    ! the panel's own checkbox
+#ENDAT
+#!
+#AT(%DataSection),WHERE(%mtDisable=0)
+ImgTool:Sync         EQUATE(EVENT:User + 240)                ! deferred: read the target AFTER it has loaded
+ImgTool:File         STRING(261)
+#ENDAT
+#!
+#!  OpenWindow hides the tools that were turned off, then POSTs a private event
+#!  so the colour list is filled in AFTER the view has had its own OpenWindow -
+#!  which means it does not matter which of the two controls was dropped first.
+#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%mtDisable=0)
+  CASE EVENT()
+  OF EVENT:OpenWindow
+#IF(%mtShowFile=0)
+    ?ImgTool:Open{PROP:Hide} = 1
+    ?ImgTool:Save{PROP:Hide} = 1
+#ENDIF
+#IF(%mtShowTurn=0)
+    ?ImgTool:RotL{PROP:Hide} = 1
+    ?ImgTool:RotR{PROP:Hide} = 1
+    ?ImgTool:Mirror{PROP:Hide} = 1
+    ?ImgTool:Flip{PROP:Hide} = 1
+#ENDIF
+#IF(%mtShowZoom=0)
+    ?ImgTool:ZoomOut{PROP:Hide} = 1
+    ?ImgTool:ZoomIn{PROP:Hide} = 1
+    ?ImgTool:Fit{PROP:Hide} = 1
+#ENDIF
+#IF(%mtShowMode=0)
+    ?ImgTool:ModeP{PROP:Hide} = 1
+    ?ImgTool:Mode{PROP:Hide} = 1
+    ?ImgTool:Dither{PROP:Hide} = 1
+#ENDIF
+#IF(%mtShowFx=0)
+    ?ImgTool:Grey{PROP:Hide} = 1
+    ?ImgTool:Invert{PROP:Hide} = 1
+    ?ImgTool:Sepia{PROP:Hide} = 1
+#ENDIF
+#IF(%mtShowReset=0)
+    ?ImgTool:Reset{PROP:Hide} = 1
+#ENDIF
+    POST(ImgTool:Sync)
+  OF ImgTool:Sync
+#IF(%mtLive)
+    ImgTool:Dither = %mtKey:Dither
+    ?ImgTool:Mode{PROP:Selected} = %mtKey:Mode + 1
+#ELSE
+    ?ImgTool:Mode{PROP:Selected} = 1
+#ENDIF
+    DISPLAY
+  END
+#ENDAT
+#!
+#!  The buttons and the list are FIELD events, so they belong in TakeFieldEvent
+#!  - a handler for them in TakeWindowEvent compiles and never fires.
+#AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%mtDisable=0)
+  CASE FIELD()
+  OF ?ImgTool:Open
+    IF EVENT() = EVENT:Accepted
+      ImgTool:File = ''
+      IF FILEDIALOG('Open an image', ImgTool:File, |
+           'All images|*.bmp;*.dib;*.rle;*.gif;*.jpg;*.jpeg;*.jpe;*.jfif;*.png;*.tif;*.tiff;' & |
+           '*.ico;*.cur;*.emf;*.wmf;*.tga;*.pcx;*.pnm;*.ppm;*.pgm;*.pbm;*.qoi|' & |
+           'BMP|*.bmp|GIF|*.gif|JPEG|*.jpg;*.jpeg|PNG|*.png|TIFF|*.tif;*.tiff|' & |
+           'Targa|*.tga|PCX|*.pcx|PNM|*.pnm;*.ppm;*.pgm;*.pbm|QOI|*.qoi|All files|*.*', |
+           FILE:KeepDir + FILE:LongName)
+        IF %mtMaster.LoadFile(ImgTool:File)
+#IF(%mtLive)
+          %mtKey:Src = CLIP(ImgTool:File)
+#ENDIF
+          %mtRebuild
+        ELSE
+          MESSAGE('Could not read that file.||' & CLIP(ImgTool:File), '%Procedure', ICON:Exclamation)
+        END
+      END
+    END
+  OF ?ImgTool:Save
+    IF EVENT() = EVENT:Accepted
+      ImgTool:File = ''
+      IF FILEDIALOG('Save the image as', ImgTool:File, |
+           'PNG|*.png|JPEG|*.jpg|BMP|*.bmp|GIF|*.gif|TIFF|*.tif|Targa|*.tga|PCX|*.pcx|' & |
+           'PNM|*.ppm|QOI|*.qoi', FILE:KeepDir + FILE:LongName + FILE:Save)
+        %mtObj.Quality = %mtQuality
+        IF NOT %mtObj.SaveFile(ImgTool:File, %mtSaveFmt)
+          MESSAGE('Could not write that file.||' & CLIP(ImgTool:File) & |
+                  '||Engine error ' & %mtObj.LastError(), '%Procedure', ICON:Exclamation)
+        END
+      END
+    END
+  OF ?ImgTool:RotL
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.RotateLeft()
+      %mtRebuild
+    END
+  OF ?ImgTool:RotR
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.RotateRight()
+      %mtRebuild
+    END
+  OF ?ImgTool:Mirror
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.Mirror()
+      %mtRebuild
+    END
+  OF ?ImgTool:Flip
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.FlipVert()
+      %mtRebuild
+    END
+  OF ?ImgTool:ZoomIn
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.Zoom(125, Img:Best)
+      %mtRebuild
+    END
+  OF ?ImgTool:ZoomOut
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.Zoom(80, Img:Best)
+      %mtRebuild
+    END
+  OF ?ImgTool:Fit
+    IF EVENT() = EVENT:Accepted
+      DO ImgTool:FitToView
+    END
+  OF ?ImgTool:Reset
+    IF EVENT() = EVENT:Accepted
+      %mtReload
+    END
+  OF ?ImgTool:Grey
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.Greyscale(Img:Luma)
+      %mtRebuild
+    END
+  OF ?ImgTool:Invert
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.Invert()
+      %mtRebuild
+    END
+  OF ?ImgTool:Sepia
+    IF EVENT() = EVENT:Accepted
+      %mtMaster.Sepia()
+      %mtRebuild
+    END
+  OF ?ImgTool:Mode
+    IF EVENT() = EVENT:Accepted OR EVENT() = EVENT:NewSelection
+      DO ImgTool:Apply
+    END
+  OF ?ImgTool:Dither
+    IF EVENT() = EVENT:Accepted
+      DO ImgTool:Apply
+    END
+  END
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%mtDisable=0)
+!  Push the panel's colour choice at the target and redraw it.
+ImgTool:Apply ROUTINE
+#IF(%mtLive)
+    %mtKey:Mode = CHOICE(?ImgTool:Mode) - 1
+    IF %mtKey:Mode < 0 THEN %mtKey:Mode = 0.
+    %mtKey:Dither = ImgTool:Dither
+    %mtRebuild
+#ELSE
+    IF CHOICE(?ImgTool:Mode) > 1
+      %mtObj.Convert(CHOICE(?ImgTool:Mode) - 1, ImgTool:Dither, 128)
+      %mtRebuild
+    ELSE
+      %mtReload
+    END
+#ENDIF
+
+!  Shrink the picture itself down to the view, keeping the ratio.
+ImgTool:FitToView ROUTINE
+  DATA
+vw  LONG
+vh  LONG
+sp  LONG
+  CODE
+#IF(%mtLive)
+    SETTARGET(%Window)
+    sp = 0{PROP:Pixels}
+    0{PROP:Pixels} = 1
+    vw = %mtImage{PROP:Width}
+    vh = %mtImage{PROP:Height}
+    0{PROP:Pixels} = sp
+    SETTARGET()
+    IF vw > 3 AND vh > 3
+      %mtMaster.Fit(vw, vh, Img:Contain, 0)
+      %mtRebuild
+    END
+#ELSE
+    %mtObj.Fit(320, 240, Img:Contain, 0)
+    %mtRebuild
+#ENDIF
+#ENDAT
 #!-----------------------------------------------------------------------------
 #! End of myImage template set
 #!-----------------------------------------------------------------------------

@@ -77,6 +77,7 @@
     <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
     <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
     <a href="#window" class="h2"><span class="en">An image on a window</span><span class="es">Una imagen en una ventana</span></a>
+    <a href="#controls" class="h2"><span class="en">Drop-on controls</span><span class="es">Controles para soltar</span></a>
     <a href="#convert" class="h2"><span class="en">Converting files</span><span class="es">Convertir archivos</span></a>
     <a href="#prompts" class="h2"><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></a>
     <a href="#code" class="h2"><span class="en">Driving it from code</span><span class="es">Manejarlo desde código</span></a>
@@ -124,6 +125,12 @@
         the window opens, applies the whole recipe you set on the prompts, shows it in an <code>IMAGE</code>
         control and optionally saves a copy. Generates <code>Refresh:&lt;Object&gt;</code> and
         <code>Show:&lt;Object&gt;</code> routines. It is <b>MULTI</b> &mdash; several images per window are fine.</td></tr>
+    <tr><td><b>myImageView</b></td><td>Drop onto a window (a <i>control</i> template)</td>
+        <td>Populates an <code>IMAGE</code> control <i>and</i> everything behind it &mdash; the picture object, a
+        master copy and the load / rebuild / show routines. Nothing to wire up. <b>MULTI</b>.</td></tr>
+    <tr><td><b>myImageTools</b></td><td>Drop onto a window (a <i>control</i> template)</td>
+        <td>A toolbar &mdash; open, save, turn, mirror, flip, zoom, fit, reset, a colour-format list and the
+        effects buttons &mdash; wired to a view or to a myImage extension object.</td></tr>
     <tr><td><b>myImageConvert</b></td><td>Any embed (a <i>code</i> template)</td>
         <td>One file in, one file out, in a single embed: format, colour format, size and JPEG quality, with
         an optional result variable. No object to declare &mdash; it uses the shared <code>ImgWork</code>.</td></tr>
@@ -157,6 +164,13 @@
         un control <code>IMAGE</code> y opcionalmente guarda una copia. Genera las rutinas
         <code>Refresh:&lt;Objeto&gt;</code> y <code>Show:&lt;Objeto&gt;</code>. Es <b>MULTI</b> &mdash; varias
         imágenes por ventana no son problema.</td></tr>
+    <tr><td><b>myImageView</b></td><td>Se suelta en una ventana (plantilla de <i>control</i>)</td>
+        <td>Pone un control <code>IMAGE</code> <i>y</i> todo lo que va detrás &mdash; el objeto de imagen, una
+        copia maestra y las rutinas de carga, reconstrucción y dibujo. No hay que conectar nada. <b>MULTI</b>.</td></tr>
+    <tr><td><b>myImageTools</b></td><td>Se suelta en una ventana (plantilla de <i>control</i>)</td>
+        <td>Una barra de herramientas &mdash; abrir, guardar, girar, espejar, voltear, zoom, encajar, reiniciar,
+        una lista de formatos de color y los botones de efectos &mdash; conectada a una vista o a un objeto de la
+        extensión myImage.</td></tr>
     <tr><td><b>myImageConvert</b></td><td>Cualquier embed (plantilla de <i>código</i>)</td>
         <td>Un archivo entra, otro sale, en un solo embed: formato, formato de color, tamaño y calidad JPEG,
         con una variable de resultado opcional. No hay objeto que declarar &mdash; usa el
@@ -301,6 +315,75 @@ Show:Photo ROUTINE
   <p>Llama a <code>DO Refresh:&lt;Objeto&gt;</code> cuando cambie el origen (un nombre de archivo nuevo en tu
   variable, por ejemplo) y a <code>DO Show:&lt;Objeto&gt;</code> cuando solo necesites redibujar. El
   <code>EVENT:Sized</code> de la ventana ya llama a <code>Show:</code> por ti.</p>
+      </div>
+    </section>
+
+<section id="controls">
+      <h2><span class="en">Drop-on controls</span><span class="es">Controles para soltar</span></h2>
+      <div class="en">
+  <p class="lead">If you would rather not touch the extension at all: drop <b>myImage - Image view</b> on a
+  window and you have a working image. Drop <b>myImage - Image tools panel</b> beside it, point it at the
+  view's IMAGE control, and you have this &mdash; open, save, turn, mirror, flip, zoom, fit, reset, every
+  colour format, and the effects:</p>
+  <p><img src="myImage-controls.png" alt="The image view and tools control templates on a window" style="max-width:100%"></p>
+  <h3>How the two find each other</h3>
+  <p>The view names everything it declares after <b>its own IMAGE control's field equate</b> &mdash; drop it on
+  a window whose image ends up as <code>?ImgView</code> and you get <code>ImgView:Master</code>,
+  <code>ImgView:Pic</code>, <code>ImgView:Mode</code> and the routines <code>ImgView:Load</code>,
+  <code>ImgView:Rebuild</code> and <code>ImgView:Show</code>. The tools panel asks you for that same IMAGE
+  control and works the names out the same way. There is no name to type on both sides and nothing to keep in
+  step, and because the field equate is unique per drop, <b>several views on one window never collide</b>.</p>
+  <div class="tip"><b>Or drive the extension instead</b> Set the panel's <b>Drive</b> prompt to
+  <i>A myImage extension object</i> and type the Object name you gave the extension. The same buttons then act
+  on that object and <b>Reset</b> runs its generated <code>Refresh:</code> routine. Useful when the image is
+  already part of a form you built with the extension.</div>
+  <h3>Why nothing degrades</h3>
+  <p>The view keeps <b>two</b> images. The <b>master</b> is the picture as loaded, plus anything permanent you
+  did to it &mdash; a turn, a mirror, a zoom, a fit. The <b>working copy</b> is re-derived from the master every
+  time, and the colour format is applied to that copy only. So switching 256 colours &rarr; black &amp; white
+  &rarr; back to 24-bit costs you nothing: each one starts again from the master. Reduce a picture to 16
+  colours and then to 256 in any tool that works in place and you can never get the colours back; here you can.</p>
+  <h3>Which buttons appear</h3>
+  <p>Six tick-boxes on the panel's prompts decide: file, turn, zoom, colour list, effects, reset. Anything you
+  untick is hidden when the window opens &mdash; the controls stay on the window, so you can turn a group back
+  on later without re-dropping anything.</p>
+  <div class="note"><b>One toolbar per window</b> The tools panel is deliberately not MULTI. That is what lets
+  its own controls use real USE variables, which in turn is what lets the Dither box show its state when the
+  window opens &mdash; a field-equate-only checkbox in Clarion can be read but its mark can never be set.</div>
+      </div>
+      <div class="es">
+  <p class="lead">Si prefieres no tocar la extensión: suelta <b>myImage - Image view</b> en una ventana y ya
+  tienes una imagen funcionando. Suelta <b>myImage - Image tools panel</b> al lado, apúntalo al control IMAGE de
+  la vista, y tienes esto &mdash; abrir, guardar, girar, espejar, voltear, zoom, encajar, reiniciar, todos los
+  formatos de color, y los efectos:</p>
+  <p><img src="myImage-controls.png" alt="Los controles de vista y herramientas en una ventana" style="max-width:100%"></p>
+  <h3>Cómo se encuentran los dos</h3>
+  <p>La vista nombra todo lo que declara a partir del <b>field equate de su propio control IMAGE</b> &mdash;
+  suéltala en una ventana donde la imagen acabe siendo <code>?ImgView</code> y obtienes
+  <code>ImgView:Master</code>, <code>ImgView:Pic</code>, <code>ImgView:Mode</code> y las rutinas
+  <code>ImgView:Load</code>, <code>ImgView:Rebuild</code> y <code>ImgView:Show</code>. El panel de herramientas
+  te pide ese mismo control IMAGE y deduce los nombres igual. No hay ningún nombre que escribir en los dos
+  lados ni nada que mantener sincronizado, y como el field equate es único por cada soltada, <b>varias vistas en
+  una misma ventana nunca chocan</b>.</p>
+  <div class="tip"><b>O maneja la extensión</b> Pon el prompt <b>Drive</b> del panel en <i>A myImage extension
+  object</i> y escribe el Object name que le diste a la extensión. Los mismos botones actúan entonces sobre ese
+  objeto y <b>Reset</b> ejecuta su rutina <code>Refresh:</code> generada. Útil cuando la imagen ya forma parte de
+  un formulario que hiciste con la extensión.</div>
+  <h3>Por qué no se degrada nada</h3>
+  <p>La vista guarda <b>dos</b> imágenes. La <b>maestra</b> es la imagen tal como se cargó, más cualquier cosa
+  permanente que le hayas hecho &mdash; un giro, un espejo, un zoom, un encaje. La <b>copia de trabajo</b> se
+  vuelve a derivar de la maestra cada vez, y el formato de color se aplica solo a esa copia. Así que pasar de 256
+  colores &rarr; blanco y negro &rarr; otra vez a 24 bits no cuesta nada: cada paso vuelve a empezar desde la
+  maestra. Reduce una imagen a 16 colores y luego a 256 en cualquier herramienta que trabaje en el sitio y no
+  recuperas los colores jamás; aquí sí.</p>
+  <h3>Qué botones aparecen</h3>
+  <p>Seis casillas en los prompts del panel lo deciden: archivo, giro, zoom, lista de color, efectos, reinicio.
+  Lo que desmarques se oculta al abrir la ventana &mdash; los controles siguen en la ventana, así que puedes
+  volver a activar un grupo más tarde sin soltar nada de nuevo.</p>
+  <div class="note"><b>Una barra por ventana</b> El panel de herramientas no es MULTI a propósito. Eso es lo que
+  permite que sus propios controles usen variables USE de verdad, que a su vez es lo que permite que la casilla
+  Dither muestre su estado al abrir la ventana &mdash; una casilla que solo tiene field equate se puede leer,
+  pero su marca no se puede fijar nunca.</div>
       </div>
     </section>
 
