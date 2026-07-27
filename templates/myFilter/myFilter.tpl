@@ -68,66 +68,61 @@
     #SET(%pOut,'Flt:Number')
   #ENDCASE
 #!#############################################################################
-#!  GROUP - the AddField calls, from the browse's own columns
+#!  GROUP - the AddField calls, from the procedure's file schematic
 #!#############################################################################
-#!  This is the shipped %QBEParseView idiom (ABBROWSE.TPW): walk the browse
-#!  queue, strip any [subscript] off the assignment, resolve it back to a
-#!  dictionary field, and skip the ones already done. Then the joined files,
-#!  and if the view turns out to be entirely PROJECTED, every field instead.
+#!  NOT from the browse queue. %QueueField belongs to the BROWSE template's own
+#!  instance and is simply not in scope for an independent control template -
+#!  asking for it fails at generate time with
+#!      variable %QueueField is not defined
+#!  The file schematic is procedure-wide, so %Primary and its joined
+#!  %Secondary files are reachable from here, and every field of them is
+#!  offered rather than only the columns on display. That is the better answer
+#!  anyway: filtering on a field the browse does not happen to show is a normal
+#!  thing to want, and BINDABLE covers the whole record either way.
 #!#############################################################################
 #GROUP(%mfAddFields,%pObject)
-  #DECLARE(%mfSeen),MULTI
-  #DECLARE(%mfQF)
-  #DECLARE(%mfLB,LONG)
   #DECLARE(%mfType)
   #DECLARE(%mfLabel)
-  #FIX(%File,%Primary)
-  #FOR(%QueueField)
-    #SET(%mfLB,INSTRING('[',%QueueFieldAssignment,1,1))
-    #IF(%mfLB > 1)
-      #SET(%mfQF,SLICE(%QueueFieldAssignment,1,%mfLB-1))
-    #ELSE
-      #SET(%mfQF,%QueueFieldAssignment)
-    #ENDIF
-    #FIX(%Field,%mfQF)
-    #IF(%Field)
-      #FIX(%mfSeen,%Field)
-      #IF(NOT(%mfSeen))
-        #ADD(%mfSeen,%Field)
-        #CALL(%mfEmitField,%pObject)
-      #ENDIF
-    #ENDIF
-  #ENDFOR
-  #FOR(%Secondary),WHERE(%SecondaryTo=%Primary)
-    #FIX(%File,%Secondary)
-    #FOR(%Field)
-      #FIX(%mfSeen,%Field)
-      #IF(NOT(%mfSeen) AND %FieldType <> 'GROUP' AND %FieldType <> 'END')
-        #ADD(%mfSeen,%Field)
-        #CALL(%mfEmitField,%pObject)
-      #ENDIF
-    #ENDFOR
-  #ENDFOR
-  #IF(~ITEMS(%mfSeen))                        #!  the view is all PROJECTED
+  #DECLARE(%mfAny,LONG)
+  #SET(%mfAny,0)
+  #IF(%Primary)
     #FIX(%File,%Primary)
     #FOR(%Field)
-      #IF(%FieldType <> 'GROUP' AND %FieldType <> 'END')
-        #ADD(%mfSeen,%Field)
-        #CALL(%mfEmitField,%pObject)
-      #ENDIF
+      #CALL(%mfEmitField,%pObject)
     #ENDFOR
+    #FOR(%Secondary),WHERE(%SecondaryTo=%Primary)
+      #FIX(%File,%Secondary)
+      #FOR(%Field)
+        #CALL(%mfEmitField,%pObject)
+      #ENDFOR
+    #ENDFOR
+  #ENDIF
+  #IF(~%mfAny)
+    ! myFilter: this procedure has no file schematic, so there are no fields to
+    ! offer. Add the file to the procedure, or call AddField yourself here.
   #ENDIF
 #!-----------------------------------------------------------------------------
 #GROUP(%mfEmitField,%pObject)
-  #SET(%mfLabel,%FieldHeader)
+  #!  GROUP/END are structure markers, and MEMO/BLOB cannot go in a filter.
+  #IF(UPPER(%FieldType) = 'GROUP' OR UPPER(%FieldType) = 'END' OR UPPER(%FieldType) = 'MEMO' OR UPPER(%FieldType) = 'BLOB')
+    #RETURN
+  #ENDIF
+  #SET(%mfLabel,CLIP(%FieldHeader))
   #IF(~%mfLabel)
-    #SET(%mfLabel,%FieldDescription)
+    #SET(%mfLabel,CLIP(%FieldDescription))
   #ENDIF
   #IF(~%mfLabel)
-    #SET(%mfLabel,%FieldID)
+    #SET(%mfLabel,CLIP(%FieldID))
+  #ENDIF
+  #!  An apostrophe in a header ("Teacher's name") would close the Clarion
+  #!  literal early and the generated line would not compile. The field id
+  #!  cannot contain one, so fall back to that.
+  #IF(INSTRING('''',%mfLabel,1,1))
+    #SET(%mfLabel,CLIP(%FieldID))
   #ENDIF
   #CALL(%mfTypeOf,%FieldType,%FieldPicture,%mfType)
-  %pObject.AddField('%Field','%(CLIP(%mfLabel))',%mfType,'%FieldPicture')
+  #SET(%mfAny,1)
+  %pObject.AddField('%Field','%mfLabel',%mfType,'%FieldPicture')
 #!#############################################################################
 #!  GLOBAL EXTENSION - myFilterGlobal
 #!#############################################################################
