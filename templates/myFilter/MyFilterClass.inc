@@ -138,6 +138,7 @@ FTx:And2           EQUATE(28)                  ! the word between range ends
 FTx:Days           EQUATE(29)
 FTx:Nothing        EQUATE(30)                  ! "no filter - showing everything"
 FTx:Condition      EQUATE(31)                  ! the list's column heading
+FTx:NeedNumber     EQUATE(32)                  ! text typed into a numeric field
 
 ! ---- the browse's fields, as the template registered them -----------------
 FilterFieldQueue   QUEUE,TYPE

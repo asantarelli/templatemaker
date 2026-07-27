@@ -80,7 +80,7 @@
 #!  anyway: filtering on a field the browse does not happen to show is a normal
 #!  thing to want, and BINDABLE covers the whole record either way.
 #!#############################################################################
-#GROUP(%mfAddFields,%pObject,%pFile)
+#GROUP(%mfAddFields,%pObject,%pFile,%pFile2,%pFile3)
   #DECLARE(%mfType)
   #DECLARE(%mfLabel)
   #DECLARE(%mfAny,LONG)
@@ -94,9 +94,34 @@
       #CALL(%mfEmitField,%pObject)
     #ENDFOR
   #ENDIF
+  #!  A browse very often SHOWS a joined file's field where it stores a key -
+  #!  "Department" reading Law, Sociology out of Majors while Teachers holds a
+  #!  number. Offer those files too or the user cannot filter on what they see.
+  #IF(%pFile2)
+    #FIX(%File,%pFile2)
+    #FOR(%Field)
+      #CALL(%mfEmitField,%pObject)
+    #ENDFOR
+  #ENDIF
+  #IF(%pFile3)
+    #FIX(%File,%pFile3)
+    #FOR(%Field)
+      #CALL(%mfEmitField,%pObject)
+    #ENDFOR
+  #ENDIF
+  #!  Fall back to the schematic if the prompt is blank - and either way say in
+  #!  the generated source exactly what was seen, so an empty field list can be
+  #!  diagnosed by reading the .clw instead of by another round trip.
+  #IF(~%mfAny AND %Primary)
+    #FIX(%File,%Primary)
+    #FOR(%Field)
+      #CALL(%mfEmitField,%pObject)
+    #ENDFOR
+  #ENDIF
   #IF(~%mfAny)
-    ! myFilter: no file chosen, so there are no fields to offer. Set "File whose
-    ! fields to offer" on the Filters button, or call AddField yourself here.
+    ! myFilter: no fields. The button's "File whose fields to offer" prompt is
+    ! [%pFile] and the procedure's primary file is [%Primary] - both empty, so
+    ! there was nothing to read. Set the prompt on the Filters button.
   #ENDIF
 #!-----------------------------------------------------------------------------
 #GROUP(%mfEmitField,%pObject)
@@ -191,6 +216,12 @@ myFilterStorage      BYTE(%mfgStorage)                    ! 0 = INI, 1 = table
       #DISPLAY('the filter window - including ones the browse does not show,')
       #DISPLAY('which is usually what you want. Tick BINDABLE on it in the')
       #DISPLAY('dictionary or the filter cannot be evaluated at run time.')
+      #PROMPT('Also offer fields from:',FILE),%mfFile2
+      #PROMPT('...and from:',FILE),%mfFile3
+      #DISPLAY('For the joined files a browse displays in place of a key - a')
+      #DISPLAY('Teachers browse showing the Majors description where the')
+      #DISPLAY('record only holds a department number. Without this the user')
+      #DISPLAY('cannot filter on the column they are looking at.')
       #DISPLAY('The ABC browse object on this window - BRW1 unless there is')
       #DISPLAY('more than one browse, in which case check the Browse Box')
       #DISPLAY('extension for the name.')
@@ -241,7 +272,7 @@ INCLUDE('MyFilterClass.INC'),ONCE
 !  The field list is built on the first press rather than at window open, so
 !  the button costs nothing on a window where nobody filters.
   IF ~%mfObject.FieldCount()
-#INSERT(%mfAddFields,%mfObject,%mfFile)
+#INSERT(%mfAddFields,%mfObject,%mfFile,%mfFile2,%mfFile3)
   END
 #IF(%mfTitle)
   %mfObject.Title         = '%mfTitle'
@@ -285,6 +316,8 @@ INCLUDE('MyFilterClass.INC'),ONCE
       #PROMPT('&Object name:',@s64),%mhObject,REQ,DEFAULT('Flt' & %ActiveTemplateInstance)
       #PROMPT('&Browse object:',@s64),%mhBrowse,REQ,DEFAULT('BRW1')
       #PROMPT('&File whose fields to offer:',FILE),%mhFile,REQ
+      #PROMPT('Also offer fields from:',FILE),%mhFile2
+      #PROMPT('...and from:',FILE),%mhFile3
       #PROMPT('&Window title (blank = the localised word):',@s64),%mhTitle,DEFAULT('')
       #PROMPT('&Case sensitive text compares',CHECK),%mhCase,DEFAULT(0),AT(10)
       #PROMPT('&Profile name (blank = this procedure):',@s64),%mhProfile,DEFAULT('')
@@ -302,7 +335,7 @@ INCLUDE('MyFilterClass.INC'),ONCE
 #ENDAT
 #!
 IF ~%mhObject.FieldCount()
-#INSERT(%mfAddFields,%mhObject,%mhFile)
+#INSERT(%mfAddFields,%mhObject,%mhFile,%mhFile2,%mhFile3)
 END
 #IF(%mhTitle)
 %mhObject.Title         = '%mhTitle'

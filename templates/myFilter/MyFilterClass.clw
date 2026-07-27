@@ -153,25 +153,38 @@ MyFilterClass.FieldRef PROCEDURE(LONG pField)
 !  116.00 into 11600.
 MyFilterClass.Num PROCEDURE(LONG pField,STRING pText)
 t   CSTRING(81)
+d   DECIMAL(18,6)
+l   LONG
   CODE
   t = CLIP(LEFT(pText))
   IF ~t THEN RETURN '0' .
   GET(SELF.Fields,pField)
   IF ERRORCODE() THEN RETURN '0' .
+!  Go through a numeric VARIABLE, never straight out of DEFORMAT. DEFORMAT of
+!  something that is not a number at all ('Law' typed into a department number)
+!  hands back an empty string, and '(TEA:Department = )' is not an expression -
+!  the filter fails to parse and the browse shows nothing with no clue why.
   CASE SELF.Fields.FFType
   OF Flt:Date
     IF SELF.Fields.FFPicture AND SELF.Fields.FFPicture[1 : 2] = '@d'
-      RETURN DEFORMAT(t,SELF.Fields.FFPicture)
+      d = DEFORMAT(t,SELF.Fields.FFPicture)
+    ELSE
+      d = DEFORMAT(t,'@d17')
     END
-    RETURN DEFORMAT(t,'@d17')
   OF Flt:Time
     IF SELF.Fields.FFPicture AND SELF.Fields.FFPicture[1 : 2] = '@t'
-      RETURN DEFORMAT(t,SELF.Fields.FFPicture)
+      d = DEFORMAT(t,SELF.Fields.FFPicture)
+    ELSE
+      d = DEFORMAT(t)
     END
-    RETURN DEFORMAT(t)
   ELSE
-    RETURN DEFORMAT(t)                                      ! no picture, on purpose
+    d = DEFORMAT(t)                                         ! no picture, on purpose
   END
+  IF d = INT(d)                                             ! whole numbers read cleanly
+    l = d
+    RETURN l
+  END
+  RETURN d
 
 
 !  One condition as a filter expression. Every form here was checked against a
@@ -512,6 +525,7 @@ MyFilterClass.Txt PROCEDURE(LONG pId)
     OF FTx:Days       ; RETURN 'd<237>as'
     OF FTx:Nothing    ; RETURN 'Sin filtro: se ve todo.'
     OF FTx:Condition  ; RETURN 'Condici<243>n'
+    OF FTx:NeedNumber ; RETURN 'Ese campo guarda un n<250>mero, no texto.'
     END
     RETURN ''
   END
@@ -547,6 +561,7 @@ MyFilterClass.Txt PROCEDURE(LONG pId)
   OF FTx:Days       ; RETURN 'days'
   OF FTx:Nothing    ; RETURN 'No filter - showing everything.'
   OF FTx:Condition  ; RETURN 'Condition'
+  OF FTx:NeedNumber ; RETURN 'That field holds a number, not text.'
   END
   RETURN ''
 
@@ -1052,6 +1067,18 @@ Validate ROUTINE
     MESSAGE(SELF.Txt(FTx:NeedValue),SELF.Txt(FTx:Title),ICON:Exclamation)
     SELECT(?v1)
     EXIT
+  END
+!  'Law' in a department NUMBER is a mistake worth catching here, where it can
+!  be explained, rather than letting it become a filter that quietly matches
+!  nothing.
+  GET(SELF.Fields,fi)
+  IF ~ERRORCODE() AND SELF.Fields.FFType <> Flt:String AND SELF.OpTakesValue(OpQ.FNId)
+    IF ~DEFORMAT(SELF.Num(fi,v1)) AND CLIP(v1) <> '0'
+      MESSAGE(CLIP(SELF.Txt(FTx:NeedNumber)) & '||' & CLIP(SELF.Fields.FFLabel), |
+              SELF.Txt(FTx:Title),ICON:Exclamation)
+      SELECT(?v1)
+      EXIT
+    END
   END
   IF SELF.OpTakesTwo(OpQ.FNId)
     IF ~CLIP(v2)
