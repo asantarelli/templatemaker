@@ -53,6 +53,7 @@ templates/                      # ready-to-register Clarion templates
     myBackground.tpl
   myQR/                         #   QR code into an image control, auto-refresh (see below)
     myQR.tpl
+  myImage/                     #   12 image formats in, 9 out, every colour format (see below)
   myGauge/                      #   analog gauge/dial on windows and reports (see below)
     GaugeClass.inc              #     the gauge class (config + method prototypes)
     GaugeClass.clw              #     the implementation (geometry + native drawing)
@@ -310,6 +311,54 @@ Clarion redirection path. Reed–Solomon spans four different fields across the 
 the prime field GF(929), and GF(2^n) for Aztec). Full **developer's manual** (install, the class APIs, per-
 symbology rules, drawing model, multi-DLL, troubleshooting) is in
 [`docs/myBarcodeGen-template.html`](docs/myBarcodeGen-template.html).
+
+### `templates/myImage/` — **twelve image formats in, nine out**, every colour format
+Read **BMP, GIF, JPEG, PNG, TIFF, ICO, EMF, WMF, TGA, PCX, PNM and QOI**; write **BMP, GIF, JPEG, PNG,
+TIFF, TGA, PCX, PNM and QOI**. Convert between **every colour format** — 32-bit ARGB, 24-bit RGB,
+16-bit 5-6-5, 15-bit 5-5-5, 256 and 16 colours (median-cut palette, optional Floyd–Steinberg dither),
+256 / 16 / 4 greys, 1-bit black & white and the web-safe 216. Transform on the way through: rotate
+90/180/270 or **any angle**, mirror, flip, crop, extend the canvas, resize (nearest / bilinear /
+area-average) and fit — stretch, proportional, cover, centred, contain. Adjust brightness, contrast,
+saturation, gamma, levels, blur, sharpen, invert, sepia, posterise, alpha flatten, opacity; read a luma
+histogram and the generated palette.
+
+![the myImage demo](docs/myImage-demo.png)
+
+**It is fast because the pixel work is C.** `imgcore.c` is compiled straight into your exe by Clarion's
+own C compiler (`PRAGMA('compile(imgcore.c)')`) — there is no DLL to ship and nothing to install. The
+formats Windows already owns are decoded through **GDI+** (part of Windows, bound at run time, so no
+import library either); everything else — the TGA/PCX/PNM/QOI/BMP codecs, the quantiser, the dithering,
+every resample and every adjustment — is plain C in that one file. The engine deliberately uses **no C
+runtime and no libm**: memory comes from `LocalAlloc`, files from `CreateFileA`, and anything needing
+`sin`/`cos`/`pow` is worked out on the Clarion side and handed over (free rotation takes a cosine and a
+sine; gamma and levels arrive as a 256-entry lookup table). That is why it compiles with Clacpp
+everywhere, unchanged.
+
+Every colour format, converted from the built-in test card — note the dithering doing its work at 16
+colours and at 1 bit, and the banding you would expect at 16- and 15-bit:
+
+![every colour format](docs/myImage-colormodes.png)
+
+Three registrations: **myImageGlobal** (include the class once), **myImage** (a procedure extension —
+an image object bound to an `IMAGE` control, with generated `Refresh:` and `Show:` routines, and prompts
+for the whole recipe: load, rotate, resize, adjust, convert, save), and **myImageConvert** (a *code*
+template — drop it in any embed to convert one file into another format, colour format and size in a
+single statement). All of it is also just a class, so you can drive it from code:
+
+```clarion
+IF Pic.LoadFile('holiday.jpg')
+  Pic.Fit(1024, 768, Img:Contain)      ! keep the ratio, no padding
+  Pic.Convert(Img:Pal256, 1)           ! 256 colours, dithered
+  Pic.SaveFile('holiday.gif')          ! or .png .bmp .tif .tga .pcx .ppm .qoi
+  Pic.Draw(MyWindow, ?Preview)         ! and show it, fitted to the control
+END
+```
+
+Copy `ImageClass.inc` + `ImageClass.clw` + `imgcore.c` to the redirection path —
+[`myImage.zip`](templates/myImage/myImage.zip) bundles all four files. `examples/myImage/` has
+**ImageDemo** (open anything, push it through every conversion and transform, watch the histogram and
+palette update, save it back out) and **ImgTest**, a headless harness that round-trips all nine writable
+formats and all eleven colour formats and writes the results to an INI.
 
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,
