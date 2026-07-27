@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myImage — Image formats, colour formats and transforms / Formatos de imagen, de color y transformaciones</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .callout b{display:block;margin-bottom:2px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid rgba(0,0,0,.15)}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  /* .callout b is display:block for the callout TITLE, so inline
+     emphasis inside callout text needs to opt back in */
+  .callout b.i{display:inline;margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>myImage</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over" class="h2"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#window" class="h2"><span class="en">An image on a window</span><span class="es">Una imagen en una ventana</span></a>
+    <a href="#convert" class="h2"><span class="en">Converting files</span><span class="es">Convertir archivos</span></a>
+    <a href="#prompts" class="h2"><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></a>
+    <a href="#code" class="h2"><span class="en">Driving it from code</span><span class="es">Manejarlo desde código</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#formats" class="h2"><span class="en">File formats</span><span class="es">Formatos de archivo</span></a>
+    <a href="#colours" class="h2"><span class="en">Colour formats</span><span class="es">Formatos de color</span></a>
+    <a href="#api" class="h2"><span class="en">ImageClass API</span><span class="es">API de ImageClass</span></a>
+    <a href="#engine" class="h2"><span class="en">How the engine works</span><span class="es">Cómo funciona el motor</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>myImage</h1>
+      <p class="en"><strong>Twelve image formats in, nine out</strong>, every common colour format, and the
+      transforms to go with them &mdash; rotate, mirror, flip, crop, resize, fit. The pixel work is C, compiled
+      straight into your exe by Clarion's own C compiler, so there is <strong>no DLL to ship and nothing to
+      install</strong>.</p>
+      <p class="es"><strong>Doce formatos de imagen de entrada, nueve de salida</strong>, todos los formatos de
+      color habituales, y las transformaciones que los acompañan &mdash; rotar, espejar, voltear, recortar,
+      redimensionar, encajar. El trabajo con los píxeles es C, compilado directamente en tu exe por el propio
+      compilador C de Clarion, así que <strong>no hay DLL que distribuir ni nada que instalar</strong>.</p>
+      <span class="pill en">12 in · 9 out · 11 colour formats · pure C engine · no DLL</span>
+      <span class="pill es">12 entrada · 9 salida · 11 formatos de color · motor en C · sin DLL</span>
+    </header>
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="body">
+
+<section id="over">
+      <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
+      <div class="en">
+  <p class="lead">One class, <code>ImageClass</code>, owns one image. Load it from any of twelve formats,
+  push it through any colour format and any transform, show it in an <code>IMAGE</code> control, and write
+  it back out as any of nine formats. Three template registrations drive it:</p>
+  <table>
+    <tr><th>Registration</th><th>Scope</th><th>What it does</th></tr>
+    <tr><td><b>myImageGlobal</b></td><td>Application (Global &rarr; Extensions)</td>
+        <td>Adds <code>INCLUDE('ImageClass.INC'),ONCE</code> and, optionally, the shared
+        <code>ImgWork</code> object that the code template uses. Add it once; the other two require it.</td></tr>
+    <tr><td><b>myImage</b></td><td>Procedure with a WINDOW</td>
+        <td>One image object per instance. Loads a file (fixed name, variable, or a built-in test card) when
+        the window opens, applies the whole recipe you set on the prompts, shows it in an <code>IMAGE</code>
+        control and optionally saves a copy. Generates <code>Refresh:&lt;Object&gt;</code> and
+        <code>Show:&lt;Object&gt;</code> routines. It is <b>MULTI</b> &mdash; several images per window are fine.</td></tr>
+    <tr><td><b>myImageConvert</b></td><td>Any embed (a <i>code</i> template)</td>
+        <td>One file in, one file out, in a single embed: format, colour format, size and JPEG quality, with
+        an optional result variable. No object to declare &mdash; it uses the shared <code>ImgWork</code>.</td></tr>
+  </table>
+  <p><img src="myImage-demo.png" alt="The myImage demo: open an image, convert it, transform it, save it" style="max-width:100%"></p>
+  <div class="filetree">
+    templates/myImage/<br>
+    ├─ myImage.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— the template set (register this)<br>
+    ├─ ImageClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— the class (equates + prototypes)<br>
+    ├─ ImageClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— the Clarion side (and the C prototypes)<br>
+    └─ imgcore.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— the engine, compiled into your exe
+  </div>
+  <div class="note"><b>Two demos are included</b> <code>examples/myImage/ImageDemo</code> opens anything,
+  converts it live and saves it back out; <code>examples/myImage/ImgTest</code> is a headless harness that
+  round-trips all nine writable formats and all eleven colour formats and drops the results in an INI &mdash;
+  useful if you ever want to check the engine on a particular machine.</div>
+      </div>
+      <div class="es">
+  <p class="lead">Una clase, <code>ImageClass</code>, es dueña de una imagen. Cárgala desde cualquiera de los
+  doce formatos, pásala por cualquier formato de color y cualquier transformación, muéstrala en un control
+  <code>IMAGE</code> y vuelve a escribirla en cualquiera de los nueve formatos de salida. La manejan tres
+  registros de plantilla:</p>
+  <table>
+    <tr><th>Registro</th><th>Ámbito</th><th>Qué hace</th></tr>
+    <tr><td><b>myImageGlobal</b></td><td>Aplicación (Global &rarr; Extensions)</td>
+        <td>Agrega <code>INCLUDE('ImageClass.INC'),ONCE</code> y, opcionalmente, el objeto compartido
+        <code>ImgWork</code> que usa la plantilla de código. Ponla una vez; las otras dos la necesitan.</td></tr>
+    <tr><td><b>myImage</b></td><td>Procedimiento con WINDOW</td>
+        <td>Un objeto de imagen por instancia. Carga un archivo (nombre fijo, variable, o la carta de ajuste
+        incorporada) al abrir la ventana, aplica toda la receta que hayas puesto en los prompts, la muestra en
+        un control <code>IMAGE</code> y opcionalmente guarda una copia. Genera las rutinas
+        <code>Refresh:&lt;Objeto&gt;</code> y <code>Show:&lt;Objeto&gt;</code>. Es <b>MULTI</b> &mdash; varias
+        imágenes por ventana no son problema.</td></tr>
+    <tr><td><b>myImageConvert</b></td><td>Cualquier embed (plantilla de <i>código</i>)</td>
+        <td>Un archivo entra, otro sale, en un solo embed: formato, formato de color, tamaño y calidad JPEG,
+        con una variable de resultado opcional. No hay objeto que declarar &mdash; usa el
+        <code>ImgWork</code> compartido.</td></tr>
+  </table>
+  <p><img src="myImage-demo.png" alt="El demo de myImage: abre una imagen, conviértela, transfórmala, guárdala" style="max-width:100%"></p>
+  <div class="filetree">
+    templates/myImage/<br>
+    ├─ myImage.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— el conjunto de plantillas (registra este)<br>
+    ├─ ImageClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— la clase (equates + prototipos)<br>
+    ├─ ImageClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— el lado Clarion (y los prototipos de C)<br>
+    └─ imgcore.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;— el motor, compilado dentro de tu exe
+  </div>
+  <div class="note"><b>Vienen dos demos</b> <code>examples/myImage/ImageDemo</code> abre lo que sea, convierte
+  en vivo y vuelve a guardar; <code>examples/myImage/ImgTest</code> es un banco de pruebas sin ventana que hace
+  ida y vuelta con los nueve formatos de escritura y los once formatos de color y deja los resultados en un INI
+  &mdash; útil si algún día quieres comprobar el motor en una máquina concreta.</div>
+      </div>
+    </section>
+
+<section id="install">
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></h2>
+      <div class="en">
+  <ol>
+    <li>Copy <code>ImageClass.inc</code>, <code>ImageClass.clw</code> <b>and</b> <code>imgcore.c</code> to a
+      folder on the Clarion redirection path &mdash; your app folder or <code>\clarion12\libsrc\win</code>.
+      Keep the <code>.inc</code> and <code>.clw</code> in <b>ANSI</b> (not UTF-8) with CRLF line ends;
+      <code>imgcore.c</code> is not fussy.</li>
+    <li>Copy <code>myImage.tpl</code> anywhere convenient (e.g.
+      <code>\clarion12\accessory\template\win</code>) and register it: IDE &rarr; Setup &rarr;
+      <b>Template Registry</b> &rarr; Register &rarr; pick the .tpl.</li>
+    <li>In your app: Global &rarr; Extensions &rarr; Insert &rarr; <b>myImageGlobal</b> (it is also added
+      automatically the first time you add one of the other two).</li>
+  </ol>
+  <div class="tip"><b>Nothing else to deploy</b> <code>imgcore.c</code> is compiled into your exe by Clarion's
+  own C compiler, and the formats Windows already knows are decoded through GDI+, which is part of Windows.
+  There is no DLL, no import library, no redistributable and no installer step.</div>
+      </div>
+      <div class="es">
+  <ol>
+    <li>Copia <code>ImageClass.inc</code>, <code>ImageClass.clw</code> <b>y</b> <code>imgcore.c</code> a una
+      carpeta del camino de redirección de Clarion &mdash; la carpeta de tu app o
+      <code>\clarion12\libsrc\win</code>. Mantén el <code>.inc</code> y el <code>.clw</code> en <b>ANSI</b>
+      (no UTF-8) con finales de línea CRLF; <code>imgcore.c</code> no es exigente.</li>
+    <li>Copia <code>myImage.tpl</code> donde te resulte cómodo (por ejemplo
+      <code>\clarion12\accessory\template\win</code>) y regístralo: IDE &rarr; Setup &rarr;
+      <b>Template Registry</b> &rarr; Register &rarr; elige el .tpl.</li>
+    <li>En tu app: Global &rarr; Extensions &rarr; Insert &rarr; <b>myImageGlobal</b> (también se agrega sola
+      la primera vez que insertas una de las otras dos).</li>
+  </ol>
+  <div class="tip"><b>No hay nada más que distribuir</b> <code>imgcore.c</code> lo compila dentro de tu exe el
+  propio compilador C de Clarion, y los formatos que Windows ya conoce se decodifican con GDI+, que forma parte
+  de Windows. No hay DLL, ni biblioteca de importación, ni redistribuible, ni paso de instalación.</div>
+      </div>
+    </section>
+
+<section id="window">
+      <h2><span class="en">An image on a window</span><span class="es">Una imagen en una ventana</span></h2>
+      <div class="en">
+  <ol>
+    <li>Put an <code>IMAGE</code> control on the window where the picture should live (no file needed &mdash;
+      the template fills it in).</li>
+    <li>Procedure &rarr; Extensions &rarr; Insert &rarr; <b>myImage - An image on this window</b>.</li>
+    <li>Name the object, point <b>Show it in this IMAGE control</b> at your control, and choose what to load:
+      a fixed file name, a variable or expression, or the built-in test card.</li>
+    <li>Set the recipe on the <b>Colour</b>, <b>Shape</b> and <b>Save</b> tabs. That is it.</li>
+  </ol>
+  <p>The generated code is plain and readable &mdash; here is a real example, from an instance set to load a
+  variable, rotate right, mirror, fit a 320&times;240 box, warm it up a little, sepia it, reduce it to 256
+  dithered colours and write a JPEG thumbnail:</p>
+  <pre>Refresh:Photo ROUTINE
+    IF NOT Photo.LoadFile(GLO:PicturePath)
+      MESSAGE('Could not read ' &amp; CLIP(GLO:PicturePath), 'Main', ICON:Exclamation)
+    END
+    IF Photo.Ok()
+      Photo.RotateRight()
+      Photo.Mirror()
+      Photo.Fit(320, 240, Img:Contain, 0)
+      Photo.Adjust(10, 0, -20)
+      Photo.Gamma(2.20)
+      Photo.Sharpen(60)
+      Photo.Sepia()
+      Photo.Convert(Img:Pal256, 1, 128)
+    END
+    IF Photo.Ok()
+      Photo.Quality = 70
+      Photo.SaveFile(GLO:ThumbPath, Img:Jpeg)
+    END
+    DO Show:Photo
+
+Show:Photo ROUTINE
+    IF Photo.Ok()
+      Photo.Draw(QuickWindow, ?Preview, Img:Cover, Photo.ArgbOf(16777215))
+    END</pre>
+  <div class="note"><b>The order is deliberate</b> Shape first, then tone, then the colour format <i>last</i>
+  &mdash; so the palette is chosen from the pixels you actually end up with, not from the ones you started
+  with. Reducing to 256 colours before you brighten an image gives you a palette built for the wrong picture.</div>
+  <p>Call <code>DO Refresh:&lt;Object&gt;</code> whenever the source changes (a new file name in your variable,
+  say) and <code>DO Show:&lt;Object&gt;</code> when you only need a redraw. The window's
+  <code>EVENT:Sized</code> already calls <code>Show:</code> for you.</p>
+      </div>
+      <div class="es">
+  <ol>
+    <li>Pon un control <code>IMAGE</code> en la ventana donde deba ir la imagen (no hace falta archivo &mdash;
+      la plantilla lo rellena).</li>
+    <li>Procedimiento &rarr; Extensions &rarr; Insert &rarr; <b>myImage - An image on this window</b>.</li>
+    <li>Dale nombre al objeto, apunta <b>Show it in this IMAGE control</b> a tu control, y elige qué cargar:
+      un nombre de archivo fijo, una variable o expresión, o la carta de ajuste incorporada.</li>
+    <li>Configura la receta en las pestañas <b>Colour</b>, <b>Shape</b> y <b>Save</b>. Ya está.</li>
+  </ol>
+  <p>El código generado es sencillo y legible &mdash; este es un ejemplo real, de una instancia configurada
+  para cargar una variable, girar a la derecha, espejar, encajar en un cuadro de 320&times;240, calentarla un
+  poco, aplicarle sepia, reducirla a 256 colores con dither y escribir una miniatura JPEG:</p>
+  <pre>Refresh:Photo ROUTINE
+    IF NOT Photo.LoadFile(GLO:PicturePath)
+      MESSAGE('Could not read ' &amp; CLIP(GLO:PicturePath), 'Main', ICON:Exclamation)
+    END
+    IF Photo.Ok()
+      Photo.RotateRight()
+      Photo.Mirror()
+      Photo.Fit(320, 240, Img:Contain, 0)
+      Photo.Adjust(10, 0, -20)
+      Photo.Gamma(2.20)
+      Photo.Sharpen(60)
+      Photo.Sepia()
+      Photo.Convert(Img:Pal256, 1, 128)
+    END
+    IF Photo.Ok()
+      Photo.Quality = 70
+      Photo.SaveFile(GLO:ThumbPath, Img:Jpeg)
+    END
+    DO Show:Photo
+
+Show:Photo ROUTINE
+    IF Photo.Ok()
+      Photo.Draw(QuickWindow, ?Preview, Img:Cover, Photo.ArgbOf(16777215))
+    END</pre>
+  <div class="note"><b>El orden es intencionado</b> Primero la forma, luego el tono, y el formato de color
+  <i>al final</i> &mdash; así la paleta se elige a partir de los píxeles con los que realmente terminas, no de
+  los que tenías al principio. Reducir a 256 colores antes de aclarar una imagen te deja una paleta hecha para
+  la imagen equivocada.</div>
+  <p>Llama a <code>DO Refresh:&lt;Objeto&gt;</code> cuando cambie el origen (un nombre de archivo nuevo en tu
+  variable, por ejemplo) y a <code>DO Show:&lt;Objeto&gt;</code> cuando solo necesites redibujar. El
+  <code>EVENT:Sized</code> de la ventana ya llama a <code>Show:</code> por ti.</p>
+      </div>
+    </section>
+
+<section id="convert">
+      <h2><span class="en">Converting files</span><span class="es">Convertir archivos</span></h2>
+      <div class="en">
+  <p>For a straight file-to-file conversion there is nothing to declare and no window involved. Go to any
+  embed, Insert &rarr; <b>myImage - Convert an image file</b>, and fill in the source, the target and what you
+  want done. It generates something like this:</p>
+  <pre>  ImgWork.Quality = 80
+  IF ImgWork.LoadFile(LOC:SourceFile)
+      ImgWork.Convert(Img:Grey256, 0, 128)
+      ImgWork.Fit(1024, 768, Img:Contain, 0)
+    LOC:Worked = ImgWork.SaveFile(LOC:TargetFile, Img:Png)
+  ELSE
+    LOC:Worked = 0
+  END
+  ImgWork.Kill()</pre>
+  <p>Because it is a code template you can drop it in a loop over a file queue and batch-convert a folder, or
+  put it in a browse's <i>after record</i> embed to build thumbnails as you go.</p>
+  <div class="tip"><b>Why a shared object</b> A conversion runs from start to finish inside one embed, so a
+  single global <code>ImgWork</code> is enough and it keeps the embed down to no declarations at all. If that
+  name clashes with something you already have, untick <b>Declare the shared worker object</b> on the global
+  extension and use the class directly instead.</div>
+      </div>
+      <div class="es">
+  <p>Para una conversión directa de archivo a archivo no hay nada que declarar ni ventana que valga. Ve a
+  cualquier embed, Insert &rarr; <b>myImage - Convert an image file</b>, y rellena el origen, el destino y lo
+  que quieras que haga. Genera algo así:</p>
+  <pre>  ImgWork.Quality = 80
+  IF ImgWork.LoadFile(LOC:SourceFile)
+      ImgWork.Convert(Img:Grey256, 0, 128)
+      ImgWork.Fit(1024, 768, Img:Contain, 0)
+    LOC:Worked = ImgWork.SaveFile(LOC:TargetFile, Img:Png)
+  ELSE
+    LOC:Worked = 0
+  END
+  ImgWork.Kill()</pre>
+  <p>Como es una plantilla de código, puedes ponerla dentro de un bucle sobre una cola de archivos y convertir
+  una carpeta entera por lotes, o meterla en el embed <i>después de leer el registro</i> de un browse para ir
+  generando miniaturas sobre la marcha.</p>
+  <div class="tip"><b>Por qué un objeto compartido</b> Una conversión se ejecuta de principio a fin dentro de un
+  solo embed, así que basta con un <code>ImgWork</code> global y así el embed no necesita ninguna declaración.
+  Si ese nombre choca con algo que ya tienes, desmarca <b>Declare the shared worker object</b> en la extensión
+  global y usa la clase directamente.</div>
+      </div>
+    </section>
+
+<section id="prompts">
+      <h2><span class="en">Prompt reference</span><span class="es">Referencia de prompts</span></h2>
+      <div class="en">
+  <h3>General</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Object name</td><td><code>Pic&lt;n&gt;</code></td><td>The local object's label &mdash; it also names the generated <code>Refresh:</code> and <code>Show:</code> routines.</td></tr>
+    <tr><td>Show it in this IMAGE control</td><td>&mdash;</td><td>Leave it <b>blank</b> to work with the image in code only: handy for converting or thumbnailing with nothing on screen.</td></tr>
+    <tr><td>Load a file</td><td>Nothing</td><td>Nothing, a fixed file name, a variable/expression (re-read on every <code>Refresh:</code>), or the built-in test card &mdash; which is the quickest way to see what a colour format does.</td></tr>
+    <tr><td>Fit</td><td>Proportional (pad)</td><td>How the picture meets the control: proportional (pad), contain (no pad), cover (crop), stretch, or centred 1:1.</td></tr>
+    <tr><td>Pad / background color</td><td>white</td><td>Fills the letterbox bars, the corners left by a free rotation, and any canvas you add.</td></tr>
+  </table>
+  <h3>Colour</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Convert to</td><td>Leave as loaded</td><td>Any of the eleven colour formats below.</td></tr>
+    <tr><td>Dither</td><td>off</td><td>Floyd&ndash;Steinberg error diffusion. It costs nothing worth measuring and it transforms how a photo survives 256, 16 or 2 colours.</td></tr>
+    <tr><td>Black &amp; white threshold</td><td>128</td><td>Only used by the 1-bit format when dithering is off.</td></tr>
+    <tr><td>Brightness / Contrast / Saturation</td><td>0 / 0 / 0</td><td>&minus;100 to 100. All three in one pass over the pixels.</td></tr>
+    <tr><td>Gamma</td><td>1.0</td><td>1 leaves it alone. Worked out as a lookup table in Clarion and applied in C.</td></tr>
+    <tr><td>Blur radius / Sharpen</td><td>0 / 0</td><td>Blur is a separable box, run twice, which is close enough to a gaussian; sharpen is an unsharp mask, 0&ndash;300%.</td></tr>
+    <tr><td>Invert / Sepia</td><td>off / off</td><td>Applied after everything else except the colour format.</td></tr>
+  </table>
+  <h3>Shape</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Rotate</td><td>No</td><td>90 right, 180, 90 left &mdash; exact, lossless, just a pixel move.</td></tr>
+    <tr><td>Mirror / Flip</td><td>off / off</td><td>Left-to-right and top-to-bottom.</td></tr>
+    <tr><td>Free rotation</td><td>0</td><td>Any angle. The canvas grows so nothing is clipped, and the new corners get the pad colour. Bilinear sampled, so edges stay smooth.</td></tr>
+    <tr><td>Resize to</td><td>Leave alone</td><td>A fixed width and height, a percentage, or fit a box keeping the ratio.</td></tr>
+    <tr><td>Resample with</td><td>Best</td><td><b>Best</b> = area-average when shrinking (no moiré, no lost detail) and bilinear when enlarging. <b>Smooth</b> = bilinear always. <b>Fast</b> = nearest neighbour, which is what you want for pixel art and screenshots.</td></tr>
+  </table>
+  <h3>Save</h3>
+  <p>Optionally write a copy every time the image is loaded: a file name or expression, the format (or work it
+  out from the extension), JPEG quality, and a forced BMP bit depth if you want one.</p>
+      </div>
+      <div class="es">
+  <h3>General</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Object name</td><td><code>Pic&lt;n&gt;</code></td><td>La etiqueta del objeto local &mdash; también da nombre a las rutinas <code>Refresh:</code> y <code>Show:</code> generadas.</td></tr>
+    <tr><td>Show it in this IMAGE control</td><td>&mdash;</td><td>Déjalo <b>en blanco</b> para trabajar la imagen solo desde código: útil para convertir o hacer miniaturas sin mostrar nada.</td></tr>
+    <tr><td>Load a file</td><td>Nothing</td><td>Nada, un nombre de archivo fijo, una variable/expresión (se relee en cada <code>Refresh:</code>), o la carta de ajuste incorporada &mdash; la forma más rápida de ver qué hace un formato de color.</td></tr>
+    <tr><td>Fit</td><td>Proportional (pad)</td><td>Cómo encaja la imagen en el control: proporcional (con relleno), contain (sin relleno), cover (recortando), estirada, o centrada 1:1.</td></tr>
+    <tr><td>Pad / background color</td><td>blanco</td><td>Rellena las bandas del encuadre, las esquinas que deja una rotación libre, y cualquier lienzo que añadas.</td></tr>
+  </table>
+  <h3>Colour</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Convert to</td><td>Leave as loaded</td><td>Cualquiera de los once formatos de color de más abajo.</td></tr>
+    <tr><td>Dither</td><td>off</td><td>Difusión de error Floyd&ndash;Steinberg. No cuesta nada apreciable y cambia por completo cómo aguanta una foto a 256, 16 o 2 colores.</td></tr>
+    <tr><td>Black &amp; white threshold</td><td>128</td><td>Solo lo usa el formato de 1 bit cuando el dither está apagado.</td></tr>
+    <tr><td>Brightness / Contrast / Saturation</td><td>0 / 0 / 0</td><td>De &minus;100 a 100. Los tres en una sola pasada sobre los píxeles.</td></tr>
+    <tr><td>Gamma</td><td>1.0</td><td>1 lo deja tal cual. Se calcula como tabla de consulta en Clarion y se aplica en C.</td></tr>
+    <tr><td>Blur radius / Sharpen</td><td>0 / 0</td><td>El desenfoque es una caja separable aplicada dos veces, que se parece bastante a una gaussiana; el enfoque es una máscara de desenfoque, 0&ndash;300%.</td></tr>
+    <tr><td>Invert / Sepia</td><td>off / off</td><td>Se aplican después de todo lo demás salvo el formato de color.</td></tr>
+  </table>
+  <h3>Shape</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Rotate</td><td>No</td><td>90 a la derecha, 180, 90 a la izquierda &mdash; exacto, sin pérdida, solo mover píxeles.</td></tr>
+    <tr><td>Mirror / Flip</td><td>off / off</td><td>De izquierda a derecha y de arriba a abajo.</td></tr>
+    <tr><td>Free rotation</td><td>0</td><td>Cualquier ángulo. El lienzo crece para que no se recorte nada, y las esquinas nuevas toman el color de relleno. Se muestrea bilinealmente, así que los bordes quedan suaves.</td></tr>
+    <tr><td>Resize to</td><td>Leave alone</td><td>Un ancho y alto fijos, un porcentaje, o encajar en un cuadro conservando la proporción.</td></tr>
+    <tr><td>Resample with</td><td>Best</td><td><b>Best</b> = promedio por área al reducir (sin muaré ni detalle perdido) y bilineal al ampliar. <b>Smooth</b> = bilineal siempre. <b>Fast</b> = vecino más cercano, que es lo que quieres para pixel art y capturas de pantalla.</td></tr>
+  </table>
+  <h3>Save</h3>
+  <p>Opcionalmente escribe una copia cada vez que se carga la imagen: un nombre de archivo o expresión, el
+  formato (o dedúcelo de la extensión), la calidad JPEG, y una profundidad de BMP forzada si la quieres.</p>
+      </div>
+    </section>
+
+<section id="code">
+      <h2><span class="en">Driving it from code</span><span class="es">Manejarlo desde código</span></h2>
+      <div class="en">
+  <p>The object is ordinary procedure data, so you never have to go through the prompts at all:</p>
+  <pre>Pic   ImageClass
+
+  <span class="c">! thumbnail a folder of photos into 256-colour GIFs</span>
+  IF Pic.LoadFile(LOC:Source)
+    Pic.Fit(240, 240, Img:Contain)       <span class="c">! keep the ratio, no padding</span>
+    Pic.Sharpen(60)                      <span class="c">! shrinking always softens a little</span>
+    Pic.Convert(Img:Pal256, 1)           <span class="c">! 256 colours, dithered</span>
+    Pic.SaveFile(LOC:Target, Img:Gif)
+  END
+
+  <span class="c">! a 1-bit fax-style copy of a scan, dithered</span>
+  Pic.LoadFile('scan.tif')
+  Pic.Greyscale(Img:Luma)
+  Pic.Convert(Img:Mono, 1)
+  Pic.SaveFile('scan.pbm')               <span class="c">! PNM writes P4 when the image is 1-bit</span>
+
+  <span class="c">! read the frames of an animated GIF</span>
+  IF Pic.LoadFile('spinner.gif')
+    LOOP i = 0 TO Pic.Frames() - 1
+      Pic.LoadFrame(i)
+      Pic.SaveFile('frame' &amp; i &amp; '.png')
+    END
+  END</pre>
+      </div>
+      <div class="es">
+  <p>El objeto es un dato normal del procedimiento, así que no tienes por qué pasar por los prompts:</p>
+  <pre>Pic   ImageClass
+
+  <span class="c">! miniaturas de una carpeta de fotos como GIF de 256 colores</span>
+  IF Pic.LoadFile(LOC:Source)
+    Pic.Fit(240, 240, Img:Contain)       <span class="c">! conserva la proporción, sin relleno</span>
+    Pic.Sharpen(60)                      <span class="c">! reducir siempre ablanda un poco</span>
+    Pic.Convert(Img:Pal256, 1)           <span class="c">! 256 colores, con dither</span>
+    Pic.SaveFile(LOC:Target, Img:Gif)
+  END
+
+  <span class="c">! una copia de 1 bit tipo fax de un escaneo, con dither</span>
+  Pic.LoadFile('scan.tif')
+  Pic.Greyscale(Img:Luma)
+  Pic.Convert(Img:Mono, 1)
+  Pic.SaveFile('scan.pbm')               <span class="c">! PNM escribe P4 si la imagen es de 1 bit</span>
+
+  <span class="c">! recorrer los fotogramas de un GIF animado</span>
+  IF Pic.LoadFile('spinner.gif')
+    LOOP i = 0 TO Pic.Frames() - 1
+      Pic.LoadFrame(i)
+      Pic.SaveFile('frame' &amp; i &amp; '.png')
+    END
+  END</pre>
+      </div>
+    </section>
+
+<section id="formats">
+      <h2><span class="en">File formats</span><span class="es">Formatos de archivo</span></h2>
+      <div class="en">
+  <table>
+    <tr><th>Format</th><th>Equate</th><th>Read</th><th>Write</th><th>Notes</th></tr>
+    <tr><td>BMP</td><td><code>Img:Bmp</code></td><td>yes</td><td>yes</td><td>Written by us, so it can be <b>1, 4, 8, 24 or 32-bit</b> &mdash; the depth follows the colour format unless you force it. (GDI+ only ever writes 24/32.)</td></tr>
+    <tr><td>GIF</td><td><code>Img:Gif</code></td><td>yes</td><td>yes</td><td>Animated files report <code>Frames()</code>; step through them with <code>LoadFrame()</code>.</td></tr>
+    <tr><td>JPEG</td><td><code>Img:Jpeg</code></td><td>yes</td><td>yes</td><td><code>Quality</code> 1&ndash;100, default 85.</td></tr>
+    <tr><td>PNG</td><td><code>Img:Png</code></td><td>yes</td><td>yes</td><td>Alpha survives the whole pipeline.</td></tr>
+    <tr><td>TIFF</td><td><code>Img:Tiff</code></td><td>yes</td><td>yes</td><td>Multi-page files report <code>Frames()</code> too.</td></tr>
+    <tr><td>ICO / CUR</td><td><code>Img:Ico</code></td><td>yes</td><td>&mdash;</td><td>Loads the largest image in the file.</td></tr>
+    <tr><td>EMF / WMF</td><td><code>Img:Emf</code> <code>Img:Wmf</code></td><td>yes</td><td>&mdash;</td><td>Rasterised at its natural size on load.</td></tr>
+    <tr><td>TGA</td><td><code>Img:Tga</code></td><td>yes</td><td>yes</td><td>Ours. Reads 8/15/16/24/32-bit, raw or RLE, palette or greyscale, either row order. Writes 32-bit, RLE by default (<code>Quality = 0</code> writes it raw).</td></tr>
+    <tr><td>PCX</td><td><code>Img:Pcx</code></td><td>yes</td><td>yes</td><td>Ours. Reads 1&ndash;8 bit, 1&ndash;4 planes, EGA and VGA palettes. Writes 24-bit RLE.</td></tr>
+    <tr><td>PNM</td><td><code>Img:Pnm</code></td><td>yes</td><td>yes</td><td>Ours. Reads all six flavours (P1&ndash;P6, ASCII and binary). Writes P4 for 1-bit, P5 for greyscale and P6 otherwise &mdash; it picks by itself.</td></tr>
+    <tr><td>QOI</td><td><code>Img:Qoi</code></td><td>yes</td><td>yes</td><td>Ours. The "Quite OK Image" format: lossless, no dependencies, encodes and decodes very fast.</td></tr>
+  </table>
+  <p><code>LoadFile</code> works out the format from the file's <b>signature</b>, not its extension, so a
+  mislabelled file still opens. <code>SaveFile</code> uses the extension unless you name a format.
+  <code>FormatOfFile()</code> tells you what a file is without decoding it.</p>
+      </div>
+      <div class="es">
+  <table>
+    <tr><th>Formato</th><th>Equate</th><th>Lee</th><th>Escribe</th><th>Notas</th></tr>
+    <tr><td>BMP</td><td><code>Img:Bmp</code></td><td>sí</td><td>sí</td><td>Lo escribimos nosotros, así que puede ser de <b>1, 4, 8, 24 o 32 bits</b> &mdash; la profundidad sigue al formato de color salvo que la fuerces. (GDI+ solo escribe 24/32.)</td></tr>
+    <tr><td>GIF</td><td><code>Img:Gif</code></td><td>sí</td><td>sí</td><td>Los animados informan de <code>Frames()</code>; recórrelos con <code>LoadFrame()</code>.</td></tr>
+    <tr><td>JPEG</td><td><code>Img:Jpeg</code></td><td>sí</td><td>sí</td><td><code>Quality</code> de 1 a 100, 85 por defecto.</td></tr>
+    <tr><td>PNG</td><td><code>Img:Png</code></td><td>sí</td><td>sí</td><td>El alfa sobrevive a toda la cadena.</td></tr>
+    <tr><td>TIFF</td><td><code>Img:Tiff</code></td><td>sí</td><td>sí</td><td>Los de varias páginas también informan de <code>Frames()</code>.</td></tr>
+    <tr><td>ICO / CUR</td><td><code>Img:Ico</code></td><td>sí</td><td>&mdash;</td><td>Carga la imagen más grande del archivo.</td></tr>
+    <tr><td>EMF / WMF</td><td><code>Img:Emf</code> <code>Img:Wmf</code></td><td>sí</td><td>&mdash;</td><td>Se rasteriza a su tamaño natural al cargar.</td></tr>
+    <tr><td>TGA</td><td><code>Img:Tga</code></td><td>sí</td><td>sí</td><td>Nuestro. Lee 8/15/16/24/32 bits, en crudo o RLE, con paleta o en gris, en cualquier orden de filas. Escribe 32 bits, RLE por defecto (<code>Quality = 0</code> lo escribe en crudo).</td></tr>
+    <tr><td>PCX</td><td><code>Img:Pcx</code></td><td>sí</td><td>sí</td><td>Nuestro. Lee de 1 a 8 bits, de 1 a 4 planos, paletas EGA y VGA. Escribe 24 bits con RLE.</td></tr>
+    <tr><td>PNM</td><td><code>Img:Pnm</code></td><td>sí</td><td>sí</td><td>Nuestro. Lee las seis variantes (P1&ndash;P6, ASCII y binaria). Escribe P4 si es de 1 bit, P5 si es gris y P6 en los demás casos &mdash; lo elige solo.</td></tr>
+    <tr><td>QOI</td><td><code>Img:Qoi</code></td><td>sí</td><td>sí</td><td>Nuestro. El formato "Quite OK Image": sin pérdida, sin dependencias, codifica y decodifica muy rápido.</td></tr>
+  </table>
+  <p><code>LoadFile</code> deduce el formato de la <b>firma</b> del archivo, no de su extensión, así que un
+  archivo mal etiquetado igualmente se abre. <code>SaveFile</code> usa la extensión salvo que le indiques un
+  formato. <code>FormatOfFile()</code> te dice qué es un archivo sin decodificarlo.</p>
+      </div>
+    </section>
+
+<section id="colours">
+      <h2><span class="en">Colour formats</span><span class="es">Formatos de color</span></h2>
+      <div class="en">
+  <p>All eleven, converted from the built-in test card. Look at what dithering does at 16 colours and at 1
+  bit, and at the banding you would expect from 16- and 15-bit:</p>
+  <p><img src="myImage-colormodes.png" alt="Every colour format, converted from the test card" style="max-width:100%"></p>
+  <table>
+    <tr><th>Colour format</th><th>Equate</th><th>What you get</th></tr>
+    <tr><td>32-bit true colour + alpha</td><td><code>Img:True32</code></td><td>Everything kept, transparency included. This is what an image is held as internally.</td></tr>
+    <tr><td>24-bit true colour</td><td><code>Img:True24</code></td><td>Alpha discarded (every pixel becomes opaque).</td></tr>
+    <tr><td>16-bit high colour</td><td><code>Img:High16</code></td><td>5-6-5. Optional ordered dither takes the edge off the banding in gradients.</td></tr>
+    <tr><td>15-bit high colour</td><td><code>Img:High15</code></td><td>5-5-5.</td></tr>
+    <tr><td>256 colours</td><td><code>Img:Pal256</code></td><td>A palette built for <i>this</i> image by median cut, then every pixel mapped to its nearest entry.</td></tr>
+    <tr><td>16 colours</td><td><code>Img:Pal16</code></td><td>The same, down to 16. Dithering matters a lot here.</td></tr>
+    <tr><td>256 / 16 / 4 greys</td><td><code>Img:Grey256</code> <code>Img:Grey16</code> <code>Img:Grey4</code></td><td>Luma-weighted, then reduced to 256, 16 or 4 levels.</td></tr>
+    <tr><td>Black &amp; white</td><td><code>Img:Mono</code></td><td>1 bit. Either a straight threshold or Floyd&ndash;Steinberg &mdash; and the difference is night and day on a photograph.</td></tr>
+    <tr><td>Web-safe 216</td><td><code>Img:Web216</code></td><td>The old 6&times;6&times;6 cube, for when something downstream insists on it.</td></tr>
+  </table>
+  <div class="note"><b>The preview always tells the truth</b> A conversion rewrites the pixels themselves, so
+  what you see on screen is exactly what a save at that depth will contain. <code>Colors()</code> returns how
+  many palette entries are in use and <code>PaletteEntry(i)</code> hands you each one &mdash; the demo draws
+  them as swatches.</div>
+      </div>
+      <div class="es">
+  <p>Los once, convertidos desde la carta de ajuste incorporada. Fíjate en lo que hace el dither a 16 colores y
+  a 1 bit, y en el bandeado que cabe esperar de 16 y 15 bits:</p>
+  <p><img src="myImage-colormodes.png" alt="Todos los formatos de color, convertidos desde la carta de ajuste" style="max-width:100%"></p>
+  <table>
+    <tr><th>Formato de color</th><th>Equate</th><th>Qué obtienes</th></tr>
+    <tr><td>32-bit true colour + alpha</td><td><code>Img:True32</code></td><td>Todo se conserva, transparencia incluida. Así es como se guarda una imagen internamente.</td></tr>
+    <tr><td>24-bit true colour</td><td><code>Img:True24</code></td><td>Se descarta el alfa (cada píxel queda opaco).</td></tr>
+    <tr><td>16-bit high colour</td><td><code>Img:High16</code></td><td>5-6-5. Un dither ordenado opcional le quita filo al bandeado de los degradados.</td></tr>
+    <tr><td>15-bit high colour</td><td><code>Img:High15</code></td><td>5-5-5.</td></tr>
+    <tr><td>256 colores</td><td><code>Img:Pal256</code></td><td>Una paleta hecha a medida de <i>esta</i> imagen por corte medio, y luego cada píxel llevado a su entrada más cercana.</td></tr>
+    <tr><td>16 colores</td><td><code>Img:Pal16</code></td><td>Lo mismo, hasta 16. Aquí el dither importa muchísimo.</td></tr>
+    <tr><td>256 / 16 / 4 grises</td><td><code>Img:Grey256</code> <code>Img:Grey16</code> <code>Img:Grey4</code></td><td>Ponderados por luminancia y luego reducidos a 256, 16 o 4 niveles.</td></tr>
+    <tr><td>Blanco y negro</td><td><code>Img:Mono</code></td><td>1 bit. Umbral directo o Floyd&ndash;Steinberg &mdash; y en una fotografía la diferencia es abismal.</td></tr>
+    <tr><td>Web-safe 216</td><td><code>Img:Web216</code></td><td>El viejo cubo de 6&times;6&times;6, por si algo más adelante lo exige.</td></tr>
+  </table>
+  <div class="note"><b>La vista previa siempre dice la verdad</b> Una conversión reescribe los propios píxeles,
+  así que lo que ves en pantalla es exactamente lo que contendrá un guardado a esa profundidad.
+  <code>Colors()</code> devuelve cuántas entradas de paleta se usan y <code>PaletteEntry(i)</code> te da cada
+  una &mdash; el demo las dibuja como muestras de color.</div>
+      </div>
+    </section>
+
+<section id="api">
+      <h2><span class="en">ImageClass API</span><span class="es">API de ImageClass</span></h2>
+      <div class="en">
+  <p>Every method returns 1 when it worked and 0 when it did not; <code>LastError()</code> explains a 0. An
+  object owns one image and frees it in its Destruct, so there is nothing to clean up by hand.</p>
+  <h3>Open, make, close</h3>
+  <table>
+    <tr><th>Member</th><th>Meaning</th></tr>
+    <tr><td><code>LoadFile(path)</code></td><td>Read any of the twelve formats. The format comes from the file signature.</td></tr>
+    <tr><td><code>LoadFrame(n)</code></td><td>Select frame <code>n</code> (0-based) of an animated GIF or multi-page TIFF.</td></tr>
+    <tr><td><code>MakeImage(w, h, argb)</code></td><td>A new image of a solid colour.</td></tr>
+    <tr><td><code>TestCard(w, h)</code></td><td>The built-in colour bars / hue sweep / grey ramp card.</td></tr>
+    <tr><td><code>CloneInto(other)</code></td><td>Copy this image into another <code>ImageClass</code> object.</td></tr>
+    <tr><td><code>Kill()</code></td><td>Release the image now rather than at Destruct.</td></tr>
+  </table>
+  <h3>What have we got</h3>
+  <table>
+    <tr><th>Member</th><th>Meaning</th></tr>
+    <tr><td><code>Ok()</code>, <code>Wide()</code>, <code>High()</code></td><td>Is there an image, and how big.</td></tr>
+    <tr><td><code>SrcFormat()</code>, <code>SrcDepth()</code></td><td>What the <i>file</i> was: format equate and bits per pixel.</td></tr>
+    <tr><td><code>ColorMode()</code>, <code>Colors()</code></td><td>The colour format now, and how many palette entries are in use.</td></tr>
+    <tr><td><code>Frames()</code></td><td>Frames in an animated GIF or pages in a TIFF.</td></tr>
+    <tr><td><code>FormatName()</code>, <code>ColorModeName()</code>, <code>Describe()</code></td><td>Ready-to-show text; <code>Describe()</code> is a one-liner for a status bar.</td></tr>
+    <tr><td><code>Pixel(x,y)</code>, <code>SetPixel(x,y,argb)</code>, <code>PaletteEntry(i)</code></td><td>Single pixels and palette entries, as 0xAARRGGBB.</td></tr>
+    <tr><td><code>Histogram()</code>, <code>HistogramBin(i)</code></td><td>Build the luma histogram (returns the tallest bin) then read bins 0&ndash;255.</td></tr>
+    <tr><td><code>FormatOfFile(path)</code>, <code>FormatFromExt(path)</code>, <code>CanWrite(fmt)</code>, <code>Extensions(fmt)</code></td><td>Format helpers; <code>Extensions()</code> gives you a <code>FILEDIALOG</code> mask.</td></tr>
+  </table>
+  <h3>Shape</h3>
+  <table>
+    <tr><th>Member</th><th>Meaning</th></tr>
+    <tr><td><code>RotateRight()</code>, <code>RotateLeft()</code>, <code>Rotate180()</code></td><td>Exact quarter turns.</td></tr>
+    <tr><td><code>Rotate(degrees, back, grow, smooth)</code></td><td>Any angle. <code>grow</code> expands the canvas so nothing is clipped; <code>smooth</code> samples bilinearly.</td></tr>
+    <tr><td><code>Mirror()</code>, <code>FlipVert()</code></td><td>Left-to-right, top-to-bottom.</td></tr>
+    <tr><td><code>Resize(w, h, filter)</code>, <code>Zoom(percent, filter)</code></td><td>Filters: <code>Img:Fast</code>, <code>Img:Smooth</code>, <code>Img:Best</code>.</td></tr>
+    <tr><td><code>Fit(w, h, mode, back)</code>, <code>Thumbnail(box)</code></td><td>Modes: <code>Img:Stretch</code>, <code>Img:Proportional</code>, <code>Img:Cover</code>, <code>Img:Centered</code>, <code>Img:Contain</code>.</td></tr>
+    <tr><td><code>Crop(x, y, w, h)</code>, <code>CanvasSize(w, h, anchor, back)</code></td><td>Cut down, or grow the canvas around the image (nine anchors).</td></tr>
+  </table>
+  <h3>Colour and tone</h3>
+  <table>
+    <tr><th>Member</th><th>Meaning</th></tr>
+    <tr><td><code>Convert(mode, dither, threshold)</code></td><td>Any of the eleven colour formats.</td></tr>
+    <tr><td><code>Greyscale(mode)</code>, <code>BlackWhite(threshold, dither)</code></td><td>Weightings: <code>Img:Luma</code>, <code>Img:Average</code>, <code>Img:Lightness</code>, <code>Img:Luma709</code>.</td></tr>
+    <tr><td><code>Adjust(bright, contrast, saturation)</code></td><td>All three in one pass, each &minus;100 to 100.</td></tr>
+    <tr><td><code>Gamma(g)</code>, <code>Levels(inLo, inHi, outLo, outHi)</code>, <code>ApplyLut(lut, channels)</code></td><td>The first two build a 256-byte table and hand it to the third &mdash; write your own table for curves.</td></tr>
+    <tr><td><code>Invert()</code>, <code>Sepia()</code>, <code>Posterize(levels)</code></td><td>The quick ones.</td></tr>
+    <tr><td><code>Blur(radius, passes)</code>, <code>Sharpen(amount)</code></td><td>Box blur (2 passes ≈ gaussian) and unsharp mask.</td></tr>
+    <tr><td><code>Flatten(back)</code>, <code>Opacity(percent)</code></td><td>Composite the alpha onto a colour, or scale it.</td></tr>
+  </table>
+  <h3>Combine and show</h3>
+  <table>
+    <tr><th>Member</th><th>Meaning</th></tr>
+    <tr><td><code>DrawOnto(src, x, y, w, h, alpha)</code></td><td>Composite another image onto this one &mdash; watermarks, badges, contact sheets.</td></tr>
+    <tr><td><code>Draw(window, ?image, fit, back)</code></td><td>Show it in an <code>IMAGE</code> control. A <b>copy</b> is fitted to the control, so the image itself is never touched.</td></tr>
+    <tr><td><code>SaveFile(path, fmt)</code>, <code>SaveTemp()</code></td><td>Write it out; <code>SaveTemp()</code> drops a PNG in %TEMP% and returns the path.</td></tr>
+    <tr><td><code>Quality</code>, <code>BmpBits</code></td><td>JPEG quality (default 85) and a forced BMP depth (0 = follow the colour format).</td></tr>
+    <tr><td><code>ArgbOf(clarionColor, alpha)</code></td><td>Clarion colours are BGR longs; the engine wants 0xAARRGGBB. This converts.</td></tr>
+  </table>
+      </div>
+      <div class="es">
+  <p>Cada método devuelve 1 si funcionó y 0 si no; <code>LastError()</code> explica un 0. Un objeto es dueño de
+  una imagen y la libera en su Destruct, así que no hay nada que limpiar a mano.</p>
+  <h3>Abrir, crear, cerrar</h3>
+  <table>
+    <tr><th>Miembro</th><th>Significado</th></tr>
+    <tr><td><code>LoadFile(path)</code></td><td>Lee cualquiera de los doce formatos. El formato sale de la firma del archivo.</td></tr>
+    <tr><td><code>LoadFrame(n)</code></td><td>Selecciona el fotograma <code>n</code> (desde 0) de un GIF animado o un TIFF de varias páginas.</td></tr>
+    <tr><td><code>MakeImage(w, h, argb)</code></td><td>Una imagen nueva de un color liso.</td></tr>
+    <tr><td><code>TestCard(w, h)</code></td><td>La carta incorporada de barras de color, barrido de tono y rampa de grises.</td></tr>
+    <tr><td><code>CloneInto(otro)</code></td><td>Copia esta imagen en otro objeto <code>ImageClass</code>.</td></tr>
+    <tr><td><code>Kill()</code></td><td>Libera la imagen ya, en vez de esperar al Destruct.</td></tr>
+  </table>
+  <h3>Qué tenemos</h3>
+  <table>
+    <tr><th>Miembro</th><th>Significado</th></tr>
+    <tr><td><code>Ok()</code>, <code>Wide()</code>, <code>High()</code></td><td>Si hay imagen, y de qué tamaño.</td></tr>
+    <tr><td><code>SrcFormat()</code>, <code>SrcDepth()</code></td><td>Qué era el <i>archivo</i>: equate de formato y bits por píxel.</td></tr>
+    <tr><td><code>ColorMode()</code>, <code>Colors()</code></td><td>El formato de color actual, y cuántas entradas de paleta se usan.</td></tr>
+    <tr><td><code>Frames()</code></td><td>Fotogramas de un GIF animado o páginas de un TIFF.</td></tr>
+    <tr><td><code>FormatName()</code>, <code>ColorModeName()</code>, <code>Describe()</code></td><td>Texto listo para mostrar; <code>Describe()</code> cabe en una línea de estado.</td></tr>
+    <tr><td><code>Pixel(x,y)</code>, <code>SetPixel(x,y,argb)</code>, <code>PaletteEntry(i)</code></td><td>Píxeles sueltos y entradas de paleta, como 0xAARRGGBB.</td></tr>
+    <tr><td><code>Histogram()</code>, <code>HistogramBin(i)</code></td><td>Construye el histograma de luminancia (devuelve la barra más alta) y luego lee las barras 0&ndash;255.</td></tr>
+    <tr><td><code>FormatOfFile(path)</code>, <code>FormatFromExt(path)</code>, <code>CanWrite(fmt)</code>, <code>Extensions(fmt)</code></td><td>Ayudas de formato; <code>Extensions()</code> te da una máscara para <code>FILEDIALOG</code>.</td></tr>
+  </table>
+  <h3>Forma</h3>
+  <table>
+    <tr><th>Miembro</th><th>Significado</th></tr>
+    <tr><td><code>RotateRight()</code>, <code>RotateLeft()</code>, <code>Rotate180()</code></td><td>Cuartos de vuelta exactos.</td></tr>
+    <tr><td><code>Rotate(grados, fondo, crecer, suave)</code></td><td>Cualquier ángulo. <code>crecer</code> agranda el lienzo para no recortar nada; <code>suave</code> muestrea bilinealmente.</td></tr>
+    <tr><td><code>Mirror()</code>, <code>FlipVert()</code></td><td>De izquierda a derecha, de arriba a abajo.</td></tr>
+    <tr><td><code>Resize(w, h, filtro)</code>, <code>Zoom(porcentaje, filtro)</code></td><td>Filtros: <code>Img:Fast</code>, <code>Img:Smooth</code>, <code>Img:Best</code>.</td></tr>
+    <tr><td><code>Fit(w, h, modo, fondo)</code>, <code>Thumbnail(cuadro)</code></td><td>Modos: <code>Img:Stretch</code>, <code>Img:Proportional</code>, <code>Img:Cover</code>, <code>Img:Centered</code>, <code>Img:Contain</code>.</td></tr>
+    <tr><td><code>Crop(x, y, w, h)</code>, <code>CanvasSize(w, h, ancla, fondo)</code></td><td>Recorta, o agranda el lienzo alrededor de la imagen (nueve anclas).</td></tr>
+  </table>
+  <h3>Color y tono</h3>
+  <table>
+    <tr><th>Miembro</th><th>Significado</th></tr>
+    <tr><td><code>Convert(modo, dither, umbral)</code></td><td>Cualquiera de los once formatos de color.</td></tr>
+    <tr><td><code>Greyscale(modo)</code>, <code>BlackWhite(umbral, dither)</code></td><td>Ponderaciones: <code>Img:Luma</code>, <code>Img:Average</code>, <code>Img:Lightness</code>, <code>Img:Luma709</code>.</td></tr>
+    <tr><td><code>Adjust(brillo, contraste, saturación)</code></td><td>Los tres en una pasada, cada uno de &minus;100 a 100.</td></tr>
+    <tr><td><code>Gamma(g)</code>, <code>Levels(inLo, inHi, outLo, outHi)</code>, <code>ApplyLut(lut, canales)</code></td><td>Los dos primeros construyen una tabla de 256 bytes y se la pasan al tercero &mdash; escribe tu propia tabla para hacer curvas.</td></tr>
+    <tr><td><code>Invert()</code>, <code>Sepia()</code>, <code>Posterize(niveles)</code></td><td>Los rápidos.</td></tr>
+    <tr><td><code>Blur(radio, pasadas)</code>, <code>Sharpen(cantidad)</code></td><td>Desenfoque de caja (2 pasadas ≈ gaussiana) y máscara de desenfoque.</td></tr>
+    <tr><td><code>Flatten(fondo)</code>, <code>Opacity(porcentaje)</code></td><td>Compone el alfa sobre un color, o lo escala.</td></tr>
+  </table>
+  <h3>Combinar y mostrar</h3>
+  <table>
+    <tr><th>Miembro</th><th>Significado</th></tr>
+    <tr><td><code>DrawOnto(origen, x, y, w, h, alfa)</code></td><td>Compone otra imagen sobre esta &mdash; marcas de agua, distintivos, hojas de contactos.</td></tr>
+    <tr><td><code>Draw(ventana, ?image, encaje, fondo)</code></td><td>La muestra en un control <code>IMAGE</code>. Se encaja una <b>copia</b> al control, así que la imagen en sí nunca se toca.</td></tr>
+    <tr><td><code>SaveFile(path, fmt)</code>, <code>SaveTemp()</code></td><td>Escribe el archivo; <code>SaveTemp()</code> deja un PNG en %TEMP% y devuelve la ruta.</td></tr>
+    <tr><td><code>Quality</code>, <code>BmpBits</code></td><td>Calidad JPEG (85 por defecto) y profundidad de BMP forzada (0 = seguir al formato de color).</td></tr>
+    <tr><td><code>ArgbOf(colorClarion, alfa)</code></td><td>Los colores de Clarion son longs BGR; el motor quiere 0xAARRGGBB. Esto lo convierte.</td></tr>
+  </table>
+      </div>
+    </section>
+
+<section id="engine">
+      <h2><span class="en">How the engine works</span><span class="es">Cómo funciona el motor</span></h2>
+      <div class="en">
+  <p>Worth knowing if you ever need to extend it, or to satisfy yourself about what ends up in your exe.</p>
+  <h3>Who does what</h3>
+  <p><b>GDI+</b> does exactly two jobs: decoding the eight formats Windows already owns (BMP, GIF, JPEG, PNG,
+  TIFF, ICO, EMF, WMF) and encoding PNG, JPEG, GIF and TIFF. It is bound at run time with
+  <code>LoadLibrary</code> + <code>GetProcAddress</code>, so nothing is linked and nothing is redistributed &mdash;
+  <code>gdiplus.dll</code> is part of Windows.</p>
+  <p><b>Everything else is plain C</b> in <code>imgcore.c</code>: the TGA, PCX, PNM, QOI and BMP codecs, the
+  quantiser, the dithering, every resample, every rotation and every adjustment. That is why the behaviour is
+  identical on every machine and why the odd formats work at all.</p>
+  <h3>No C runtime, no libm</h3>
+  <p>Clarion's C compiler gives you neither, so the engine asks for neither. Memory comes from
+  <code>LocalAlloc</code>, files from <code>CreateFileA</code>/<code>ReadFile</code>/<code>WriteFile</code>, and
+  the handful of helpers it needs (a memcpy, a memset, a strlen) are written out. Anything that would need
+  <code>sin</code>, <code>cos</code> or <code>pow</code> is worked out <b>in Clarion</b> and handed across:
+  free rotation receives a cosine and a sine, and gamma and levels arrive as a finished 256-byte lookup table.
+  It is a good division &mdash; Clarion is perfectly quick at doing something 256 times, and hopeless at doing
+  it two million times.</p>
+  <h3>One buffer, no copies</h3>
+  <p>An image is held as 32-bit <b>B,G,R,A</b> &mdash; the byte order of GDI+'s 32bppARGB &mdash; so
+  <code>GdipCreateBitmapFromScan0</code> can wrap a GDI+ bitmap straight over our own buffer. Decoding draws
+  into it and encoding reads out of it, and neither direction ever copies the pixels.</p>
+  <h3>Reducing colours</h3>
+  <p>Palettes are built by <b>median cut</b>: the colours are counted into a 32&times;32&times;32 histogram, the
+  box holding the most pixels is split along its longest axis at the population median, and that repeats until
+  there are as many boxes as you asked for colours. Each box then contributes its population-weighted average.
+  Mapping pixels to that palette is cached on the same 5-5-5 cell, so it costs one lookup per pixel after the
+  first of its kind. Dithering is <b>Floyd&ndash;Steinberg</b>, in colour for palettes and on the luma plane for
+  greys and black &amp; white.</p>
+      </div>
+      <div class="es">
+  <p>Conviene saberlo si algún día quieres extenderlo, o para quedarte tranquilo sobre lo que acaba dentro de
+  tu exe.</p>
+  <h3>Quién hace qué</h3>
+  <p><b>GDI+</b> hace exactamente dos trabajos: decodificar los ocho formatos que Windows ya conoce (BMP, GIF,
+  JPEG, PNG, TIFF, ICO, EMF, WMF) y codificar PNG, JPEG, GIF y TIFF. Se enlaza en tiempo de ejecución con
+  <code>LoadLibrary</code> + <code>GetProcAddress</code>, así que no se enlaza ni se distribuye nada &mdash;
+  <code>gdiplus.dll</code> forma parte de Windows.</p>
+  <p><b>Todo lo demás es C puro</b> dentro de <code>imgcore.c</code>: los códecs de TGA, PCX, PNM, QOI y BMP, el
+  cuantizador, el dither, cada remuestreo, cada rotación y cada ajuste. Por eso el comportamiento es idéntico en
+  cualquier máquina y por eso los formatos raros funcionan siquiera.</p>
+  <h3>Sin runtime de C, sin libm</h3>
+  <p>El compilador C de Clarion no te da ninguno de los dos, así que el motor no pide ninguno. La memoria sale de
+  <code>LocalAlloc</code>, los archivos de <code>CreateFileA</code>/<code>ReadFile</code>/<code>WriteFile</code>,
+  y las pocas ayudas que necesita (un memcpy, un memset, un strlen) están escritas a mano. Cualquier cosa que
+  necesitaría <code>sin</code>, <code>cos</code> o <code>pow</code> se calcula <b>en Clarion</b> y se pasa al
+  otro lado: la rotación libre recibe un coseno y un seno, y el gamma y los niveles llegan como una tabla de
+  consulta de 256 bytes ya hecha. Es un buen reparto &mdash; Clarion es perfectamente rápido haciendo algo 256
+  veces, y desastroso haciéndolo dos millones de veces.</p>
+  <h3>Un solo búfer, sin copias</h3>
+  <p>Una imagen se guarda como 32 bits <b>B,G,R,A</b> &mdash; el orden de bytes del 32bppARGB de GDI+ &mdash;, así
+  que <code>GdipCreateBitmapFromScan0</code> puede envolver un bitmap de GDI+ directamente sobre nuestro propio
+  búfer. Al decodificar se dibuja dentro y al codificar se lee de ahí, y en ninguna de las dos direcciones se
+  copian los píxeles.</p>
+  <h3>Reducir colores</h3>
+  <p>Las paletas se construyen por <b>corte medio</b>: los colores se cuentan en un histograma de
+  32&times;32&times;32, la caja con más píxeles se parte por su eje más largo en la mediana de población, y eso
+  se repite hasta tener tantas cajas como colores pediste. Después cada caja aporta su promedio ponderado por
+  población. La correspondencia de píxeles con esa paleta se cachea en la misma celda 5-5-5, así que cuesta una
+  consulta por píxel a partir del primero de su clase. El dither es <b>Floyd&ndash;Steinberg</b>, en color para
+  las paletas y sobre el plano de luminancia para los grises y el blanco y negro.</p>
+      </div>
+    </section>
+
+<section id="trouble">
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></h2>
+      <div class="en">
+  <table>
+    <tr><th>Symptom</th><th>Cause / fix</th></tr>
+    <tr><td>"File not found: ImageClass.INC" at compile</td><td>The three files are not on the redirection path &mdash; copy <code>ImageClass.inc</code>, <code>ImageClass.clw</code> <b>and</b> <code>imgcore.c</code> beside the app or into <code>\clarion12\libsrc\win</code>. <code>imgcore.c</code> is easy to forget: without it the class compiles and the link fails.</td></tr>
+    <tr><td>"Illegal data type: IMAGECLASS"</td><td>Classic sign that <code>ImageClass.inc</code> was saved with LF line ends (or as UTF-8). Save it as ANSI with CRLF.</td></tr>
+    <tr><td>Template will not register</td><td>Same thing for the .tpl: keep it ANSI/CRLF.</td></tr>
+    <tr><td><code>LoadFile</code> returns 0</td><td>Check <code>LastError()</code>: 41 = the file could not be read at all (name, path, locked); 200+n = GDI+ refused it (n is its status); 12 = all 32 image handles are in use, so something is not calling <code>Kill()</code>.</td></tr>
+    <tr><td>Nothing shows in the IMAGE control</td><td><code>Draw()</code> needs the control to have a real size &mdash; below 4 pixels either way it gives up. Also make sure you passed the same window the control lives on.</td></tr>
+    <tr><td>The picture is stretched or cropped oddly</td><td>That is the <b>Fit</b> prompt. Proportional pads, cover crops, contain does neither, stretch ignores the ratio.</td></tr>
+    <tr><td>A shrunk photo looks soft</td><td>It always does &mdash; that is what area-averaging is. Add a little <b>Sharpen</b> (60&ndash;100) after the resize.</td></tr>
+    <tr><td>256 colours looks blotchy</td><td>Turn <b>Dither</b> on. Without it, flat areas band; with it, they do not.</td></tr>
+    <tr><td>Saving to GIF gives more colours than expected</td><td>GIF is written by GDI+, which quantises on its own. To control the palette yourself, <code>Convert(Img:Pal256, 1)</code> first &mdash; then what you saw is what you get.</td></tr>
+    <tr><td>The colours came out wrong</td><td>Clarion colours are <b>BGR</b> longs and the engine takes <b>0xAARRGGBB</b>. Use <code>ArgbOf()</code> to cross between them.</td></tr>
+  </table>
+      </div>
+      <div class="es">
+  <table>
+    <tr><th>Síntoma</th><th>Causa / solución</th></tr>
+    <tr><td>"File not found: ImageClass.INC" al compilar</td><td>Los tres archivos no están en el camino de redirección &mdash; copia <code>ImageClass.inc</code>, <code>ImageClass.clw</code> <b>y</b> <code>imgcore.c</code> junto a la app o dentro de <code>\clarion12\libsrc\win</code>. <code>imgcore.c</code> es fácil de olvidar: sin él la clase compila y falla el enlazado.</td></tr>
+    <tr><td>"Illegal data type: IMAGECLASS"</td><td>Señal clásica de que <code>ImageClass.inc</code> se guardó con finales de línea LF (o como UTF-8). Guárdalo en ANSI con CRLF.</td></tr>
+    <tr><td>La plantilla no se registra</td><td>Lo mismo para el .tpl: mantenlo en ANSI/CRLF.</td></tr>
+    <tr><td><code>LoadFile</code> devuelve 0</td><td>Mira <code>LastError()</code>: 41 = no se pudo leer el archivo (nombre, ruta, bloqueado); 200+n = GDI+ lo rechazó (n es su estado); 12 = los 32 manejadores de imagen están ocupados, así que algo no está llamando a <code>Kill()</code>.</td></tr>
+    <tr><td>No aparece nada en el control IMAGE</td><td><code>Draw()</code> necesita que el control tenga tamaño real &mdash; por debajo de 4 píxeles en cualquier lado se rinde. Comprueba también que pasaste la ventana en la que está el control.</td></tr>
+    <tr><td>La imagen sale estirada o recortada de forma rara</td><td>Eso es el prompt <b>Fit</b>. Proportional rellena, cover recorta, contain no hace ninguna de las dos, y stretch ignora la proporción.</td></tr>
+    <tr><td>Una foto reducida se ve blanda</td><td>Siempre pasa &mdash; es lo que hace el promedio por área. Añade un poco de <b>Sharpen</b> (60&ndash;100) después de redimensionar.</td></tr>
+    <tr><td>A 256 colores se ve a manchas</td><td>Activa el <b>Dither</b>. Sin él las zonas planas hacen bandas; con él, no.</td></tr>
+    <tr><td>Guardar en GIF da más colores de los esperados</td><td>El GIF lo escribe GDI+, que cuantiza por su cuenta. Para controlar tú la paleta, haz antes <code>Convert(Img:Pal256, 1)</code> &mdash; y entonces lo que viste es lo que obtienes.</td></tr>
+    <tr><td>Los colores salieron mal</td><td>Los colores de Clarion son longs <b>BGR</b> y el motor toma <b>0xAARRGGBB</b>. Usa <code>ArgbOf()</code> para pasar de unos a otros.</td></tr>
+  </table>
+      </div>
+    </section>
+
+    </div>
+    <footer><span class="en">myImage v1.0 · 12 formats in, 9 out · every colour format · C engine compiled into your exe · part of the templatemaker collection</span>
+      <span class="es">myImage v1.0 · 12 formatos de entrada, 9 de salida · todos los formatos de color · motor en C compilado en tu exe · parte de la colección templatemaker</span></footer>
+  </main>
+</div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('gbt-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('gbt-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
+</body>
+</html>

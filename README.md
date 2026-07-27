@@ -355,7 +355,10 @@ END
 ```
 
 Copy `ImageClass.inc` + `ImageClass.clw` + `imgcore.c` to the redirection path —
-[`myImage.zip`](templates/myImage/myImage.zip) bundles all four files. `examples/myImage/` has
+[`myImage.zip`](templates/myImage/myImage.zip) bundles all four files. Full bilingual (English +
+Spanish) documentation — prompts, the class API, every format and colour format, how the engine is put
+together, and troubleshooting — is in
+[`docs/myImage-template.html`](docs/myImage-template.html). `examples/myImage/` has
 **ImageDemo** (open anything, push it through every conversion and transform, watch the histogram and
 palette update, save it back out) and **ImgTest**, a headless harness that round-trips all nine writable
 formats and all eleven colour formats and writes the results to an INI.
