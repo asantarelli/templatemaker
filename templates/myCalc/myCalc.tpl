@@ -80,7 +80,11 @@ INCLUDE('CalcClass.INC'),ONCE
 #! The application-wide language, as a real global the per-window code can
 #! read. Control templates default to it, and may override it per button.
 #AT(%GlobalData),WHERE(%mcgDisable=0)
+#IF(%mcgLanguage)
 myCalcLanguage       BYTE(%mcgLanguage)                   ! 1 = English, 2 = Espanol
+#ELSE
+myCalcLanguage       BYTE(1)                              ! 1 = English, 2 = Espanol
+#ENDIF
 #ENDAT
 #!#############################################################################
 #!  CONTROL TEMPLATE - myCalcButton  -  a calculator beside one numeric field
@@ -135,7 +139,8 @@ myCalcLanguage       BYTE(%mcgLanguage)                   ! 1 = English, 2 = Esp
     #ENDBOXED
     #BOXED('Language')
       #PROMPT('&Language:',DROP('Use the application setting[0]|English[1]|Español (Spanish)[2]')),%mcLang,DEFAULT('0')
-      #DISPLAY('The application setting lives on the myCalc - Global extension.')
+      #DISPLAY('The application setting lives on the myCalc - Global extension,')
+      #DISPLAY('and is what every calculator uses unless you override it here.')
     #ENDBOXED
   #ENDTAB
   #TAB('&Remember')
@@ -201,10 +206,10 @@ INCLUDE('CalcClass.INC'),ONCE
   %mcObject.TaxRate  = %mcTax
   %mcObject.Angle    = %mcRad
   %mcObject.WordBits = %mcBits
-#IF(%mcLang = '0')
-  %mcObject.Language = myCalcLanguage                      ! the application setting
+#IF(%mcLang AND %mcLang <> '0')
+  %mcObject.Language = %mcLang                             ! this button overrides
 #ELSE
-  %mcObject.Language = %mcLang
+  %mcObject.Language = myCalcLanguage                      ! whatever the global says
 #ENDIF
 #IF(%mcPersist)
   %mcObject.Persist  = 1                                   ! remember the calculator type
@@ -304,10 +309,10 @@ INCLUDE('CalcClass.INC'),ONCE
 %mkObject.ShowTape = %mkTape
 %mkObject.Decimals = %mkDecs
 %mkObject.TaxRate  = %mkTax
-#IF(%mkLang = '0')
-%mkObject.Language = myCalcLanguage
+#IF(%mkLang AND %mkLang <> '0')
+%mkObject.Language = %mkLang                               ! this one overrides
 #ELSE
-%mkObject.Language = %mkLang
+%mkObject.Language = myCalcLanguage                        ! whatever the global says
 #ENDIF
 #IF(%mkPersist)
 %mkObject.Persist  = 1

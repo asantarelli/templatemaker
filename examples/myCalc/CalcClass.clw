@@ -820,6 +820,11 @@ p  CSTRING(65)
 
 
 !  The mode is the one the user notices, so it is the first thing restored.
+!
+!  Language is deliberately NOT saved or restored. There is no language
+!  picker in the window - it is a developer setting that comes from the
+!  template - so remembering it would let a value saved by an older build
+!  silently override whatever the template now says.
 CalcClass.LoadSettings PROCEDURE
 f     CSTRING(261)
 sect  CSTRING(80)
@@ -836,7 +841,6 @@ m     BYTE,AUTO
   SELF.WordBits = GETINI(sect,'WordBits',SELF.WordBits,f)
   SELF.Decimals = GETINI(sect,'Decimals',SELF.Decimals,f)
   SELF.TaxRate  = GETINI(sect,'TaxRate',SELF.TaxRate,f)
-  SELF.Language = GETINI(sect,'Language',SELF.Language,f)
   CASE SELF.Base                                          ! never restore rubbish
   OF 2 OROF 8 OROF 10 OROF 16
   ELSE
@@ -848,7 +852,6 @@ m     BYTE,AUTO
     SELF.WordBits = 32
   END
   IF SELF.Decimals > 8 THEN SELF.Decimals = 2 .
-  IF SELF.Language <> Calc:Spanish THEN SELF.Language = Calc:English .
 
 
 CalcClass.SaveSettings PROCEDURE
@@ -864,7 +867,6 @@ sect  CSTRING(80)
   PUTINI(sect,'WordBits',SELF.WordBits,f)
   PUTINI(sect,'Decimals',SELF.Decimals,f)
   PUTINI(sect,'TaxRate',SELF.TaxRate,f)
-  PUTINI(sect,'Language',SELF.Language,f)
 
 
 CalcClass.ForgetSettings PROCEDURE
@@ -880,7 +882,7 @@ sect  CSTRING(80)
   PUTINI(sect,'WordBits','',f)
   PUTINI(sect,'Decimals','',f)
   PUTINI(sect,'TaxRate','',f)
-  PUTINI(sect,'Language','',f)
+  PUTINI(sect,'Language','',f)                            ! tidy up older INIs
   SELF.Loaded = 0
 
 
@@ -996,6 +998,7 @@ CalcWnd WINDOW('Calculator'),AT(,,352,302),FONT('Segoe UI',9,,FONT:regular,CHARS
            BUTTON('Cancel'),AT(286,280,54,15),USE(?CCancel)
          END
   CODE
+  IF SELF.Language <> Calc:Spanish THEN SELF.Language = Calc:English .
   IF SELF.Persist AND ~SELF.Loaded THEN SELF.LoadSettings() .
   IF ~SELF.Allowed(SELF.Mode)                             ! the saved mode may be switched off now
     LOOP i = 1 TO Calc:Modes

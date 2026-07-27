@@ -546,9 +546,11 @@ the tape in accountant mode, the history of finished calculations in the others,
 
 **It remembers where you left it.** Which calculator you were last on comes back the next time the *program*
 runs, along with DEG/RAD, the number base, the word size, the decimals and the tax rate — each profile saved
-under its own INI section. **And it speaks Spanish**: a language setting on the global extension switches the
-mode names, the window labels and the word keys (Borr, SUBT, TG, IVA+/IVA-, Aceptar, Cancelar) for every
-calculator in the application, with a per-button override. Digits, operators and the maths names read the same
+under its own INI section. **And it speaks Spanish**: the **language setting on the global extension** is what every
+calculator in the application follows — mode names, window labels and the word keys (Borr, SUBT, TG,
+IVA+/IVA-, Aceptar, Cancelar) — with an optional per-button override. The language is deliberately *not*
+remembered between runs: there is no language picker in the calculator, so it is the template's call, and
+saving it would let an old value shadow whatever you set today. Digits, operators and the maths names read the same
 either way.
 
 The keypad is a 7×7 grid re-labelled per mode, driven through a single `Press(action, text)` entry point — so
