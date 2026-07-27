@@ -485,6 +485,9 @@ Show:%miObject ROUTINE
       #SET(%mvImage,%Control)
     #ENDIF
   #ENDFOR
+  #IF(%mvImage='')
+    #ERROR('myImage view in ' & %Procedure & ': the view could not find its own IMAGE control. Delete this control template instance and drop it again.')
+  #ENDIF
   #SET(%mvKey,SUB(%mvImage,2,250))
   #SET(%mvCp,INSTRING(':',%mvKey,1,1))
   #LOOP,WHILE(%mvCp>0)
@@ -599,7 +602,7 @@ Show:%miObject ROUTINE
       #PROMPT('&Disable this panel',CHECK),%mtDisable,DEFAULT(0),AT(10)
       #PROMPT('Drive:',DROP('A myImage view control[V]|A myImage extension object[E]')),%mtLink,DEFAULT('V')
       #ENABLE(%mtLink='V')
-        #PROMPT('The view''s &IMAGE control:',CONTROL),%mtImage
+        #PROMPT('The view''s &IMAGE control:',CONTROL),%mtImage,REQ
         #DISPLAY('Pick the IMAGE that the myImage view control dropped. The')
         #DISPLAY('panel works out every name it needs from that one control,')
         #DISPLAY('so there is nothing to keep in step.')
@@ -637,6 +640,9 @@ Show:%miObject ROUTINE
   #DECLARE(%mtLive)
   #SET(%mtLive,0)
   #IF(%mtLink='E')
+    #IF(%mtObject='')
+      #ERROR('myImage tools panel in ' & %Procedure & ': type the myImage extension''s Object name on the panel''s General tab.')
+    #ENDIF
     #SET(%mtObj,%mtObject)
     #SET(%mtMaster,%mtObject)
     #SET(%mtRebuild,'DO Show:' & %mtObject)
@@ -648,6 +654,9 @@ Show:%miObject ROUTINE
       #SET(%mtKey,SUB(%mtKey,1,%mtCp-1) & '_' & SUB(%mtKey,%mtCp+1,250))
       #SET(%mtCp,INSTRING(':',%mtKey,1,1))
     #ENDLOOP
+    #IF(%mtKey='')
+      #ERROR('myImage tools panel in ' & %Procedure & ': pick the view''s IMAGE control on the panel''s General tab (the "Drive" prompt) - without it there is no image to drive.')
+    #ENDIF
     #SET(%mtObj,%mtKey & ':Pic')
     #SET(%mtMaster,%mtKey & ':Master')
     #SET(%mtRebuild,'DO ' & %mtKey & ':Rebuild')
