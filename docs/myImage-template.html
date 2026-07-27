@@ -347,6 +347,24 @@ Show:Photo ROUTINE
   <p>Six tick-boxes on the panel's prompts decide: file, turn, zoom, colour list, effects, reset. Anything you
   untick is hidden when the window opens &mdash; the controls stay on the window, so you can turn a group back
   on later without re-dropping anything.</p>
+  <h3>The prompts</h3>
+  <p><b>myImage - Image view</b></p>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Load</td><td>A test card</td><td>Nothing, a fixed file name, a variable/expression, or the built-in test card. The test card is the default on purpose: drop the control, run, and there is already something on screen to convert.</td></tr>
+    <tr><td>Fit</td><td>Proportional (pad)</td><td>How the picture meets the control &mdash; proportional, contain, cover, stretch or centred 1:1.</td></tr>
+    <tr><td>Pad / background color</td><td>white</td><td>The letterbox bars, and the corners a free rotation leaves behind.</td></tr>
+    <tr><td>Colour / Dither</td><td>As loaded / off</td><td>The colour format it starts in. The tools panel changes this live afterwards.</td></tr>
+  </table>
+  <p><b>myImage - Image tools panel</b></p>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td><b>Drive</b></td><td>A myImage view control</td><td>Either a view (then pick its IMAGE control) or a myImage extension (then type its Object name).</td></tr>
+    <tr><td><b>The view's IMAGE control</b></td><td>&mdash;</td><td><b>Required.</b> This one control is how the panel works out every name it needs. See the troubleshooting note below if you meet an older app where it was left empty.</td></tr>
+    <tr><td>The extension's Object name</td><td><code>Pic1</code></td><td>Only when driving an extension &mdash; type the same Object name you gave it.</td></tr>
+    <tr><td>Which tools to show</td><td>all on</td><td>File, turn, zoom, colour list, effects, reset.</td></tr>
+    <tr><td>Default save format / JPEG quality</td><td>From the extension / 85</td><td>Used by the panel's Save button.</td></tr>
+  </table>
   <div class="note"><b>One toolbar per window</b> The tools panel is deliberately not MULTI. That is what lets
   its own controls use real USE variables, which in turn is what lets the Dither box show its state when the
   window opens &mdash; a field-equate-only checkbox in Clarion can be read but its mark can never be set.</div>
@@ -380,6 +398,24 @@ Show:Photo ROUTINE
   <p>Seis casillas en los prompts del panel lo deciden: archivo, giro, zoom, lista de color, efectos, reinicio.
   Lo que desmarques se oculta al abrir la ventana &mdash; los controles siguen en la ventana, así que puedes
   volver a activar un grupo más tarde sin soltar nada de nuevo.</p>
+  <h3>Los prompts</h3>
+  <p><b>myImage - Image view</b></p>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Load</td><td>A test card</td><td>Nada, un nombre de archivo fijo, una variable/expresión, o la carta de ajuste incorporada. La carta viene por defecto a propósito: sueltas el control, ejecutas, y ya hay algo en pantalla que convertir.</td></tr>
+    <tr><td>Fit</td><td>Proportional (pad)</td><td>Cómo encaja la imagen en el control &mdash; proporcional, contain, cover, estirada o centrada 1:1.</td></tr>
+    <tr><td>Pad / background color</td><td>blanco</td><td>Las bandas del encuadre, y las esquinas que deja una rotación libre.</td></tr>
+    <tr><td>Colour / Dither</td><td>As loaded / off</td><td>El formato de color con el que arranca. El panel de herramientas lo cambia en vivo después.</td></tr>
+  </table>
+  <p><b>myImage - Image tools panel</b></p>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td><b>Drive</b></td><td>A myImage view control</td><td>O una vista (y entonces eliges su control IMAGE) o una extensión myImage (y entonces escribes su Object name).</td></tr>
+    <tr><td><b>The view's IMAGE control</b></td><td>&mdash;</td><td><b>Obligatorio.</b> Ese único control es como el panel deduce todos los nombres que necesita. Mira la nota de solución de problemas de abajo si te encuentras con una app antigua donde se dejó vacío.</td></tr>
+    <tr><td>The extension's Object name</td><td><code>Pic1</code></td><td>Solo al manejar una extensión &mdash; escribe el mismo Object name que le diste.</td></tr>
+    <tr><td>Which tools to show</td><td>todo activado</td><td>Archivo, giro, zoom, lista de color, efectos, reinicio.</td></tr>
+    <tr><td>Default save format / JPEG quality</td><td>De la extensión / 85</td><td>Los usa el botón Save del panel.</td></tr>
+  </table>
   <div class="note"><b>Una barra por ventana</b> El panel de herramientas no es MULTI a propósito. Eso es lo que
   permite que sus propios controles usen variables USE de verdad, que a su vez es lo que permite que la casilla
   Dither muestre su estado al abrir la ventana &mdash; una casilla que solo tiene field equate se puede leer,
@@ -845,6 +881,8 @@ Show:Photo ROUTINE
     <tr><td>256 colours looks blotchy</td><td>Turn <b>Dither</b> on. Without it, flat areas band; with it, they do not.</td></tr>
     <tr><td>Saving to GIF gives more colours than expected</td><td>GIF is written by GDI+, which quantises on its own. To control the palette yourself, <code>Convert(Img:Pal256, 1)</code> first &mdash; then what you saw is what you get.</td></tr>
     <tr><td>The colours came out wrong</td><td>Clarion colours are <b>BGR</b> longs and the engine takes <b>0xAARRGGBB</b>. Use <code>ArgbOf()</code> to cross between them.</td></tr>
+    <tr><td>The generated source is full of names that <b>start with a colon</b> &mdash; <code>:Mode</code>, <code>:Rebuild</code>, <code>:Master.LoadFile</code> &mdash; and nothing compiles</td><td>The tools panel was not told which image to drive, so the prefix it builds every name from came out empty. Open the panel's prompts and pick <b>the view's IMAGE control</b> (or, if you set <b>Drive</b> to an extension, type its Object name). That prompt is required now and generation stops with a message rather than emitting this, but an app configured before that change can still be carrying the empty setting.</td></tr>
+    <tr><td>The toolbar buttons are scattered across the window instead of in two rows</td><td>Inside a control template each control's position is an <i>offset from the one before it</i>, not an absolute spot. If you have edited the panel's layout in the window designer, the offsets no longer add up &mdash; delete the panel and drop it again.</td></tr>
   </table>
       </div>
       <div class="es">
@@ -860,6 +898,8 @@ Show:Photo ROUTINE
     <tr><td>A 256 colores se ve a manchas</td><td>Activa el <b>Dither</b>. Sin él las zonas planas hacen bandas; con él, no.</td></tr>
     <tr><td>Guardar en GIF da más colores de los esperados</td><td>El GIF lo escribe GDI+, que cuantiza por su cuenta. Para controlar tú la paleta, haz antes <code>Convert(Img:Pal256, 1)</code> &mdash; y entonces lo que viste es lo que obtienes.</td></tr>
     <tr><td>Los colores salieron mal</td><td>Los colores de Clarion son longs <b>BGR</b> y el motor toma <b>0xAARRGGBB</b>. Usa <code>ArgbOf()</code> para pasar de unos a otros.</td></tr>
+    <tr><td>El fuente generado está lleno de nombres que <b>empiezan por dos puntos</b> &mdash; <code>:Mode</code>, <code>:Rebuild</code>, <code>:Master.LoadFile</code> &mdash; y no compila nada</td><td>No se le dijo al panel de herramientas qué imagen manejar, así que el prefijo con el que construye todos los nombres salió vacío. Abre los prompts del panel y elige <b>el control IMAGE de la vista</b> (o, si pusiste <b>Drive</b> en una extensión, escribe su Object name). Ese prompt ahora es obligatorio y la generación se detiene con un mensaje en vez de emitir esto, pero una app configurada antes de ese cambio puede seguir arrastrando el valor vacío.</td></tr>
+    <tr><td>Los botones de la barra salen desperdigados por la ventana en vez de en dos filas</td><td>Dentro de una plantilla de control, la posición de cada control es un <i>desplazamiento respecto al anterior</i>, no un sitio absoluto. Si has editado la disposición del panel en el diseñador de ventanas, los desplazamientos ya no cuadran &mdash; borra el panel y suéltalo de nuevo.</td></tr>
   </table>
       </div>
     </section>

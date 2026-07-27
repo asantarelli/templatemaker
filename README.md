@@ -348,7 +348,8 @@ list and the effects — wired up, with nothing to type on both sides:
 
 The two find each other through the view's **IMAGE control field equate** — the view names everything it
 declares after it, and the panel derives the same names from the same control. Nothing to keep in step, and
-several views on one window never collide. The view keeps a **master** copy and a **working** copy, so
+several views on one window never collide. (Picking that control on the panel is required: it is the one
+thing the panel cannot work out for itself, so leaving it blank stops generation with a message saying so.) The view keeps a **master** copy and a **working** copy, so
 switching 256 colours → black & white → back to 24-bit costs nothing: each conversion starts again from the
 master instead of eating into what is left.
 
