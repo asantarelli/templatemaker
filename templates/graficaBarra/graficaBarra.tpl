@@ -248,6 +248,10 @@ Refresh:%gbWObject ROUTINE
       #PROMPT('&Object name:',@s64),%gbRObject,REQ,DEFAULT('RptGraph' & %ActiveTemplateInstance)
       #! a report needs FROM(%ReportControl,...) (corpus: blobsrv.tpw:20)
       #PROMPT('&Placeholder control (in the band):',FROM(%ReportControl,%ReportControlType='IMAGE' OR %ReportControlType='BOX' OR %ReportControlType='REGION')),%gbRPlace,REQ,DEFAULT('')
+      #! Graphics must be aimed at the BAND that holds the placeholder, or every
+      #! chart on the report lands in whichever band happens to be printing.
+      #! Blank = work it out from the report structure (indent level).
+      #PROMPT('Ban&d to draw into (blank = the one holding the placeholder):',FROM(%ReportControl,%ReportControlType='DETAIL' OR %ReportControlType='HEADER' OR %ReportControlType='FOOTER' OR %ReportControlType='FORM')),%gbRBand,DEFAULT('')
       #PROMPT('&Hide the placeholder when printing',CHECK),%gbRHide,DEFAULT(1),AT(10)
       #PROMPT('&Title text:',@s64),%gbRTitle,DEFAULT('')
     #ENDBOXED
@@ -405,6 +409,7 @@ Refresh:%gbWObject ROUTINE
 #DECLARE(%LegendEq)
 #DECLARE(%MarkerEq)
 #DECLARE(%Args)
+#DECLARE(%Band)
 #INSERT(%gbSetEquates,%gbRType,%gbRLegendPos,%gbRMarkerShape,%TypeEq,%LegendEq,%MarkerEq)
   %gbRObject.ChartType = %TypeEq
   %gbRObject.Title = '%gbRTitle'
@@ -492,7 +497,24 @@ Refresh:%gbWObject ROUTINE
 #ENDIF
 #ENDFOR
 #ENDIF
-  SETTARGET(%Report)                                         ! the band being printed is the draw target
+#IF(%gbRBand)
+#SET(%Band,%gbRBand)
+#ELSE
+#INSERT(%gbRFindBand,%gbRPlace,%Band)
+#ENDIF
+#!  Aim at the band holding the placeholder, so several charts on one report
+#!  each land in their own band instead of all piling into whichever band is
+#!  printing at the time.
+#IF(%Band)
+  SETTARGET(%Report, %Band)
+#ELSE
+  ! graficaBarra: the band holding %gbRPlace has no field equate, so this chart
+  ! cannot be aimed at it. That is fine for ONE chart on the report; if you have
+  ! more than one they will all pile into whichever band is printing. Fix: give
+  ! the band a USE(?SomeName) in the report formatter, or name it in the
+  ! "Band to draw into" prompt.
+  SETTARGET(%Report)
+#ENDIF
   %gbRObject.Paint(%gbRPlace)                                ! vector primitives into the band
 #IF(%gbRHide)
   %gbRPlace{PROP:Hide} = 1                                   ! placeholder only supplied the rectangle - never prints
@@ -548,6 +570,39 @@ Refresh:%gbWObject ROUTINE
 #ELSE
   #SET(%pMarkerEq,'Marker:Circle')
 #ENDCASE
+#!
+#!  Which band is the placeholder in? Report controls come out of
+#!  %ReportControl in declaration order with %ReportControlIndent giving the
+#!  nesting depth, so a control's band is simply the nearest thing DECLARED
+#!  BEFORE IT AT A SHALLOWER INDENT. That is structural - it works for a
+#!  DETAIL, a group HEADER or FOOTER, a FORM, or anything nested inside a
+#!  BREAK, without having to know what the band types are called.
+#!  Comes back blank if that band has no field equate of its own; the caller
+#!  then falls back to a plain SETTARGET(report), which is v1 behaviour.
+#GROUP(%gbRFindBand,%pCtl,*%pBand)
+#DECLARE(%Ind)
+#DECLARE(%Seen)
+#SET(%pBand,'')
+#SET(%Ind,0)
+#FOR(%ReportControl)                   #! pass 1: how deep is the placeholder?
+#IF(%ReportControl = %pCtl)
+#SET(%Ind,%ReportControlIndent)
+#BREAK
+#ENDIF
+#ENDFOR
+#IF(%Ind < 1)
+#RETURN
+#ENDIF
+#SET(%Seen,'')
+#FOR(%ReportControl)                   #! pass 2: the last shallower thing before it
+#IF(%ReportControl = %pCtl)
+#SET(%pBand,%Seen)
+#BREAK
+#ENDIF
+#IF(%ReportControlIndent < %Ind)
+#SET(%Seen,%ReportControl)
+#ENDIF
+#ENDFOR
 #!
 #!  Build the value argument list for one data row into %Args. Series 1 is
 #!  either the literal or the expression (as in v1); series 2..4 are always

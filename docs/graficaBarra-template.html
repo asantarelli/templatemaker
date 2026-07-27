@@ -354,6 +354,7 @@ SETTARGET()</pre>
     <tr><td>Object name</td><td><code>Graph&lt;n&gt;</code> / <code>RptGraph&lt;n&gt;</code></td><td>The local object's label — also names the <code>Refresh:</code> routine (window).</td></tr>
     <tr><td>Image / placeholder control</td><td>—</td><td>Window: the IMAGE canvas. Report: the position/size placeholder in the detail band.</td></tr>
     <tr><td>Hide the placeholder when printing</td><td>on</td><td>Report only.</td></tr>
+    <tr><td><b>Band to draw into</b> <i>(report only)</i></td><td>blank</td><td>Blank = the template works it out from the report structure (the band that holds the placeholder, whether that is a DETAIL, a group HEADER/FOOTER or a FORM). Only name one here to override it. <b>Charts must be aimed at their own band</b> or they all pile into whichever band is printing &mdash; so if you have more than one chart, make sure each band has a field equate (<code>USE(?SomeName)</code>) in the report formatter. Without one the template falls back to the old behaviour and says so in a comment in the generated source.</td></tr>
     <tr><td>Title text</td><td>empty</td><td>Centered over the chart.</td></tr>
     <tr><td><b>Chart type</b></td><td>Column</td><td>The thirteen types above. Changing it changes nothing else &mdash; the same data draws as bars, a pie or a radar.</td></tr>
     <tr><td><b>Number of series</b></td><td>1</td><td>1 = a color per bar/slice, no legend needed. 2&ndash;4 = a color per series, a legend, and the extra value prompts appear on every data row.</td></tr>
@@ -397,6 +398,7 @@ SETTARGET()</pre>
     <tr><td>Object name</td><td><code>Graph&lt;n&gt;</code> / <code>RptGraph&lt;n&gt;</code></td><td>La etiqueta del objeto local — también da nombre a la rutina <code>Refresh:</code> (ventana).</td></tr>
     <tr><td>Image / placeholder control</td><td>—</td><td>Ventana: el IMAGE que hace de lienzo. Informe: el marcador de posición/tamaño en la banda de detalle.</td></tr>
     <tr><td>Hide the placeholder when printing</td><td>on</td><td>Solo informes.</td></tr>
+    <tr><td><b>Band to draw into</b> <i>(solo informe)</i></td><td>vacío</td><td>Vacío = la plantilla lo deduce de la estructura del informe (la banda que contiene el marcador, sea un DETAIL, un HEADER/FOOTER de grupo o un FORM). Solo indica una aquí para forzarla. <b>Cada gráfico debe apuntar a su propia banda</b> o todos se amontonan en la que esté imprimiéndose &mdash; así que si tienes más de un gráfico, dale a cada banda un field equate (<code>USE(?Nombre)</code>) en el formateador del informe. Sin él la plantilla vuelve al comportamiento anterior y lo avisa con un comentario en el fuente generado.</td></tr>
     <tr><td>Title text</td><td>vacío</td><td>Centrado sobre el gráfico.</td></tr>
     <tr><td><b>Chart type</b></td><td>Column</td><td>Los trece tipos de arriba. Cambiarlo no cambia nada más &mdash; los mismos datos se dibujan como barras, pastel o radar.</td></tr>
     <tr><td><b>Number of series</b></td><td>1</td><td>1 = un color por barra/porción, sin necesidad de leyenda. 2&ndash;4 = un color por serie, una leyenda, y aparecen los prompts de valor extra en cada fila de datos.</td></tr>
