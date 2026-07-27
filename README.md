@@ -100,6 +100,11 @@ templates/                      # ready-to-register Clarion templates
     ExportClass.clw             #     the implementation (dialog + 7 writers + ZIP + UTF-8)
     myExport.tpl                #     global extension + Export-button control + code template
     myExport.zip                #     the three files above, zipped for easy distribution
+  myHook/                       #   intercept MESSAGE / STOP / HALT / errors (see below)
+    MsgHookClass.inc            #     the interceptor (rules, log, the seven RTL hooks)
+    MsgHookClass.clw            #     the implementation (hook thunks + append-only logger)
+    myHook.tpl                  #     global extension + per-procedure pause + code template
+    myHook.zip                  #     the three files above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 installer/                      # builds the installer + a portable single-file exe
 README.md
@@ -723,6 +728,48 @@ button plus a "write all seven" self-test. Full programmer's documentation:
 [`docs/myExport-template.html`](docs/myExport-template.html).
 
 ![The myExport dialog, with two columns left out, one renamed and one re-pictured](docs/myExport-dialog.png)
+
+### `templates/myHook/` — intercept MESSAGE, STOP, HALT and run-time errors
+Add **myHook - Global message/stop/halt interceptor** once to the application and the Clarion run-time
+library's own dialogs stop being the run-time library's business. `MESSAGE`, `STOP`, `HALT`, a failed
+`ASSERT`, a run-time error and a GPF each get a default action — **show it as usual**, **ignore it**,
+**answer it for the user**, **show it as a plain message**, **hand it to a procedure of yours**, or
+**write it to the log and swallow it**.
+
+This is built on the run-time library's own extension points — `SYSTEM{PROP:MessageHook}`,
+`{PROP:StopHook}`, `{PROP:HaltHook}`, `{PROP:AssertHook}` / `{PROP:AssertHook2}`, `{PROP:FatalErrorHook}`
+and `{PROP:LastChanceHook}`. The exact hook prototypes are taken from the shipped WebBuilder layer,
+`\clarion12\libsrc\win\WBHOOK.CLW`, which uses the same seven to move a desktop `MESSAGE` onto a web page.
+
+**The rules tab** is where it earns its keep. Test the message text — *contains* / *starts with* /
+*is exactly* / *matches a `*` `?` pattern* — against the text, the caption or either, and give the ones
+that match their own treatment. Rules are checked in order, the first match wins, and anything matching
+nothing falls back to the default for its kind of event. So a stray *"Record Not Found"* can be answered
+`Ok` and logged while every other message still reaches the user untouched.
+
+**The log** is a plain text file, CSV (with a heading row) or tab separated. It is opened for append and
+closed again on every line, so threads can share it, two copies of the program can share it, and a line
+written immediately before a `HALT` is still on disk afterwards. Each line carries the date and time, the
+kind of event, the thread, the window that was on screen, the caption, the text flattened to one line,
+what was done about it, and for an `ASSERT` the source file and line. Give it a size limit and it rolls
+over to a `.bak` on its own.
+
+**One honest limitation, established by test, not assumption: a `HALT` cannot be called off.** The
+run-time library ends the program as soon as the halt hook returns, whichever action you pick — so for a
+`HALT` the choices change what is *said* on the way out and what lands in the log, not whether it happens.
+A `STOP`, by contrast, really can be ignored: the line after it runs. The prompts and the class header say
+so plainly, and `HALT` defaults to *write it to the log, then halt*.
+
+Three registrations: **myHookGlobal** (`APPLICATION` — the whole thing, added once), **myHookPause**
+(a procedure extension that lets one procedure's messages through untouched, on that thread only) and
+**myHookHere** (a code template to install, remove, suspend, resume, or write your own line to the log from
+any embed). Copy `MsgHookClass.inc` and `MsgHookClass.clw` (**ANSI, CRLF** — they are pure ASCII) to the
+redirection path.
+
+Verified by building a standalone program against the class and running it: a message with no matching rule
+answered with the configured button, a `*wildcard*` rule answering `Retry`, a rule handing off to derived
+code that answered `Cancel`, a `STOP` ignored with execution continuing past it, the counters, the CSV
+quote-doubling, and the roll-over to `.bak`.
 
 ## Install
 
