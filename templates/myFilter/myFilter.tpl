@@ -85,6 +85,18 @@
   #DECLARE(%mfLabel)
   #DECLARE(%mfAny,LONG)
   #SET(%mfAny,0)
+  #!  An explicit field list wins: it is the only way to mirror the browse's
+  #!  own columns, which is what the user is looking at and what they mean by
+  #!  "the fields of the view". Whole files are the fallback.
+  #FOR(%mfPicked)
+    #FIX(%Field,%mfPickField)
+    #IF(%Field)
+      #CALL(%mfEmitPicked,%pObject)
+    #ENDIF
+  #ENDFOR
+  #IF(%mfAny)
+    #RETURN
+  #ENDIF
   #!  The file comes from the template's own prompt. %Primary reads as empty
   #!  from a control template's embed - the schematic symbols are not in scope
   #!  there - which produced a browse with no fields at all to filter on.
@@ -123,6 +135,22 @@
     ! [%pFile] and the procedure's primary file is [%Primary] - both empty, so
     ! there was nothing to read. Set the prompt on the Filters button.
   #ENDIF
+#!-----------------------------------------------------------------------------
+#GROUP(%mfEmitPicked,%pObject)
+  #IF(%mfPickLabel)
+    #SET(%mfLabel,CLIP(%mfPickLabel))
+  #ELSE
+    #SET(%mfLabel,CLIP(%FieldHeader))
+    #IF(~%mfLabel)
+      #SET(%mfLabel,CLIP(%FieldID))
+    #ENDIF
+  #ENDIF
+  #IF(INSTRING('''',%mfLabel,1,1))
+    #SET(%mfLabel,CLIP(%FieldID))
+  #ENDIF
+  #CALL(%mfTypeOf,%FieldType,%FieldPicture,%mfType)
+  #SET(%mfAny,1)
+  %pObject.AddField('%Field','%mfLabel',%mfType,'%FieldPicture')
 #!-----------------------------------------------------------------------------
 #GROUP(%mfEmitField,%pObject)
   #!  GROUP/END are structure markers, and MEMO/BLOB cannot go in a filter.
@@ -211,7 +239,7 @@ myFilterStorage      BYTE(%mfgStorage)                    ! 0 = INI, 1 = table
     #ENDBOXED
     #BOXED('The browse it filters')
       #PROMPT('&Browse object:',@s64),%mfBrowse,REQ,DEFAULT('BRW1')
-      #PROMPT('&File whose fields to offer:',FILE),%mfFile,REQ
+      #PROMPT('&File whose fields to offer:',FILE),%mfFile
       #DISPLAY('The file behind this browse. Every field of it is offered in')
       #DISPLAY('the filter window - including ones the browse does not show,')
       #DISPLAY('which is usually what you want. Tick BINDABLE on it in the')
@@ -232,6 +260,18 @@ myFilterStorage      BYTE(%mfgStorage)                    ! 0 = INI, 1 = table
       #PROMPT('Show the &condition count on the button',CHECK),%mfCount,DEFAULT(1),AT(10)
       #DISPLAY('The button reads "Filters (3)" while three conditions are on,')
       #DISPLAY('so it is obvious the list is not showing everything.')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Fields')
+    #BOXED('Offer exactly these fields')
+      #DISPLAY('Leave this empty to offer every field of the files on the')
+      #DISPLAY('General tab. Fill it in to offer just these, in this order -')
+      #DISPLAY('which is how you mirror the columns the browse actually')
+      #DISPLAY('shows, joined files included.')
+      #BUTTON('&Fields to offer'),MULTI(%mfPicked,%mfPickField & '  ' & %mfPickLabel),INLINE
+        #PROMPT('&Field:',FIELD),%mfPickField,REQ
+        #PROMPT('&Label (blank = the dictionary heading):',@s40),%mfPickLabel
+      #ENDBUTTON
     #ENDBOXED
   #ENDTAB
   #TAB('&Options')
@@ -315,7 +355,7 @@ INCLUDE('MyFilterClass.INC'),ONCE
     #BOXED('Object')
       #PROMPT('&Object name:',@s64),%mhObject,REQ,DEFAULT('Flt' & %ActiveTemplateInstance)
       #PROMPT('&Browse object:',@s64),%mhBrowse,REQ,DEFAULT('BRW1')
-      #PROMPT('&File whose fields to offer:',FILE),%mhFile,REQ
+      #PROMPT('&File whose fields to offer:',FILE),%mhFile
       #PROMPT('Also offer fields from:',FILE),%mhFile2
       #PROMPT('...and from:',FILE),%mhFile3
       #PROMPT('&Window title (blank = the localised word):',@s64),%mhTitle,DEFAULT('')
