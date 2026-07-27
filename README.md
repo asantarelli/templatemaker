@@ -78,6 +78,12 @@ templates/                      # ready-to-register Clarion templates
     PdfSignClass.inc            #     the reader class (config + method prototypes)
     PdfSignClass.clw            #     the implementation (PDF parse + PKCS#7/DER walk)
     myPdfSign.tpl               #     one global extension (the shared object)
+  myCalc/                       #   pop-up calculator beside a numeric field (see below)
+    CalcClass.inc               #     the calculator (4 modes, tape, EN/ES strings)
+    CalcClass.clw               #     the implementation (keypad, arithmetic, window)
+    calc16.ico                  #     the little calculator on the button
+    myCalc.tpl                  #     global extension + button control + code template
+    myCalc.zip                  #     the four files above, zipped for easy distribution
   myExport/                     #   export any browse/list to 7 file formats (see below)
     ExportClass.inc             #     the export engine (config + method prototypes)
     ExportClass.clw             #     the implementation (dialog + 7 writers + ZIP + UTF-8)
@@ -525,6 +531,39 @@ speed pickers, a **GPU (Direct2D)** toggle, and Start / Stop / Reset / Save butt
 by the class itself:
 
 ![myYuru presets](docs/myYuru-presets.png)
+
+### `templates/myCalc/` — a pop-up calculator beside any numeric field
+Drag **myCalc - Calculator button** next to a numeric entry and point it at that entry. A small calculator
+icon appears; pressing it opens a modal calculator already holding whatever the field contains, and **Accept
+puts the answer back into the field**.
+
+**Four calculators in one window**, chosen from a drop list: **Standard** (four functions, memory, percent),
+**Scientific** (trig, logs, powers, roots, factorial, parentheses, DEG/RAD), **Programmer** (HEX / DEC / OCT /
+BIN with the out-of-range digits greyed out, AND OR XOR NOT, Lsh/Rsh, MOD, 8/16/32-bit word size) and
+**Accountant** — a real adding-machine tape where `+` and `-` post the entry to the roll and SUBT / TOTAL / GT
+print the running figures, with TAX+ / TAX- keys at a configurable rate. A **paper roll** runs down the side:
+the tape in accountant mode, the history of finished calculations in the others, copyable to the clipboard.
+
+**It remembers where you left it.** Which calculator you were last on comes back the next time the *program*
+runs, along with DEG/RAD, the number base, the word size, the decimals and the tax rate — each profile saved
+under its own INI section. **And it speaks Spanish**: a language setting on the global extension switches the
+mode names, the window labels and the word keys (Borr, SUBT, TG, IVA+/IVA-, Aceptar, Cancelar) for every
+calculator in the application, with a per-button override. Digits, operators and the maths names read the same
+either way.
+
+The keypad is a 7×7 grid re-labelled per mode, driven through a single `Press(action, text)` entry point — so
+the whole calculator can be exercised from code or from a test without opening a window, which is exactly how
+its 24-case arithmetic suite runs. Three registrations: **myCalcButton** (the drag-on control template, MULTI),
+**myCalcHere** (a code template for an existing button, menu item or hot key) and **myCalcGlobal** (the class
+plus the application language). Copy `CalcClass.inc`, `CalcClass.clw` (**ANSI, CRLF**) and `calc16.ico` to the
+redirection path — the icon is compiled into the exe's resources, so there is nothing extra to deploy. A
+runnable demo is [`examples/myCalc/CalcDemo.clw`](examples/myCalc/CalcDemo.clw).
+
+![The myCalc demo](docs/myCalc-demo.png)
+
+![The scientific calculator, and the accountant tape in Spanish](docs/myCalc-scientific.png)
+
+![Contable (cinta)](docs/myCalc-accountant-es.png)
 
 ### `templates/myExport/` — export any browse or list to seven file formats
 Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
