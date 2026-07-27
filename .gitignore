@@ -40,3 +40,8 @@ examples/**/bench.ini
 examples/**/Invoices*
 examples/**/dlg.ini
 examples/**/col.ini
+
+# DrawPlus is a local-only port - never push it
+docs/DrawPlus-*
+templates/DrawPlus/
+examples/DrawPlus/
