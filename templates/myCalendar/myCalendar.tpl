@@ -34,8 +34,8 @@
 #!
 #!  REQUIRED FILES: copy these (shipped beside this .tpl) to a folder on the
 #!  Clarion redirection path (the app folder, or \clarion12\libsrc\win), ANSI:
-#!      CalendarClass.inc   CalendarClass.clw   cal16.ico
-#!  CalendarClass.clw is pulled into the build by its LINK attribute. cal16.ico
+#!      MyCalendarClass.inc   MyCalendarClass.clw   cal16.ico
+#!  MyCalendarClass.clw is pulled into the build by its LINK attribute. cal16.ico
 #!  is the little calendar on the button; Clarion compiles an ICON() into the
 #!  executable's own resources, so it is needed at BUILD time only - there is
 #!  nothing extra to ship with the finished program.
@@ -53,12 +53,12 @@
   #TAB('&General')
     #BOXED('myCalendar')
       #DISPLAY('myCalendar Global - Version 1.0')
-      #DISPLAY('Makes CalendarClass available to every procedure in the app,')
+      #DISPLAY('Makes MyCalendarClass available to every procedure in the app,')
       #DISPLAY('and holds the defaults every calendar button starts from.')
       #DISPLAY('')
-      #DISPLAY('IMPORTANT: copy CalendarClass.inc and CalendarClass.clw to the')
+      #DISPLAY('IMPORTANT: copy MyCalendarClass.inc and MyCalendarClass.clw to the')
       #DISPLAY('redirection path (the app folder, or \clarion12\libsrc\win).')
-      #DISPLAY('Both files must be ANSI. CalendarClass.clw links itself in.')
+      #DISPLAY('Both files must be ANSI. MyCalendarClass.clw links itself in.')
       #DISPLAY('cal16.ico (the button icon) goes there too - build time only.')
       #DISPLAY('')
       #DISPLAY('This extension is OPTIONAL - the calendar button control')
@@ -90,7 +90,7 @@
 #ENDSHEET
 #!
 #AT(%AfterGlobalIncludes),WHERE(%mdgDisable=0)
-INCLUDE('CalendarClass.INC'),ONCE
+INCLUDE('MyCalendarClass.INC'),ONCE
 #ENDAT
 #!
 #! The application-wide defaults, as real globals the per-window code reads.
@@ -235,14 +235,14 @@ myCalendarWeekNo     BYTE(%mdgWeekNo)                     ! show the week-number
 #!
 #! Self-contained: pull in the class (,ONCE = safe alongside the global extension).
 #AT(%CustomGlobalDeclarations),WHERE(%mdDisable=0)
-INCLUDE('CalendarClass.INC'),ONCE
+INCLUDE('MyCalendarClass.INC'),ONCE
 #ENDAT
 #!
 #AT(%DataSection),WHERE(%mdDisable=0 AND %mdReady)
 #IF(%mdRange='1')
-%mdObject            CalendarClass                        ! calendar for %mdField .. %mdField2
+%mdObject            MyCalendarClass                        ! calendar for %mdField .. %mdField2
 #ELSE
-%mdObject            CalendarClass                        ! calendar for %mdField
+%mdObject            MyCalendarClass                        ! calendar for %mdField
 #ENDIF
 #ENDAT
 #!
@@ -357,11 +357,11 @@ INCLUDE('CalendarClass.INC'),ONCE
 #ENDSHEET
 #!-----------------------------------------------------------------------------
 #AT(%CustomGlobalDeclarations)
-INCLUDE('CalendarClass.INC'),ONCE
+INCLUDE('MyCalendarClass.INC'),ONCE
 #ENDAT
 #!
 #AT(%DataSection),WHERE(%mnTarget)
-%mnObject            CalendarClass                        ! calendar into %mnTarget
+%mnObject            MyCalendarClass                        ! calendar into %mnTarget
 #ENDAT
 #!
 #! ...and the code template's own output, right where it was dropped:

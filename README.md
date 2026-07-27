@@ -85,8 +85,8 @@ templates/                      # ready-to-register Clarion templates
     myCalc.tpl                  #     global extension + button control + code template
     myCalc.zip                  #     the four files above, zipped for easy distribution
   myCalendar/                   #   pop-up date picker beside a date field (see below)
-    CalendarClass.inc           #     the calendar (views, range, EN/ES strings)
-    CalendarClass.clw           #     the implementation (date maths, drawing, window)
+    MyCalendarClass.inc         #     the calendar (views, range, EN/ES strings)
+    MyCalendarClass.clw         #     the implementation (date maths, drawing, window)
     cal16.ico                   #     the little calendar on the button
     myCalendar.tpl              #     global extension + button control + code template
     myCalendar.zip              #     the four files above, zipped for easy distribution
@@ -607,9 +607,11 @@ calendar into an IMAGE on a window of your own; the date maths (`AddMonths` with
 `DaysInMonth`, ISO `WeekNumber`, `DayOfWeek`) stands alone as well. A 62-assertion headless suite covers all of
 it. Three registrations: **myCalendarButton** (the drag-on control template, MULTI, single-date or from/to),
 **myCalendarHere** (a code template for an existing button, menu item or hot key) and **myCalendarGlobal**
-(the class plus the application-wide language, first day, view and stacking). Copy `CalendarClass.inc`,
-`CalendarClass.clw` (**ANSI, CRLF**) and `cal16.ico` to the redirection path — the icon is compiled into the
-exe's resources, so there is nothing extra to deploy. A runnable demo is
+(the class plus the application-wide language, first day, view and stacking). Copy `MyCalendarClass.inc`,
+`MyCalendarClass.clw` (**ANSI, CRLF**) and `cal16.ico` to the redirection path — the icon is compiled into the
+exe's resources, so there is nothing extra to deploy. **The class is `MyCalendarClass`, not `CalendarClass`** —
+ABC already ships a `CalendarClass` in `ABUTIL`, and the two link into the same program as
+`Duplicate symbol: TYPE$CALENDARCLASS`. A runnable demo is
 [`examples/myCalendar/CalendarDemo.clw`](examples/myCalendar/CalendarDemo.clw), and the full programmer's
 documentation — **bilingual English/Spanish** — is
 [`docs/myCalendar-template.html`](docs/myCalendar-template.html).

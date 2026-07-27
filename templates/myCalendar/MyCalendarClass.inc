@@ -1,6 +1,6 @@
 !ABCIncludeFile
 ! ============================================================================
-!  CalendarClass - a pop-up date picker for Clarion.
+!  MyCalendarClass - a pop-up date picker for Clarion.
 !
 !    * One month, two, three, six, or a whole year on screen at once
 !    * Pick a single date, or DRAG a from/to range across any of the months
@@ -23,8 +23,8 @@
 !  dragging a range works the way you would expect.
 !
 !  USAGE (the myCalendar template does all of this for you)
-!    INCLUDE('CalendarClass.INC'),ONCE
-!    Cal1  CalendarClass
+!    INCLUDE('MyCalendarClass.INC'),ONCE
+!    Cal1  MyCalendarClass
 !
 !      IF Cal1.AskFor(ORD:DueDate)             ! one date
 !        DISPLAY(?ORD:DueDate)
@@ -34,7 +34,7 @@
 !        DISPLAY
 !      END
 !
-!  FILES: CalendarClass.inc + CalendarClass.clw on the redirection path,
+!  FILES: MyCalendarClass.inc + MyCalendarClass.clw on the redirection path,
 !         ANSI, CRLF.
 ! ============================================================================
 
@@ -99,7 +99,7 @@ Cal:WeekW          EQUATE(16)                  ! the week-number gutter
 Cal:Weeks          EQUATE(6)                   ! rows of days per month
 Cal:Gap            EQUATE(10)                  ! between month blocks
 
-CalendarClass      CLASS,TYPE,MODULE('CalendarClass.CLW'),LINK('CalendarClass.CLW')
+MyCalendarClass      CLASS,TYPE,MODULE('MyCalendarClass.CLW'),LINK('MyCalendarClass.CLW')
 ! ---- what the caller sets -------------------------------------------------
 Months               BYTE(1)                   ! 1, 2, 3, 6 or 12
 Orient               BYTE(0)                   ! Cal:Across / Cal:Down

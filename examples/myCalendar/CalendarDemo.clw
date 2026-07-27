@@ -11,7 +11,7 @@
 ! ============================================================================
   PROGRAM
 
-  INCLUDE('CalendarClass.INC'),ONCE
+  INCLUDE('MyCalendarClass.INC'),ONCE
   INCLUDE('EQUATES.CLW'),ONCE
 
   MAP
@@ -22,9 +22,9 @@ LOC:From       DATE
 LOC:To         DATE
 LOC:Delivery   DATE
 LOC:Nights     LONG
-Cal1           CalendarClass                              ! the single date
-Cal2           CalendarClass                              ! the from/to range
-Cal3           CalendarClass                              ! working days only
+Cal1           MyCalendarClass                              ! the single date
+Cal2           MyCalendarClass                              ! the from/to range
+Cal3           MyCalendarClass                              ! working days only
 Wnd      WINDOW('myCalendar demo - a date picker beside every date'),AT(,,320,208),SYSTEM,GRAY, |
              FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,ICON(ICON:Application)
            PANEL,AT(0,0,320,38),USE(?Band),FILL(0603A1FH)

@@ -181,7 +181,7 @@
       <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
       <div class="en">
       <ol>
-        <li>Copy <code>templates/myCalendar/CalendarClass.inc</code>, <code>CalendarClass.clw</code> and
+        <li>Copy <code>templates/myCalendar/MyCalendarClass.inc</code>, <code>MyCalendarClass.clw</code> and
           <code>cal16.ico</code> to a folder on the Clarion redirection path (your app folder, or
           <code>\clarion12\libsrc\win</code>). The two source files <b>must be ANSI with CRLF line
           endings</b>.</li>
@@ -196,18 +196,18 @@
       <div class="filetree">
 templates/myCalendar/<br>
 &nbsp;&nbsp;├── myCalendar.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the template set — register this</span><br>
-&nbsp;&nbsp;├── CalendarClass.inc&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the class — on the redirection path</span><br>
-&nbsp;&nbsp;├── CalendarClass.clw&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">links itself into the build</span><br>
+&nbsp;&nbsp;├── MyCalendarClass.inc&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the class — on the redirection path</span><br>
+&nbsp;&nbsp;├── MyCalendarClass.clw&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">links itself into the build</span><br>
 &nbsp;&nbsp;└── cal16.ico&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the button icon — build time only</span>
       </div>
       <div class="callout tip"><b>Nothing to ship</b>
         Clarion compiles <code>ICON()</code> into the executable's own resources and
-        <code>CalendarClass.clw</code> is linked in by its <code>LINK</code> attribute, so the finished
+        <code>MyCalendarClass.clw</code> is linked in by its <code>LINK</code> attribute, so the finished
         program is a single EXE with no extra files beside it.</div>
       </div>
       <div class="es">
       <ol>
-        <li>Copia <code>templates/myCalendar/CalendarClass.inc</code>, <code>CalendarClass.clw</code> y
+        <li>Copia <code>templates/myCalendar/MyCalendarClass.inc</code>, <code>MyCalendarClass.clw</code> y
           <code>cal16.ico</code> a una carpeta de la ruta de redirección de Clarion (la carpeta de tu app, o
           <code>\clarion12\libsrc\win</code>). Los dos fuentes <b>deben ser ANSI con saltos de línea
           CRLF</b>.</li>
@@ -222,13 +222,13 @@ templates/myCalendar/<br>
       <div class="filetree">
 templates/myCalendar/<br>
 &nbsp;&nbsp;├── myCalendar.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">el juego de plantillas — regístralo</span><br>
-&nbsp;&nbsp;├── CalendarClass.inc&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la clase — en la ruta de redirección</span><br>
-&nbsp;&nbsp;├── CalendarClass.clw&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">se enlaza sola en la compilación</span><br>
+&nbsp;&nbsp;├── MyCalendarClass.inc&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la clase — en la ruta de redirección</span><br>
+&nbsp;&nbsp;├── MyCalendarClass.clw&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">se enlaza sola en la compilación</span><br>
 &nbsp;&nbsp;└── cal16.ico&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">el icono del botón — solo al compilar</span>
       </div>
       <div class="callout tip"><b>Nada que distribuir</b>
         Clarion compila el <code>ICON()</code> dentro de los recursos del ejecutable y
-        <code>CalendarClass.clw</code> se enlaza por su atributo <code>LINK</code>, así que el programa
+        <code>MyCalendarClass.clw</code> se enlaza por su atributo <code>LINK</code>, así que el programa
         terminado es un único EXE sin ficheros extra al lado.</div>
       </div>
     </section>
@@ -261,7 +261,7 @@ templates/myCalendar/<br>
         shipped <code>ABDROPS.TPW</code> makes. There is nothing to type twice and nothing to keep in sync.</p>
       <h3>What it generates</h3>
       <pre><span class="c">! in the procedure's data</span>
-Cal1                 <span class="k">CalendarClass</span>                        <span class="c">! calendar for ?ORD:DueDate</span>
+Cal1                 <span class="k">MyCalendarClass</span>                        <span class="c">! calendar for ?ORD:DueDate</span>
 
 <span class="c">! in ?CalBtn, Accepted</span>
   Cal1.Months      = myCalendarView                   <span class="c">! whatever the global says</span>
@@ -307,7 +307,7 @@ Cal1                 <span class="k">CalendarClass</span>                       
         sincronizado.</p>
       <h3>Lo que genera</h3>
       <pre><span class="c">! en los datos del procedimiento</span>
-Cal1                 <span class="k">CalendarClass</span>                        <span class="c">! calendario para ?ORD:DueDate</span>
+Cal1                 <span class="k">MyCalendarClass</span>                        <span class="c">! calendario para ?ORD:DueDate</span>
 
 <span class="c">! en ?CalBtn, Accepted</span>
   Cal1.Months      = myCalendarView                   <span class="c">! lo que diga el global</span>
@@ -896,7 +896,7 @@ ShowToday=1</pre>
       <p>The class is useful without the pop-up at all. <code>Layout()</code> works out the canvas size and
         <code>Draw()</code> paints into any IMAGE on any window of yours — an always-visible month on a
         dashboard, say, with your own hit handling through <code>DateAt()</code>:</p>
-      <pre>Cal      <span class="k">CalendarClass</span>
+      <pre>Cal      <span class="k">MyCalendarClass</span>
 Wnd  <span class="k">WINDOW</span>(<span class="s">'Planner'</span>),AT(,,400,300),SYSTEM,GRAY
        <span class="k">IMAGE</span>,AT(10,10,200,150),USE(?Canvas)
        <span class="k">REGION</span>,AT(10,10,200,150),USE(?Hot),IMM
@@ -931,7 +931,7 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Planner'</span>),AT(,,400,30
       <p>La clase es útil aun sin la ventana emergente. <code>Layout()</code> calcula el tamaño del lienzo y
         <code>Draw()</code> pinta en cualquier IMAGE de cualquier ventana tuya —un mes siempre visible en un
         panel, por ejemplo— con tu propio manejo del ratón a través de <code>DateAt()</code>:</p>
-      <pre>Cal      <span class="k">CalendarClass</span>
+      <pre>Cal      <span class="k">MyCalendarClass</span>
 Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300),SYSTEM,GRAY
        <span class="k">IMAGE</span>,AT(10,10,200,150),USE(?Canvas)
        <span class="k">REGION</span>,AT(10,10,200,150),USE(?Hot),IMM
@@ -971,6 +971,7 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
       <p>Things worth knowing, most of them learned the hard way while building this:</p>
       <table>
         <tr><th>Note</th><th>Detail</th></tr>
+        <tr><td>The class is <code>MyCalendarClass</code></td><td>Not <code>CalendarClass</code> — <b>ABC already has one of those</b>, in <code>ABUTIL.INC</code>. Two classes of the same name reach the linker as <code>Duplicate symbol: TYPE$CALENDARCLASS</code> (and <code>VMT$</code>, <code>VMTP$</code>) even though neither source file mentions the other. Check <code>\clarion12\libsrc\win\*.INC</code> before naming any class of your own.</td></tr>
         <tr><td>Dates are days</td><td>A Clarion date is days since 28 Dec 1800, so <code>date % 7</code> is the day of the week with <b>0 = Sunday</b>. 1 Jan 1801 was a Thursday and its value is 4.</td></tr>
         <tr><td>Month length without a table</td><td><code>DATE(m+1,1,y) - DATE(m,1,y)</code>. Clarion normalises month 13 to January of the next year, so December needs no special case, and February is right in every leap year including 1900 and 2000.</td></tr>
         <tr><td>Two-argument SETTARGET</td><td><code>SETTARGET(window,?image)</code> makes 0,0 the image's own top-left, so all the drawing arithmetic is in canvas coordinates.</td></tr>
@@ -978,13 +979,14 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
         <tr><td>Paint after the window is up</td><td>Drawing before <code>EVENT:OpenWindow</code> can land on nothing. The class paints once before ACCEPT and again on OpenWindow.</td></tr>
         <tr><td><code>by</code> is reserved</td><td><code>LOOP … BY -1</code> makes <code>by</code> a keyword; a variable of that name will not compile. (This one cost an afternoon.)</td></tr>
         <tr><td>Do not name a method <code>Format</code></td><td>It shadows the built-in <code>FORMAT()</code> inside the class. The date formatter here is called <code>DateText</code>.</td></tr>
-        <tr><td>ANSI and CRLF</td><td>An LF-only <code>.inc</code> produces the baffling <code>Illegal data type: CALENDARCLASS</code> at every use site. The shipped files are correct — keep them that way if you edit them.</td></tr>
+        <tr><td>ANSI and CRLF</td><td>An LF-only <code>.inc</code> produces the baffling <code>Illegal data type: MYCALENDARCLASS</code> at every use site. The shipped files are correct — keep them that way if you edit them.</td></tr>
       </table>
       </div>
       <div class="es">
       <p>Cosas que conviene saber, casi todas aprendidas a base de golpes al construir esto:</p>
       <table>
         <tr><th>Nota</th><th>Detalle</th></tr>
+        <tr><td>La clase es <code>MyCalendarClass</code></td><td>No <code>CalendarClass</code>: <b>ABC ya tiene una con ese nombre</b>, en <code>ABUTIL.INC</code>. Dos clases con el mismo nombre llegan al enlazador como <code>Duplicate symbol: TYPE$CALENDARCLASS</code> (y <code>VMT$</code>, <code>VMTP$</code>) aunque ninguno de los dos fuentes mencione al otro. Mira en <code>\clarion12\libsrc\win\*.INC</code> antes de ponerle nombre a una clase tuya.</td></tr>
         <tr><td>Las fechas son días</td><td>Una fecha Clarion son días desde el 28 dic 1800, así que <code>fecha % 7</code> es el día de la semana con <b>0 = domingo</b>. El 1 ene 1801 fue jueves y su valor es 4.</td></tr>
         <tr><td>Días del mes sin tabla</td><td><code>DATE(m+1,1,a) - DATE(m,1,a)</code>. Clarion normaliza el mes 13 a enero del año siguiente, así que diciembre no necesita caso especial, y febrero sale bien en todos los bisiestos, 1900 y 2000 incluidos.</td></tr>
         <tr><td>SETTARGET de dos argumentos</td><td><code>SETTARGET(ventana,?imagen)</code> hace que 0,0 sea la esquina del propio image, así que todo el cálculo del dibujo va en coordenadas del lienzo.</td></tr>
@@ -992,7 +994,7 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
         <tr><td>Pintar con la ventana ya abierta</td><td>Dibujar antes de <code>EVENT:OpenWindow</code> puede caer en el vacío. La clase pinta una vez antes del ACCEPT y otra en OpenWindow.</td></tr>
         <tr><td><code>by</code> es reservada</td><td><code>LOOP … BY -1</code> convierte <code>by</code> en palabra clave; una variable con ese nombre no compila. (Esta costó una tarde.)</td></tr>
         <tr><td>No llames <code>Format</code> a un método</td><td>Tapa la función <code>FORMAT()</code> dentro de la clase. Aquí el formateador de fechas se llama <code>DateText</code>.</td></tr>
-        <tr><td>ANSI y CRLF</td><td>Un <code>.inc</code> con solo LF produce el desconcertante <code>Illegal data type: CALENDARCLASS</code> en cada uso. Los ficheros que se entregan son correctos: mantenlos así si los editas.</td></tr>
+        <tr><td>ANSI y CRLF</td><td>Un <code>.inc</code> con solo LF produce el desconcertante <code>Illegal data type: MYCALENDARCLASS</code> en cada uso. Los ficheros que se entregan son correctos: mantenlos así si los editas.</td></tr>
       </table>
       </div>
     </section>
@@ -1002,7 +1004,8 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
       <div class="en">
       <table>
         <tr><th>Symptom</th><th>Cause and cure</th></tr>
-        <tr><td><code>Illegal data type: CALENDARCLASS</code></td><td><code>CalendarClass.inc</code> has LF-only line endings, or is UTF-8. Save it as ANSI with CRLF.</td></tr>
+        <tr><td><code>Duplicate symbol: TYPE$CALENDARCLASS</code><br><code>… VMT$CALENDARCLASS</code>, <code>… VMTP$CALENDARCLASS</code></td><td>You are on an older copy where the class was called <code>CalendarClass</code>, which is the name ABC uses in <code>ABUTIL</code>. Take the current <code>MyCalendarClass.inc</code> / <code>.clw</code>, delete the old <code>CalendarClass.*</code> from the redirection path, and rebuild.</td></tr>
+        <tr><td><code>Illegal data type: MYCALENDARCLASS</code></td><td><code>MyCalendarClass.inc</code> has LF-only line endings, or is UTF-8. Save it as ANSI with CRLF.</td></tr>
         <tr><td><code>Unknown identifier: myCalendarLanguage</code></td><td>The <b class="i">myCalendar - Global</b> extension is missing. Add it to Global Properties — the button normally pulls it in by itself.</td></tr>
         <tr><td>The button has no icon</td><td><code>cal16.ico</code> is not on the redirection path at <b>build</b> time. It is compiled into the EXE, so it is only needed then.</td></tr>
         <tr><td>Nothing happens when the button is pressed</td><td>The <b class="i">Date field to fill in</b> prompt is empty, or in range mode one of the two field prompts is. The template emits nothing until it knows where the answer goes.</td></tr>
@@ -1016,7 +1019,8 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
       <div class="es">
       <table>
         <tr><th>Síntoma</th><th>Causa y solución</th></tr>
-        <tr><td><code>Illegal data type: CALENDARCLASS</code></td><td><code>CalendarClass.inc</code> tiene saltos de línea solo LF, o está en UTF-8. Guárdalo como ANSI con CRLF.</td></tr>
+        <tr><td><code>Duplicate symbol: TYPE$CALENDARCLASS</code><br><code>… VMT$CALENDARCLASS</code>, <code>… VMTP$CALENDARCLASS</code></td><td>Tienes una copia antigua donde la clase se llamaba <code>CalendarClass</code>, que es el nombre que usa ABC en <code>ABUTIL</code>. Coge los <code>MyCalendarClass.inc</code> / <code>.clw</code> actuales, borra los <code>CalendarClass.*</code> viejos de la ruta de redirección y recompila.</td></tr>
+        <tr><td><code>Illegal data type: MYCALENDARCLASS</code></td><td><code>MyCalendarClass.inc</code> tiene saltos de línea solo LF, o está en UTF-8. Guárdalo como ANSI con CRLF.</td></tr>
         <tr><td><code>Unknown identifier: myCalendarLanguage</code></td><td>Falta la extensión <b class="i">myCalendar - Global</b>. Agrégala en Global Properties — normalmente el botón la trae sola.</td></tr>
         <tr><td>El botón sale sin icono</td><td><code>cal16.ico</code> no está en la ruta de redirección al <b>compilar</b>. Se compila dentro del EXE, así que solo hace falta entonces.</td></tr>
         <tr><td>No pasa nada al pulsar el botón</td><td>El prompt <b class="i">Date field to fill in</b> está vacío, o en modo rango lo está uno de los dos. La plantilla no genera nada hasta saber dónde va la respuesta.</td></tr>

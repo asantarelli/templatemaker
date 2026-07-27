@@ -1,5 +1,5 @@
 ! ============================================================================
-!  CalendarClass - implementation.   See CalendarClass.inc for the overview.
+!  MyCalendarClass - implementation.   See MyCalendarClass.inc for the overview.
 !
 !  This file must be stored ANSI, with CRLF line endings.
 ! ============================================================================
@@ -11,7 +11,7 @@
     END
   END
 
-  INCLUDE('CalendarClass.INC'),ONCE
+  INCLUDE('MyCalendarClass.INC'),ONCE
   INCLUDE('EQUATES.CLW'),ONCE
   INCLUDE('KEYCODES.CLW'),ONCE
 
@@ -21,13 +21,13 @@ Cal:CharH          EQUATE(9)
 ! ############################################################################
 !  Lifetime
 ! ############################################################################
-CalendarClass.Construct PROCEDURE
+MyCalendarClass.Construct PROCEDURE
   CODE
   SELF.DatePicture = '@d17'
   SELF.Reset()
 
 
-CalendarClass.Reset PROCEDURE
+MyCalendarClass.Reset PROCEDURE
   CODE
   SELF.Date1    = 0
   SELF.Date2    = 0
@@ -42,12 +42,12 @@ CalendarClass.Reset PROCEDURE
 !  Clarion stores a date as days since 1800-12-28, and date % 7 gives the day
 !  of the week with 0 = Sunday. (Verified: 1801-01-01 was a Thursday and its
 !  value 4 % 7 = 4.)
-CalendarClass.DayOfWeek PROCEDURE(LONG pDate)
+MyCalendarClass.DayOfWeek PROCEDURE(LONG pDate)
   CODE
   RETURN pDate % 7
 
 
-CalendarClass.ColumnOf PROCEDURE(LONG pDate)
+MyCalendarClass.ColumnOf PROCEDURE(LONG pDate)
 d  LONG,AUTO
   CODE
   d = pDate % 7                                             ! 0 = Sunday
@@ -55,7 +55,7 @@ d  LONG,AUTO
   RETURN d
 
 
-CalendarClass.FirstOfMonth PROCEDURE(LONG pDate)
+MyCalendarClass.FirstOfMonth PROCEDURE(LONG pDate)
   CODE
   IF ~pDate THEN RETURN 0 .
   RETURN DATE(MONTH(pDate),1,YEAR(pDate))
@@ -63,13 +63,13 @@ CalendarClass.FirstOfMonth PROCEDURE(LONG pDate)
 
 !  The next month's first day minus this one's gives the length, and it copes
 !  with leap years and the December wrap without a table.
-CalendarClass.DaysInMonth PROCEDURE(LONG pMonth,LONG pYear)
+MyCalendarClass.DaysInMonth PROCEDURE(LONG pMonth,LONG pYear)
   CODE
   IF pMonth >= 12 THEN RETURN DATE(1,1,pYear+1) - DATE(12,1,pYear) .
   RETURN DATE(pMonth+1,1,pYear) - DATE(pMonth,1,pYear)
 
 
-CalendarClass.AddMonths PROCEDURE(LONG pDate,LONG pCount)
+MyCalendarClass.AddMonths PROCEDURE(LONG pDate,LONG pCount)
 m   LONG,AUTO
 y   LONG,AUTO
 d   LONG,AUTO
@@ -94,7 +94,7 @@ n   LONG,AUTO
 
 
 !  ISO-8601: the week belongs to the year that owns its Thursday.
-CalendarClass.WeekNumber PROCEDURE(LONG pDate)
+MyCalendarClass.WeekNumber PROCEDURE(LONG pDate)
 mon  LONG,AUTO
 thu  LONG,AUTO
 jan1 LONG,AUTO
@@ -106,7 +106,7 @@ jan1 LONG,AUTO
   RETURN INT((thu - jan1) / 7) + 1
 
 
-CalendarClass.DateText PROCEDURE(LONG pDate)
+MyCalendarClass.DateText PROCEDURE(LONG pDate)
   CODE
   IF ~pDate THEN RETURN '' .
   IF ~SELF.DatePicture THEN RETURN CLIP(LEFT(FORMAT(pDate,@d17))) .
@@ -116,7 +116,7 @@ CalendarClass.DateText PROCEDURE(LONG pDate)
 ! ############################################################################
 !  Words
 ! ############################################################################
-CalendarClass.MonthName PROCEDURE(LONG pMonth)
+MyCalendarClass.MonthName PROCEDURE(LONG pMonth)
   CODE
   IF SELF.Language = Cal:Spanish
     CASE pMonth
@@ -153,7 +153,7 @@ CalendarClass.MonthName PROCEDURE(LONG pMonth)
 
 
 !  pCol is a screen column, so it already honours FirstDay.
-CalendarClass.DayName PROCEDURE(LONG pCol)
+MyCalendarClass.DayName PROCEDURE(LONG pCol)
 d  LONG,AUTO
   CODE
   d = pCol
@@ -182,7 +182,7 @@ d  LONG,AUTO
   RETURN ''
 
 
-CalendarClass.Txt PROCEDURE(LONG pId)
+MyCalendarClass.Txt PROCEDURE(LONG pId)
   CODE
   IF SELF.Language = Cal:Spanish
     CASE pId
@@ -251,7 +251,7 @@ CalendarClass.Txt PROCEDURE(LONG pId)
 ! ############################################################################
 !  Selecting
 ! ############################################################################
-CalendarClass.Pickable PROCEDURE(LONG pDate)
+MyCalendarClass.Pickable PROCEDURE(LONG pDate)
 d  LONG,AUTO
   CODE
   IF ~pDate THEN RETURN 0 .
@@ -264,14 +264,14 @@ d  LONG,AUTO
   RETURN 1
 
 
-CalendarClass.SetDate PROCEDURE(LONG pDate)
+MyCalendarClass.SetDate PROCEDURE(LONG pDate)
   CODE
   SELF.Date1 = pDate
   SELF.Date2 = 0
   IF pDate THEN SELF.Anchor = pDate .
 
 
-CalendarClass.SetRange PROCEDURE(LONG pFrom,LONG pTo)
+MyCalendarClass.SetRange PROCEDURE(LONG pFrom,LONG pTo)
 t  LONG,AUTO
   CODE
   IF pFrom AND pTo AND pTo < pFrom                          ! accept them either way round
@@ -282,24 +282,24 @@ t  LONG,AUTO
   IF pFrom THEN SELF.Anchor = pFrom .
 
 
-CalendarClass.GoToday PROCEDURE
+MyCalendarClass.GoToday PROCEDURE
   CODE
   SELF.Anchor = TODAY()
 
 
-CalendarClass.GoMonth PROCEDURE(LONG pDelta)
+MyCalendarClass.GoMonth PROCEDURE(LONG pDelta)
   CODE
   SELF.Anchor = SELF.AddMonths(SELF.Anchor,pDelta)
 
 
-CalendarClass.GoYear PROCEDURE(LONG pDelta)
+MyCalendarClass.GoYear PROCEDURE(LONG pDelta)
   CODE
   SELF.Anchor = SELF.AddMonths(SELF.Anchor,pDelta * 12)
 
 
 !  A click. In single mode it just moves the date; in range mode the first
 !  click starts a range and the second closes it.
-CalendarClass.Pick PROCEDURE(LONG pDate)
+MyCalendarClass.Pick PROCEDURE(LONG pDate)
   CODE
   IF ~SELF.Pickable(pDate) THEN RETURN .
   IF SELF.Selection = Cal:Single
@@ -315,14 +315,14 @@ CalendarClass.Pick PROCEDURE(LONG pDate)
   END
 
 
-CalendarClass.Days PROCEDURE()
+MyCalendarClass.Days PROCEDURE()
   CODE
   IF ~SELF.Date1 THEN RETURN 0 .
   IF ~SELF.Date2 THEN RETURN 1 .
   RETURN SELF.Date2 - SELF.Date1 + 1
 
 
-CalendarClass.InSelection PROCEDURE(LONG pDate)
+MyCalendarClass.InSelection PROCEDURE(LONG pDate)
   CODE
   IF ~pDate OR ~SELF.Date1 THEN RETURN 0 .
   IF pDate = SELF.Date1 OR pDate = SELF.Date2 THEN RETURN 1 .
@@ -333,7 +333,7 @@ CalendarClass.InSelection PROCEDURE(LONG pDate)
 ! ############################################################################
 !  Layout, drawing and hit testing
 ! ############################################################################
-CalendarClass.Layout PROCEDURE
+MyCalendarClass.Layout PROCEDURE
 sw  LONG,AUTO
   CODE
   CASE SELF.Months
@@ -358,7 +358,7 @@ sw  LONG,AUTO
   SELF.CanvasH = SELF.GridRows * SELF.BlockH + (SELF.GridRows - 1) * Cal:Gap
 
 
-CalendarClass.Draw PROCEDURE(WINDOW pWin,SIGNED pImage)
+MyCalendarClass.Draw PROCEDURE(WINDOW pWin,SIGNED pImage)
 i      LONG,AUTO
 first  LONG,AUTO
   CODE
@@ -375,7 +375,7 @@ first  LONG,AUTO
   SETTARGET()
 
 
-CalendarClass.DrawMonth PROCEDURE(LONG pFirst,LONG pX,LONG pY)
+MyCalendarClass.DrawMonth PROCEDURE(LONG pFirst,LONG pX,LONG pY)
 m     LONG,AUTO
 y4    LONG,AUTO
 n     LONG,AUTO
@@ -462,7 +462,7 @@ t     CSTRING(48)
 
 
 !  x,y are relative to the image's top-left, the same space Draw uses.
-CalendarClass.DateAt PROCEDURE(LONG pX,LONG pY)
+MyCalendarClass.DateAt PROCEDURE(LONG pX,LONG pY)
 i      LONG,AUTO
 first  LONG,AUTO
 ox     LONG,AUTO
@@ -507,7 +507,7 @@ mfirst LONG,AUTO
 !  things the user changes in the window, so they come back next time.
 !  Language is NOT saved - it is a developer setting from the template, and
 !  remembering it would let an old value shadow whatever the template says.
-CalendarClass.IniPath PROCEDURE()
+MyCalendarClass.IniPath PROCEDURE()
 nm  CSTRING(261)
 n   ULONG,AUTO
 i   LONG,AUTO
@@ -525,7 +525,7 @@ cut LONG(0)
   RETURN CLIP(nm) & '.INI'
 
 
-CalendarClass.IniSection PROCEDURE()
+MyCalendarClass.IniSection PROCEDURE()
 p  CSTRING(65)
   CODE
   p = CLIP(LEFT(SELF.Profile))
@@ -533,7 +533,7 @@ p  CSTRING(65)
   RETURN 'myCalendar_' & p
 
 
-CalendarClass.LoadSettings PROCEDURE
+MyCalendarClass.LoadSettings PROCEDURE
 f     CSTRING(261)
 sect  CSTRING(80)
   CODE
@@ -554,7 +554,7 @@ sect  CSTRING(80)
   IF SELF.Orient   > 1 THEN SELF.Orient   = 0 .
 
 
-CalendarClass.SaveSettings PROCEDURE
+MyCalendarClass.SaveSettings PROCEDURE
 f     CSTRING(261)
 sect  CSTRING(80)
   CODE
@@ -567,7 +567,7 @@ sect  CSTRING(80)
   PUTINI(sect,'ShowToday',SELF.ShowToday,f)
 
 
-CalendarClass.ForgetSettings PROCEDURE
+MyCalendarClass.ForgetSettings PROCEDURE
 f     CSTRING(261)
 sect  CSTRING(80)
   CODE
@@ -584,7 +584,7 @@ sect  CSTRING(80)
 ! ############################################################################
 !  Seed from fields, and put the answer back
 ! ############################################################################
-CalendarClass.AskFor PROCEDURE(*? pDate)
+MyCalendarClass.AskFor PROCEDURE(*? pDate)
   CODE
   SELF.Selection = Cal:Single
   SELF.SetDate(pDate)
@@ -593,7 +593,7 @@ CalendarClass.AskFor PROCEDURE(*? pDate)
   RETURN 1
 
 
-CalendarClass.AskRange PROCEDURE(*? pFrom,*? pTo)
+MyCalendarClass.AskRange PROCEDURE(*? pFrom,*? pTo)
   CODE
   SELF.Selection = Cal:Range
   SELF.SetRange(pFrom,pTo)
@@ -611,7 +611,7 @@ CalendarClass.AskRange PROCEDURE(*? pFrom,*? pTo)
 !  reports the mouse. MOUSEX/MOUSEY are window-relative in the same dialog
 !  units as PROP:Xpos, so subtracting the canvas position gives the exact
 !  coordinate space Draw() used - and the hit test is plain arithmetic.
-CalendarClass.Ask PROCEDURE()
+MyCalendarClass.Ask PROCEDURE()
 MonQ         QUEUE,PRE(MOQ)
 MOName         STRING(20)
              END
