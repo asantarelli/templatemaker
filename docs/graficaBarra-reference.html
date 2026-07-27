@@ -67,7 +67,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>graficaBarra</h1><span class="en">Developer's Reference · v1.0</span><span class="es">Referencia del desarrollador · v1.0</span></div>
+    <div class="brand"><h1>graficaBarra</h1><span class="en">Developer's Reference · v2.0</span><span class="es">Referencia del desarrollador · v2.0</span></div>
     <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
     <div class="grp"><span class="en">Concepts</span><span class="es">Conceptos</span></div>
     <a href="#how" class="h2"><span class="en">How the class works</span><span class="es">Cómo funciona la clase</span></a>
@@ -103,6 +103,39 @@
 
 <section id="over">
   <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
+  <div class="note">
+    <div class="en"><b>New in v2.0 &mdash; thirteen chart types.</b> One property, <code>ChartType</code>, switches
+      between <code>Chart:Column</code>, <code>Chart:Bar</code>, <code>Chart:StackedCol</code>,
+      <code>Chart:StackedBar</code>, <code>Chart:Stacked100</code>, <code>Chart:Line</code>,
+      <code>Chart:Area</code>, <code>Chart:StackedArea</code>, <code>Chart:Scatter</code>, <code>Chart:Pie</code>,
+      <code>Chart:Pie3D</code>, <code>Chart:Donut</code> and <code>Chart:Radar</code>. Up to <b>8 series</b>
+      (<code>AddSeries</code> + <code>AddCat</code>), a legend, markers, smooth (Catmull-Rom) lines, percentage
+      labels, and a scale that puts zero on a gridline. Everything below still applies &mdash; the v1 API
+      (<code>AddBar</code>, <code>ClearBars</code>, <code>SetRange</code>, <code>Draw</code>, <code>Paint</code>)
+      is unchanged, and <code>Chart:Column</code> is the default, so v1 code draws exactly as it did.
+      <br>Pie, 3D pie and donut are built on Clarion's own <code>PIE</code> statement, and areas and radar webs
+      on <code>POLYGON</code> &mdash; so they stay <b>vector on a report</b> too.
+      <br><b>One fix worth knowing:</b> <code>SHOW</code> takes its color from the <i>current target's font</i>,
+      not from <code>SETPENCOLOR</code>, so v1 silently ignored <code>TextColor</code>. v2 honours it via
+      <code>SETFONT(0,&hellip;)</code>; set <code>ColorText = 0</code> to go back to the old behaviour.</div>
+    <div class="es"><b>Nuevo en v2.0 &mdash; trece tipos de gráfico.</b> Una sola propiedad,
+      <code>ChartType</code>, cambia entre <code>Chart:Column</code>, <code>Chart:Bar</code>,
+      <code>Chart:StackedCol</code>, <code>Chart:StackedBar</code>, <code>Chart:Stacked100</code>,
+      <code>Chart:Line</code>, <code>Chart:Area</code>, <code>Chart:StackedArea</code>, <code>Chart:Scatter</code>,
+      <code>Chart:Pie</code>, <code>Chart:Pie3D</code>, <code>Chart:Donut</code> y <code>Chart:Radar</code>.
+      Hasta <b>8 series</b> (<code>AddSeries</code> + <code>AddCat</code>), leyenda, marcadores, líneas suavizadas
+      (Catmull-Rom), etiquetas en porcentaje y una escala que hace caer el cero en una línea de rejilla. Todo lo
+      de abajo sigue valiendo &mdash; la API de v1 (<code>AddBar</code>, <code>ClearBars</code>,
+      <code>SetRange</code>, <code>Draw</code>, <code>Paint</code>) no cambió, y <code>Chart:Column</code> es el
+      valor por defecto, así que el código de v1 dibuja igual que antes.
+      <br>Pastel, pastel 3D y dona se apoyan en la sentencia <code>PIE</code> de Clarion, y las áreas y la
+      telaraña del radar en <code>POLYGON</code> &mdash; así que también siguen siendo <b>vectoriales en un
+      informe</b>.
+      <br><b>Un arreglo que conviene saber:</b> <code>SHOW</code> toma el color de la <i>fuente del destino
+      actual</i>, no de <code>SETPENCOLOR</code>, así que v1 ignoraba <code>TextColor</code> sin avisar. v2 lo
+      respeta con <code>SETFONT(0,&hellip;)</code>; pon <code>ColorText = 0</code> para volver al comportamiento
+      anterior.</div>
+  </div>
   <p class="lead en"><code>GraficaBarraClass</code> is a single, self-contained ANSI Clarion class that
   draws a simple vertical bar graph using only the native graphics primitives <code>BOX</code>,
   <code>LINE</code> and <code>SHOW</code>. It runs the same on a <b>window</b> (drawing into an
@@ -444,8 +477,8 @@ Win WINDOW(<span class="s">'Demo'</span>),AT(,,320,220),SYSTEM,GRAY
 
     </div>
     <footer>
-      <span class="en">graficaBarra v1.0 · developer's reference · pure-Clarion bar graphs · part of the templatemaker collection</span>
-      <span class="es">graficaBarra v1.0 · referencia del desarrollador · gráficos de barras en Clarion puro · parte de la colección templatemaker</span>
+      <span class="en">graficaBarra v2.0 · developer's reference · thirteen pure-Clarion chart types · part of the templatemaker collection</span>
+      <span class="es">graficaBarra v2.0 · referencia del desarrollador · trece tipos de gráfico en Clarion puro · parte de la colección templatemaker</span>
     </footer>
   </main>
 </div>

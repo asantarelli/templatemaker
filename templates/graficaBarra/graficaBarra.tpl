@@ -1,26 +1,38 @@
-#TEMPLATE(graficaBarra,'graficaBarra - Bar graphs on windows and reports - v1.0'),FAMILY('ABC')
+#TEMPLATE(graficaBarra,'graficaBarra - Charts on windows and reports - v2.0'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
-#!  graficaBarra template set - simple bar graphs drawn with native Clarion
-#!  graphics primitives (BOX / LINE / SHOW). No external dependencies.
+#!  graficaBarra template set - THIRTEEN chart types drawn with native Clarion
+#!  graphics primitives (BOX / LINE / POLYGON / ELLIPSE / PIE / SHOW).
+#!  No external dependencies, no DLL, no encoder.
+#!
+#!    Column          Bar (horizontal)   Stacked column   Stacked bar
+#!    Stacked percent Line               Area             Stacked area
+#!    Scatter         Pie                Pie 3D           Donut         Radar
 #!
 #!  graficaBarraGlobal (APPLICATION) - INCLUDEs GraficaBarraClass. Add once.
-#!  graficaBarra       (PROCEDURE)   - draws a bar graph into an IMAGE control
-#!                     on a WINDOW. Add once per graph (several per window OK).
-#!  graficaBarraReport (PROCEDURE)   - draws a bar graph into a REPORT band as
-#!                     BOX/LINE/SHOW VECTOR primitives - never a bitmap - so a
-#!                     PDF export stays as small as possible. A control in the
-#!                     band (IMAGE / BOX / REGION) is used ONLY as the position
-#!                     and size placeholder; it is hidden at print time.
+#!  graficaBarra       (PROCEDURE)   - draws a chart into an IMAGE control on a
+#!                     WINDOW. Add once per chart (several per window is fine).
+#!  graficaBarraReport (PROCEDURE)   - draws a chart into a REPORT band as
+#!                     BOX/LINE/POLYGON/ELLIPSE/PIE VECTOR primitives - never a
+#!                     bitmap - so a PDF export stays as small as possible. A
+#!                     control in the band (IMAGE / BOX / REGION) is used ONLY
+#!                     as the position and size placeholder; it is hidden at
+#!                     print time.
 #!
 #!  REQUIRED FILES: copy GraficaBarraClass.inc AND GraficaBarraClass.clw
 #!  (shipped beside this .tpl) to a folder on the Clarion redirection path
 #!  (the app folder or \clarion12\libsrc\win). Store them in ANSI.
 #!
 #!  API (the object is in the procedure's data - call it from any embed):
-#!    Graph1.ClearBars() ; Graph1.AddBar('Ene', 120) ; Graph1.AddBar('Feb', 95, 0B6752Eh)
-#!    Graph1.SetRange(0, 200)          ! fixed scale (otherwise auto "nice" scale)
-#!    DO Refresh:Graph1                ! window: reload the bars + redraw
+#!    Graph1.ChartType = Chart:Donut
+#!    Graph1.ClearAll() ; Graph1.AddBar('Ene', 120) ; Graph1.AddBar('Feb', 95)
+#!    Graph1.AddSeries('Norte') ; Graph1.AddCat('Ene', 120, 80)  ! many series
+#!    Graph1.SetRange(0, 200)          ! fixed scale (otherwise auto nice scale)
+#!    DO Refresh:Graph1                ! window: reload the data + redraw
 #!-----------------------------------------------------------------------------
+#!  The three DROP prompts (chart type, legend spot, marker shape) are turned
+#!  into Clarion EQUATE names by %gbSetEquates, and one data row's arguments by
+#!  %gbSetValueArgs - both hand their answers back through *%reference
+#!  parameters, so every symbol stays local to the section that asked.
 #!#############################################################################
 #!  GLOBAL EXTENSION - graficaBarraGlobal
 #!#############################################################################
@@ -28,8 +40,9 @@
 #SHEET
   #TAB('&General')
     #BOXED('graficaBarra')
-      #DISPLAY('graficaBarra Global - Version 1.0')
-      #DISPLAY('Adds the GraficaBarraClass bar-graph renderer.')
+      #DISPLAY('graficaBarra Global - Version 2.0')
+      #DISPLAY('Adds the GraficaBarraClass chart renderer - 13 chart types,')
+      #DISPLAY('on windows and on reports, drawn with native primitives.')
       #DISPLAY('Add once, at the Application (global) level. IMPORTANT: copy')
       #DISPLAY('GraficaBarraClass.inc + .clw to the redirection path - ANSI.')
     #ENDBOXED
@@ -43,16 +56,22 @@
 INCLUDE('GraficaBarraClass.INC'),ONCE
 #ENDAT
 #!#############################################################################
-#!  PROCEDURE EXTENSION - graficaBarra (WINDOW)  -  add once per graph
+#!  PROCEDURE EXTENSION - graficaBarra (WINDOW)  -  add once per chart
 #!#############################################################################
-#EXTENSION(graficaBarra,'graficaBarra - Draw a bar graph on this window'),PROCEDURE,REQ(graficaBarraGlobal),DESCRIPTION(' [BarGraph] ' & %gbWObject)
+#EXTENSION(graficaBarra,'graficaBarra - Draw a chart on this window'),PROCEDURE,REQ(graficaBarraGlobal),DESCRIPTION('[' & %gbWType & '] ' & %gbWObject)
 #SHEET
   #TAB('&General')
     #BOXED('Object &&  control')
-      #PROMPT('&Disable this graph',CHECK),%gbWDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Disable this chart',CHECK),%gbWDisable,DEFAULT(0),AT(10)
       #PROMPT('&Object name:',@s64),%gbWObject,REQ,DEFAULT('Graph' & %ActiveTemplateInstance)
       #PROMPT('&Image control to draw into:',CONTROL),%gbWImage,REQ
       #PROMPT('&Title text:',@s64),%gbWTitle,DEFAULT('')
+    #ENDBOXED
+    #BOXED('Chart')
+      #PROMPT('Chart &type:',DROP('Column|Bar (horizontal)|Stacked column|Stacked bar|Stacked percent|Line|Area|Stacked area|Scatter|Pie|Pie 3D|Donut|Radar')),%gbWType,DEFAULT('Column')
+      #PROMPT('Number of &series:',SPIN(@n1,1,4,1)),%gbWNSeries,DEFAULT(1)
+      #DISPLAY('One series = a color per bar / slice. Two or more = a color per')
+      #DISPLAY('series, with a legend. Pie, Pie 3D and Donut always use series 1.')
     #ENDBOXED
     #BOXED('Value scale')
       #PROMPT('&Automatic scale (nice round maximum from the data)',CHECK),%gbWAutoScale,DEFAULT(1),AT(10)
@@ -64,30 +83,98 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
   #ENDTAB
   #TAB('&Look')
     #BOXED('Show')
-      #PROMPT('Show bar &values',CHECK),%gbWShowValues,DEFAULT(1),AT(10)
+      #PROMPT('Show &values',CHECK),%gbWShowValues,DEFAULT(1),AT(10)
       #PROMPT('Value &decimals:',SPIN(@n2,0,4,1)),%gbWValueDP,DEFAULT(0)
-      #PROMPT('Show bar &labels',CHECK),%gbWShowLabels,DEFAULT(1),AT(10)
-      #PROMPT('Show &scale (left axis numbers)',CHECK),%gbWShowScale,DEFAULT(1),AT(10)
+      #PROMPT('Values as a &percentage of the total',CHECK),%gbWPercent,DEFAULT(0),AT(10)
+      #PROMPT('Show &labels',CHECK),%gbWShowLabels,DEFAULT(1),AT(10)
+      #PROMPT('Show &scale (axis numbers)',CHECK),%gbWShowScale,DEFAULT(1),AT(10)
       #PROMPT('Scale d&ecimals:',SPIN(@n2,0,4,1)),%gbWScaleDP,DEFAULT(0)
       #PROMPT('Show &gridlines',CHECK),%gbWShowGrid,DEFAULT(1),AT(10)
       #PROMPT('Scale/grid di&visions:',SPIN(@n3,1,20,1)),%gbWGridDivs,DEFAULT(5)
+      #PROMPT('Show the &axis and the zero line',CHECK),%gbWShowAxis,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('Legend')
+      #PROMPT('Show a le&gend',CHECK),%gbWShowLegend,DEFAULT(1),AT(10)
+      #ENABLE(%gbWShowLegend=1)
+        #PROMPT('&Where:',DROP('Bottom|Right|Top')),%gbWLegendPos,DEFAULT('Bottom')
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('Bars, lines and markers')
       #PROMPT('Gap between bars (%% of a slot):',SPIN(@n3,0,90,5)),%gbWGapPct,DEFAULT(30)
+      #PROMPT('Line &thickness:',SPIN(@n2,1,9,1)),%gbWLineWidth,DEFAULT(2)
+      #PROMPT('S&mooth the line (rounded corners)',CHECK),%gbWSmooth,DEFAULT(0),AT(10)
+      #PROMPT('Show mar&kers on lines and areas',CHECK),%gbWMarkers,DEFAULT(1),AT(10)
+      #PROMPT('Marker s&hape:',DROP('Circle|Square|Diamond')),%gbWMarkerShape,DEFAULT('Circle')
+      #PROMPT('Marker si&ze (0 = automatic):',SPIN(@n3,0,40,1)),%gbWMarkerSize,DEFAULT(0)
+    #ENDBOXED
+    #BOXED('Pie, Pie 3D, Donut')
+      #PROMPT('First slice starts at (degrees clockwise):',SPIN(@n3,0,359,15)),%gbWStartAngle,DEFAULT(0)
+      #PROMPT('3D depth (0 = automatic):',SPIN(@n3,0,99,1)),%gbWDepth3D,DEFAULT(0)
+      #PROMPT('Donut hole (percent of the diameter):',SPIN(@n3,10,90,5)),%gbWDonutPct,DEFAULT(55)
+      #PROMPT('Text in the middle of the donut:',@s32),%gbWDonutText,DEFAULT('')
     #ENDBOXED
     #BOXED('Colors')
       #PROMPT('Paint the &background',CHECK),%gbWUseBack,DEFAULT(0),AT(10)
       #ENABLE(%gbWUseBack=1)
         #PROMPT('Background &color:',COLOR),%gbWBackColor,DEFAULT(00FFFFFFH)
       #ENDENABLE
+      #PROMPT('Paint the &plot area',CHECK),%gbWUsePlot,DEFAULT(0),AT(10)
+      #ENABLE(%gbWUsePlot=1)
+        #PROMPT('Plot area c&olor:',COLOR),%gbWPlotColor,DEFAULT(00FBFBFBH)
+      #ENDENABLE
       #PROMPT('A&xis color:',COLOR),%gbWAxisColor,DEFAULT(002B2B2BH)
       #PROMPT('G&rid color:',COLOR),%gbWGridColor,DEFAULT(00E0E0E0H)
       #PROMPT('Te&xt color:',COLOR),%gbWTextColor,DEFAULT(002B2B2BH)
+      #PROMPT('Outline the bars and slices',CHECK),%gbWUseBorder,DEFAULT(0),AT(10)
+      #ENABLE(%gbWUseBorder=1)
+        #PROMPT('Outline color:',COLOR),%gbWBorderColor,DEFAULT(00FFFFFFH)
+      #ENDENABLE
     #ENDBOXED
   #ENDTAB
-  #TAB('&Bars')
-    #DISPLAY('The bars, left to right. Value can be a literal number or a')
-    #DISPLAY('variable / field / expression re-read by DO Refresh:<object>.')
-    #DISPLAY('If the list is empty, six sample bars are drawn (self-test).')
-    #BUTTON('Bars'),MULTI(%gbWBar,%gbWBarLabel),INLINE
+  #TAB('&Series')
+    #DISPLAY('Only needed when "Number of series" on the General tab is 2 or more.')
+    #DISPLAY('The name is what the legend shows.')
+    #BOXED('Series 1')
+      #PROMPT('&Name:',@s32),%gbWS1Name,DEFAULT('Series 1')
+      #PROMPT('Automatic &color',CHECK),%gbWS1Auto,DEFAULT(1),AT(10)
+      #ENABLE(%gbWS1Auto=0)
+        #PROMPT('C&olor:',COLOR),%gbWS1Color,DEFAULT(00B6752EH)
+      #ENDENABLE
+    #ENDBOXED
+    #ENABLE(%gbWNSeries>=2)
+      #BOXED('Series 2')
+        #PROMPT('N&ame:',@s32),%gbWS2Name,DEFAULT('Series 2')
+        #PROMPT('A&utomatic color',CHECK),%gbWS2Auto,DEFAULT(1),AT(10)
+        #ENABLE(%gbWS2Auto=0)
+          #PROMPT('Co&lor:',COLOR),%gbWS2Color,DEFAULT(00A4A62CH)
+        #ENDENABLE
+      #ENDBOXED
+    #ENDENABLE
+    #ENABLE(%gbWNSeries>=3)
+      #BOXED('Series 3')
+        #PROMPT('Na&me:',@s32),%gbWS3Name,DEFAULT('Series 3')
+        #PROMPT('Auto&matic color',CHECK),%gbWS3Auto,DEFAULT(1),AT(10)
+        #ENABLE(%gbWS3Auto=0)
+          #PROMPT('Col&or:',COLOR),%gbWS3Color,DEFAULT(003DA3E8H)
+        #ENDENABLE
+      #ENDBOXED
+    #ENDENABLE
+    #ENABLE(%gbWNSeries>=4)
+      #BOXED('Series 4')
+        #PROMPT('Nam&e:',@s32),%gbWS4Name,DEFAULT('Series 4')
+        #PROMPT('Automati&c color',CHECK),%gbWS4Auto,DEFAULT(1),AT(10)
+        #ENABLE(%gbWS4Auto=0)
+          #PROMPT('Colo&r:',COLOR),%gbWS4Color,DEFAULT(00794E1FH)
+        #ENDENABLE
+      #ENDBOXED
+    #ENDENABLE
+  #ENDTAB
+  #TAB('&Data')
+    #DISPLAY('One row per bar / point / slice, left to right. The value may be a')
+    #DISPLAY('literal number OR any variable / field / expression - it is')
+    #DISPLAY('re-read every time DO Refresh:<object> runs.')
+    #DISPLAY('If the list is empty, sample data is drawn (self-test).')
+    #BUTTON('Data'),MULTI(%gbWBar,%gbWBarLabel),INLINE
       #PROMPT('&Label:',@s32),%gbWBarLabel,DEFAULT('')
       #PROMPT('Value is a &variable / expression',CHECK),%gbWBarIsExpr,DEFAULT(0),AT(10)
       #ENABLE(%gbWBarIsExpr=0)
@@ -96,17 +183,28 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
       #ENABLE(%gbWBarIsExpr=1)
         #PROMPT('Value &field / expression:',@s255),%gbWBarField,REQ,DEFAULT('')
       #ENDENABLE
-      #PROMPT('&Automatic color (professional palette)',CHECK),%gbWBarAutoColor,DEFAULT(1),AT(10)
-      #ENABLE(%gbWBarAutoColor=0)
-        #PROMPT('&Color:',COLOR),%gbWBarColor,DEFAULT(00B6752EH)
+      #ENABLE(%gbWNSeries>=2)
+        #PROMPT('Series &2 value (number, field or expression):',@s255),%gbWBarV2,DEFAULT('0')
+      #ENDENABLE
+      #ENABLE(%gbWNSeries>=3)
+        #PROMPT('Series &3 value (number, field or expression):',@s255),%gbWBarV3,DEFAULT('0')
+      #ENDENABLE
+      #ENABLE(%gbWNSeries>=4)
+        #PROMPT('Series &4 value (number, field or expression):',@s255),%gbWBarV4,DEFAULT('0')
+      #ENDENABLE
+      #ENABLE(%gbWNSeries=1)
+        #PROMPT('&Automatic color (professional palette)',CHECK),%gbWBarAutoColor,DEFAULT(1),AT(10)
+        #ENABLE(%gbWBarAutoColor=0)
+          #PROMPT('&Color:',COLOR),%gbWBarColor,DEFAULT(00B6752EH)
+        #ENDENABLE
       #ENDENABLE
     #ENDBUTTON
   #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
 #AT(%DataSection),WHERE(%gbWDisable=0 AND %gbWImage)
-%gbWObject           GraficaBarraClass                       ! one bar-graph object for this instance
-Redraw:%gbWObject    EQUATE(EVENT:User + 220 + %ActiveTemplateInstance) ! private "repaint" event (unique per graph)
+%gbWObject           GraficaBarraClass                       ! one chart object for this instance
+Redraw:%gbWObject    EQUATE(EVENT:User + 220 + %ActiveTemplateInstance) ! private "repaint" event (unique per chart)
 #ENDAT
 #!
 #! PRIORITY(2000) puts this self-contained CASE EVENT() ABOVE the framework's own
@@ -116,40 +214,46 @@ Redraw:%gbWObject    EQUATE(EVENT:User + 220 + %ActiveTemplateInstance) ! privat
   CASE EVENT()
   OF EVENT:OpenWindow
 #INSERT(%gbWEmitConfig)
-#INSERT(%gbWEmitBars)
     POST(Redraw:%gbWObject)                                  ! first draw, after the window has opened
   OF EVENT:Sized
     POST(Redraw:%gbWObject)                                  ! redraw AFTER the resizer settles (fresh size)
   OF Redraw:%gbWObject
-    %gbWObject.Draw(%Window, %gbWImage)
+    DO Refresh:%gbWObject                                    ! reload the data, then draw it
   END
 #ENDAT
 #!
-#!  Per-instance refresh ROUTINE: reload the bars (re-evaluating any variable
+#!  Per-instance refresh ROUTINE: reload the data (re-evaluating any variable
 #!  values) and redraw. Call it (e.g. DO Refresh:Graph1) after data changes.
 #AT(%ProcedureRoutines),WHERE(%gbWDisable=0 AND %gbWImage)
 Refresh:%gbWObject ROUTINE
-#INSERT(%gbWEmitBars)
+#INSERT(%gbWEmitData)
     %gbWObject.Draw(%Window, %gbWImage)
 #ENDAT
 #!#############################################################################
 #!  PROCEDURE EXTENSION - graficaBarraReport (REPORT)  -  vector primitives
 #!#############################################################################
-#!  Draws with BOX/LINE/SHOW straight into the band under SETTARGET(Report) -
-#!  the graph reaches the PDF as vector primitives, NOT a bitmap, so the file
-#!  stays as small as possible. The placeholder control only supplies the
-#!  position/size (GETPOSITION) and is hidden so it never prints itself.
+#!  Draws with BOX/LINE/POLYGON/ELLIPSE/PIE straight into the band under
+#!  SETTARGET(Report) - the chart reaches the PDF as vector primitives, NOT a
+#!  bitmap, so the file stays as small as possible. The placeholder control
+#!  only supplies the position/size (GETPOSITION) and is hidden so it never
+#!  prints itself.
 #!#############################################################################
-#EXTENSION(graficaBarraReport,'graficaBarra - Draw a bar graph on this REPORT'),PROCEDURE,REQ(graficaBarraGlobal),DESCRIPTION(' [BarGraph] ' & %gbRObject)
+#EXTENSION(graficaBarraReport,'graficaBarra - Draw a chart on this REPORT'),PROCEDURE,REQ(graficaBarraGlobal),DESCRIPTION('[' & %gbRType & '] ' & %gbRObject)
 #SHEET
   #TAB('&General')
     #BOXED('Object &&  placeholder')
-      #PROMPT('&Disable this graph',CHECK),%gbRDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Disable this chart',CHECK),%gbRDisable,DEFAULT(0),AT(10)
       #PROMPT('&Object name:',@s64),%gbRObject,REQ,DEFAULT('RptGraph' & %ActiveTemplateInstance)
       #! a report needs FROM(%ReportControl,...) (corpus: blobsrv.tpw:20)
-      #PROMPT('&Placeholder control (in the DETAIL band):',FROM(%ReportControl,%ReportControlType='IMAGE' OR %ReportControlType='BOX' OR %ReportControlType='REGION')),%gbRPlace,REQ,DEFAULT('')
+      #PROMPT('&Placeholder control (in the band):',FROM(%ReportControl,%ReportControlType='IMAGE' OR %ReportControlType='BOX' OR %ReportControlType='REGION')),%gbRPlace,REQ,DEFAULT('')
       #PROMPT('&Hide the placeholder when printing',CHECK),%gbRHide,DEFAULT(1),AT(10)
       #PROMPT('&Title text:',@s64),%gbRTitle,DEFAULT('')
+    #ENDBOXED
+    #BOXED('Chart')
+      #PROMPT('Chart &type:',DROP('Column|Bar (horizontal)|Stacked column|Stacked bar|Stacked percent|Line|Area|Stacked area|Scatter|Pie|Pie 3D|Donut|Radar')),%gbRType,DEFAULT('Column')
+      #PROMPT('Number of &series:',SPIN(@n1,1,4,1)),%gbRNSeries,DEFAULT(1)
+      #DISPLAY('The chart is redrawn for every band printed, so the values may')
+      #DISPLAY('be fields from the record being printed or running totals.')
     #ENDBOXED
     #BOXED('Value scale')
       #PROMPT('&Automatic scale (nice round maximum from the data)',CHECK),%gbRAutoScale,DEFAULT(1),AT(10)
@@ -158,29 +262,105 @@ Refresh:%gbWObject ROUTINE
         #PROMPT('Ma&ximum:',@n13.2),%gbRMax,DEFAULT(100)
       #ENDENABLE
     #ENDBOXED
+    #BOXED('Text size on the report')
+      #DISPLAY('The band has no font awareness, so the class assumes a 9pt font')
+      #DISPLAY('on a THOUS report. Nudge these if your labels crowd or straggle.')
+      #PROMPT('Character &width (0 = 62 thousandths):',SPIN(@n4,0,400,2)),%gbRTextW,DEFAULT(0)
+      #PROMPT('Character h&eight (0 = 130 thousandths):',SPIN(@n4,0,400,5)),%gbRTextH,DEFAULT(0)
+    #ENDBOXED
   #ENDTAB
   #TAB('&Look')
     #BOXED('Show')
-      #PROMPT('Show bar &values',CHECK),%gbRShowValues,DEFAULT(1),AT(10)
+      #PROMPT('Show &values',CHECK),%gbRShowValues,DEFAULT(1),AT(10)
       #PROMPT('Value &decimals:',SPIN(@n2,0,4,1)),%gbRValueDP,DEFAULT(0)
-      #PROMPT('Show bar &labels',CHECK),%gbRShowLabels,DEFAULT(1),AT(10)
-      #PROMPT('Show &scale (left axis numbers)',CHECK),%gbRShowScale,DEFAULT(1),AT(10)
+      #PROMPT('Values as a &percentage of the total',CHECK),%gbRPercent,DEFAULT(0),AT(10)
+      #PROMPT('Show &labels',CHECK),%gbRShowLabels,DEFAULT(1),AT(10)
+      #PROMPT('Show &scale (axis numbers)',CHECK),%gbRShowScale,DEFAULT(1),AT(10)
       #PROMPT('Scale d&ecimals:',SPIN(@n2,0,4,1)),%gbRScaleDP,DEFAULT(0)
       #PROMPT('Show &gridlines',CHECK),%gbRShowGrid,DEFAULT(1),AT(10)
       #PROMPT('Scale/grid di&visions:',SPIN(@n3,1,20,1)),%gbRGridDivs,DEFAULT(5)
+      #PROMPT('Show the &axis and the zero line',CHECK),%gbRShowAxis,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('Legend')
+      #PROMPT('Show a le&gend',CHECK),%gbRShowLegend,DEFAULT(1),AT(10)
+      #ENABLE(%gbRShowLegend=1)
+        #PROMPT('&Where:',DROP('Bottom|Right|Top')),%gbRLegendPos,DEFAULT('Bottom')
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('Bars, lines and markers')
       #PROMPT('Gap between bars (%% of a slot):',SPIN(@n3,0,90,5)),%gbRGapPct,DEFAULT(30)
+      #PROMPT('Line &thickness:',SPIN(@n2,1,9,1)),%gbRLineWidth,DEFAULT(2)
+      #PROMPT('S&mooth the line (rounded corners)',CHECK),%gbRSmooth,DEFAULT(0),AT(10)
+      #PROMPT('Show mar&kers on lines and areas',CHECK),%gbRMarkers,DEFAULT(1),AT(10)
+      #PROMPT('Marker s&hape:',DROP('Circle|Square|Diamond')),%gbRMarkerShape,DEFAULT('Circle')
+      #PROMPT('Marker si&ze (0 = automatic):',SPIN(@n4,0,400,5)),%gbRMarkerSize,DEFAULT(0)
+    #ENDBOXED
+    #BOXED('Pie, Pie 3D, Donut')
+      #PROMPT('First slice starts at (degrees clockwise):',SPIN(@n3,0,359,15)),%gbRStartAngle,DEFAULT(0)
+      #PROMPT('3D depth (0 = automatic):',SPIN(@n4,0,900,10)),%gbRDepth3D,DEFAULT(0)
+      #PROMPT('Donut hole (percent of the diameter):',SPIN(@n3,10,90,5)),%gbRDonutPct,DEFAULT(55)
+      #PROMPT('Text in the middle of the donut:',@s32),%gbRDonutText,DEFAULT('')
     #ENDBOXED
     #BOXED('Colors')
+      #PROMPT('Paint the &background',CHECK),%gbRUseBack,DEFAULT(0),AT(10)
+      #ENABLE(%gbRUseBack=1)
+        #PROMPT('Background &color:',COLOR),%gbRBackColor,DEFAULT(00FFFFFFH)
+      #ENDENABLE
+      #PROMPT('Paint the &plot area',CHECK),%gbRUsePlot,DEFAULT(0),AT(10)
+      #ENABLE(%gbRUsePlot=1)
+        #PROMPT('Plot area c&olor:',COLOR),%gbRPlotColor,DEFAULT(00FBFBFBH)
+      #ENDENABLE
       #PROMPT('A&xis color:',COLOR),%gbRAxisColor,DEFAULT(002B2B2BH)
       #PROMPT('G&rid color:',COLOR),%gbRGridColor,DEFAULT(00E0E0E0H)
       #PROMPT('Te&xt color:',COLOR),%gbRTextColor,DEFAULT(002B2B2BH)
+      #PROMPT('Outline the bars and slices',CHECK),%gbRUseBorder,DEFAULT(0),AT(10)
+      #ENABLE(%gbRUseBorder=1)
+        #PROMPT('Outline color:',COLOR),%gbRBorderColor,DEFAULT(00FFFFFFH)
+      #ENDENABLE
     #ENDBOXED
   #ENDTAB
-  #TAB('&Bars')
-    #DISPLAY('The bars, left to right. Value can be a literal number or a')
-    #DISPLAY('field / expression evaluated for every record printed.')
-    #DISPLAY('If the list is empty, six sample bars are drawn (self-test).')
-    #BUTTON('Bars'),MULTI(%gbRBar,%gbRBarLabel),INLINE
+  #TAB('&Series')
+    #DISPLAY('Only needed when "Number of series" on the General tab is 2 or more.')
+    #BOXED('Series 1')
+      #PROMPT('&Name:',@s32),%gbRS1Name,DEFAULT('Series 1')
+      #PROMPT('Automatic &color',CHECK),%gbRS1Auto,DEFAULT(1),AT(10)
+      #ENABLE(%gbRS1Auto=0)
+        #PROMPT('C&olor:',COLOR),%gbRS1Color,DEFAULT(00B6752EH)
+      #ENDENABLE
+    #ENDBOXED
+    #ENABLE(%gbRNSeries>=2)
+      #BOXED('Series 2')
+        #PROMPT('N&ame:',@s32),%gbRS2Name,DEFAULT('Series 2')
+        #PROMPT('A&utomatic color',CHECK),%gbRS2Auto,DEFAULT(1),AT(10)
+        #ENABLE(%gbRS2Auto=0)
+          #PROMPT('Co&lor:',COLOR),%gbRS2Color,DEFAULT(00A4A62CH)
+        #ENDENABLE
+      #ENDBOXED
+    #ENDENABLE
+    #ENABLE(%gbRNSeries>=3)
+      #BOXED('Series 3')
+        #PROMPT('Na&me:',@s32),%gbRS3Name,DEFAULT('Series 3')
+        #PROMPT('Auto&matic color',CHECK),%gbRS3Auto,DEFAULT(1),AT(10)
+        #ENABLE(%gbRS3Auto=0)
+          #PROMPT('Col&or:',COLOR),%gbRS3Color,DEFAULT(003DA3E8H)
+        #ENDENABLE
+      #ENDBOXED
+    #ENDENABLE
+    #ENABLE(%gbRNSeries>=4)
+      #BOXED('Series 4')
+        #PROMPT('Nam&e:',@s32),%gbRS4Name,DEFAULT('Series 4')
+        #PROMPT('Automati&c color',CHECK),%gbRS4Auto,DEFAULT(1),AT(10)
+        #ENABLE(%gbRS4Auto=0)
+          #PROMPT('Colo&r:',COLOR),%gbRS4Color,DEFAULT(00794E1FH)
+        #ENDENABLE
+      #ENDBOXED
+    #ENDENABLE
+  #ENDTAB
+  #TAB('&Data')
+    #DISPLAY('One row per bar / point / slice. The value may be a literal number')
+    #DISPLAY('OR any field / expression - it is evaluated for every band printed.')
+    #DISPLAY('If the list is empty, sample data is drawn (self-test).')
+    #BUTTON('Data'),MULTI(%gbRBar,%gbRBarLabel),INLINE
       #PROMPT('&Label:',@s32),%gbRBarLabel,DEFAULT('')
       #PROMPT('Value is a &variable / expression',CHECK),%gbRBarIsExpr,DEFAULT(1),AT(10)
       #ENABLE(%gbRBarIsExpr=0)
@@ -189,9 +369,20 @@ Refresh:%gbWObject ROUTINE
       #ENABLE(%gbRBarIsExpr=1)
         #PROMPT('Value &field / expression:',@s255),%gbRBarField,REQ,DEFAULT('')
       #ENDENABLE
-      #PROMPT('&Automatic color (professional palette)',CHECK),%gbRBarAutoColor,DEFAULT(1),AT(10)
-      #ENABLE(%gbRBarAutoColor=0)
-        #PROMPT('&Color:',COLOR),%gbRBarColor,DEFAULT(00B6752EH)
+      #ENABLE(%gbRNSeries>=2)
+        #PROMPT('Series &2 value (number, field or expression):',@s255),%gbRBarV2,DEFAULT('0')
+      #ENDENABLE
+      #ENABLE(%gbRNSeries>=3)
+        #PROMPT('Series &3 value (number, field or expression):',@s255),%gbRBarV3,DEFAULT('0')
+      #ENDENABLE
+      #ENABLE(%gbRNSeries>=4)
+        #PROMPT('Series &4 value (number, field or expression):',@s255),%gbRBarV4,DEFAULT('0')
+      #ENDENABLE
+      #ENABLE(%gbRNSeries=1)
+        #PROMPT('&Automatic color (professional palette)',CHECK),%gbRBarAutoColor,DEFAULT(1),AT(10)
+        #ENABLE(%gbRBarAutoColor=0)
+          #PROMPT('&Color:',COLOR),%gbRBarColor,DEFAULT(00B6752EH)
+        #ENDENABLE
       #ENDENABLE
     #ENDBUTTON
   #ENDTAB
@@ -202,93 +393,291 @@ Refresh:%gbWObject ROUTINE
 #ENDAT
 #!
 #AT(%BeforePrint),WHERE(%gbRDisable=0 AND %gbRPlace)
+#INSERT(%gbREmitAll)
+#ENDAT
+#!
+#!  REPORT: settings + data, emitted together at %BeforePrint so the chart is
+#!  rebuilt from the record being printed for every band.
+#GROUP(%gbREmitAll)
+#DECLARE(%TypeEq)
+#DECLARE(%LegendEq)
+#DECLARE(%MarkerEq)
+#DECLARE(%Args)
+#INSERT(%gbSetEquates,%gbRType,%gbRLegendPos,%gbRMarkerShape,%TypeEq,%LegendEq,%MarkerEq)
+  %gbRObject.ChartType = %TypeEq
   %gbRObject.Title = '%gbRTitle'
   %gbRObject.ShowValues = %gbRShowValues
   %gbRObject.ValueDP = %gbRValueDP
+  %gbRObject.Percent = %gbRPercent
   %gbRObject.ShowLabels = %gbRShowLabels
   %gbRObject.ShowScale = %gbRShowScale
   %gbRObject.ScaleDP = %gbRScaleDP
   %gbRObject.ShowGrid = %gbRShowGrid
   %gbRObject.GridDivs = %gbRGridDivs
+  %gbRObject.ShowAxis = %gbRShowAxis
+  %gbRObject.ShowLegend = %gbRShowLegend
+  %gbRObject.LegendPos = %LegendEq
   %gbRObject.BarGapPct = %gbRGapPct
+  %gbRObject.LineWidth = %gbRLineWidth
+  %gbRObject.Smooth = %gbRSmooth
+  %gbRObject.ShowMarkers = %gbRMarkers
+  %gbRObject.MarkerShape = %MarkerEq
+  %gbRObject.MarkerSize = %gbRMarkerSize
+  %gbRObject.StartAngle = %gbRStartAngle
+  %gbRObject.Depth3D = %gbRDepth3D
+  %gbRObject.DonutPct = %gbRDonutPct
+  %gbRObject.DonutText = '%gbRDonutText'
+  %gbRObject.TextW = %gbRTextW
+  %gbRObject.TextH = %gbRTextH
+#IF(%gbRUseBack)
+  %gbRObject.BackColor = %gbRBackColor
+#ENDIF
+#IF(%gbRUsePlot)
+  %gbRObject.PlotColor = %gbRPlotColor
+#ENDIF
   %gbRObject.AxisColor = %gbRAxisColor
   %gbRObject.GridColor = %gbRGridColor
   %gbRObject.TextColor = %gbRTextColor
+#IF(%gbRUseBorder)
+  %gbRObject.BarBorderColor = %gbRBorderColor
+#ENDIF
 #IF(%gbRAutoScale=0)
   %gbRObject.SetRange(%gbRMin, %gbRMax)
 #ENDIF
-  %gbRObject.ClearBars()
-#FOR(%gbRBar)
-#IF(%gbRBarIsExpr AND %gbRBarField='')
-#!  skipped bar - expression mode with no value field
-#ELSIF(%gbRBarIsExpr)
-#IF(%gbRBarAutoColor)
-  %gbRObject.AddBar('%gbRBarLabel', %gbRBarField)
+  %gbRObject.ClearAll()
+#IF(ITEMS(%gbRBar)=0)
+  %gbRObject.Demo()                                          ! no data defined - sample data (self-test)
+#ELSIF(%gbRNSeries>1)
+#IF(%gbRS1Auto=0)
+  %gbRObject.AddSeries('%gbRS1Name', %gbRS1Color)
 #ELSE
-  %gbRObject.AddBar('%gbRBarLabel', %gbRBarField, %gbRBarColor)
+  %gbRObject.AddSeries('%gbRS1Name')
 #ENDIF
+#IF(%gbRS2Auto=0)
+  %gbRObject.AddSeries('%gbRS2Name', %gbRS2Color)
 #ELSE
+  %gbRObject.AddSeries('%gbRS2Name')
+#ENDIF
+#IF(%gbRNSeries>=3)
+#IF(%gbRS3Auto=0)
+  %gbRObject.AddSeries('%gbRS3Name', %gbRS3Color)
+#ELSE
+  %gbRObject.AddSeries('%gbRS3Name')
+#ENDIF
+#ENDIF
+#IF(%gbRNSeries>=4)
+#IF(%gbRS4Auto=0)
+  %gbRObject.AddSeries('%gbRS4Name', %gbRS4Color)
+#ELSE
+  %gbRObject.AddSeries('%gbRS4Name')
+#ENDIF
+#ENDIF
+#FOR(%gbRBar)
+#INSERT(%gbSetValueArgs,%gbRBarIsExpr,%gbRBarValue,%gbRBarField,%gbRNSeries,%gbRBarV2,%gbRBarV3,%gbRBarV4,%Args)
+#IF(%Args)
+  %gbRObject.AddCat('%gbRBarLabel', %Args)
+#ENDIF
+#ENDFOR
+#ELSE
+#FOR(%gbRBar)
+#INSERT(%gbSetValueArgs,%gbRBarIsExpr,%gbRBarValue,%gbRBarField,1,'','','',%Args)
+#IF(%Args)
 #IF(%gbRBarAutoColor)
-  %gbRObject.AddBar('%gbRBarLabel', %gbRBarValue)
+  %gbRObject.AddBar('%gbRBarLabel', %Args)
 #ELSE
-  %gbRObject.AddBar('%gbRBarLabel', %gbRBarValue, %gbRBarColor)
+  %gbRObject.AddBar('%gbRBarLabel', %Args, %gbRBarColor)
 #ENDIF
 #ENDIF
 #ENDFOR
-#IF(ITEMS(%gbRBar)=0)
-  %gbRObject.Demo()                                          ! no bars defined - sample data (self-test)
 #ENDIF
   SETTARGET(%Report)                                         ! the band being printed is the draw target
-  %gbRObject.Paint(%gbRPlace)                                ! vector BOX/LINE/SHOW into the band
+  %gbRObject.Paint(%gbRPlace)                                ! vector primitives into the band
 #IF(%gbRHide)
   %gbRPlace{PROP:Hide} = 1                                   ! placeholder only supplied the rectangle - never prints
 #ENDIF
   SETTARGET()
-#ENDAT
 #!#############################################################################
-#!  GROUPS - shared code emitters for the WINDOW extension
+#!  GROUPS - shared code emitters
 #!#############################################################################
+#!  Turn the three DROP prompts into Clarion EQUATE names, once, so the
+#!  generated source reads Chart:Donut rather than 11.
+#GROUP(%gbSetEquates,%pType,%pLegend,%pMarker,*%pTypeEq,*%pLegendEq,*%pMarkerEq)
+#CASE(%pType)
+#OF('Bar (horizontal)')
+  #SET(%pTypeEq,'Chart:Bar')
+#OF('Stacked column')
+  #SET(%pTypeEq,'Chart:StackedCol')
+#OF('Stacked bar')
+  #SET(%pTypeEq,'Chart:StackedBar')
+#OF('Stacked percent')
+  #SET(%pTypeEq,'Chart:Stacked100')
+#OF('Line')
+  #SET(%pTypeEq,'Chart:Line')
+#OF('Area')
+  #SET(%pTypeEq,'Chart:Area')
+#OF('Stacked area')
+  #SET(%pTypeEq,'Chart:StackedArea')
+#OF('Scatter')
+  #SET(%pTypeEq,'Chart:Scatter')
+#OF('Pie')
+  #SET(%pTypeEq,'Chart:Pie')
+#OF('Pie 3D')
+  #SET(%pTypeEq,'Chart:Pie3D')
+#OF('Donut')
+  #SET(%pTypeEq,'Chart:Donut')
+#OF('Radar')
+  #SET(%pTypeEq,'Chart:Radar')
+#ELSE
+  #SET(%pTypeEq,'Chart:Column')
+#ENDCASE
+#CASE(%pLegend)
+#OF('Right')
+  #SET(%pLegendEq,'Legend:Right')
+#OF('Top')
+  #SET(%pLegendEq,'Legend:Top')
+#ELSE
+  #SET(%pLegendEq,'Legend:Bottom')
+#ENDCASE
+#CASE(%pMarker)
+#OF('Square')
+  #SET(%pMarkerEq,'Marker:Square')
+#OF('Diamond')
+  #SET(%pMarkerEq,'Marker:Diamond')
+#ELSE
+  #SET(%pMarkerEq,'Marker:Circle')
+#ENDCASE
+#!
+#!  Build the value argument list for one data row into %Args. Series 1 is
+#!  either the literal or the expression (as in v1); series 2..4 are always
+#!  free text, so a number and a field name both work. %Args comes back
+#!  empty when the row has nothing usable in it - the caller then skips it.
+#GROUP(%gbSetValueArgs,%pIsExpr,%pValue,%pField,%pNSeries,%pV2,%pV3,%pV4,*%pArgs)
+#IF(%pIsExpr)
+#SET(%pArgs,CLIP(%pField))
+#ELSE
+#SET(%pArgs,%pValue)
+#ENDIF
+#IF(%pArgs='')
+#RETURN
+#ENDIF
+#!  A blank series value means "nothing here" - pass a zero, never an empty
+#!  argument (Obj.AddCat('X', 1, ) would not compile).
+#IF(%pNSeries>=2)
+#IF(CLIP(%pV2)='')
+#SET(%pArgs,%pArgs & ', 0')
+#ELSE
+#SET(%pArgs,%pArgs & ', ' & CLIP(%pV2))
+#ENDIF
+#ENDIF
+#IF(%pNSeries>=3)
+#IF(CLIP(%pV3)='')
+#SET(%pArgs,%pArgs & ', 0')
+#ELSE
+#SET(%pArgs,%pArgs & ', ' & CLIP(%pV3))
+#ENDIF
+#ENDIF
+#IF(%pNSeries>=4)
+#IF(CLIP(%pV4)='')
+#SET(%pArgs,%pArgs & ', 0')
+#ELSE
+#SET(%pArgs,%pArgs & ', ' & CLIP(%pV4))
+#ENDIF
+#ENDIF
+#!
+#!  WINDOW: everything that only has to be set once, when the window opens.
 #GROUP(%gbWEmitConfig)
+#DECLARE(%TypeEq)
+#DECLARE(%LegendEq)
+#DECLARE(%MarkerEq)
+#INSERT(%gbSetEquates,%gbWType,%gbWLegendPos,%gbWMarkerShape,%TypeEq,%LegendEq,%MarkerEq)
+    %gbWObject.ChartType = %TypeEq
     %gbWObject.Title = '%gbWTitle'
     %gbWObject.ShowValues = %gbWShowValues
     %gbWObject.ValueDP = %gbWValueDP
+    %gbWObject.Percent = %gbWPercent
     %gbWObject.ShowLabels = %gbWShowLabels
     %gbWObject.ShowScale = %gbWShowScale
     %gbWObject.ScaleDP = %gbWScaleDP
     %gbWObject.ShowGrid = %gbWShowGrid
     %gbWObject.GridDivs = %gbWGridDivs
+    %gbWObject.ShowAxis = %gbWShowAxis
+    %gbWObject.ShowLegend = %gbWShowLegend
+    %gbWObject.LegendPos = %LegendEq
     %gbWObject.BarGapPct = %gbWGapPct
+    %gbWObject.LineWidth = %gbWLineWidth
+    %gbWObject.Smooth = %gbWSmooth
+    %gbWObject.ShowMarkers = %gbWMarkers
+    %gbWObject.MarkerShape = %MarkerEq
+    %gbWObject.MarkerSize = %gbWMarkerSize
+    %gbWObject.StartAngle = %gbWStartAngle
+    %gbWObject.Depth3D = %gbWDepth3D
+    %gbWObject.DonutPct = %gbWDonutPct
+    %gbWObject.DonutText = '%gbWDonutText'
 #IF(%gbWUseBack)
     %gbWObject.BackColor = %gbWBackColor
+#ENDIF
+#IF(%gbWUsePlot)
+    %gbWObject.PlotColor = %gbWPlotColor
 #ENDIF
     %gbWObject.AxisColor = %gbWAxisColor
     %gbWObject.GridColor = %gbWGridColor
     %gbWObject.TextColor = %gbWTextColor
+#IF(%gbWUseBorder)
+    %gbWObject.BarBorderColor = %gbWBorderColor
+#ENDIF
 #IF(%gbWAutoScale=0)
     %gbWObject.SetRange(%gbWMin, %gbWMax)
 #ENDIF
 #!
-#GROUP(%gbWEmitBars)
-    %gbWObject.ClearBars()
-#FOR(%gbWBar)
-#IF(%gbWBarIsExpr AND %gbWBarField='')
-#!  skipped bar - expression mode with no value field
-#ELSIF(%gbWBarIsExpr)
-#IF(%gbWBarAutoColor)
-    %gbWObject.AddBar('%gbWBarLabel', %gbWBarField)
+#!  WINDOW: the data. Emitted twice - at OpenWindow and in Refresh:<object> -
+#!  so any variable / expression value is re-read on every refresh.
+#GROUP(%gbWEmitData)
+#DECLARE(%Args)
+    %gbWObject.ClearAll()
+#IF(ITEMS(%gbWBar)=0)
+    %gbWObject.Demo()                                        ! no data defined - sample data (self-test)
+#ELSIF(%gbWNSeries>1)
+#IF(%gbWS1Auto=0)
+    %gbWObject.AddSeries('%gbWS1Name', %gbWS1Color)
 #ELSE
-    %gbWObject.AddBar('%gbWBarLabel', %gbWBarField, %gbWBarColor)
+    %gbWObject.AddSeries('%gbWS1Name')
 #ENDIF
+#IF(%gbWS2Auto=0)
+    %gbWObject.AddSeries('%gbWS2Name', %gbWS2Color)
 #ELSE
+    %gbWObject.AddSeries('%gbWS2Name')
+#ENDIF
+#IF(%gbWNSeries>=3)
+#IF(%gbWS3Auto=0)
+    %gbWObject.AddSeries('%gbWS3Name', %gbWS3Color)
+#ELSE
+    %gbWObject.AddSeries('%gbWS3Name')
+#ENDIF
+#ENDIF
+#IF(%gbWNSeries>=4)
+#IF(%gbWS4Auto=0)
+    %gbWObject.AddSeries('%gbWS4Name', %gbWS4Color)
+#ELSE
+    %gbWObject.AddSeries('%gbWS4Name')
+#ENDIF
+#ENDIF
+#FOR(%gbWBar)
+#INSERT(%gbSetValueArgs,%gbWBarIsExpr,%gbWBarValue,%gbWBarField,%gbWNSeries,%gbWBarV2,%gbWBarV3,%gbWBarV4,%Args)
+#IF(%Args)
+    %gbWObject.AddCat('%gbWBarLabel', %Args)
+#ENDIF
+#ENDFOR
+#ELSE
+#FOR(%gbWBar)
+#INSERT(%gbSetValueArgs,%gbWBarIsExpr,%gbWBarValue,%gbWBarField,1,'','','',%Args)
+#IF(%Args)
 #IF(%gbWBarAutoColor)
-    %gbWObject.AddBar('%gbWBarLabel', %gbWBarValue)
+    %gbWObject.AddBar('%gbWBarLabel', %Args)
 #ELSE
-    %gbWObject.AddBar('%gbWBarLabel', %gbWBarValue, %gbWBarColor)
+    %gbWObject.AddBar('%gbWBarLabel', %Args, %gbWBarColor)
 #ENDIF
 #ENDIF
 #ENDFOR
-#IF(ITEMS(%gbWBar)=0)
-    %gbWObject.Demo()                                        ! no bars defined - sample data (self-test)
 #ENDIF
 #!-----------------------------------------------------------------------------
 #! End of graficaBarra template set

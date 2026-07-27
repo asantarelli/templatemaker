@@ -57,7 +57,7 @@ templates/                      # ready-to-register Clarion templates
     GaugeClass.inc              #     the gauge class (config + method prototypes)
     GaugeClass.clw              #     the implementation (geometry + native drawing)
     myGauge.tpl                 #     global include + window + report extensions
-  graficaBarra/                 #   bar graphs on windows and reports, vector on PDF (see below)
+  graficaBarra/                 #   13 chart types on windows and reports, vector on PDF (see below)
     GraficaBarraClass.inc       #     the bar-graph class (config + method prototypes)
     GraficaBarraClass.clw       #     the implementation (scale + BOX/LINE/SHOW drawing)
     graficaBarra.tpl            #     global include + window + report extensions
@@ -331,26 +331,47 @@ on open/resize, optional animation, a generated `Refresh:<Object>` routine), and
 `GaugeClass.clw` (ANSI) to the redirection path. Full programmer's documentation — shapes, prompts, the class
 API, run-time control, and troubleshooting — is in [`docs/myGauge-template.html`](docs/myGauge-template.html).
 
-### `templates/graficaBarra/` — bar graphs on windows and reports (vector on PDF)
-A **simple bar graph** drawn entirely with native Clarion primitives (`BOX`, `LINE`, `SHOW`) — the same
-offline, no-dependency family as myPie and myGauge. One self-contained ANSI class, **`GraficaBarraClass`**,
-holds the bars (up to 48: label, value, color) and the look (title, value/scale labels, gridlines, gaps,
-colors, auto or fixed scale with a "nice" 1/2/5×10ᵏ maximum; negative values hang below the zero baseline)
-and renders itself; every graph is its **own local object**, so several per window or report just work.
-The report path is the point: **graficaBarraReport** draws the graph **straight into the band as vector
-`BOX`/`LINE`/`SHOW` primitives** under `SETTARGET(Report)` at `%BeforePrint` — never a bitmap — so a
-**PDF export stays as small as possible**. A control in the detail band (IMAGE/BOX) is used *only* as the
-position/size placeholder and is hidden at print time. On windows, **graficaBarra** draws into an `IMAGE`
-control (redraw on open/resize, plus a generated `DO Refresh:<Object>` routine that re-reads
-variable/expression bar values). Bars are defined in the prompts (literal value or a field/expression, auto
-professional palette or a per-bar color); an empty list draws six sample bars as a self-test. Three
-registrations: **graficaBarraGlobal** (include the class once), **graficaBarra** (window),
-**graficaBarraReport** (report). Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
+### `templates/graficaBarra/` — **thirteen chart types** on windows and reports (vector on PDF)
+**Column, horizontal Bar, Stacked column, Stacked bar, Stacked percent, Line, Area, Stacked area, Scatter,
+Pie, Pie 3D, Donut and Radar** — all drawn with native Clarion primitives (`BOX`, `LINE`, `POLYGON`,
+`ELLIPSE`, `PIE`, `SHOW`), no DLL and no encoder, the same offline family as myGauge. One self-contained
+ANSI class, **`GraficaBarraClass`**, holds the data (up to 48 categories × 8 series: label, value, color)
+and the look, and renders itself; every chart is its **own local object**, so several per window or report
+just work. Pick the shape with one property — `Obj.ChartType = Chart:Donut`.
+
+![thirteen chart types](docs/graficaBarra-demo.png)
+
+Highlights: automatic **"nice" scale** (max rounds up to 1/2/5×10ᵏ, and when the data crosses zero the axis
+steps in nice units so **zero lands on a gridline**) or a fixed `SetRange`; **negative values** hang below
+the baseline; **up to 4 series from the prompts** (8 from code) grouped, stacked or stacked-to-100; a
+**legend** bottom/top/right that wraps; markers (circle/square/diamond); **smooth** Catmull-Rom lines;
+values shown as numbers or **percentages**; category labels that thin themselves out rather than collide;
+a 12-color professional palette or explicit colors; optional painted background, plot area and bar/slice
+outlines. An empty data list draws **sample data suited to the chart type** — a built-in self-test.
+
+The report path is still the point: **graficaBarraReport** draws **straight into the band as vector
+primitives** under `SETTARGET(Report)` at `%BeforePrint` — never a bitmap — so a **PDF export stays as
+small as possible**. Pie/3D pie/donut ride on Clarion's own `PIE` statement and areas and radar webs on
+`POLYGON`, both of which are valid on a REPORT, so *every* type stays vector:
+
+![the same charts, printed into a report band as vectors](docs/graficaBarra-report.png)
+
+A control in the band (IMAGE/BOX/REGION) is used *only* as the position/size placeholder and is hidden at
+print time. On windows, **graficaBarra** draws into an `IMAGE` control (redraw on open/resize, plus a
+generated `DO Refresh:<Object>` routine that re-reads variable/expression values). Three registrations:
+**graficaBarraGlobal** (include the class once), **graficaBarra** (window), **graficaBarraReport** (report).
+Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
 [`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy
-distribution. Full docs — prompts, class API, run-time control — in
-[`docs/graficaBarra-template.html`](docs/graficaBarra-template.html); a bilingual (English + Spanish)
-developer's reference with worked example code is in
+distribution. `examples/graficaBarra/` has two runnable demos: **ChartDemo** (pick a type, watch it draw)
+and **ChartShots** (six charts per page, `ChartShots 1|2|3`). Full docs — prompts, class API, run-time
+control — in [`docs/graficaBarra-template.html`](docs/graficaBarra-template.html); a bilingual (English +
+Spanish) developer's reference with worked example code is in
 [`docs/graficaBarra-reference.html`](docs/graficaBarra-reference.html).
+
+*Upgrading from v1?* Nothing to redo: `Chart:Column` is the default and the v1 API (`AddBar`, `ClearBars`,
+`SetRange`, `Draw`, `Paint`) and prompts are unchanged, so existing charts generate and draw as before —
+except that `TextColor` now actually works (`SHOW` takes its color from the target's *font*, not the pen,
+so v1 silently drew all text in black; set `ColorText = 0` for the old behaviour).
 
 ### `templates/myGaugePlus/` — **antialiased** (GDI+) gauges/dials on windows
 The pretty sibling of myGauge. Native Clarion `ARC`/`ELLIPSE`/`LINE` have **no antialiasing**, so round

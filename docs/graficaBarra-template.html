@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>graficaBarra — Programmer's Documentation / Documentación del programador</title>
+<title>graficaBarra — Charts for windows and reports / Gráficos para ventanas e informes</title>
 <style>
   :root{
     --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
@@ -72,7 +72,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>graficaBarra</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <div class="brand"><h1>graficaBarra</h1><span class="en">Programmer's Documentation · v2.0</span><span class="es">Documentación del programador · v2.0</span></div>
     <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
     <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
     <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
@@ -88,14 +88,17 @@
   <main>
     <header class="hero">
       <h1>graficaBarra</h1>
-      <p class="en">Simple bar graphs for Clarion windows <em>and</em> reports, drawn entirely with native
-      <code>BOX</code> / <code>LINE</code> / <code>SHOW</code> primitives. On a report the graph goes into
-      the band as <strong>vector primitives — never a bitmap — so PDF exports stay as small as possible</strong>.</p>
-      <p class="es">Gráficos de barras sencillos para ventanas <em>e</em> informes de Clarion, dibujados
-      por completo con las primitivas nativas <code>BOX</code> / <code>LINE</code> / <code>SHOW</code>. En un
-      informe el gráfico entra en la banda como <strong>primitivas vectoriales — nunca un mapa de bits — así
-      que los PDF salen lo más pequeños posible</strong>.</p>
-      <span class="pill en">Pure Clarion · no DLLs · window + report · ABC chain</span><span class="pill es">Clarion puro · sin DLLs · ventana + informe · cadena ABC</span>
+      <p class="en"><strong>Thirteen chart types</strong> for Clarion windows <em>and</em> reports — column, bar,
+      stacked, stacked percent, line, area, stacked area, scatter, pie, 3D pie, donut and radar — drawn entirely with
+      native <code>BOX</code> / <code>LINE</code> / <code>POLYGON</code> / <code>ELLIPSE</code> / <code>PIE</code> /
+      <code>SHOW</code> primitives. On a report the chart goes into the band as <strong>vector primitives — never a
+      bitmap — so PDF exports stay as small as possible</strong>.</p>
+      <p class="es"><strong>Trece tipos de gráfico</strong> para ventanas <em>e</em> informes de Clarion — columnas,
+      barras, apiladas, apiladas al 100, líneas, área, área apilada, dispersión, pastel, pastel 3D, dona y radar —
+      dibujados por completo con las primitivas nativas <code>BOX</code> / <code>LINE</code> / <code>POLYGON</code> /
+      <code>ELLIPSE</code> / <code>PIE</code> / <code>SHOW</code>. En un informe el gráfico entra en la banda como
+      <strong>primitivas vectoriales — nunca un mapa de bits — así que los PDF salen lo más pequeños posible</strong>.</p>
+      <span class="pill en">13 chart types · pure Clarion · no DLLs · window + report · up to 4 series</span><span class="pill es">13 tipos · Clarion puro · sin DLLs · ventana + informe · hasta 4 series</span>
     </header>
     <div class="langbar">
       <button id="btn-en" onclick="setLang('en')">English</button>
@@ -107,10 +110,10 @@
 <section id="over">
       <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
       <div class="en">
-  <p class="lead">One self-contained ANSI class, <code>GraficaBarraClass</code>, holds up to 48 bars
-  (label, value, color) plus the look — title, value/scale labels, gridlines, gaps, colors, automatic or
-  fixed scale — and renders itself wherever the current graphics target is. Three template registrations
-  drive it:</p>
+  <p class="lead">One self-contained ANSI class, <code>GraficaBarraClass</code>, holds up to 48 categories
+  across up to 8 series (label, value, color) plus the look — chart type, title, value/scale labels, legend,
+  markers, gridlines, gaps, colors, automatic or fixed scale — and renders itself wherever the current graphics
+  target is. One property, <code>ChartType</code>, picks the shape. Three template registrations drive it:</p>
   <table>
     <tr><th>Registration</th><th>Scope</th><th>What it does</th></tr>
     <tr><td><b>graficaBarraGlobal</b></td><td>Application (Global → Extensions)</td>
@@ -133,16 +136,38 @@
     ├─ GraficaBarraClass.inc&nbsp;&nbsp;&nbsp;— the class (config + prototypes)<br>
     └─ GraficaBarraClass.clw&nbsp;&nbsp;&nbsp;— the implementation (scale + drawing)
   </div>
-  <p>Features: automatic <b>"nice" scale</b> (the maximum rounds up to 1, 2 or 5 × 10<sup>k</sup>) or a
-  fixed <code>SetRange(min,max)</code>; <b>negative values</b> hang below the zero baseline; numeric value
-  over each bar; bar labels under the baseline; left-axis scale numbers; horizontal gridlines; per-bar
-  colors or an automatic professional palette; configurable gap; an optional painted background. If the
-  bar list is left empty the graph draws <b>six sample bars</b> — a built-in self-test.</p>
+  <h3>The thirteen types</h3>
+  <p><img src="graficaBarra-demo.png" alt="The graficaBarra demo: pick a chart type on the left, it draws on the right" style="max-width:100%"></p>
+  <table>
+    <tr><th>Pick this</th><th>Equate</th><th>What you get</th></tr>
+    <tr><td>Column</td><td><code>Chart:Column</code></td><td>Vertical bars. Several series sit side by side (grouped).</td></tr>
+    <tr><td>Bar (horizontal)</td><td><code>Chart:Bar</code></td><td>Bars running left to right, categories down the side.</td></tr>
+    <tr><td>Stacked column / Stacked bar</td><td><code>Chart:StackedCol</code> &middot; <code>Chart:StackedBar</code></td><td>Series stacked into one bar per category, with each segment's value inside it.</td></tr>
+    <tr><td>Stacked percent</td><td><code>Chart:Stacked100</code></td><td>Every stack fills the axis to 100 &mdash; share of the total, per category.</td></tr>
+    <tr><td>Line</td><td><code>Chart:Line</code></td><td>Straight or <b>smooth</b> (Catmull-Rom), with optional markers.</td></tr>
+    <tr><td>Area / Stacked area</td><td><code>Chart:Area</code> &middot; <code>Chart:StackedArea</code></td><td>Filled <code>POLYGON</code> under the line; stacked bands for several series.</td></tr>
+    <tr><td>Scatter</td><td><code>Chart:Scatter</code></td><td>Markers only &mdash; circle, square or diamond.</td></tr>
+    <tr><td>Pie / Pie 3D</td><td><code>Chart:Pie</code> &middot; <code>Chart:Pie3D</code></td><td>The Clarion built-in <code>PIE</code>, so it stays vector on a report too. 3D adds an edge depth.</td></tr>
+    <tr><td>Donut</td><td><code>Chart:Donut</code></td><td>Pie with a hole (10&ndash;90% of the diameter) and optional text in the middle.</td></tr>
+    <tr><td>Radar</td><td><code>Chart:Radar</code></td><td>Spider web: one spoke per category, filled for one series, outlined for several.</td></tr>
+  </table>
+  <p><img src="graficaBarra-types1.png" alt="Column, bar, stacked, stacked percent and line charts" style="max-width:100%">
+     <img src="graficaBarra-types2.png" alt="Area, stacked area, scatter, pie, 3D pie and donut charts" style="max-width:100%">
+     <img src="graficaBarra-types3.png" alt="Radar, grouped columns, negative values, smooth lines and forty bars" style="max-width:100%"></p>
+  <p>Features: automatic <b>"nice" scale</b> (the maximum rounds up to 1, 2 or 5 &times; 10<sup>k</sup>, and when the
+  data crosses zero the axis steps in nice units so <b>zero lands on a gridline</b>) or a fixed
+  <code>SetRange(min,max)</code>; <b>negative values</b> hang below the baseline; values on bars, points and
+  slices, optionally <b>as a percentage</b>; category labels that thin themselves out rather than collide;
+  scale numbers; gridlines; a <b>legend</b> at the bottom, top or right; up to <b>4 series</b> from the prompts
+  (8 from code); per-category or per-series colors, or a 12-color professional palette; an optional painted
+  background and plot area. If the data list is left empty the chart draws <b>sample data suited to its type</b>
+  &mdash; a built-in self-test.</p>
       </div>
       <div class="es">
-  <p class="lead">Una sola clase ANSI autosuficiente, <code>GraficaBarraClass</code>, guarda hasta 48 barras
-  (etiqueta, valor, color) y además el aspecto — título, etiquetas de valor y escala, líneas de rejilla,
-  separación, colores, escala automática o fija — y se dibuja donde esté apuntando el destino gráfico actual.
+  <p class="lead">Una sola clase ANSI autosuficiente, <code>GraficaBarraClass</code>, guarda hasta 48 categorías
+  repartidas en hasta 8 series (etiqueta, valor, color) y además el aspecto — tipo de gráfico, título, etiquetas de
+  valor y escala, leyenda, marcadores, líneas de rejilla, separación, colores, escala automática o fija — y se dibuja
+  donde esté apuntando el destino gráfico actual. Una sola propiedad, <code>ChartType</code>, elige la forma.
   La manejan tres registros de plantilla:</p>
   <table>
     <tr><th>Registro</th><th>Ámbito</th><th>Qué hace</th></tr>
@@ -166,12 +191,33 @@
     ├─ GraficaBarraClass.inc&nbsp;&nbsp;&nbsp;— la clase (configuración + prototipos)<br>
     └─ GraficaBarraClass.clw&nbsp;&nbsp;&nbsp;— la implementación (escala + dibujo)
   </div>
-  <p>Características: <b>escala "bonita" automática</b> (el máximo redondea hacia arriba a 1, 2 o 5 ×
-  10<sup>k</sup>) o un <code>SetRange(min,max)</code> fijo; los <b>valores negativos</b> cuelgan por debajo de
-  la línea de cero; valor numérico sobre cada barra; etiquetas de barra bajo la línea base; números de escala
-  en el eje izquierdo; líneas de rejilla horizontales; colores por barra o una paleta profesional automática;
-  separación configurable; y un fondo pintado opcional. Si dejas la lista de barras vacía, el gráfico dibuja
-  <b>seis barras de ejemplo</b> — una autoprueba incorporada.</p>
+  <h3>Los trece tipos</h3>
+  <p><img src="graficaBarra-demo.png" alt="El demo de graficaBarra: elige un tipo a la izquierda y se dibuja a la derecha" style="max-width:100%"></p>
+  <table>
+    <tr><th>Elige esto</th><th>Equate</th><th>Qué obtienes</th></tr>
+    <tr><td>Column</td><td><code>Chart:Column</code></td><td>Barras verticales. Varias series se colocan una al lado de otra (agrupadas).</td></tr>
+    <tr><td>Bar (horizontal)</td><td><code>Chart:Bar</code></td><td>Barras de izquierda a derecha, con las categorías al costado.</td></tr>
+    <tr><td>Stacked column / Stacked bar</td><td><code>Chart:StackedCol</code> &middot; <code>Chart:StackedBar</code></td><td>Series apiladas en una sola barra por categoría, con el valor de cada tramo dentro.</td></tr>
+    <tr><td>Stacked percent</td><td><code>Chart:Stacked100</code></td><td>Cada pila llena el eje hasta 100 &mdash; la parte del total de cada categoría.</td></tr>
+    <tr><td>Line</td><td><code>Chart:Line</code></td><td>Recta o <b>suavizada</b> (Catmull-Rom), con marcadores opcionales.</td></tr>
+    <tr><td>Area / Stacked area</td><td><code>Chart:Area</code> &middot; <code>Chart:StackedArea</code></td><td><code>POLYGON</code> relleno bajo la línea; bandas apiladas para varias series.</td></tr>
+    <tr><td>Scatter</td><td><code>Chart:Scatter</code></td><td>Solo marcadores &mdash; círculo, cuadrado o rombo.</td></tr>
+    <tr><td>Pie / Pie 3D</td><td><code>Chart:Pie</code> &middot; <code>Chart:Pie3D</code></td><td>El <code>PIE</code> nativo de Clarion, así que también es vectorial en un informe. La 3D añade profundidad al canto.</td></tr>
+    <tr><td>Donut</td><td><code>Chart:Donut</code></td><td>Pastel con agujero (10&ndash;90% del diámetro) y texto opcional en el centro.</td></tr>
+    <tr><td>Radar</td><td><code>Chart:Radar</code></td><td>Telaraña: un radio por categoría, rellena con una serie y solo contorno con varias.</td></tr>
+  </table>
+  <p><img src="graficaBarra-types1.png" alt="Columnas, barras, apiladas, apiladas al 100 y líneas" style="max-width:100%">
+     <img src="graficaBarra-types2.png" alt="Área, área apilada, dispersión, pastel, pastel 3D y dona" style="max-width:100%">
+     <img src="graficaBarra-types3.png" alt="Radar, columnas agrupadas, valores negativos, líneas suaves y cuarenta barras" style="max-width:100%"></p>
+  <p>Características: <b>escala "bonita" automática</b> (el máximo redondea hacia arriba a 1, 2 o 5 &times;
+  10<sup>k</sup>, y cuando los datos cruzan el cero el eje avanza en pasos redondos para que <b>el cero caiga
+  en una línea de rejilla</b>) o un <code>SetRange(min,max)</code> fijo; los <b>valores negativos</b> cuelgan
+  por debajo de la línea base; valores sobre barras, puntos y porciones, opcionalmente <b>en porcentaje</b>;
+  etiquetas de categoría que se ralean solas en vez de estorbarse; números de escala; líneas de rejilla; una
+  <b>leyenda</b> abajo, arriba o a la derecha; hasta <b>4 series</b> desde los prompts (8 desde código);
+  colores por categoría o por serie, o una paleta profesional de 12 colores; fondo y área de dibujo pintados
+  opcionalmente. Si dejas la lista de datos vacía, el gráfico dibuja <b>datos de ejemplo adecuados a su tipo</b>
+  &mdash; una autoprueba incorporada.</p>
       </div>
     </section>
 
@@ -304,23 +350,40 @@ SETTARGET()</pre>
     <tr><td>Object name</td><td><code>Graph&lt;n&gt;</code> / <code>RptGraph&lt;n&gt;</code></td><td>The local object's label — also names the <code>Refresh:</code> routine (window).</td></tr>
     <tr><td>Image / placeholder control</td><td>—</td><td>Window: the IMAGE canvas. Report: the position/size placeholder in the detail band.</td></tr>
     <tr><td>Hide the placeholder when printing</td><td>on</td><td>Report only.</td></tr>
-    <tr><td>Title text</td><td>empty</td><td>Centered over the graph.</td></tr>
-    <tr><td>Automatic scale</td><td>on</td><td>Nice round maximum (1/2/5 × 10<sup>k</sup>) from the data; untick for fixed Minimum/Maximum.</td></tr>
+    <tr><td>Title text</td><td>empty</td><td>Centered over the chart.</td></tr>
+    <tr><td><b>Chart type</b></td><td>Column</td><td>The thirteen types above. Changing it changes nothing else &mdash; the same data draws as bars, a pie or a radar.</td></tr>
+    <tr><td><b>Number of series</b></td><td>1</td><td>1 = a color per bar/slice, no legend needed. 2&ndash;4 = a color per series, a legend, and the extra value prompts appear on every data row.</td></tr>
+    <tr><td>Automatic scale</td><td>on</td><td>Nice round maximum (1/2/5 × 10<sup>k</sup>) from the data; untick for fixed Minimum/Maximum. When the data crosses zero the axis steps in nice units so zero lands on a gridline.</td></tr>
+    <tr><td>Character width / height <i>(report only)</i></td><td>0 / 0</td><td>0 means 62 / 130 thousandths of an inch &mdash; a 9pt font on a <code>THOUS</code> report. Nudge them if your labels crowd or straggle.</td></tr>
   </table>
   <h3>Look</h3>
   <table>
     <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
-    <tr><td>Show bar values / decimals</td><td>on / 0</td><td>Numeric value above each bar (below, for negative bars).</td></tr>
-    <tr><td>Show bar labels</td><td>on</td><td>Under the baseline, centered per bar, clipped to the slot width.</td></tr>
-    <tr><td>Show scale / decimals</td><td>on / 0</td><td>Left-axis numbers at each division.</td></tr>
-    <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Horizontal lines across the plot.</td></tr>
-    <tr><td>Gap between bars</td><td>30</td><td>Percent of one bar slot.</td></tr>
-    <tr><td>Colors</td><td>near-black axis/text, light-gray grid</td><td>Optional painted background (window). All colors are Clarion BGR longs.</td></tr>
+    <tr><td>Show values / decimals</td><td>on / 0</td><td>The number on each bar, point or slice (above a positive bar, below a negative one, inside a stack segment).</td></tr>
+    <tr><td>Values as a percentage</td><td>off</td><td>Shows each value's share of the total instead of the value. Made for pie and donut.</td></tr>
+    <tr><td>Show labels</td><td>on</td><td>Category names: under the axis, beside a slice, or around a radar web. They thin out automatically when there is no room.</td></tr>
+    <tr><td>Show scale / decimals</td><td>on / 0</td><td>Axis numbers at each division &mdash; down the left, or along the bottom for a horizontal bar.</td></tr>
+    <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Lines across the plot; rings on a radar.</td></tr>
+    <tr><td>Show the axis and the zero line</td><td>on</td><td>The value axis plus the baseline through zero.</td></tr>
+    <tr><td>Show a legend / where</td><td>on / Bottom</td><td>Bottom, Top or Right. Drawn only when it says something: series names when there are 2+ series, slice names on a pie. Wraps onto up to three rows.</td></tr>
+    <tr><td>Gap between bars</td><td>30</td><td>Percent of one category slot. With several series the remainder is split between them.</td></tr>
+    <tr><td>Line thickness / Smooth</td><td>2 / off</td><td>Pen width for line, area and radar outlines. Smooth rounds the corners off with a Catmull-Rom curve.</td></tr>
+    <tr><td>Markers / shape / size</td><td>on / Circle / 0</td><td>Dots on line and area charts (always drawn for Scatter). Size 0 = three quarters of the text height.</td></tr>
+    <tr><td>First slice starts at</td><td>0</td><td>Degrees clockwise from twelve o'clock (pie, 3D pie, donut).</td></tr>
+    <tr><td>3D depth</td><td>0</td><td>Edge depth for <code>Pie 3D</code>; 0 = an eighth of the height.</td></tr>
+    <tr><td>Donut hole / middle text</td><td>55 / empty</td><td>Hole as a percent of the diameter, and an optional caption in the middle.</td></tr>
+    <tr><td>Colors</td><td>near-black axis/text, light-gray grid</td><td>Optional painted background and plot area, plus an optional outline around every bar and slice (white looks good on a pie). All colors are Clarion BGR longs.</td></tr>
   </table>
-  <h3>Bars</h3>
-  <p>An ordered list (left to right). Per bar: <b>Label</b>, <b>Value</b> — literal number or
-  variable/field/expression — and <b>Color</b>: automatic palette (default) or an explicit color.
-  Leave the whole list empty to get the six sample self-test bars.</p>
+  <h3>Series</h3>
+  <p>Only used when <b>Number of series</b> is 2 or more: a <b>name</b> (what the legend shows) and a
+  <b>color</b> (automatic palette, or pick one) for each of up to four series.</p>
+  <h3>Data</h3>
+  <p>An ordered list &mdash; one row per bar, point or slice, left to right. Per row: <b>Label</b>,
+  <b>Value</b> for series 1 (a literal number, or tick the box and give a variable / field / expression),
+  a value for <b>series 2, 3 and 4</b> when you asked for them (each is free text, so a number and a field
+  name both work &mdash; blank counts as zero), and a <b>Color</b> when there is only one series: automatic
+  palette (default) or an explicit color. Leave the whole list empty and the chart draws sample data suited
+  to its type &mdash; a self-test.</p>
       </div>
       <div class="es">
   <h3>General</h3>
@@ -331,22 +394,39 @@ SETTARGET()</pre>
     <tr><td>Image / placeholder control</td><td>—</td><td>Ventana: el IMAGE que hace de lienzo. Informe: el marcador de posición/tamaño en la banda de detalle.</td></tr>
     <tr><td>Hide the placeholder when printing</td><td>on</td><td>Solo informes.</td></tr>
     <tr><td>Title text</td><td>vacío</td><td>Centrado sobre el gráfico.</td></tr>
-    <tr><td>Automatic scale</td><td>on</td><td>Máximo redondo (1/2/5 × 10<sup>k</sup>) calculado de los datos; desmárcalo para fijar Mínimo/Máximo.</td></tr>
+    <tr><td><b>Chart type</b></td><td>Column</td><td>Los trece tipos de arriba. Cambiarlo no cambia nada más &mdash; los mismos datos se dibujan como barras, pastel o radar.</td></tr>
+    <tr><td><b>Number of series</b></td><td>1</td><td>1 = un color por barra/porción, sin necesidad de leyenda. 2&ndash;4 = un color por serie, una leyenda, y aparecen los prompts de valor extra en cada fila de datos.</td></tr>
+    <tr><td>Automatic scale</td><td>on</td><td>Máximo redondo (1/2/5 × 10<sup>k</sup>) calculado de los datos; desmárcalo para fijar Mínimo/Máximo. Cuando los datos cruzan el cero, el eje avanza en pasos redondos para que el cero caiga en una línea de rejilla.</td></tr>
+    <tr><td>Character width / height <i>(solo informe)</i></td><td>0 / 0</td><td>0 significa 62 / 130 milésimas de pulgada &mdash; una fuente de 9pt en un informe <code>THOUS</code>. Ajústalos si las etiquetas se aprietan o se separan.</td></tr>
   </table>
   <h3>Look</h3>
   <table>
     <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
-    <tr><td>Show bar values / decimals</td><td>on / 0</td><td>Valor numérico sobre cada barra (debajo, si la barra es negativa).</td></tr>
-    <tr><td>Show bar labels</td><td>on</td><td>Bajo la línea base, centradas por barra, recortadas al ancho del hueco.</td></tr>
-    <tr><td>Show scale / decimals</td><td>on / 0</td><td>Números del eje izquierdo en cada división.</td></tr>
-    <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Líneas horizontales a lo ancho del área de dibujo.</td></tr>
-    <tr><td>Gap between bars</td><td>30</td><td>Porcentaje del hueco de una barra.</td></tr>
-    <tr><td>Colors</td><td>eje/texto casi negro, rejilla gris claro</td><td>Fondo pintado opcional (ventana). Todos los colores son longs BGR de Clarion.</td></tr>
+    <tr><td>Show values / decimals</td><td>on / 0</td><td>El número en cada barra, punto o porción (encima de una barra positiva, debajo de una negativa, dentro del tramo de una pila).</td></tr>
+    <tr><td>Values as a percentage</td><td>off</td><td>Muestra la parte del total en vez del valor. Pensado para pastel y dona.</td></tr>
+    <tr><td>Show labels</td><td>on</td><td>Nombres de categoría: bajo el eje, junto a una porción o alrededor de la telaraña del radar. Se ralean solos cuando no hay sitio.</td></tr>
+    <tr><td>Show scale / decimals</td><td>on / 0</td><td>Números del eje en cada división &mdash; a la izquierda, o abajo si la barra es horizontal.</td></tr>
+    <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Líneas a lo ancho del área de dibujo; anillos en un radar.</td></tr>
+    <tr><td>Show the axis and the zero line</td><td>on</td><td>El eje de valores más la línea base del cero.</td></tr>
+    <tr><td>Show a legend / where</td><td>on / Bottom</td><td>Abajo, arriba o a la derecha. Solo se dibuja cuando aporta algo: los nombres de las series si hay 2 o más, o los de las porciones en un pastel. Se reparte en hasta tres filas.</td></tr>
+    <tr><td>Gap between bars</td><td>30</td><td>Porcentaje del hueco de una categoría. Con varias series, lo que queda se reparte entre ellas.</td></tr>
+    <tr><td>Line thickness / Smooth</td><td>2 / off</td><td>Grosor del trazo de líneas, áreas y contornos del radar. Smooth redondea las esquinas con una curva Catmull-Rom.</td></tr>
+    <tr><td>Markers / shape / size</td><td>on / Circle / 0</td><td>Puntos en líneas y áreas (siempre se dibujan en Scatter). Tamaño 0 = tres cuartos de la altura del texto.</td></tr>
+    <tr><td>First slice starts at</td><td>0</td><td>Grados en sentido horario desde las doce (pastel, pastel 3D, dona).</td></tr>
+    <tr><td>3D depth</td><td>0</td><td>Profundidad del canto en <code>Pie 3D</code>; 0 = un octavo de la altura.</td></tr>
+    <tr><td>Donut hole / middle text</td><td>55 / vacío</td><td>El agujero como porcentaje del diámetro, y un texto opcional en el centro.</td></tr>
+    <tr><td>Colors</td><td>eje/texto casi negro, rejilla gris claro</td><td>Fondo y área de dibujo pintados opcionalmente, más un contorno opcional en cada barra y porción (el blanco queda bien en un pastel). Todos los colores son longs BGR de Clarion.</td></tr>
   </table>
-  <h3>Bars</h3>
-  <p>Una lista ordenada (de izquierda a derecha). Por barra: <b>Label</b>, <b>Value</b> — número literal o
-  variable/campo/expresión — y <b>Color</b>: paleta automática (por defecto) o un color explícito.
-  Deja la lista entera vacía para obtener las seis barras de autoprueba.</p>
+  <h3>Series</h3>
+  <p>Solo se usa cuando <b>Number of series</b> es 2 o más: un <b>nombre</b> (lo que muestra la leyenda) y un
+  <b>color</b> (paleta automática, o el que elijas) para cada una de hasta cuatro series.</p>
+  <h3>Data</h3>
+  <p>Una lista ordenada &mdash; una fila por barra, punto o porción, de izquierda a derecha. Por fila:
+  <b>Label</b>, <b>Value</b> de la serie 1 (un número literal, o marca la casilla y pon una variable /
+  campo / expresión), un valor para las <b>series 2, 3 y 4</b> cuando las pediste (cada uno es texto libre,
+  así que valen tanto un número como el nombre de un campo &mdash; en blanco cuenta como cero), y un
+  <b>Color</b> cuando solo hay una serie: paleta automática (por defecto) o un color explícito. Deja la
+  lista entera vacía y el gráfico dibuja datos de ejemplo adecuados a su tipo &mdash; una autoprueba.</p>
       </div>
     </section>
 
@@ -354,28 +434,52 @@ SETTARGET()</pre>
       <h2><span class="en">Changing it at run time</span><span class="es">Cambiarlo en ejecución</span></h2>
       <div class="en">
   <p>The object is plain procedure data — drive it from any embed:</p>
-  <pre>Graph1.ClearBars()                       <span class="c">! start over</span>
+  <pre>Graph1.ChartType = Chart:Donut           <span class="c">! any of the thirteen, any time</span>
+Graph1.ClearAll()                        <span class="c">! start over (data AND series)</span>
 Graph1.AddBar('Ene', Ene:Total)          <span class="c">! auto palette color</span>
 Graph1.AddBar('Feb', Feb:Total, 04657C0h)<span class="c">! explicit BGR color</span>
 Graph1.Title = 'Ventas 2026'
-Graph1.SetRange(0, 200)                  <span class="c">! fixed scale (AutoScale off)</span>
+Graph1.Percent = 1                       <span class="c">! label the slices with their share</span>
+Graph1.DonutText = 'Total'               <span class="c">! caption in the hole</span>
 Graph1.Draw(MyWindow, ?Graph)            <span class="c">! window redraw now</span>
-<span class="c">! or, if the bars came from the template prompts:</span>
-DO Refresh:Graph1                        <span class="c">! reload prompt bars + redraw</span></pre>
+
+<span class="c">! several series - name them once, then one call per category:</span>
+Graph1.ChartType = Chart:StackedCol
+Graph1.ClearAll()
+Graph1.AddSeries('Norte')                <span class="c">! series 1 (auto color)</span>
+Graph1.AddSeries('Sur', 0A4A62Ch)        <span class="c">! series 2 (explicit)</span>
+Graph1.AddCat('Ene', Nor:Ene, Sur:Ene)   <span class="c">! label + one value per series</span>
+Graph1.AddCat('Feb', Nor:Feb, Sur:Feb)
+Graph1.Draw(MyWindow, ?Graph)
+
+<span class="c">! or, if the data came from the template prompts:</span>
+DO Refresh:Graph1                        <span class="c">! reload prompt data + redraw</span></pre>
   <div class="tip"><b>Reports</b> Call the same API in a report embed before the band prints, then
   <code>SETTARGET(Report) ; RptGraph1.Paint(?Placeholder) ; SETTARGET()</code> — or just let the
   template's generated <code>%BeforePrint</code> code do it.</div>
       </div>
       <div class="es">
   <p>El objeto es sencillamente un dato del procedimiento — manéjalo desde cualquier embed:</p>
-  <pre>Graph1.ClearBars()                       <span class="c">! empezar de cero</span>
+  <pre>Graph1.ChartType = Chart:Donut           <span class="c">! cualquiera de los trece, en cualquier momento</span>
+Graph1.ClearAll()                        <span class="c">! empezar de cero (datos Y series)</span>
 Graph1.AddBar('Ene', Ene:Total)          <span class="c">! color de la paleta automática</span>
 Graph1.AddBar('Feb', Feb:Total, 04657C0h)<span class="c">! color BGR explícito</span>
 Graph1.Title = 'Ventas 2026'
-Graph1.SetRange(0, 200)                  <span class="c">! escala fija (AutoScale apagado)</span>
+Graph1.Percent = 1                       <span class="c">! etiquetar las porciones con su parte</span>
+Graph1.DonutText = 'Total'               <span class="c">! texto dentro del agujero</span>
 Graph1.Draw(MyWindow, ?Graph)            <span class="c">! redibujar la ventana ahora</span>
-<span class="c">! o, si las barras vinieron de los prompts de la plantilla:</span>
-DO Refresh:Graph1                        <span class="c">! recargar las barras del prompt y redibujar</span></pre>
+
+<span class="c">! varias series - nómbralas una vez y luego una llamada por categoría:</span>
+Graph1.ChartType = Chart:StackedCol
+Graph1.ClearAll()
+Graph1.AddSeries('Norte')                <span class="c">! serie 1 (color automático)</span>
+Graph1.AddSeries('Sur', 0A4A62Ch)        <span class="c">! serie 2 (explícito)</span>
+Graph1.AddCat('Ene', Nor:Ene, Sur:Ene)   <span class="c">! etiqueta + un valor por serie</span>
+Graph1.AddCat('Feb', Nor:Feb, Sur:Feb)
+Graph1.Draw(MyWindow, ?Graph)
+
+<span class="c">! o, si los datos vinieron de los prompts de la plantilla:</span>
+DO Refresh:Graph1                        <span class="c">! recargar los datos del prompt y redibujar</span></pre>
   <div class="tip"><b>Informes</b> Llama a la misma API en un embed del informe antes de que se imprima la
   banda, y luego <code>SETTARGET(Report) ; RptGraph1.Paint(?Marcador) ; SETTARGET()</code> — o simplemente deja
   que lo haga el código <code>%BeforePrint</code> que genera la plantilla.</div>
@@ -387,16 +491,29 @@ DO Refresh:Graph1                        <span class="c">! recargar las barras d
       <div class="en">
   <table>
     <tr><th>Member</th><th>Meaning</th></tr>
-    <tr><td><code>AddBar(label, value [,color])</code></td><td>Append a bar (max 48). Omit color for the auto palette.</td></tr>
-    <tr><td><code>ClearBars()</code></td><td>Remove all bars.</td></tr>
+    <tr><td><code>ChartType</code></td><td>The shape: <code>Chart:Column</code>, <code>Chart:Bar</code>, <code>Chart:StackedCol</code>, <code>Chart:StackedBar</code>, <code>Chart:Stacked100</code>, <code>Chart:Line</code>, <code>Chart:Area</code>, <code>Chart:StackedArea</code>, <code>Chart:Scatter</code>, <code>Chart:Pie</code>, <code>Chart:Pie3D</code>, <code>Chart:Donut</code>, <code>Chart:Radar</code>.</td></tr>
+    <tr><td><code>AddBar(label, value [,color])</code></td><td>Append a category with a series-1 value (max 48). Omit color for the auto palette.</td></tr>
+    <tr><td><code>AddSeries(name [,color])</code></td><td>Name a series (max 8) and return its number. Call once per series, before the data.</td></tr>
+    <tr><td><code>AddCat(label, v1 [,v2..v8])</code></td><td>Append a category with one value per series.</td></tr>
+    <tr><td><code>SetValue(series, cat, value)</code> &middot; <code>GetValue(series, cat)</code></td><td>Poke or read a single cell.</td></tr>
+    <tr><td><code>ClearBars()</code> &middot; <code>ClearAll()</code></td><td>Drop the categories; <code>ClearAll</code> drops the series names too.</td></tr>
     <tr><td><code>SetRange(min, max)</code></td><td>Fixed value scale; sets <code>AutoScale = 0</code>.</td></tr>
-    <tr><td><code>Demo()</code></td><td>Loads six sample bars (self-test).</td></tr>
+    <tr><td><code>Demo()</code></td><td>Loads sample data suited to the current <code>ChartType</code> (self-test).</td></tr>
     <tr><td><code>Draw(window, ?image)</code></td><td>Window path: targets the IMAGE, clears it, paints.</td></tr>
     <tr><td><code>Paint(?feq [,windowMode])</code></td><td>Paints at <code>?feq</code>'s rectangle into the <em>current</em> target. Mode 0 (default) = report: keep the band offset, no clear.</td></tr>
     <tr><td><code>Title</code></td><td>CSTRING(64), centered on top.</td></tr>
     <tr><td><code>ShowValues / ValueDP</code>, <code>ShowLabels</code>, <code>ShowScale / ScaleDP</code>, <code>ShowGrid / GridDivs</code>, <code>ShowAxis</code></td><td>Feature toggles + decimals/divisions.</td></tr>
     <tr><td><code>AutoScale, MinVal, MaxVal</code></td><td>Scale control (auto by default).</td></tr>
-    <tr><td><code>BarGapPct</code></td><td>Gap between bars, percent of a slot (default 30).</td></tr>
+    <tr><td><code>ShowLegend / LegendPos</code></td><td>Key of the series (or of the slices on a pie): <code>Legend:Bottom</code>, <code>Legend:Right</code>, <code>Legend:Top</code>.</td></tr>
+    <tr><td><code>ShowMarkers / MarkerShape / MarkerSize</code></td><td>Dots on lines and areas: <code>Marker:Circle</code>, <code>Marker:Square</code>, <code>Marker:Diamond</code>; size 0 = automatic.</td></tr>
+    <tr><td><code>LineWidth / Smooth</code></td><td>Pen width for lines, areas and radar outlines; <code>Smooth = 1</code> curves them.</td></tr>
+    <tr><td><code>Percent</code></td><td>Label values with their share of the total instead of the value.</td></tr>
+    <tr><td><code>StartAngle</code></td><td>Pie: degrees clockwise from twelve o'clock for the first slice.</td></tr>
+    <tr><td><code>Depth3D</code></td><td><code>Chart:Pie3D</code> edge depth (0 = automatic).</td></tr>
+    <tr><td><code>DonutPct / DonutText / HoleColor</code></td><td>The hole as a percent of the diameter, an optional caption in it, and its fill (<code>COLOR:None</code> follows the plot/background color).</td></tr>
+    <tr><td><code>ColorText</code></td><td>1 (default) re-colors text with <code>SETFONT(0,&hellip;)</code> so <code>TextColor</code> is honoured &mdash; <code>SHOW</code> takes its color from the target's font, not from the pen. Set 0 to leave the target's own font alone.</td></tr>
+    <tr><td><code>NSeries, SeriesName[], SeriesColor[]</code></td><td>The series table, if you would rather fill it directly.</td></tr>
+    <tr><td><code>BarGapPct</code></td><td>Gap between category slots, percent of a slot (default 30).</td></tr>
     <tr><td><code>BackColor, PlotColor, AxisColor, GridColor, TextColor, BarBorderColor</code></td><td>Colors (BGR); <code>COLOR:None</code> = skip / same-as-fill.</td></tr>
     <tr><td><code>TextW, TextH</code></td><td>Text cell metrics override (0 = auto: dialog units on windows, thousandths of an inch on reports). Tune if your report font is much bigger/smaller than ~10pt.</td></tr>
   </table>
@@ -404,16 +521,29 @@ DO Refresh:Graph1                        <span class="c">! recargar las barras d
       <div class="es">
   <table>
     <tr><th>Miembro</th><th>Significado</th></tr>
-    <tr><td><code>AddBar(label, value [,color])</code></td><td>Añade una barra (máx. 48). Omite el color para usar la paleta automática.</td></tr>
-    <tr><td><code>ClearBars()</code></td><td>Quita todas las barras.</td></tr>
+    <tr><td><code>ChartType</code></td><td>La forma: <code>Chart:Column</code>, <code>Chart:Bar</code>, <code>Chart:StackedCol</code>, <code>Chart:StackedBar</code>, <code>Chart:Stacked100</code>, <code>Chart:Line</code>, <code>Chart:Area</code>, <code>Chart:StackedArea</code>, <code>Chart:Scatter</code>, <code>Chart:Pie</code>, <code>Chart:Pie3D</code>, <code>Chart:Donut</code>, <code>Chart:Radar</code>.</td></tr>
+    <tr><td><code>AddBar(label, value [,color])</code></td><td>Añade una categoría con su valor de la serie 1 (máx. 48). Omite el color para usar la paleta automática.</td></tr>
+    <tr><td><code>AddSeries(name [,color])</code></td><td>Da nombre a una serie (máx. 8) y devuelve su número. Llámalo una vez por serie, antes de los datos.</td></tr>
+    <tr><td><code>AddCat(label, v1 [,v2..v8])</code></td><td>Añade una categoría con un valor por serie.</td></tr>
+    <tr><td><code>SetValue(serie, cat, valor)</code> &middot; <code>GetValue(serie, cat)</code></td><td>Escribe o lee una sola celda.</td></tr>
+    <tr><td><code>ClearBars()</code> &middot; <code>ClearAll()</code></td><td>Quita las categorías; <code>ClearAll</code> quita además los nombres de las series.</td></tr>
     <tr><td><code>SetRange(min, max)</code></td><td>Escala de valores fija; pone <code>AutoScale = 0</code>.</td></tr>
-    <tr><td><code>Demo()</code></td><td>Carga seis barras de ejemplo (autoprueba).</td></tr>
+    <tr><td><code>Demo()</code></td><td>Carga datos de ejemplo adecuados al <code>ChartType</code> actual (autoprueba).</td></tr>
     <tr><td><code>Draw(window, ?image)</code></td><td>Camino de ventana: apunta al IMAGE, lo limpia y pinta.</td></tr>
     <tr><td><code>Paint(?feq [,windowMode])</code></td><td>Pinta en el rectángulo de <code>?feq</code> sobre el destino <em>actual</em>. Modo 0 (por defecto) = informe: conserva el desplazamiento de la banda y no limpia.</td></tr>
     <tr><td><code>Title</code></td><td>CSTRING(64), centrado arriba.</td></tr>
     <tr><td><code>ShowValues / ValueDP</code>, <code>ShowLabels</code>, <code>ShowScale / ScaleDP</code>, <code>ShowGrid / GridDivs</code>, <code>ShowAxis</code></td><td>Interruptores de cada elemento + decimales/divisiones.</td></tr>
     <tr><td><code>AutoScale, MinVal, MaxVal</code></td><td>Control de la escala (automática por defecto).</td></tr>
-    <tr><td><code>BarGapPct</code></td><td>Separación entre barras, en porcentaje de un hueco (30 por defecto).</td></tr>
+    <tr><td><code>ShowLegend / LegendPos</code></td><td>Leyenda de las series (o de las porciones en un pastel): <code>Legend:Bottom</code>, <code>Legend:Right</code>, <code>Legend:Top</code>.</td></tr>
+    <tr><td><code>ShowMarkers / MarkerShape / MarkerSize</code></td><td>Puntos en líneas y áreas: <code>Marker:Circle</code>, <code>Marker:Square</code>, <code>Marker:Diamond</code>; tamaño 0 = automático.</td></tr>
+    <tr><td><code>LineWidth / Smooth</code></td><td>Grosor del trazo de líneas, áreas y contornos del radar; <code>Smooth = 1</code> las curva.</td></tr>
+    <tr><td><code>Percent</code></td><td>Etiqueta los valores con su parte del total en vez del valor.</td></tr>
+    <tr><td><code>StartAngle</code></td><td>Pastel: grados en sentido horario desde las doce para la primera porción.</td></tr>
+    <tr><td><code>Depth3D</code></td><td>Profundidad del canto en <code>Chart:Pie3D</code> (0 = automático).</td></tr>
+    <tr><td><code>DonutPct / DonutText / HoleColor</code></td><td>El agujero como porcentaje del diámetro, un texto opcional dentro, y su relleno (<code>COLOR:None</code> sigue el color del área o del fondo).</td></tr>
+    <tr><td><code>ColorText</code></td><td>1 (por defecto) recolorea el texto con <code>SETFONT(0,&hellip;)</code> para que se respete <code>TextColor</code> &mdash; <code>SHOW</code> toma el color de la fuente del destino, no del lápiz. Ponlo en 0 para no tocar la fuente del destino.</td></tr>
+    <tr><td><code>NSeries, SeriesName[], SeriesColor[]</code></td><td>La tabla de series, si prefieres rellenarla directamente.</td></tr>
+    <tr><td><code>BarGapPct</code></td><td>Separación entre huecos de categoría, en porcentaje de un hueco (30 por defecto).</td></tr>
     <tr><td><code>BackColor, PlotColor, AxisColor, GridColor, TextColor, BarBorderColor</code></td><td>Colores (BGR); <code>COLOR:None</code> = omitir / igual que el relleno.</td></tr>
     <tr><td><code>TextW, TextH</code></td><td>Sustituye las medidas de la celda de texto (0 = automático: unidades de diálogo en ventanas, milésimas de pulgada en informes). Ajústalo si la fuente de tu informe es mucho mayor o menor que ~10pt.</td></tr>
   </table>
