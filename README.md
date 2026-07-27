@@ -357,8 +357,11 @@ small as possible**. Pie/3D pie/donut ride on Clarion's own `PIE` statement and 
 ![the same charts, printed into a report band as vectors](docs/graficaBarra-report.png)
 
 A control in the band (IMAGE/BOX/REGION) is used *only* as the position/size placeholder and is hidden at
-print time. On windows, **graficaBarra** draws into an `IMAGE` control (redraw on open/resize, plus a
-generated `DO Refresh:<Object>` routine that re-reads variable/expression values). Three registrations:
+print time. Both procedure extensions are **MULTI**, so you can put **several charts on one report or one
+window** — each is its own local object, and on a report they follow the band down the page as it repeats,
+each with its own data and its own auto-scale. On windows, **graficaBarra** draws into an `IMAGE` control
+(redraw on open/resize, plus a generated `DO Refresh:<Object>` routine that re-reads variable/expression
+values). Three registrations:
 **graficaBarraGlobal** (include the class once), **graficaBarra** (window), **graficaBarraReport** (report).
 Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
 [`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy

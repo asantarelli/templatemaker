@@ -16,7 +16,9 @@
 #!                     bitmap - so a PDF export stays as small as possible. A
 #!                     control in the band (IMAGE / BOX / REGION) is used ONLY
 #!                     as the position and size placeholder; it is hidden at
-#!                     print time.
+#!                     print time. Add once per chart - SEVERAL CHARTS ON ONE
+#!                     REPORT ARE FINE, and they follow the band down the page
+#!                     as it repeats, each with its own data and its own scale.
 #!
 #!  REQUIRED FILES: copy GraficaBarraClass.inc AND GraficaBarraClass.clw
 #!  (shipped beside this .tpl) to a folder on the Clarion redirection path
@@ -58,7 +60,7 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
 #!#############################################################################
 #!  PROCEDURE EXTENSION - graficaBarra (WINDOW)  -  add once per chart
 #!#############################################################################
-#EXTENSION(graficaBarra,'graficaBarra - Draw a chart on this window'),PROCEDURE,REQ(graficaBarraGlobal),DESCRIPTION('[' & %gbWType & '] ' & %gbWObject)
+#EXTENSION(graficaBarra,'graficaBarra - Draw a chart on this window'),PROCEDURE,MULTI,REQ(graficaBarraGlobal),DESCRIPTION('[' & %gbWType & '] ' & %gbWObject)
 #SHEET
   #TAB('&General')
     #BOXED('Object &&  control')
@@ -238,7 +240,7 @@ Refresh:%gbWObject ROUTINE
 #!  only supplies the position/size (GETPOSITION) and is hidden so it never
 #!  prints itself.
 #!#############################################################################
-#EXTENSION(graficaBarraReport,'graficaBarra - Draw a chart on this REPORT'),PROCEDURE,REQ(graficaBarraGlobal),DESCRIPTION('[' & %gbRType & '] ' & %gbRObject)
+#EXTENSION(graficaBarraReport,'graficaBarra - Draw a chart on this REPORT'),PROCEDURE,MULTI,REQ(graficaBarraGlobal),DESCRIPTION('[' & %gbRType & '] ' & %gbRObject)
 #SHEET
   #TAB('&General')
     #BOXED('Object &&  placeholder')

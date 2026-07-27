@@ -120,12 +120,14 @@
         <td>Adds <code>INCLUDE('GraficaBarraClass.INC'),ONCE</code>. Add it once; the other two require it.</td></tr>
     <tr><td><b>graficaBarra</b></td><td>Procedure with a WINDOW</td>
         <td>Draws the graph into an <code>IMAGE</code> control. Redraws on open and resize, and generates a
-        <code>Refresh:&lt;Object&gt;</code> routine that re-reads variable bar values. Add once per graph —
-        several graphs per window are fine.</td></tr>
+        <code>Refresh:&lt;Object&gt;</code> routine that re-reads variable values. Add once per chart —
+        several charts per window are fine.</td></tr>
     <tr><td><b>graficaBarraReport</b></td><td>Procedure with a REPORT</td>
-        <td>Draws the graph into the detail band at <code>%BeforePrint</code> under
-        <code>SETTARGET(Report)</code> using vector <code>BOX</code>/<code>LINE</code>/<code>SHOW</code>.
-        A placeholder control supplies only the position and size, and is hidden at print time.</td></tr>
+        <td>Draws the chart into the detail band at <code>%BeforePrint</code> under
+        <code>SETTARGET(Report)</code> using vector primitives. A placeholder control supplies only the
+        position and size, and is hidden at print time. Add once per chart &mdash; <b>several charts on one
+        report are fine</b>, and they follow the band down the page as it repeats, each with its own data
+        and its own scale.</td></tr>
   </table>
   <div class="note"><b>Driving it from code?</b> For how the class works internally and worked example
   code (in English and Spanish), see the
@@ -179,8 +181,10 @@
         Agrégala una vez por gráfico — varios gráficos por ventana no son problema.</td></tr>
     <tr><td><b>graficaBarraReport</b></td><td>Procedimiento con REPORT</td>
         <td>Dibuja el gráfico en la banda de detalle en <code>%BeforePrint</code>, bajo
-        <code>SETTARGET(Report)</code>, con <code>BOX</code>/<code>LINE</code>/<code>SHOW</code> vectoriales.
-        Un control marcador aporta solo la posición y el tamaño, y se oculta al imprimir.</td></tr>
+        <code>SETTARGET(Report)</code>, con primitivas vectoriales. Un control marcador aporta solo la
+        posición y el tamaño, y se oculta al imprimir. Agrégala una vez por gráfico &mdash; <b>varios
+        gráficos en un informe no son problema</b>, y acompañan a la banda al bajar por la página cada vez
+        que se repite, cada uno con sus datos y su escala.</td></tr>
   </table>
   <div class="note"><b>¿Quieres manejarlo desde código?</b> Para ver cómo funciona la clase por dentro y
   ejemplos resueltos (en inglés y español), consulta la
