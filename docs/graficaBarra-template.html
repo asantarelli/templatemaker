@@ -259,7 +259,7 @@
   <ol>
     <li>Put an <code>IMAGE</code> control on the window where the graph should live (no picture needed —
       it is just the canvas).</li>
-    <li>Procedure → Extensions → Insert → <b>graficaBarra - Draw a bar graph on this window</b>.</li>
+    <li>Procedure → Extensions → Insert → <b>graficaBarra - Draw a chart on this window</b>.</li>
     <li>Pick the IMAGE control, set a title, and define the bars on the <b>Bars</b> tab.</li>
   </ol>
   <p>Each bar's value is either a <b>literal number</b> or a <b>variable / field / expression</b>. After
@@ -274,7 +274,7 @@ DO Refresh:Graph1</pre>
   <ol>
     <li>Pon un control <code>IMAGE</code> en la ventana donde deba ir el gráfico (no necesita imagen — es
       solo el lienzo).</li>
-    <li>Procedimiento → Extensions → Insert → <b>graficaBarra - Draw a bar graph on this window</b>.</li>
+    <li>Procedimiento → Extensions → Insert → <b>graficaBarra - Draw a chart on this window</b>.</li>
     <li>Elige el control IMAGE, pon un título y define las barras en la pestaña <b>Bars</b>.</li>
   </ol>
   <p>El valor de cada barra es o un <b>número literal</b> o una <b>variable / campo / expresión</b>. Después
@@ -293,19 +293,29 @@ DO Refresh:Graph1</pre>
   <p>This is the reason graficaBarra exists: report graphs that <b>export to the smallest possible
   PDF</b>. Instead of rasterizing into an image, the template draws the graph <b>straight into the band
   being printed</b> with native vector primitives:</p>
-  <pre>SETTARGET(MyReport)                <span class="c">! the band being printed becomes the target</span>
-RptGraph1.Paint(?GraphPlace)       <span class="c">! BOX / LINE / SHOW vector primitives at the placeholder's rect</span>
+  <pre>SETTARGET(MyReport, ?TheBand)      <span class="c">! the band holding the placeholder becomes the target</span>
+RptGraph1.Paint(?GraphPlace)       <span class="c">! vector primitives at the placeholder's rectangle</span>
 ?GraphPlace{PROP:Hide} = 1         <span class="c">! the placeholder itself never prints</span>
 SETTARGET()</pre>
-  <p>Every bar is a filled <code>BOX</code>, the axis and gridlines are <code>LINE</code>s and all text is
-  <code>SHOW</code> — these travel through the report engine (and the PDF output generator) as vector
-  records, not pixels, so file size stays tiny and the graph prints razor-sharp at any resolution.</p>
+  <p>Every bar is a filled <code>BOX</code>, pies are Clarion's own <code>PIE</code>, areas and radar webs are
+  <code>POLYGON</code>s, the axis and gridlines are <code>LINE</code>s and all text is <code>SHOW</code> &mdash;
+  these travel through the report engine (and the PDF output generator) as vector records, not pixels, so file
+  size stays tiny and the chart prints razor-sharp at any resolution. All thirteen types work here, not just
+  the bars:</p>
+  <p><img src="graficaBarra-report.png" alt="Six chart types printed into a report band as vectors" style="max-width:100%"></p>
+  <div class="tip"><b>Several charts on one report</b> The second argument to <code>SETTARGET</code> is what
+  keeps them apart: it aims the drawing at one specific band. The template fills it in for you by working out
+  which band holds the placeholder, so a chart in a <code>DETAIL</code>, one in a second <code>DETAIL</code>
+  and one in a group <code>FOOTER</code> all land where they should. It needs the band to have a field equate
+  (<code>USE(?SomeName)</code>) &mdash; without one it falls back to a plain <code>SETTARGET(report)</code> and
+  says so in a comment in the generated source. Charts on a repeating band redraw per record, each with its own
+  data and its own auto-scale.</div>
   <h3>Setup</h3>
   <ol>
     <li>In the report designer, put a <b>placeholder control in the DETAIL band</b> sized where the graph
       should print — an empty <code>IMAGE</code> works best (a <code>BOX</code> also works). Its
       <code>AT()</code> rectangle <em>is</em> the graph rectangle.</li>
-    <li>Procedure → Extensions → Insert → <b>graficaBarraReport - Draw a bar graph on this REPORT</b>.</li>
+    <li>Procedure → Extensions → Insert → <b>graficaBarraReport - Draw a chart on this REPORT</b>.</li>
     <li>Pick the placeholder, define the bars (values are usually fields/expressions — they are evaluated
       for every record printed), done. The placeholder is hidden at print time by default so it never
       shows itself.</li>
@@ -319,20 +329,29 @@ SETTARGET()</pre>
   <p>Esta es la razón de ser de graficaBarra: gráficos en informes que <b>exportan al PDF más pequeño
   posible</b>. En lugar de rasterizar a una imagen, la plantilla dibuja el gráfico <b>directamente en la banda
   que se está imprimiendo</b> con primitivas vectoriales nativas:</p>
-  <pre>SETTARGET(MyReport)                <span class="c">! la banda que se imprime pasa a ser el destino</span>
-RptGraph1.Paint(?GraphPlace)       <span class="c">! BOX / LINE / SHOW vectoriales en el rectángulo del marcador</span>
+  <pre>SETTARGET(MiInforme, ?LaBanda)     <span class="c">! la banda que contiene el marcador pasa a ser el destino</span>
+RptGraph1.Paint(?GraphPlace)       <span class="c">! primitivas vectoriales en el rectángulo del marcador</span>
 ?GraphPlace{PROP:Hide} = 1         <span class="c">! el marcador en sí nunca se imprime</span>
 SETTARGET()</pre>
-  <p>Cada barra es un <code>BOX</code> relleno, el eje y la rejilla son <code>LINE</code>s y todo el texto es
-  <code>SHOW</code> — todo eso viaja por el motor de informes (y por el generador de PDF) como registros
-  vectoriales, no como píxeles, así que el archivo se queda diminuto y el gráfico se imprime nítido a
-  cualquier resolución.</p>
+  <p>Cada barra es un <code>BOX</code> relleno, los pasteles son el <code>PIE</code> propio de Clarion, las
+  áreas y la telaraña del radar son <code>POLYGON</code>s, el eje y la rejilla son <code>LINE</code>s y todo el
+  texto es <code>SHOW</code> &mdash; todo eso viaja por el motor de informes (y por el generador de PDF) como
+  registros vectoriales, no como píxeles, así que el archivo se queda diminuto y el gráfico se imprime nítido a
+  cualquier resolución. Y vale para los trece tipos, no solo para las barras:</p>
+  <p><img src="graficaBarra-report.png" alt="Seis tipos de gráfico impresos en una banda como vectores" style="max-width:100%"></p>
+  <div class="tip"><b>Varios gráficos en un informe</b> El segundo argumento de <code>SETTARGET</code> es lo que
+  los mantiene separados: apunta el dibujo a una banda concreta. La plantilla lo rellena por ti deduciendo qué
+  banda contiene el marcador, así que un gráfico en un <code>DETAIL</code>, otro en un segundo
+  <code>DETAIL</code> y otro en un <code>FOOTER</code> de grupo caen todos donde deben. Necesita que la banda
+  tenga un field equate (<code>USE(?Nombre)</code>) &mdash; sin él vuelve a un <code>SETTARGET(report)</code>
+  simple y lo avisa con un comentario en el fuente generado. Los gráficos en una banda que se repite se
+  redibujan por registro, cada uno con sus datos y su escala automática.</div>
   <h3>Puesta en marcha</h3>
   <ol>
     <li>En el diseñador de informes, pon un <b>control marcador en la banda DETAIL</b> del tamaño que deba
       tener el gráfico — un <code>IMAGE</code> vacío va perfecto (un <code>BOX</code> también sirve). Su
       rectángulo <code>AT()</code> <em>es</em> el rectángulo del gráfico.</li>
-    <li>Procedimiento → Extensions → Insert → <b>graficaBarraReport - Draw a bar graph on this REPORT</b>.</li>
+    <li>Procedimiento → Extensions → Insert → <b>graficaBarraReport - Draw a chart on this REPORT</b>.</li>
     <li>Elige el marcador, define las barras (los valores suelen ser campos/expresiones — se evalúan en cada
       registro que se imprime) y listo. El marcador se oculta al imprimir por defecto, así que nunca se ve.</li>
   </ol>
@@ -595,10 +614,14 @@ DO Refresh:Graph1                        <span class="c">! recargar los datos de
     <tr><th>Symptom</th><th>Cause / fix</th></tr>
     <tr><td>"File not found: GraficaBarraClass.INC" at compile</td><td>The .inc/.clw are not on the redirection path — copy both beside the app or into <code>\clarion12\libsrc\win</code>.</td></tr>
     <tr><td>Template will not register</td><td>The .tpl was re-saved as UTF-8 with BOM or with LF line ends — keep ANSI/CRLF.</td></tr>
-    <tr><td>Six sample bars appear instead of my data</td><td>The Bars list is empty for that instance (that's the self-test). Add bars, or feed the object with <code>AddBar()</code> from an embed.</td></tr>
+    <tr><td>Sample data appears instead of mine</td><td>The Data list is empty for that instance (that's the self-test). Add rows, or feed the object with <code>AddBar()</code> / <code>AddCat()</code> from an embed.</td></tr>
     <tr><td>Window graph doesn't update after data changes</td><td>Call <code>DO Refresh:&lt;Object&gt;</code> — bars with variable values are only re-read there (and at window open).</td></tr>
-    <tr><td>Report graph missing</td><td>The placeholder must be in the <b>detail band being printed</b>; the code runs at <i>Before Printing Detail Section</i>.</td></tr>
-    <tr><td>Report text looks too big / small</td><td>Text metrics assume roughly a 10pt band font. Set <code>RptGraph1.TextW / TextH</code> (thousandths of an inch) in an embed before printing.</td></tr>
+    <tr><td><b>Several charts on one report draw on top of each other</b></td><td>Each chart has to be aimed at its own band. The template does that automatically, but it needs the band to have a field equate &mdash; open the report formatter and give the band a <code>USE(?SomeName)</code>. Check the generated source: you should see <code>SETTARGET(report, ?YourBand)</code>. If it says plain <code>SETTARGET(report)</code> there is a comment right above it explaining why.</td></tr>
+    <tr><td>Report chart missing altogether</td><td>The placeholder must be in a band that actually prints, and the code runs at <i>Before Printing Detail Section</i> &mdash; so a chart in a group footer is painted before the details print and appears when the footer prints.</td></tr>
+    <tr><td>Only one chart can be added per procedure</td><td>You are on the v1 template. v2 marks both procedure extensions <code>MULTI</code> &mdash; re-register <code>graficaBarra.tpl</code> and restart the IDE.</td></tr>
+    <tr><td><code>TextColor</code> seems to be ignored</td><td>It was, in v1: <code>SHOW</code> takes its color from the current target's <b>font</b>, not from <code>SETPENCOLOR</code>. v2 sets it with <code>SETFONT(0,&hellip;)</code>. If you preferred the old behaviour set <code>ColorText = 0</code>.</td></tr>
+    <tr><td>Unknown identifier <code>Chart:Area</code>, or "Field not found: CHARTTYPE"</td><td>The app is compiling against the v1 <code>GraficaBarraClass.INC</code>. Copy the v2 <code>.inc</code> + <code>.clw</code> over the ones on your redirection path, then <b>delete the <code>obj</code> folder</b> &mdash; the compiler does not track include changes reliably.</td></tr>
+    <tr><td>Report text looks too big / small</td><td>Text metrics assume a 9pt band font on a <code>THOUS</code> report (62 &times; 130 thousandths of an inch). Nudge them with the <i>Character width / height</i> prompts, or set <code>RptGraph1.TextW / TextH</code> in an embed before printing.</td></tr>
     <tr><td>Bars in a strange color</td><td>Clarion colors are <b>BGR</b> longs, not RGB — <code>0B6752Eh</code> is steel blue.</td></tr>
   </table>
       </div>
@@ -607,18 +630,22 @@ DO Refresh:Graph1                        <span class="c">! recargar los datos de
     <tr><th>Síntoma</th><th>Causa / solución</th></tr>
     <tr><td>"File not found: GraficaBarraClass.INC" al compilar</td><td>El .inc/.clw no están en el camino de redirección — copia los dos junto a la app o dentro de <code>\clarion12\libsrc\win</code>.</td></tr>
     <tr><td>La plantilla no se registra</td><td>El .tpl se volvió a guardar como UTF-8 con BOM o con finales LF — mantenlo en ANSI/CRLF.</td></tr>
-    <tr><td>Salen seis barras de ejemplo en vez de mis datos</td><td>La lista Bars está vacía en esa instancia (eso es la autoprueba). Agrega barras, o alimenta el objeto con <code>AddBar()</code> desde un embed.</td></tr>
+    <tr><td>Salen datos de ejemplo en vez de los míos</td><td>La lista Data está vacía en esa instancia (eso es la autoprueba). Agrega filas, o alimenta el objeto con <code>AddBar()</code> / <code>AddCat()</code> desde un embed.</td></tr>
     <tr><td>El gráfico de la ventana no se actualiza al cambiar los datos</td><td>Llama a <code>DO Refresh:&lt;Objeto&gt;</code> — las barras con valores variables solo se releen ahí (y al abrir la ventana).</td></tr>
-    <tr><td>Falta el gráfico del informe</td><td>El marcador tiene que estar en la <b>banda de detalle que se imprime</b>; el código va en <i>Before Printing Detail Section</i>.</td></tr>
-    <tr><td>El texto del informe se ve muy grande o muy pequeño</td><td>Las medidas de texto suponen una fuente de banda de unos 10pt. Ajusta <code>RptGraph1.TextW / TextH</code> (milésimas de pulgada) en un embed antes de imprimir.</td></tr>
+    <tr><td><b>Varios gráficos en un informe se dibujan uno encima de otro</b></td><td>Cada gráfico tiene que apuntar a su propia banda. La plantilla lo hace sola, pero necesita que la banda tenga un field equate &mdash; abre el formateador del informe y dale a la banda un <code>USE(?Nombre)</code>. Revisa el fuente generado: debe decir <code>SETTARGET(report, ?TuBanda)</code>. Si dice solo <code>SETTARGET(report)</code>, justo encima hay un comentario que explica por qué.</td></tr>
+    <tr><td>No sale ningún gráfico en el informe</td><td>El marcador tiene que estar en una banda que se imprima de verdad, y el código va en <i>Before Printing Detail Section</i> &mdash; así que un gráfico en un pie de grupo se pinta antes de los detalles y aparece cuando se imprime el pie.</td></tr>
+    <tr><td>Solo puedo agregar un gráfico por procedimiento</td><td>Estás con la plantilla v1. v2 marca las dos extensiones de procedimiento como <code>MULTI</code> &mdash; vuelve a registrar <code>graficaBarra.tpl</code> y reinicia el IDE.</td></tr>
+    <tr><td>Parece que <code>TextColor</code> no hace nada</td><td>Así era en v1: <code>SHOW</code> toma el color de la <b>fuente</b> del destino actual, no de <code>SETPENCOLOR</code>. v2 lo pone con <code>SETFONT(0,&hellip;)</code>. Si preferías el comportamiento anterior, pon <code>ColorText = 0</code>.</td></tr>
+    <tr><td>Unknown identifier <code>Chart:Area</code>, o "Field not found: CHARTTYPE"</td><td>La app se está compilando contra el <code>GraficaBarraClass.INC</code> de v1. Copia el <code>.inc</code> + <code>.clw</code> de v2 sobre los del camino de redirección y luego <b>borra la carpeta <code>obj</code></b> &mdash; el compilador no detecta bien los cambios en los includes.</td></tr>
+    <tr><td>El texto del informe se ve muy grande o muy pequeño</td><td>Las medidas de texto suponen una fuente de banda de 9pt en un informe <code>THOUS</code> (62 &times; 130 milésimas de pulgada). Ajústalas con los prompts <i>Character width / height</i>, o pon <code>RptGraph1.TextW / TextH</code> en un embed antes de imprimir.</td></tr>
     <tr><td>Las barras salen de un color raro</td><td>Los colores de Clarion son longs <b>BGR</b>, no RGB — <code>0B6752Eh</code> es azul acero.</td></tr>
   </table>
       </div>
     </section>
 
     </div>
-    <footer><span class="en">graficaBarra v1.0 · pure-Clarion bar graphs · windows + reports (vector PDF) · part of the templatemaker collection</span>
-      <span class="es">graficaBarra v1.0 · gráficos de barras en Clarion puro · ventanas + informes (PDF vectorial) · parte de la colección templatemaker</span></footer>
+    <footer><span class="en">graficaBarra v2.0 · thirteen pure-Clarion chart types · windows + reports (vector PDF) · part of the templatemaker collection</span>
+      <span class="es">graficaBarra v2.0 · trece tipos de gráfico en Clarion puro · ventanas + informes (PDF vectorial) · parte de la colección templatemaker</span></footer>
   </main>
 </div>
 <script>

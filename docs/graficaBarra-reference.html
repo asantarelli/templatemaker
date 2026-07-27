@@ -78,20 +78,19 @@
     <a href="#api" class="h2"><span class="en">Class API</span><span class="es">API de la clase</span></a>
     <a href="#palette" class="h2"><span class="en">Color palette</span><span class="es">Paleta de colores</span></a>
     <div class="grp"><span class="en">Examples</span><span class="es">Ejemplos</span></div>
-    <a href="#ex-window" class="h2"><span class="en">Window graph</span><span class="es">Gráfico en ventana</span></a>
-    <a href="#ex-report" class="h2"><span class="en">Report graph (PDF)</span><span class="es">Gráfico en informe (PDF)</span></a>
+    <a href="#ex-window" class="h2"><span class="en">Window chart</span><span class="es">Gráfico en ventana</span></a>
+    <a href="#ex-report" class="h2"><span class="en">Report chart (PDF)</span><span class="es">Gráfico en informe (PDF)</span></a>
     <a href="#ex-data" class="h2"><span class="en">From a data file</span><span class="es">Desde un archivo</span></a>
     <a href="#ex-standalone" class="h2"><span class="en">Without the template</span><span class="es">Sin la plantilla</span></a>
   </nav>
   <main>
     <header class="hero">
       <h1>graficaBarra</h1>
-      <p class="en">Developer's reference for the <code>GraficaBarraClass</code> bar-graph engine — how it
-      works and how to drive it from code, on Clarion windows and reports.</p>
-      <p class="es">Referencia del desarrollador para el motor de gráficos de barras
-      <code>GraficaBarraClass</code> — cómo funciona y cómo usarlo desde código, en ventanas e informes de
-      Clarion.</p>
-      <span class="pill">Pure Clarion · BOX / LINE / SHOW · window + report · vector PDF</span>
+      <p class="en">Developer's reference for the <code>GraficaBarraClass</code> chart engine — thirteen
+      chart types, how it works and how to drive it from code, on Clarion windows and reports.</p>
+      <p class="es">Referencia del desarrollador para el motor de gráficos <code>GraficaBarraClass</code>
+      — trece tipos de gráfico, cómo funciona y cómo usarlo desde código, en ventanas e informes de Clarion.</p>
+      <span class="pill">13 types · pure Clarion · BOX / LINE / POLYGON / ELLIPSE / PIE / SHOW · window + report · vector PDF</span>
     </header>
 
     <div class="langbar">
@@ -136,17 +135,22 @@
       respeta con <code>SETFONT(0,&hellip;)</code>; pon <code>ColorText = 0</code> para volver al comportamiento
       anterior.</div>
   </div>
-  <p class="lead en"><code>GraficaBarraClass</code> is a single, self-contained ANSI Clarion class that
-  draws a simple vertical bar graph using only the native graphics primitives <code>BOX</code>,
-  <code>LINE</code> and <code>SHOW</code>. It runs the same on a <b>window</b> (drawing into an
-  <code>IMAGE</code> control) and on a <b>report</b> (drawing straight into the printed band). On a report
-  the output is <b>vector, never a bitmap</b>, so PDF exports stay tiny and print sharp at any resolution.</p>
-  <p class="lead es"><code>GraficaBarraClass</code> es una única clase ANSI de Clarion, autónoma, que
-  dibuja un gráfico de barras verticales sencillo usando solo las primitivas gráficas nativas
-  <code>BOX</code>, <code>LINE</code> y <code>SHOW</code>. Funciona igual en una <b>ventana</b> (dibujando
-  en un control <code>IMAGE</code>) y en un <b>informe</b> (dibujando directamente en la banda impresa). En
-  un informe la salida es <b>vectorial, nunca un mapa de bits</b>, por lo que los PDF quedan diminutos y se
-  imprimen nítidos a cualquier resolución.</p>
+  <p class="lead en"><code>GraficaBarraClass</code> is a single, self-contained ANSI Clarion class that draws
+  <b>thirteen kinds of chart</b> using only the native graphics primitives &mdash; <code>BOX</code>,
+  <code>LINE</code>, <code>POLYGON</code>, <code>ELLIPSE</code>, <code>PIE</code> and <code>SHOW</code>. It
+  runs the same on a <b>window</b> (drawing into an <code>IMAGE</code> control) and on a <b>report</b>
+  (drawing straight into the printed band). On a report the output is <b>vector, never a bitmap</b>, so PDF
+  exports stay tiny and print sharp at any resolution &mdash; and that holds for every type, because pie and
+  donut ride Clarion's own <code>PIE</code> statement and areas and radar webs ride <code>POLYGON</code>,
+  both of which are valid on a REPORT.</p>
+  <p class="lead es"><code>GraficaBarraClass</code> es una única clase ANSI de Clarion, autónoma, que dibuja
+  <b>trece tipos de gráfico</b> usando solo las primitivas gráficas nativas &mdash; <code>BOX</code>,
+  <code>LINE</code>, <code>POLYGON</code>, <code>ELLIPSE</code>, <code>PIE</code> y <code>SHOW</code>.
+  Funciona igual en una <b>ventana</b> (dibujando en un control <code>IMAGE</code>) y en un <b>informe</b>
+  (dibujando directamente en la banda impresa). En un informe la salida es <b>vectorial, nunca un mapa de
+  bits</b>, por lo que los PDF quedan diminutos y se imprimen nítidos a cualquier resolución &mdash; y eso vale
+  para todos los tipos, porque el pastel y la dona se apoyan en la sentencia <code>PIE</code> de Clarion y las
+  áreas y la telaraña del radar en <code>POLYGON</code>, y ambas son válidas en un REPORT.</p>
 
   <p class="en">You can use it two ways: through the <b>graficaBarra template</b> (which wires everything for
   you — see <a href="graficaBarra-template.html">the template docs</a>), or <b>directly from code</b> as
@@ -293,25 +297,35 @@ RptGraph.TextH = <span class="t">185</span></pre>
     <tr><td><code>AddBar(pLabel, pValue [,pColor])</code></td>
         <td><span class="en">Append a bar (max 48). Omit <code>pColor</code> (or pass <code>-1</code>/<code>COLOR:None</code>) for the auto palette; otherwise pass a Clarion BGR long.</span>
             <span class="es">Agrega una barra (máx. 48). Omita <code>pColor</code> (o pase <code>-1</code>/<code>COLOR:None</code>) para la paleta automática; de lo contrario pase un long BGR de Clarion.</span></td></tr>
-    <tr><td><code>ClearBars()</code></td>
-        <td><span class="en">Remove all bars (call before re-loading from data).</span>
-            <span class="es">Elimina todas las barras (llame antes de recargar desde datos).</span></td></tr>
+    <tr><td><code>AddSeries(pName [,pColor])</code></td>
+        <td><span class="en">Name a series (max 8) and return its number. Call once per series, before the data. With two or more series the colors go per series instead of per category, and the legend has something to show.</span>
+            <span class="es">Da nombre a una serie (máx. 8) y devuelve su número. Llámelo una vez por serie, antes de los datos. Con dos o más series los colores van por serie en vez de por categoría, y la leyenda tiene algo que mostrar.</span></td></tr>
+    <tr><td><code>AddCat(pLabel, v1 [,v2..v8])</code></td>
+        <td><span class="en">Append a category with one value per series &mdash; the multi-series counterpart of <code>AddBar</code>. Missing values count as zero.</span>
+            <span class="es">Agrega una categoría con un valor por serie &mdash; el equivalente multiserie de <code>AddBar</code>. Los valores que falten cuentan como cero.</span></td></tr>
+    <tr><td><code>SetValue(pSeries, pCat, pValue)</code><br><code>GetValue(pSeries, pCat)</code></td>
+        <td><span class="en">Poke or read one cell of the series &times; category grid. Handy when the data does not arrive in order.</span>
+            <span class="es">Escribe o lee una celda de la rejilla series &times; categorías. Útil cuando los datos no llegan en orden.</span></td></tr>
+    <tr><td><code>ClearBars()</code><br><code>ClearAll()</code></td>
+        <td><span class="en">Drop the categories (call before re-loading from data). <code>ClearAll</code> drops the series names and colors too &mdash; that is the one to use if you switch chart type at run time.</span>
+            <span class="es">Quita las categorías (llámelo antes de recargar desde datos). <code>ClearAll</code> quita además los nombres y colores de las series &mdash; es el que conviene si cambia el tipo de gráfico en ejecución.</span></td></tr>
     <tr><td><code>SetRange(pMin, pMax)</code></td>
         <td><span class="en">Fix the value scale and turn <code>AutoScale</code> off.</span>
             <span class="es">Fija la escala de valores y desactiva <code>AutoScale</code>.</span></td></tr>
     <tr><td><code>Demo()</code></td>
-        <td><span class="en">Load six sample bars — a quick self-test.</span>
-            <span class="es">Carga seis barras de ejemplo — una prueba rápida.</span></td></tr>
+        <td><span class="en">Load sample data suited to the current <code>ChartType</code> &mdash; a quick self-test. Six bars for the cartesian types, five slices for the pie family, three series for the stacked ones.</span>
+            <span class="es">Carga datos de ejemplo adecuados al <code>ChartType</code> actual &mdash; una prueba rápida. Seis barras para los tipos cartesianos, cinco porciones para la familia del pastel, tres series para los apilados.</span></td></tr>
     <tr><td><code>Draw(pWin, pImageFeq)</code></td>
         <td><span class="en"><b>Window path.</b> Targets the IMAGE, clears it, paints. Call from any embed after data changes.</span>
             <span class="es"><b>Ruta de ventana.</b> Selecciona el IMAGE, lo borra, dibuja. Llame desde cualquier embed tras cambiar los datos.</span></td></tr>
     <tr><td><code>Paint(pFeq [,pWindowMode])</code></td>
-        <td><span class="en"><b>Report path.</b> Paints at <code>pFeq</code>'s rectangle into the <em>current</em> target. Default mode 0 = no clear, keep the band offset.</span>
-            <span class="es"><b>Ruta de informe.</b> Dibuja en el rectángulo de <code>pFeq</code> en el destino <em>actual</em>. Modo 0 por defecto = sin borrado, mantiene el desplazamiento de banda.</span></td></tr>
+        <td><span class="en"><b>Report path.</b> Paints at <code>pFeq</code>'s rectangle into the <em>current</em> target. Default mode 0 = no clear, keep the band offset. Aim the target at the band first &mdash; <code>SETTARGET(Report, ?TheBand)</code> &mdash; or every chart on the report lands in whichever band happens to be printing.</span>
+            <span class="es"><b>Ruta de informe.</b> Dibuja en el rectángulo de <code>pFeq</code> en el destino <em>actual</em>. Modo 0 por defecto = sin borrado, mantiene el desplazamiento de banda. Apunte primero a la banda &mdash; <code>SETTARGET(Report, ?LaBanda)</code> &mdash; o todos los gráficos del informe caerán en la banda que esté imprimiéndose.</span></td></tr>
   </table>
   <h3><span class="en">Properties</span><span class="es">Propiedades</span></h3>
   <table>
     <tr><th><span class="en">Property</span><span class="es">Propiedad</span></th><th><span class="en">Type / default</span><span class="es">Tipo / por defecto</span></th><th><span class="en">Meaning</span><span class="es">Significado</span></th></tr>
+    <tr><td><code>ChartType</code></td><td>LONG / <code>Chart:Column</code></td><td><span class="en">The shape. <code>Chart:Column</code>, <code>Chart:Bar</code>, <code>Chart:StackedCol</code>, <code>Chart:StackedBar</code>, <code>Chart:Stacked100</code>, <code>Chart:Line</code>, <code>Chart:Area</code>, <code>Chart:StackedArea</code>, <code>Chart:Scatter</code>, <code>Chart:Pie</code>, <code>Chart:Pie3D</code>, <code>Chart:Donut</code>, <code>Chart:Radar</code>. Change it any time and redraw.</span><span class="es">La forma. <code>Chart:Column</code>, <code>Chart:Bar</code>, <code>Chart:StackedCol</code>, <code>Chart:StackedBar</code>, <code>Chart:Stacked100</code>, <code>Chart:Line</code>, <code>Chart:Area</code>, <code>Chart:StackedArea</code>, <code>Chart:Scatter</code>, <code>Chart:Pie</code>, <code>Chart:Pie3D</code>, <code>Chart:Donut</code>, <code>Chart:Radar</code>. Cámbielo cuando quiera y redibuje.</span></td></tr>
     <tr><td><code>Title</code></td><td>CSTRING(64) / ''</td><td><span class="en">Centered heading above the plot.</span><span class="es">Título centrado sobre el trazado.</span></td></tr>
     <tr><td><code>ShowValues</code> / <code>ValueDP</code></td><td>BYTE 1 / LONG 0</td><td><span class="en">Numeric value over each bar, with this many decimals.</span><span class="es">Valor numérico sobre cada barra, con estos decimales.</span></td></tr>
     <tr><td><code>ShowLabels</code></td><td>BYTE 1</td><td><span class="en">Bar label below the baseline.</span><span class="es">Etiqueta de barra bajo la línea base.</span></td></tr>
@@ -320,7 +334,16 @@ RptGraph.TextH = <span class="t">185</span></pre>
     <tr><td><code>ShowAxis</code></td><td>BYTE 1</td><td><span class="en">Draw the left axis + zero baseline.</span><span class="es">Dibuja el eje izquierdo + línea base cero.</span></td></tr>
     <tr><td><code>AutoScale</code></td><td>BYTE 1</td><td><span class="en">1 = derive a nice scale from the data; 0 = use MinVal/MaxVal.</span><span class="es">1 = deriva una escala redonda de los datos; 0 = usa MinVal/MaxVal.</span></td></tr>
     <tr><td><code>MinVal</code> / <code>MaxVal</code></td><td>REAL</td><td><span class="en">Fixed scale bounds (used when AutoScale = 0; set via <code>SetRange</code>).</span><span class="es">Límites de escala fija (usados cuando AutoScale = 0; se ajustan con <code>SetRange</code>).</span></td></tr>
-    <tr><td><code>BarGapPct</code></td><td>LONG 30</td><td><span class="en">Gap between bars, percent of one slot.</span><span class="es">Separación entre barras, porcentaje de un espacio.</span></td></tr>
+    <tr><td><code>ShowLegend</code> / <code>LegendPos</code></td><td>BYTE 1 / LONG <code>Legend:Bottom</code></td><td><span class="en">Key of the series (or of the slices on a pie): <code>Legend:Bottom</code>, <code>Legend:Right</code>, <code>Legend:Top</code>. Drawn only when it says something, and wraps onto up to three rows.</span><span class="es">Leyenda de las series (o de las porciones en un pastel): <code>Legend:Bottom</code>, <code>Legend:Right</code>, <code>Legend:Top</code>. Solo se dibuja cuando aporta algo, y se reparte en hasta tres filas.</span></td></tr>
+    <tr><td><code>ShowMarkers</code> / <code>MarkerShape</code> / <code>MarkerSize</code></td><td>BYTE 1 / LONG <code>Marker:Circle</code> / LONG 0</td><td><span class="en">Dots on lines and areas (always drawn for Scatter). <code>Marker:Circle</code>, <code>Marker:Square</code>, <code>Marker:Diamond</code>; size 0 = three quarters of the text height.</span><span class="es">Puntos en líneas y áreas (siempre en Scatter). <code>Marker:Circle</code>, <code>Marker:Square</code>, <code>Marker:Diamond</code>; tamaño 0 = tres cuartos de la altura del texto.</span></td></tr>
+    <tr><td><code>LineWidth</code> / <code>Smooth</code></td><td>LONG 2 / BYTE 0</td><td><span class="en">Pen width for lines, areas and radar outlines. <code>Smooth = 1</code> runs a Catmull-Rom curve through the points instead of straight segments.</span><span class="es">Grosor del trazo de líneas, áreas y contornos del radar. <code>Smooth = 1</code> pasa una curva Catmull-Rom por los puntos en vez de segmentos rectos.</span></td></tr>
+    <tr><td><code>Percent</code></td><td>BYTE 0</td><td><span class="en">Label values with their share of the total instead of the value. Made for pie and donut.</span><span class="es">Etiqueta los valores con su parte del total en vez del valor. Pensado para pastel y dona.</span></td></tr>
+    <tr><td><code>StartAngle</code></td><td>LONG 0</td><td><span class="en">Pie: degrees clockwise from twelve o'clock for the first slice.</span><span class="es">Pastel: grados en sentido horario desde las doce para la primera porción.</span></td></tr>
+    <tr><td><code>Depth3D</code></td><td>LONG 0</td><td><span class="en"><code>Chart:Pie3D</code> edge depth; 0 = an eighth of the height.</span><span class="es">Profundidad del canto en <code>Chart:Pie3D</code>; 0 = un octavo de la altura.</span></td></tr>
+    <tr><td><code>DonutPct</code> / <code>DonutText</code> / <code>HoleColor</code></td><td>LONG 55 / CSTRING(32) '' / LONG COLOR:None</td><td><span class="en">The hole as a percent of the diameter, an optional caption in it, and its fill (None follows PlotColor, then BackColor, then white).</span><span class="es">El agujero como porcentaje del diámetro, un texto opcional dentro, y su relleno (None sigue a PlotColor, luego BackColor, luego blanco).</span></td></tr>
+    <tr><td><code>ColorText</code></td><td>BYTE 1</td><td><span class="en">1 = re-color text with <code>SETFONT(0,&hellip;)</code> so <code>TextColor</code> is actually honoured. <code>SHOW</code> takes its color from the current target's <em>font</em>, not from <code>SETPENCOLOR</code> &mdash; that is why v1 drew all text in black. Set 0 to leave the target's font alone.</span><span class="es">1 = recolorea el texto con <code>SETFONT(0,&hellip;)</code> para que <code>TextColor</code> se respete de verdad. <code>SHOW</code> toma el color de la <em>fuente</em> del destino actual, no de <code>SETPENCOLOR</code> &mdash; por eso v1 dibujaba todo el texto en negro. Ponlo en 0 para no tocar la fuente del destino.</span></td></tr>
+    <tr><td><code>NSeries</code> / <code>SeriesName[]</code> / <code>SeriesColor[]</code></td><td>LONG 0 / STRING(32) / LONG</td><td><span class="en">The series table (max 8), if you would rather fill it in directly than call <code>AddSeries</code>. 0 or 1 both mean "one series".</span><span class="es">La tabla de series (máx. 8), si prefiere rellenarla directamente en vez de llamar a <code>AddSeries</code>. Tanto 0 como 1 significan "una serie".</span></td></tr>
+    <tr><td><code>BarGapPct</code></td><td>LONG 30</td><td><span class="en">Gap between category slots, percent of one slot. With several series the room left over is split between them.</span><span class="es">Separación entre huecos de categoría, porcentaje de un hueco. Con varias series, lo que queda se reparte entre ellas.</span></td></tr>
     <tr><td><code>TextW</code> / <code>TextH</code></td><td>LONG 0</td><td><span class="en">Char cell override (0 = auto per target).</span><span class="es">Anulación de celda de carácter (0 = automático por destino).</span></td></tr>
     <tr><td><code>BackColor</code></td><td>LONG COLOR:None</td><td><span class="en">Whole-control background fill (None = leave transparent).</span><span class="es">Relleno de fondo de todo el control (None = deja transparente).</span></td></tr>
     <tr><td><code>PlotColor</code></td><td>LONG COLOR:None</td><td><span class="en">Plot-area fill.</span><span class="es">Relleno del área de trazado.</span></td></tr>
@@ -336,10 +359,12 @@ RptGraph.TextH = <span class="t">185</span></pre>
 
 <section id="palette">
   <h2><span class="en">Color palette</span><span class="es">Paleta de colores</span></h2>
-  <p class="en">Bars added without an explicit color cycle through these eight professional tones (they
-  repeat after eight):</p>
-  <p class="es">Las barras agregadas sin un color explícito recorren estos ocho tonos profesionales (se
-  repiten tras ocho):</p>
+  <p class="en">Bars, slices and series added without an explicit color cycle through these twelve
+  professional tones (they repeat after twelve). The first eight are unchanged from v1, so existing charts
+  keep the colors they had:</p>
+  <p class="es">Las barras, porciones y series agregadas sin un color explícito recorren estos doce tonos
+  profesionales (se repiten tras doce). Los ocho primeros no cambiaron respecto a v1, así que los gráficos
+  existentes conservan sus colores:</p>
   <table>
     <tr><th></th><th><span class="en">Color</span><span class="es">Color</span></th><th>BGR</th></tr>
     <tr><td><span class="sw" style="background:#2E75B6"></span></td><td><span class="en">Steel blue</span><span class="es">Azul acero</span></td><td><code>0B6752Eh</code></td></tr>
@@ -350,11 +375,15 @@ RptGraph.TextH = <span class="t">185</span></pre>
     <tr><td><span class="sw" style="background:#C05746"></span></td><td><span class="en">Terracotta</span><span class="es">Terracota</span></td><td><code>04657C0h</code></td></tr>
     <tr><td><span class="sw" style="background:#64748B"></span></td><td><span class="en">Slate gray</span><span class="es">Gris pizarra</span></td><td><code>08B7464h</code></td></tr>
     <tr><td><span class="sw" style="background:#9AA5B1"></span></td><td><span class="en">Cool gray</span><span class="es">Gris frío</span></td><td><code>0B1A59Ah</code></td></tr>
+    <tr><td><span class="sw" style="background:#D2691E"></span></td><td><span class="en">Burnt orange</span><span class="es">Naranja quemado</span></td><td><code>01E69D2h</code></td></tr>
+    <tr><td><span class="sw" style="background:#A62626"></span></td><td><span class="en">Deep red</span><span class="es">Rojo profundo</span></td><td><code>02626A6h</code></td></tr>
+    <tr><td><span class="sw" style="background:#7F8C3F"></span></td><td><span class="en">Olive</span><span class="es">Oliva</span></td><td><code>03F8C7Fh</code></td></tr>
+    <tr><td><span class="sw" style="background:#5B9BD5"></span></td><td><span class="en">Sky blue</span><span class="es">Azul cielo</span></td><td><code>0D59B5Bh</code></td></tr>
   </table>
 </section>
 
 <section id="ex-window">
-  <h2><span class="en">Example — a bar graph on a window</span><span class="es">Ejemplo — un gráfico de barras en una ventana</span></h2>
+  <h2><span class="en">Example — a chart on a window</span><span class="es">Ejemplo — un gráfico en una ventana</span></h2>
   <p class="en">Put an <code>IMAGE</code> control (<code>?Graph</code>) on the window as the canvas. Declare
   the object, load bars once, and redraw whenever the window opens or resizes.</p>
   <p class="es">Coloque un control <code>IMAGE</code> (<code>?Graph</code>) en la ventana como lienzo.
@@ -386,7 +415,7 @@ Ventas   GraficaBarraClass
 </section>
 
 <section id="ex-report">
-  <h2><span class="en">Example — a bar graph on a report (small PDF)</span><span class="es">Ejemplo — un gráfico de barras en un informe (PDF pequeño)</span></h2>
+  <h2><span class="en">Example — a chart on a report (small PDF)</span><span class="es">Ejemplo — un gráfico en un informe (PDF pequeño)</span></h2>
   <p class="en">Put a placeholder in the detail band — an empty <code>IMAGE</code> named <code>?GraphPlace</code>,
   sized where the graph should print. In the <i>Before Printing Detail</i> embed, load the bars, target the
   report, paint, then hide the placeholder so only the vector graph prints.</p>
@@ -405,10 +434,24 @@ Grafico  GraficaBarraClass
   Grafico.AddBar(<span class="s">'Q3'</span>, Reg:Q3)
   Grafico.AddBar(<span class="s">'Q4'</span>, Reg:Q4)
 
-  SETTARGET(Report)                      <span class="c">! the printed band is the draw target</span>
-  Grafico.Paint(?GraphPlace)             <span class="c">! vector BOX/LINE/SHOW into the band</span>
+  SETTARGET(Report, ?TheDetailBand)      <span class="c">! aim at the band that HOLDS the placeholder</span>
+  Grafico.Paint(?GraphPlace)             <span class="c">! vector primitives into that band</span>
   ?GraphPlace{PROP:Hide} = <span class="t">1</span>          <span class="c">! placeholder never prints itself</span>
   SETTARGET()</pre>
+  <div class="note en"><b>Aim at the band, not just the report</b> <code>SETTARGET(Report)</code> on its own
+  sends every primitive to whichever band is being composed. With one chart you never notice; with two, both
+  land in the same band on top of each other. Pass the band's field equate as the second argument &mdash; the
+  band needs a <code>USE(?SomeName)</code> in the report formatter &mdash; and each chart goes where it
+  belongs, including a chart in a group header or footer. The template works this out for you from the report
+  structure. Drawing into a band before it prints is fine, and a repeating band does not accumulate the
+  previous record's drawing.</div>
+  <div class="note es"><b>Apunte a la banda, no solo al informe</b> <code>SETTARGET(Report)</code> por sí solo
+  envía todas las primitivas a la banda que se esté componiendo. Con un gráfico no se nota; con dos, ambos
+  caen en la misma banda uno encima del otro. Pase el field equate de la banda como segundo argumento &mdash;
+  la banda necesita un <code>USE(?Nombre)</code> en el formateador del informe &mdash; y cada gráfico va donde
+  le toca, incluido uno en un encabezado o pie de grupo. La plantilla lo deduce sola de la estructura del
+  informe. Dibujar en una banda antes de que se imprima no es problema, y una banda que se repite no acumula
+  el dibujo del registro anterior.</div>
   <div class="note en"><b>Why it stays small</b> Nothing here rasterizes. Each bar is a <code>BOX</code>
   record and each label a <code>SHOW</code>, so the PDF generator emits vector drawing operators — kilobytes,
   not a full-page bitmap, and crisp at any zoom.</div>
