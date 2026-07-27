@@ -600,6 +600,19 @@ ShowToday=1</pre>
       </div>
       <p>Pick the one that fits the window the button lives on. A form that is already tall has room for
         <b>down</b>; a wide report-options screen suits <b>across</b>.</p>
+      <h3>The window is only as wide as the calendar</h3>
+      <p>The navigation strip, not the calendar, is what used to set the width: all on one row it wants about
+        three months' worth of space, so a single month opened in a window mostly full of nothing. When the
+        calendar is narrower than that, the strip now <b>wraps onto two rows</b> — arrows, month and year on
+        the first, Today and the two drop lists on the second — and the window closes down on the months:</p>
+      <table>
+        <tr><th>View</th><th>Window was</th><th>Window is</th></tr>
+        <tr><td>One month</td><td>811 px</td><td><b>345 px</b></td></tr>
+        <tr><td>Two months across</td><td>811 px</td><td><b>559 px</b></td></tr>
+        <tr><td>Three months down</td><td>811 px</td><td><b>345 px</b></td></tr>
+        <tr><td>Three months across</td><td>825 px</td><td>825 px — the calendar is genuinely that wide</td></tr>
+      </table>
+      <p>Nothing to set: it happens on whatever view the user picks, and again when they change it.</p>
       <pre>  Cal1.Months = Cal:ThreeMonths
   Cal1.Orient = Cal:Down                              <span class="c">! 1 x 3 instead of 3 x 1</span></pre>
       <div class="callout note"><b>One month ignores it</b>
@@ -618,6 +631,19 @@ ShowToday=1</pre>
       </div>
       <p>Elige la que encaje en la ventana donde vive el botón. Un formulario que ya es alto tiene sitio para
         <b>en columna</b>; una pantalla ancha de opciones de informe pide <b>en fila</b>.</p>
+      <h3>La ventana mide lo que mide el calendario</h3>
+      <p>Lo que fijaba el ancho era la barra de navegación, no el calendario: en una sola fila ocupa como tres
+        meses, así que un mes solo se abría en una ventana casi vacía. Cuando el calendario es más estrecho
+        que eso, la barra ahora <b>se reparte en dos filas</b> —flechas, mes y año en la primera; Hoy y las dos
+        listas en la segunda— y la ventana se ajusta a los meses:</p>
+      <table>
+        <tr><th>Vista</th><th>La ventana medía</th><th>Ahora mide</th></tr>
+        <tr><td>Un mes</td><td>811 px</td><td><b>345 px</b></td></tr>
+        <tr><td>Dos meses en fila</td><td>811 px</td><td><b>559 px</b></td></tr>
+        <tr><td>Tres meses en columna</td><td>811 px</td><td><b>345 px</b></td></tr>
+        <tr><td>Tres meses en fila</td><td>825 px</td><td>825 px — el calendario mide eso de verdad</td></tr>
+      </table>
+      <p>No hay nada que configurar: ocurre con la vista que elija el usuario, y otra vez si la cambia.</p>
       <pre>  Cal1.Months = Cal:ThreeMonths
   Cal1.Orient = Cal:Down                              <span class="c">! 1 x 3 en vez de 3 x 1</span></pre>
       <div class="callout note"><b>Con un mes no aplica</b>

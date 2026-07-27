@@ -588,8 +588,11 @@ anchors there, so you never have to untangle a new sweep from the last one.
 
 **How much is on screen is up to you and the user**: one month, two, three, six, or a **full year** — and two
 and three can be stacked **across** (side by side) or **down** (one under the other), with six going 3×2 or
-2×3 and a year 4×3 or 3×4. Both the view and the stacking are drop lists in the window itself, the window
-resizes itself to fit, and **both choices come back the next time the program runs** (per profile, in the
+2×3 and a year 4×3 or 3×4. Both the view and the stacking are drop lists in the window itself, and **the
+window is only ever as wide as the calendar** — when the months are narrower than the navigation strip needs
+on one row, the strip wraps onto two rows rather than dragging the window out with it, so one month opens at
+345 px instead of 811 and three months stacked down is a genuinely narrow column. **Both choices come back
+the next time the program runs** (per profile, in the
 app's own INI) along with the first day of the week, the week-number gutter and the today ring. Navigation is
 `<<` year, `<` month, a month drop and a year spin, `>` month, `>>` year, plus **Today**. Options cover
 **ISO-8601 week numbers**, Sunday or Monday first, today ringed in amber, **weekends blocked**, and earliest /

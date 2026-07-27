@@ -747,7 +747,9 @@ of2          LONG(0)                                        ! touched it - see t
 anc          LONG(0)                                        ! the view's anchor, held still while dragging
 winW         LONG,AUTO
 cx           LONG,AUTO
+cy           LONG,AUTO
 fy           LONG,AUTO
+navr         LONG,AUTO                                      ! rows the nav strip is wrapped onto
 CYear        LONG
 CalWnd WINDOW('Calendar'),AT(,,372,252),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI), |
          CENTER,GRAY,SYSTEM,MODAL,ALRT(EscKey)
@@ -957,28 +959,65 @@ CalWnd WINDOW('Calendar'),AT(,,372,252),FONT('Segoe UI',9,,FONT:regular,CHARSET:
 Relayout ROUTINE
   SELF.Layout()
   winW = SELF.CanvasW + 24
-  IF winW < 462 THEN winW = 462 .                           ! the nav row needs this much
+!  The NAV STRIP is what makes this window wide, not the calendar. All on one
+!  row it wants 462 units - three times a single month - so a one-month view or
+!  a Down stack used to open in a window mostly full of empty space. When the
+!  canvas is narrower than that, wrap the strip onto two rows and let the window
+!  close down on the calendar instead.
+  IF winW >= Cal:NavOneRow
+    navr = 1
+  ELSE
+    navr = 2
+    IF winW < Cal:NavTwoRow THEN winW = Cal:NavTwoRow .
+  END
+  IF navr = 1
+!   << < [month] [year] > >> [Today] .......... View: [view] [layout]
+    ?CPY{PROP:Xpos}    =  10 ; ?CPY{PROP:Ypos}    = 38
+    ?CPM{PROP:Xpos}    =  28 ; ?CPM{PROP:Ypos}    = 38
+    ?CMonth{PROP:Xpos} =  45 ; ?CMonth{PROP:Ypos} = 39 ; ?CMonth{PROP:Width} = 76
+    ?CYear{PROP:Xpos}  = 124 ; ?CYear{PROP:Ypos}  = 39 ; ?CYear{PROP:Width}  = 34
+    ?CNM{PROP:Xpos}    = 162 ; ?CNM{PROP:Ypos}    = 38
+    ?CNY{PROP:Xpos}    = 178 ; ?CNY{PROP:Ypos}    = 38
+    ?CToday{PROP:Xpos} = 200 ; ?CToday{PROP:Ypos} = 38 ; ?CToday{PROP:Width} = 42
+    ?CViewP{PROP:Xpos} = winW - 206 ; ?CViewP{PROP:Ypos} = 40
+    ?CView{PROP:Xpos}  = winW - 182 ; ?CView{PROP:Ypos}  = 39 ; ?CView{PROP:Width} = 82
+    ?CLay{PROP:Xpos}   = winW -  78 ; ?CLay{PROP:Ypos}   = 39 ; ?CLay{PROP:Width}  = 66
+    UNHIDE(?CViewP)
+  ELSE
+!   row 1:  << < [month] [year] > >>
+!   row 2:  [Today] [view] [layout]        - the "View:" label goes, the tip stays
+    ?CPY{PROP:Xpos}    =  10 ; ?CPY{PROP:Ypos}    = 38
+    ?CPM{PROP:Xpos}    =  27 ; ?CPM{PROP:Ypos}    = 38
+    ?CMonth{PROP:Xpos} =  44 ; ?CMonth{PROP:Ypos} = 39 ; ?CMonth{PROP:Width} = 66
+    ?CYear{PROP:Xpos}  = 113 ; ?CYear{PROP:Ypos}  = 39 ; ?CYear{PROP:Width}  = 32
+    ?CNM{PROP:Xpos}    = 148 ; ?CNM{PROP:Ypos}    = 38
+    ?CNY{PROP:Xpos}    = 165 ; ?CNY{PROP:Ypos}    = 38
+    ?CToday{PROP:Xpos} =  10 ; ?CToday{PROP:Ypos} = 38 + Cal:NavRowH ; ?CToday{PROP:Width} = 40
+    ?CView{PROP:Xpos}  =  54 ; ?CView{PROP:Ypos}  = 39 + Cal:NavRowH ; ?CView{PROP:Width}  = 70
+    ?CLay{PROP:Xpos}   = 128 ; ?CLay{PROP:Ypos}   = 39 + Cal:NavRowH ; ?CLay{PROP:Width}   = 58
+    HIDE(?CViewP)
+  END
+  cy = 58 + (navr - 1) * Cal:NavRowH                        ! the canvas starts under the strip
   cx = INT((winW - SELF.CanvasW) / 2)
   ?CCanvas{PROP:Xpos}   = cx
+  ?CCanvas{PROP:Ypos}   = cy
   ?CCanvas{PROP:Width}  = SELF.CanvasW
   ?CCanvas{PROP:Height} = SELF.CanvasH
   ?CHot{PROP:Xpos}      = cx
+  ?CHot{PROP:Ypos}      = cy
   ?CHot{PROP:Width}     = SELF.CanvasW
   ?CHot{PROP:Height}    = SELF.CanvasH
-  fy = 58 + SELF.CanvasH + 8
+  fy = cy + SELF.CanvasH + 8
   ?CRule{PROP:Ypos}     = fy
   ?CRule{PROP:Width}    = winW - 24
-  ?CPick{PROP:Ypos}     = fy + 7
-  ?CHint{PROP:Ypos}     = fy + 18
+  ?CPick{PROP:Ypos}     = fy + 7  ; ?CPick{PROP:Width} = winW - 24
+  ?CHint{PROP:Ypos}     = fy + 18 ; ?CHint{PROP:Width} = winW - 24
   ?CClear{PROP:Ypos}    = fy + 32
   ?COk{PROP:Ypos}       = fy + 32
   ?CCancel{PROP:Ypos}   = fy + 32
   ?CCancel{PROP:Xpos}   = winW - 66
   ?COk{PROP:Xpos}       = winW - 124
   ?CClear{PROP:Xpos}    = winW - 172
-  ?CView{PROP:Xpos}     = winW - 182
-  ?CViewP{PROP:Xpos}    = winW - 206
-  ?CLay{PROP:Xpos}      = winW - 78
   IF SELF.Months > 1                                        ! nothing to stack with one month
     ENABLE(?CLay)
   ELSE

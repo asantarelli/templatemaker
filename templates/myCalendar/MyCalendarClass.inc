@@ -99,6 +99,14 @@ Cal:WeekW          EQUATE(16)                  ! the week-number gutter
 Cal:Weeks          EQUATE(6)                   ! rows of days per month
 Cal:Gap            EQUATE(10)                  ! between month blocks
 
+! ---- what the navigation strip needs, which is what sets the window width --
+!  On one row the nav is three times as wide as a single month, and it used to
+!  drag the whole window out with it. Below Cal:NavOneRow the strip wraps onto
+!  two rows instead, and the window can close right down on the calendar.
+Cal:NavOneRow      EQUATE(462)                 ! << < month year > >> Today View Layout
+Cal:NavTwoRow      EQUATE(196)                 ! the same, stacked two deep
+Cal:NavRowH        EQUATE(16)                  ! one row of nav controls
+
 MyCalendarClass      CLASS,TYPE,MODULE('MyCalendarClass.CLW'),LINK('MyCalendarClass.CLW')
 ! ---- what the caller sets -------------------------------------------------
 Months               BYTE(1)                   ! 1, 2, 3, 6 or 12
