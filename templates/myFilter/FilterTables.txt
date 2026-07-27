@@ -1,0 +1,101 @@
+myFilter - saved-filter tables
+==============================================================================
+
+You only need these if you want saved filters kept in a TABLE. The default
+storage is the application's own INI file, which needs no setup at all and is
+per-user; use the tables when filters should be shared between users, or live
+on the server with the data.
+
+Two tables: a header per saved filter, and one line per condition.
+
+------------------------------------------------------------------------------
+ 1. FilterHdr - one row per saved filter
+------------------------------------------------------------------------------
+
+FilterHdr        FILE,DRIVER('TopSpeed'),PRE(FLH),CREATE,BINDABLE,THREAD
+KeyId              KEY(FLH:Id),NOCASE,OPT,PRIMARY
+KeyOwner           KEY(FLH:Browse,FLH:Owner,FLH:Name),DUP,NOCASE
+KeyName            KEY(FLH:Browse,FLH:Name),DUP,NOCASE
+Record             RECORD,PRE()
+Id                   LONG                    ! autonumber
+Browse               STRING(64)              ! which browse it belongs to - the
+                                             !   profile name the template emits,
+                                             !   normally the procedure name
+Name                 STRING(64)              ! what the user called it
+Owner                STRING(64)              ! user id; blank = everybody's
+IsShared             BYTE                    ! 1 = other users may see it
+IsDefault            BYTE                    ! 1 = apply it when the browse opens
+Created              DATE
+CreatedBy            STRING(64)
+Expression           STRING(1000)            ! the built filter, cached so a
+                                             !   default filter can be applied
+                                             !   without reading the lines
+                   END
+                 END
+
+------------------------------------------------------------------------------
+ 2. FilterLine - one row per condition
+------------------------------------------------------------------------------
+
+FilterLine       FILE,DRIVER('TopSpeed'),PRE(FLL),CREATE,BINDABLE,THREAD
+KeyId              KEY(FLL:Id),NOCASE,OPT,PRIMARY
+KeyHdr             KEY(FLL:HdrId,FLL:Seq),DUP,NOCASE
+Record             RECORD,PRE()
+Id                   LONG                    ! autonumber
+HdrId                LONG                    ! -> FilterHdr.Id
+Seq                  SHORT                   ! 1, 2, 3... the order they read in
+FieldName            STRING(64)              ! 'CUS:Name' - the expression text,
+                                             !   not the label
+Operator             SHORT                   ! see the equate list below
+Value1               STRING(80)
+Value2               STRING(80)              ! the far end of a range; else blank
+Joiner               SHORT                   ! 0 = AND with the previous line
+                                             ! 1 = OR
+                   END
+                 END
+
+Relationship: FilterHdr 1:MANY FilterLine on Id -> HdrId, with Cascade on
+update and Restrict (or Cascade) on delete - either is fine, the class deletes
+the lines itself before the header.
+
+------------------------------------------------------------------------------
+ Operator numbers  (Flt:xxx equates in MyFilterClass.inc)
+------------------------------------------------------------------------------
+
+    1  equals                 =
+    2  does not equal         <>
+    3  begins with            strings
+    4  ends with              strings
+    5  contains               strings
+    6  does not contain       strings
+    7  is empty               strings
+    8  is not empty           strings
+    9  matches pattern        strings, * and ? wildcards
+   10  less than              numbers, dates, times
+   11  less than or equal
+   12  greater than
+   13  greater than or equal
+   14  between                numbers, dates, times - uses Value2
+   15  not between            uses Value2
+   16  is today               dates
+   17  is yesterday           dates
+   18  in the last N days     dates  - Value1 = N
+   19  in the next N days     dates  - Value1 = N
+   20  in month               dates  - Value1 = 1..12
+   21  in year                dates  - Value1 = the year
+   22  is true                BYTE / flag
+   23  is false
+
+------------------------------------------------------------------------------
+ If you would rather not add tables
+------------------------------------------------------------------------------
+
+Leave the storage prompt on "INI file" and nothing above is needed. Saved
+filters go into <exe>.INI as, for example:
+
+    [myFilter_BrowseCustomers]
+    Filters=Overdue|Big accounts|This month
+    Overdue.1=CUS:Balance|12|0|0|0
+    Overdue.2=CUS:Added|10|82184||0
+
+which is the same data, one line per condition, pipe separated.
