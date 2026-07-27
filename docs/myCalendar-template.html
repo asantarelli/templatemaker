@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myCalendar — Programmer's Documentation / Documentación del programador</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  kbd{background:#fff;border:1px solid #c9d3e0;border-bottom-width:2px;border-radius:5px;
+    padding:1px 7px;font-size:12.5px;color:#33455c}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .danger{background:var(--red-bg);border-color:#e6b8b2;color:#7c241b}
+  .callout b{display:block;margin-bottom:2px}
+  .callout b.i{display:inline;margin:0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .top{font-size:12px;color:var(--muted);float:right}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .shot{max-width:100%;border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 2px 10px rgba(14,26,43,.14)}
+  .shots{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin:16px 0}
+  .shots figure{margin:0;flex:1 1 300px;min-width:0}
+  .shots figcaption{font-size:12.5px;color:var(--muted);padding-top:6px;text-align:center}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #00000022;
+    vertical-align:-1px;margin-right:6px}
+</style>
+</head><body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>myCalendar</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#button" class="h2"><span class="en">The calendar button</span><span class="es">El botón del calendario</span></a>
+    <a href="#twofields" class="h2"><span class="en">One button, two fields</span><span class="es">Un botón, dos campos</span></a>
+    <a href="#code" class="h2"><span class="en">An existing button or menu</span><span class="es">Un botón o menú que ya tienes</span></a>
+    <a href="#global" class="h2"><span class="en">Application defaults</span><span class="es">Valores de la aplicación</span></a>
+    <a href="#language" class="h2"><span class="en">Language (EN / ES)</span><span class="es">Idioma (EN / ES)</span></a>
+    <a href="#remember" class="h2"><span class="en">Remembering the last session</span><span class="es">Recordar la última sesión</span></a>
+    <div class="grp"><span class="en">The window</span><span class="es">La ventana</span></div>
+    <a href="#views" class="h2"><span class="en">Views: 1, 2, 3, 6, 12</span><span class="es">Vistas: 1, 2, 3, 6, 12</span></a>
+    <a href="#orient" class="h2"><span class="en">Across or down</span><span class="es">En fila o en columna</span></a>
+    <a href="#range" class="h2"><span class="en">Dragging a range</span><span class="es">Arrastrar un rango</span></a>
+    <a href="#options" class="h2"><span class="en">Week, limits, weekends</span><span class="es">Semana, límites, fines de semana</span></a>
+    <a href="#keys" class="h2"><span class="en">Mouse &amp; keyboard</span><span class="es">Ratón y teclado</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#classref" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#colours" class="h2"><span class="en">Colours</span><span class="es">Colores</span></a>
+    <a href="#hand" class="h2"><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span></a>
+    <a href="#traps" class="h2"><span class="en">Clarion notes</span><span class="es">Notas de Clarion</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>myCalendar</h1>
+      <p class="en">A pop-up <b>date picker</b> beside any date field — one month, three, or a whole year on
+         screen, stacked across or down. <b>Drag across the days</b> to sweep out a from/to range and one
+         button fills in two fields. Pure Clarion, in English or Spanish.</p>
+      <p class="es">Un <b>selector de fechas</b> emergente junto a cualquier campo de fecha: un mes, tres o
+         un año entero en pantalla, en fila o en columna. <b>Arrastra sobre los días</b> para marcar un rango
+         desde/hasta y un solo botón rellena dos campos. Clarion puro, en inglés o español.</p>
+      <span class="pill en">1 · 2 · 3 · 6 · 12 months · drag a range · week numbers · EN / ES · no dependencies</span>
+      <span class="pill es">1 · 2 · 3 · 6 · 12 meses · rango arrastrando · números de semana · EN / ES · sin dependencias</span>
+    </header>
+
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="body">
+
+    <section id="over">
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Drag <b>myCalendar&nbsp;-&nbsp;Calendar button</b> next to a date entry and point it at
+        that entry. A small calendar icon appears beside the field; pressing it opens a modal calendar
+        already sitting on whatever the field contains, and <b>Accept</b> puts the date back.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalendar-demo.png" class="shot"
+             alt="Three date fields, each with a calendar button beside it"></p>
+      <p>Set the same button to <b>a from-and-to range</b> and it serves <b>two</b> fields: the user drags
+        across the days — over as many months as are on screen — and Accept writes the first day into the
+        FROM field and the last into the TO field.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myCalendar</th></tr>
+        <tr><td>Needs a DLL / OCX / control</td><td><b>No</b> — pure Clarion, nothing to deploy</td></tr>
+        <tr><td>On screen at once</td><td>1, 2, 3 or 6 months, or a full year</td></tr>
+        <tr><td>Stacking</td><td>Across (side by side) or down (one under the other)</td></tr>
+        <tr><td>Picks</td><td>One date, or a from/to range swept out with the mouse</td></tr>
+        <tr><td>Navigation</td><td>&lt;&lt; year, &lt; month, a month drop, a year spin, &gt; month, &gt;&gt; year, Today</td></tr>
+        <tr><td>Options</td><td>ISO week numbers, first day of the week, today ringed, weekends blocked, min/max</td></tr>
+        <tr><td>Remembers</td><td>The view, the stacking and the week options, between runs</td></tr>
+        <tr><td>Languages</td><td>English and Spanish, set once for the whole application</td></tr>
+      </table>
+      <div class="callout note"><b>Where it fits</b>
+        Anywhere there is a date to type — an update form behind a browse, a report's date range, a
+        parameters screen. The button is a normal control template, so it goes wherever you drop it.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Arrastra <b>myCalendar&nbsp;-&nbsp;Calendar button</b> junto a un campo de fecha y
+        apúntalo a ese campo. Aparece un pequeño icono de calendario al lado; al pulsarlo se abre un
+        calendario modal situado ya en lo que hubiera en el campo, y <b>Aceptar</b> devuelve la fecha.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalendar-demo.png" class="shot"
+             alt="Tres campos de fecha, cada uno con su botón de calendario"></p>
+      <p>Pon ese mismo botón en modo <b>rango desde/hasta</b> y atenderá a <b>dos</b> campos: el usuario
+        arrastra sobre los días —por todos los meses que haya en pantalla— y Aceptar escribe el primer día
+        en el campo DESDE y el último en el campo HASTA.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myCalendar</th></tr>
+        <tr><td>¿Necesita DLL / OCX / control?</td><td><b>No</b> — Clarion puro, nada que instalar</td></tr>
+        <tr><td>En pantalla a la vez</td><td>1, 2, 3 o 6 meses, o un año completo</td></tr>
+        <tr><td>Colocación</td><td>En fila (uno al lado del otro) o en columna (uno debajo del otro)</td></tr>
+        <tr><td>Selecciona</td><td>Una fecha, o un rango desde/hasta marcado con el ratón</td></tr>
+        <tr><td>Navegación</td><td>&lt;&lt; año, &lt; mes, lista de meses, spin de año, &gt; mes, &gt;&gt; año, Hoy</td></tr>
+        <tr><td>Opciones</td><td>Semanas ISO, primer día de la semana, hoy resaltado, fines de semana bloqueados, mín/máx</td></tr>
+        <tr><td>Recuerda</td><td>La vista, la colocación y las opciones de semana, entre ejecuciones</td></tr>
+        <tr><td>Idiomas</td><td>Inglés y español, se fija una vez para toda la aplicación</td></tr>
+      </table>
+      <div class="callout note"><b>Dónde encaja</b>
+        En cualquier sitio donde haya que teclear una fecha: el formulario detrás de un browse, el rango de
+        fechas de un informe, una pantalla de parámetros. El botón es una plantilla de control normal, así
+        que va donde tú lo sueltes.</div>
+      </div>
+    </section>
+
+    <section id="install">
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="en">
+      <ol>
+        <li>Copy <code>templates/myCalendar/CalendarClass.inc</code>, <code>CalendarClass.clw</code> and
+          <code>cal16.ico</code> to a folder on the Clarion redirection path (your app folder, or
+          <code>\clarion12\libsrc\win</code>). The two source files <b>must be ANSI with CRLF line
+          endings</b>.</li>
+        <li>Copy <code>templates/myCalendar/myCalendar.tpl</code> into your template folder.</li>
+        <li>In the IDE: <b>Setup ▸ Template Registry ▸ Register</b>, pick <code>myCalendar.tpl</code>.</li>
+        <li>Add the global extension <b>myCalendar - Global</b> to the application once
+          (<b>Global Properties ▸ Extensions ▸ Insert</b>) and set the language and defaults there.</li>
+        <li>Open a window, and from the control-template list drag
+          <b>myCalendar - Calendar button beside a date field</b> next to the entry you want it to fill in.</li>
+        <li>Set <b>Date field to fill in</b> to that entry. That is the only required prompt.</li>
+      </ol>
+      <div class="filetree">
+templates/myCalendar/<br>
+&nbsp;&nbsp;├── myCalendar.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the template set — register this</span><br>
+&nbsp;&nbsp;├── CalendarClass.inc&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the class — on the redirection path</span><br>
+&nbsp;&nbsp;├── CalendarClass.clw&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">links itself into the build</span><br>
+&nbsp;&nbsp;└── cal16.ico&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the button icon — build time only</span>
+      </div>
+      <div class="callout tip"><b>Nothing to ship</b>
+        Clarion compiles <code>ICON()</code> into the executable's own resources and
+        <code>CalendarClass.clw</code> is linked in by its <code>LINK</code> attribute, so the finished
+        program is a single EXE with no extra files beside it.</div>
+      </div>
+      <div class="es">
+      <ol>
+        <li>Copia <code>templates/myCalendar/CalendarClass.inc</code>, <code>CalendarClass.clw</code> y
+          <code>cal16.ico</code> a una carpeta de la ruta de redirección de Clarion (la carpeta de tu app, o
+          <code>\clarion12\libsrc\win</code>). Los dos fuentes <b>deben ser ANSI con saltos de línea
+          CRLF</b>.</li>
+        <li>Copia <code>templates/myCalendar/myCalendar.tpl</code> a tu carpeta de plantillas.</li>
+        <li>En el IDE: <b>Setup ▸ Template Registry ▸ Register</b>, elige <code>myCalendar.tpl</code>.</li>
+        <li>Añade la extensión global <b>myCalendar - Global</b> una vez a la aplicación
+          (<b>Global Properties ▸ Extensions ▸ Insert</b>) y fija allí el idioma y los valores por defecto.</li>
+        <li>Abre una ventana y, de la lista de plantillas de control, arrastra
+          <b>myCalendar - Calendar button beside a date field</b> junto al campo que quieras rellenar.</li>
+        <li>Pon <b>Date field to fill in</b> apuntando a ese campo. Es el único prompt obligatorio.</li>
+      </ol>
+      <div class="filetree">
+templates/myCalendar/<br>
+&nbsp;&nbsp;├── myCalendar.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">el juego de plantillas — regístralo</span><br>
+&nbsp;&nbsp;├── CalendarClass.inc&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la clase — en la ruta de redirección</span><br>
+&nbsp;&nbsp;├── CalendarClass.clw&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">se enlaza sola en la compilación</span><br>
+&nbsp;&nbsp;└── cal16.ico&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">el icono del botón — solo al compilar</span>
+      </div>
+      <div class="callout tip"><b>Nada que distribuir</b>
+        Clarion compila el <code>ICON()</code> dentro de los recursos del ejecutable y
+        <code>CalendarClass.clw</code> se enlaza por su atributo <code>LINK</code>, así que el programa
+        terminado es un único EXE sin ficheros extra al lado.</div>
+      </div>
+    </section>
+
+    <section id="button">
+      <h2><span class="en">The calendar button</span><span class="es">El botón del calendario</span> <a href="#button" class="top">#</a></h2>
+      <div class="en">
+      <p><b>myCalendar - Calendar button beside a date field</b> is a MULTI control template: drop one beside
+        every date on the window. Each one gets its own object, so each one remembers its own view.</p>
+      <table>
+        <tr><th>Tab</th><th>Prompt</th><th>What it does</th></tr>
+        <tr><td rowspan="5">General</td><td>Object name</td><td>The Clarion object declared in the procedure's data. Defaults to <code>Cal1</code>, <code>Cal2</code>…</td></tr>
+        <tr><td>Pick</td><td><b>One date</b>, or <b>a from-and-to range</b>. The prompts below change to match.</td></tr>
+        <tr><td>Date field to fill in</td><td>The date ENTRY this button sits beside. Required.</td></tr>
+        <tr><td>From / To date field</td><td>In range mode: the two entries the button fills in.</td></tr>
+        <tr><td>Window title</td><td>Blank uses the localised word "Calendar" / "Calendario".</td></tr>
+        <tr><td rowspan="6">View</td><td>Months</td><td>1, 2, 3, 6 or 12 on screen — or leave it on the application setting.</td></tr>
+        <tr><td>Stack them</td><td>Across or down. See <a href="#orient">Across or down</a>.</td></tr>
+        <tr><td>First day of the week</td><td>Sunday or Monday.</td></tr>
+        <tr><td>Show week numbers</td><td>The ISO-8601 gutter down the left of each month.</td></tr>
+        <tr><td>Ring today's date</td><td>An amber outline on today. On by default.</td></tr>
+        <tr><td>Language</td><td>English, Spanish, or the application setting.</td></tr>
+        <tr><td rowspan="4">Limits</td><td>Weekends cannot be picked</td><td>Saturdays and Sundays are drawn greyed and ignore the mouse.</td></tr>
+        <tr><td>Earliest / Latest date allowed</td><td>Any expression the compiler takes: <code>TODAY()</code>, <code>TODAY()+30</code>, <code>DATE(1,1,2020)</code>, or a variable.</td></tr>
+        <tr><td>Date picture</td><td>How the footer reads the dates back. Default <code>@d17</code>.</td></tr>
+        <tr><td colspan="2" style="color:#6b7785">…and the Remember tab, below.</td></tr>
+      </table>
+      <p>The button knows which field it belongs to because the template reads that control's own USE
+        attribute at generate time — <code>EXTRACT(%ControlStatement,'USE',1)</code>, the same call the
+        shipped <code>ABDROPS.TPW</code> makes. There is nothing to type twice and nothing to keep in sync.</p>
+      <h3>What it generates</h3>
+      <pre><span class="c">! in the procedure's data</span>
+Cal1                 <span class="k">CalendarClass</span>                        <span class="c">! calendar for ?ORD:DueDate</span>
+
+<span class="c">! in ?CalBtn, Accepted</span>
+  Cal1.Months      = myCalendarView                   <span class="c">! whatever the global says</span>
+  Cal1.Orient      = myCalendarOrient
+  Cal1.FirstDay    = myCalendarFirstDay
+  Cal1.ShowWeekNo  = myCalendarWeekNo
+  Cal1.Language    = myCalendarLanguage
+  Cal1.ShowToday   = 1
+  Cal1.NoWeekends  = 0
+  Cal1.Persist     = 1
+  Cal1.Profile     = <span class="s">'UpdateOrder'</span>
+  <span class="k">IF</span> Cal1.AskFor(ORD:DueDate)                        <span class="c">! seeds from the field, writes it back</span>
+    DISPLAY(?ORD:DueDate)
+  <span class="k">END</span></pre>
+      <p>Two embed points sit inside that block — <b>before the calendar opens</b> (set anything you like on
+        the object) and <b>after the date was accepted</b>.</p>
+      </div>
+      <div class="es">
+      <p><b>myCalendar - Calendar button beside a date field</b> es una plantilla de control MULTI: pon una
+        junto a cada fecha de la ventana. Cada una tiene su propio objeto, así que cada una recuerda su
+        propia vista.</p>
+      <table>
+        <tr><th>Pestaña</th><th>Prompt</th><th>Qué hace</th></tr>
+        <tr><td rowspan="5">General</td><td>Object name</td><td>El objeto Clarion declarado en los datos del procedimiento. Por defecto <code>Cal1</code>, <code>Cal2</code>…</td></tr>
+        <tr><td>Pick</td><td><b>Una fecha</b>, o <b>un rango desde/hasta</b>. Los prompts de abajo cambian según lo que elijas.</td></tr>
+        <tr><td>Date field to fill in</td><td>El ENTRY de fecha junto al que está el botón. Obligatorio.</td></tr>
+        <tr><td>From / To date field</td><td>En modo rango: los dos campos que rellena el botón.</td></tr>
+        <tr><td>Window title</td><td>En blanco usa la palabra traducida «Calendario» / «Calendar».</td></tr>
+        <tr><td rowspan="6">View</td><td>Months</td><td>1, 2, 3, 6 o 12 en pantalla — o déjalo en el valor de la aplicación.</td></tr>
+        <tr><td>Stack them</td><td>En fila o en columna. Ver <a href="#orient">En fila o en columna</a>.</td></tr>
+        <tr><td>First day of the week</td><td>Domingo o lunes.</td></tr>
+        <tr><td>Show week numbers</td><td>La columna ISO-8601 a la izquierda de cada mes.</td></tr>
+        <tr><td>Ring today's date</td><td>Un recuadro ámbar sobre hoy. Activo por defecto.</td></tr>
+        <tr><td>Language</td><td>Inglés, español, o lo que diga la aplicación.</td></tr>
+        <tr><td rowspan="4">Limits</td><td>Weekends cannot be picked</td><td>Sábados y domingos se dibujan atenuados y no responden al ratón.</td></tr>
+        <tr><td>Earliest / Latest date allowed</td><td>Cualquier expresión que acepte el compilador: <code>TODAY()</code>, <code>TODAY()+30</code>, <code>DATE(1,1,2020)</code>, o una variable.</td></tr>
+        <tr><td>Date picture</td><td>Cómo se leen las fechas en el pie. Por defecto <code>@d17</code>.</td></tr>
+        <tr><td colspan="2" style="color:#6b7785">…y la pestaña Remember, más abajo.</td></tr>
+      </table>
+      <p>El botón sabe a qué campo pertenece porque la plantilla lee el atributo USE de ese control al
+        generar —<code>EXTRACT(%ControlStatement,'USE',1)</code>, la misma llamada que hace el
+        <code>ABDROPS.TPW</code> que viene con Clarion. No hay que teclear nada dos veces ni mantener nada
+        sincronizado.</p>
+      <h3>Lo que genera</h3>
+      <pre><span class="c">! en los datos del procedimiento</span>
+Cal1                 <span class="k">CalendarClass</span>                        <span class="c">! calendario para ?ORD:DueDate</span>
+
+<span class="c">! en ?CalBtn, Accepted</span>
+  Cal1.Months      = myCalendarView                   <span class="c">! lo que diga el global</span>
+  Cal1.Orient      = myCalendarOrient
+  Cal1.FirstDay    = myCalendarFirstDay
+  Cal1.ShowWeekNo  = myCalendarWeekNo
+  Cal1.Language    = myCalendarLanguage
+  Cal1.ShowToday   = 1
+  Cal1.NoWeekends  = 0
+  Cal1.Persist     = 1
+  Cal1.Profile     = <span class="s">'UpdateOrder'</span>
+  <span class="k">IF</span> Cal1.AskFor(ORD:DueDate)                        <span class="c">! toma el valor del campo y lo devuelve</span>
+    DISPLAY(?ORD:DueDate)
+  <span class="k">END</span></pre>
+      <p>Dentro de ese bloque hay dos puntos de inserción: <b>antes de abrir el calendario</b> (pon en el
+        objeto lo que quieras) y <b>después de aceptar la fecha</b>.</p>
+      </div>
+    </section>
+
+    <section id="twofields">
+      <h2><span class="en">One button, two fields</span><span class="es">Un botón, dos campos</span> <a href="#twofields" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Set <b>Pick</b> to <b>a from-and-to range</b> and the same button serves two entries.
+        Point <b>From date field</b> and <b>To date field</b> at them and you are done.</p>
+      <pre>  <span class="k">IF</span> Cal2.AskRange(LOC:From,LOC:To)                  <span class="c">! seeds from both, writes both back</span>
+    DISPLAY(?LOC:From)
+    DISPLAY(?LOC:To)
+  <span class="k">END</span></pre>
+      <p><code>AskRange</code> opens on the FROM date with both ends already marked, and hands them back the
+        right way round however the user swept them. If only one day ends up picked, both fields get that
+        day — a one-day range, which is what a user who clicked once meant.</p>
+      <div class="callout tip"><b>The fields do not have to be on the same window row</b>
+        They only have to be on the same window. A "period" band with FROM at the top and TO at the bottom
+        works exactly the same.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Pon <b>Pick</b> en <b>rango desde/hasta</b> y el mismo botón atiende a dos campos.
+        Apunta <b>From date field</b> y <b>To date field</b> a ellos y ya está.</p>
+      <pre>  <span class="k">IF</span> Cal2.AskRange(LOC:From,LOC:To)                  <span class="c">! toma ambos y devuelve ambos</span>
+    DISPLAY(?LOC:From)
+    DISPLAY(?LOC:To)
+  <span class="k">END</span></pre>
+      <p><code>AskRange</code> abre sobre la fecha DESDE con los dos extremos ya marcados, y los devuelve en
+        el orden correcto sin importar hacia dónde arrastrara el usuario. Si solo queda un día
+        seleccionado, los dos campos reciben ese día: un rango de un solo día, que es lo que quería decir
+        quien hizo un único clic.</p>
+      <div class="callout tip"><b>Los campos no tienen que estar en la misma fila</b>
+        Basta con que estén en la misma ventana. Una banda de «periodo» con DESDE arriba y HASTA abajo
+        funciona exactamente igual.</div>
+      </div>
+    </section>
+
+    <section id="code">
+      <h2><span class="en">Already have a button or menu?</span><span class="es">¿Ya tienes un botón o un menú?</span> <a href="#code" class="top">#</a></h2>
+      <div class="en">
+      <p>Use the <b>code</b> template <b>myCalendar - Open the calendar and return a date</b>. Drop it into
+        any embed — a button's <i>Accepted</i>, a menu item, a hot key — and fill in the variable it should
+        read and write. Everything the control template offers is on its prompts too.</p>
+      <p>It works on plain variables as well as file fields, so it is the way in when the target is not an
+        entry on the window at all:</p>
+      <pre>  <span class="c">! dropped in ?PrintRange, Accepted</span>
+  Cal3.Months      = 3
+  Cal3.Orient      = Cal:Across
+  Cal3.Language    = myCalendarLanguage
+  <span class="k">IF</span> Cal3.AskRange(LOC:PeriodFrom,LOC:PeriodTo)
+    DISPLAY(?PeriodText)
+  <span class="k">END</span></pre>
+      <div class="callout note"><b>It declares its own object</b>
+        The code template is <code>,PROCEDURE</code>, which lets it own a <code>%DataSection</code> entry of
+        its own (the same trick the shipped <code>ABPOPUP.TPW</code> uses). You do not have to declare
+        anything by hand.</div>
+      </div>
+      <div class="es">
+      <p>Usa la plantilla de <b>código</b> <b>myCalendar - Open the calendar and return a date</b>. Suéltala
+        en cualquier embed —el <i>Accepted</i> de un botón, un elemento de menú, una tecla rápida— e indica
+        la variable que debe leer y escribir. Tiene los mismos prompts que la plantilla de control.</p>
+      <p>Funciona igual con variables sueltas que con campos de fichero, así que es la vía cuando el destino
+        no es un campo de la ventana:</p>
+      <pre>  <span class="c">! puesta en ?PrintRange, Accepted</span>
+  Cal3.Months      = 3
+  Cal3.Orient      = Cal:Across
+  Cal3.Language    = myCalendarLanguage
+  <span class="k">IF</span> Cal3.AskRange(LOC:PeriodFrom,LOC:PeriodTo)
+    DISPLAY(?PeriodText)
+  <span class="k">END</span></pre>
+      <div class="callout note"><b>Declara su propio objeto</b>
+        La plantilla de código es <code>,PROCEDURE</code>, lo que le permite tener su propia entrada en
+        <code>%DataSection</code> (el mismo truco que usa el <code>ABPOPUP.TPW</code> de Clarion). No tienes
+        que declarar nada a mano.</div>
+      </div>
+    </section>
+
+    <section id="global">
+      <h2><span class="en">Application defaults</span><span class="es">Valores de la aplicación</span> <a href="#global" class="top">#</a></h2>
+      <div class="en">
+      <p>The global extension <b>myCalendar - Global</b> holds what every calendar in the application starts
+        from. Add it once, in <b>Global Properties ▸ Extensions</b>. It emits five real globals:</p>
+      <pre>myCalendarLanguage   <span class="k">BYTE</span>(1)                              <span class="c">! 1 = English, 2 = Espanol</span>
+myCalendarFirstDay   <span class="k">BYTE</span>(0)                              <span class="c">! 0 = Sunday, 1 = Monday</span>
+myCalendarView       <span class="k">BYTE</span>(1)                              <span class="c">! months on screen: 1 2 3 6 12</span>
+myCalendarOrient     <span class="k">BYTE</span>(0)                              <span class="c">! 0 = across, 1 = down</span>
+myCalendarWeekNo     <span class="k">BYTE</span>(0)                              <span class="c">! show the week-number gutter</span></pre>
+      <p>Every button emits <code>Cal1.Months = myCalendarView</code> and so on, unless you set that prompt
+        to something other than <b>Use the application setting</b> — then it emits the literal instead.
+        Change the global and the whole application follows on the next generate.</p>
+      <div class="callout tip"><b>They are ordinary variables</b>
+        Nothing stops you assigning to them at run time —
+        <code>myCalendarLanguage = Cal:Spanish</code> in your start-up code, driven by the user's own
+        preference, and every calendar opened afterwards is in Spanish.</div>
+      </div>
+      <div class="es">
+      <p>La extensión global <b>myCalendar - Global</b> guarda el punto de partida de todos los calendarios
+        de la aplicación. Añádela una vez, en <b>Global Properties ▸ Extensions</b>. Genera cinco variables
+        globales reales:</p>
+      <pre>myCalendarLanguage   <span class="k">BYTE</span>(1)                              <span class="c">! 1 = ingles, 2 = espanol</span>
+myCalendarFirstDay   <span class="k">BYTE</span>(0)                              <span class="c">! 0 = domingo, 1 = lunes</span>
+myCalendarView       <span class="k">BYTE</span>(1)                              <span class="c">! meses en pantalla: 1 2 3 6 12</span>
+myCalendarOrient     <span class="k">BYTE</span>(0)                              <span class="c">! 0 = en fila, 1 = en columna</span>
+myCalendarWeekNo     <span class="k">BYTE</span>(0)                              <span class="c">! mostrar la columna de semanas</span></pre>
+      <p>Cada botón genera <code>Cal1.Months = myCalendarView</code> y demás, salvo que pongas ese prompt en
+        algo distinto de <b>Use the application setting</b>: entonces genera el literal. Cambia el global y
+        toda la aplicación le sigue en la siguiente generación.</p>
+      <div class="callout tip"><b>Son variables normales</b>
+        Nada te impide asignarlas en tiempo de ejecución:
+        <code>myCalendarLanguage = Cal:Spanish</code> en el arranque, según la preferencia del usuario, y
+        todos los calendarios que se abran después salen en español.</div>
+      </div>
+    </section>
+
+    <section id="language">
+      <h2><span class="en">Language</span><span class="es">Idioma</span> <a href="#language" class="top">#</a></h2>
+      <div class="en">
+      <p>The whole window is translated: the month names, the day headings, the view list, the across/down
+        list, Today, Clear, Accept, Cancel, the hint line and the footer that reads the selection back.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalendar-two-es.png" class="shot" alt="The calendar in Spanish"></p>
+      <table>
+        <tr><th>Set it</th><th>Where</th><th>Effect</th></tr>
+        <tr><td>For the application</td><td><b>myCalendar - Global ▸ Defaults ▸ Calendar language</b></td><td>Every calendar, everywhere.</td></tr>
+        <tr><td>For one button</td><td>The button's <b>View</b> tab ▸ <b>Language</b></td><td>Overrides the application for that button only.</td></tr>
+        <tr><td>At run time</td><td><code>Cal1.Language = Cal:Spanish</code></td><td>Before the call, from any embed.</td></tr>
+      </table>
+      <div class="callout warn"><b>The language is not remembered</b>
+        Deliberately. It comes from the global (or the button) on every open, so changing the setting takes
+        effect immediately instead of being shadowed by a stale value in the INI file.</div>
+      </div>
+      <div class="es">
+      <p>Toda la ventana está traducida: los nombres de los meses, las cabeceras de los días, la lista de
+        vistas, la lista fila/columna, Hoy, Limpiar, Aceptar, Cancelar, la línea de ayuda y el pie que
+        muestra la selección.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalendar-two-es.png" class="shot" alt="El calendario en español"></p>
+      <table>
+        <tr><th>Dónde se fija</th><th>Sitio</th><th>Efecto</th></tr>
+        <tr><td>Para la aplicación</td><td><b>myCalendar - Global ▸ Defaults ▸ Calendar language</b></td><td>Todos los calendarios, en todas partes.</td></tr>
+        <tr><td>Para un botón</td><td>Pestaña <b>View</b> del botón ▸ <b>Language</b></td><td>Manda sobre la aplicación solo para ese botón.</td></tr>
+        <tr><td>En ejecución</td><td><code>Cal1.Language = Cal:Spanish</code></td><td>Antes de la llamada, desde cualquier embed.</td></tr>
+      </table>
+      <div class="callout warn"><b>El idioma no se recuerda</b>
+        A propósito. Se toma del global (o del botón) cada vez que se abre, así que cambiar el ajuste tiene
+        efecto de inmediato en lugar de quedar tapado por un valor viejo del fichero INI.</div>
+      </div>
+    </section>
+
+    <section id="remember">
+      <h2><span class="en">Remembering the last session</span><span class="es">Recordar la última sesión</span> <a href="#remember" class="top">#</a></h2>
+      <div class="en">
+      <p>With <b>Remember the view and options between runs</b> ticked (it is, by default) the calendar comes
+        back the way the user left it. Five things are saved:</p>
+      <table>
+        <tr><th>Saved</th><th>Property</th></tr>
+        <tr><td>How many months were on screen</td><td><code>Months</code></td></tr>
+        <tr><td>Across or down</td><td><code>Orient</code></td></tr>
+        <tr><td>First day of the week</td><td><code>FirstDay</code></td></tr>
+        <tr><td>The week-number gutter</td><td><code>ShowWeekNo</code></td></tr>
+        <tr><td>The ring around today</td><td><code>ShowToday</code></td></tr>
+      </table>
+      <p>They go into the application's own INI file — <code>&lt;exe&gt;.INI</code>, found with
+        <code>GetModuleFileNameA</code> — under a section named after the <b>profile</b>. Leave the profile
+        prompt blank and it is the procedure name, so two windows never tread on each other. Give two
+        buttons the <i>same</i> profile on purpose and they share a view.</p>
+      <pre><span class="c">! MyApp.INI</span>
+<span class="t">[myCalendar_UpdateOrder]</span>
+Months=3
+Orient=1
+FirstDay=1
+ShowWeekNo=1
+ShowToday=1</pre>
+      <p>Restored values are checked before use: an impossible month count falls back to one month, and an
+        out-of-range first day or orientation falls back to zero. A hand-edited or corrupt INI cannot break
+        the window.</p>
+      <p><code>ForgetSettings()</code> removes the section, so the next open starts from the template's
+        defaults again.</p>
+      </div>
+      <div class="es">
+      <p>Con <b>Remember the view and options between runs</b> marcado (lo está por defecto) el calendario
+        vuelve tal y como lo dejó el usuario. Se guardan cinco cosas:</p>
+      <table>
+        <tr><th>Se guarda</th><th>Propiedad</th></tr>
+        <tr><td>Cuántos meses había en pantalla</td><td><code>Months</code></td></tr>
+        <tr><td>En fila o en columna</td><td><code>Orient</code></td></tr>
+        <tr><td>Primer día de la semana</td><td><code>FirstDay</code></td></tr>
+        <tr><td>La columna de números de semana</td><td><code>ShowWeekNo</code></td></tr>
+        <tr><td>El recuadro de hoy</td><td><code>ShowToday</code></td></tr>
+      </table>
+      <p>Van al fichero INI de la propia aplicación —<code>&lt;exe&gt;.INI</code>, localizado con
+        <code>GetModuleFileNameA</code>— en una sección con el nombre del <b>perfil</b>. Si dejas el prompt
+        del perfil en blanco, se usa el nombre del procedimiento, así que dos ventanas nunca se pisan. Si le
+        das a propósito el <i>mismo</i> perfil a dos botones, comparten la vista.</p>
+      <pre><span class="c">! MyApp.INI</span>
+<span class="t">[myCalendar_UpdateOrder]</span>
+Months=3
+Orient=1
+FirstDay=1
+ShowWeekNo=1
+ShowToday=1</pre>
+      <p>Los valores restaurados se comprueban antes de usarlos: un número de meses imposible vuelve a un
+        mes, y un primer día o una orientación fuera de rango vuelven a cero. Un INI corrupto o editado a
+        mano no puede romper la ventana.</p>
+      <p><code>ForgetSettings()</code> borra la sección, así que la siguiente apertura parte otra vez de los
+        valores de la plantilla.</p>
+      </div>
+    </section>
+
+    <section id="views">
+      <h2><span class="en">Views: one month to a full year</span><span class="es">Vistas: de un mes a un año entero</span> <a href="#views" class="top">#</a></h2>
+      <div class="en">
+      <p>The <b>View</b> drop in the window changes how many months are on screen, and the window resizes
+        itself to fit. The five views and the grid each one uses:</p>
+      <table>
+        <tr><th>View</th><th>Equate</th><th>Across</th><th>Down</th></tr>
+        <tr><td>One month</td><td><code>Cal:OneMonth</code></td><td>1 × 1</td><td>1 × 1</td></tr>
+        <tr><td>Two months</td><td><code>Cal:TwoMonths</code></td><td>2 × 1</td><td>1 × 2</td></tr>
+        <tr><td>Three months</td><td><code>Cal:ThreeMonths</code></td><td>3 × 1</td><td>1 × 3</td></tr>
+        <tr><td>Six months</td><td><code>Cal:SixMonths</code></td><td>3 × 2</td><td>2 × 3</td></tr>
+        <tr><td>Full year</td><td><code>Cal:Year</code></td><td>4 × 3</td><td>3 × 4</td></tr>
+      </table>
+      <div class="shots">
+        <figure><img src="myCalendar-one.png" class="shot" alt="One month">
+          <figcaption>One month, week numbers on, a range marked</figcaption></figure>
+      </div>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalendar-year.png" class="shot" alt="A full year"></p>
+      <p>The whole year is one canvas, so a range can start in March and end in November without ever
+        touching the navigation. The month drop and the year spin always point at the <b>first</b> month on
+        screen, and <b>&lt;</b> / <b>&gt;</b> move that first month by one; <b>&lt;&lt;</b> / <b>&gt;&gt;</b>
+        move it by a year.</p>
+      </div>
+      <div class="es">
+      <p>La lista <b>Vista</b> de la ventana cambia cuántos meses hay en pantalla, y la ventana se
+        redimensiona sola. Las cinco vistas y la rejilla que usa cada una:</p>
+      <table>
+        <tr><th>Vista</th><th>Equate</th><th>En fila</th><th>En columna</th></tr>
+        <tr><td>Un mes</td><td><code>Cal:OneMonth</code></td><td>1 × 1</td><td>1 × 1</td></tr>
+        <tr><td>Dos meses</td><td><code>Cal:TwoMonths</code></td><td>2 × 1</td><td>1 × 2</td></tr>
+        <tr><td>Tres meses</td><td><code>Cal:ThreeMonths</code></td><td>3 × 1</td><td>1 × 3</td></tr>
+        <tr><td>Seis meses</td><td><code>Cal:SixMonths</code></td><td>3 × 2</td><td>2 × 3</td></tr>
+        <tr><td>Año completo</td><td><code>Cal:Year</code></td><td>4 × 3</td><td>3 × 4</td></tr>
+      </table>
+      <div class="shots">
+        <figure><img src="myCalendar-one.png" class="shot" alt="Un mes">
+          <figcaption>Un mes, con números de semana y un rango marcado</figcaption></figure>
+      </div>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalendar-year.png" class="shot" alt="Un año completo"></p>
+      <p>El año entero es un único lienzo, así que un rango puede empezar en marzo y terminar en noviembre
+        sin tocar la navegación. La lista de meses y el spin del año apuntan siempre al <b>primer</b> mes en
+        pantalla, y <b>&lt;</b> / <b>&gt;</b> mueven ese primer mes de uno en uno; <b>&lt;&lt;</b> /
+        <b>&gt;&gt;</b> lo mueven un año.</p>
+      </div>
+    </section>
+
+    <section id="orient">
+      <h2><span class="en">Across or down</span><span class="es">En fila o en columna</span> <a href="#orient" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Two and three months can go either way — <b>across</b> for a wide, short window, or
+        <b>down</b> for a tall, narrow one. Six and twelve simply transpose their grid. The drop next to the
+        view list flips it, and the choice is remembered.</p>
+      <div class="shots">
+        <figure><img src="myCalendar-three-across.png" class="shot" alt="Three months across">
+          <figcaption>Three months, across — 3 × 1</figcaption></figure>
+        <figure><img src="myCalendar-three-down.png" class="shot" alt="Three months down"
+             style="max-height:520px">
+          <figcaption>The same three months, down — 1 × 3</figcaption></figure>
+      </div>
+      <p>Pick the one that fits the window the button lives on. A form that is already tall has room for
+        <b>down</b>; a wide report-options screen suits <b>across</b>.</p>
+      <pre>  Cal1.Months = Cal:ThreeMonths
+  Cal1.Orient = Cal:Down                              <span class="c">! 1 x 3 instead of 3 x 1</span></pre>
+      <div class="callout note"><b>One month ignores it</b>
+        There is nothing to stack, so the drop is disabled while the view is a single month.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Dos y tres meses pueden ir de las dos formas: <b>en fila</b> para una ventana ancha y
+        baja, o <b>en columna</b> para una alta y estrecha. Seis y doce simplemente trasponen su rejilla. La
+        lista que hay junto a la de vistas lo cambia, y la elección se recuerda.</p>
+      <div class="shots">
+        <figure><img src="myCalendar-three-across.png" class="shot" alt="Tres meses en fila">
+          <figcaption>Tres meses, en fila — 3 × 1</figcaption></figure>
+        <figure><img src="myCalendar-three-down.png" class="shot" alt="Tres meses en columna"
+             style="max-height:520px">
+          <figcaption>Los mismos tres meses, en columna — 1 × 3</figcaption></figure>
+      </div>
+      <p>Elige la que encaje en la ventana donde vive el botón. Un formulario que ya es alto tiene sitio para
+        <b>en columna</b>; una pantalla ancha de opciones de informe pide <b>en fila</b>.</p>
+      <pre>  Cal1.Months = Cal:ThreeMonths
+  Cal1.Orient = Cal:Down                              <span class="c">! 1 x 3 en vez de 3 x 1</span></pre>
+      <div class="callout note"><b>Con un mes no aplica</b>
+        No hay nada que apilar, así que la lista se desactiva mientras la vista sea de un solo mes.</div>
+      </div>
+    </section>
+
+    <section id="range">
+      <h2><span class="en">Dragging a range</span><span class="es">Arrastrar un rango</span> <a href="#range" class="top">#</a></h2>
+      <div class="en">
+      <p>In range mode the user holds the button down on the first day and sweeps to the last — across
+        weeks, across months, across the whole year if that is the view. The selection follows the mouse
+        live, so what you see while dragging is what you get.</p>
+      <table>
+        <tr><th>Gesture</th><th>Result</th></tr>
+        <tr><td>Press and drag</td><td>Marks from the day under the press to the day under the mouse.</td></tr>
+        <tr><td>Click one day, then another</td><td>The first opens the range, the second closes it.</td></tr>
+        <tr><td>Click a third day</td><td>Starts a new range at that day.</td></tr>
+        <tr><td>Drag backwards</td><td>Fine — the ends are sorted before they are handed back.</td></tr>
+        <tr><td>Clear</td><td>Empties the selection; Accept then writes zero dates.</td></tr>
+      </table>
+      <p>The two ends are drawn solid navy with white numbers; the days in between get a light blue wash.
+        The footer counts the days as you go — <i>From 13/07/2026 to 24/07/2026 (12 days)</i>.</p>
+      <p><code>Days()</code> returns that count, inclusive of both ends, and <code>InSelection(date)</code>
+        answers 0 (no), 1 (an end) or 2 (in between).</p>
+      </div>
+      <div class="es">
+      <p>En modo rango el usuario mantiene pulsado sobre el primer día y arrastra hasta el último: por
+        semanas, por meses, o por el año entero si esa es la vista. La selección sigue al ratón en vivo, así
+        que lo que se ve mientras se arrastra es lo que queda.</p>
+      <table>
+        <tr><th>Gesto</th><th>Resultado</th></tr>
+        <tr><td>Pulsar y arrastrar</td><td>Marca desde el día donde se pulsó hasta el día bajo el ratón.</td></tr>
+        <tr><td>Clic en un día y luego en otro</td><td>El primero abre el rango, el segundo lo cierra.</td></tr>
+        <tr><td>Clic en un tercer día</td><td>Empieza un rango nuevo en ese día.</td></tr>
+        <tr><td>Arrastrar hacia atrás</td><td>Sin problema: los extremos se ordenan antes de devolverlos.</td></tr>
+        <tr><td>Limpiar</td><td>Vacía la selección; Aceptar escribe entonces fechas a cero.</td></tr>
+      </table>
+      <p>Los dos extremos se dibujan en azul marino sólido con el número en blanco; los días intermedios
+        llevan un fondo azul claro. El pie va contando los días: <i>Del 13/07/2026 al 24/07/2026 (12
+        días)</i>.</p>
+      <p><code>Days()</code> devuelve esa cuenta, incluyendo los dos extremos, y
+        <code>InSelection(fecha)</code> responde 0 (no), 1 (un extremo) o 2 (en medio).</p>
+      </div>
+    </section>
+
+    <section id="options">
+      <h2><span class="en">The week, the limits, the weekends</span><span class="es">La semana, los límites, los fines de semana</span> <a href="#options" class="top">#</a></h2>
+      <div class="en">
+      <h3>First day of the week</h3>
+      <p><code>Cal:Sunday</code> or <code>Cal:Monday</code>. It moves the whole grid, not just the heading
+        row, so the columns always line up under the day names.</p>
+      <h3>Week numbers</h3>
+      <p><code>ShowWeekNo = 1</code> adds a narrow gutter down the left of every month with the
+        <b>ISO-8601</b> week number of each row — the week that contains the Thursday, so the turn of the
+        year lands where a European calendar expects it (1 January 2026 is week 1, 4 January 2027 is week 1).</p>
+      <h3>Limits</h3>
+      <p><code>MinDate</code> and <code>MaxDate</code> grey out everything outside the window and make it
+        deaf to the mouse. Either can be left at zero for "no limit".</p>
+      <pre>  Cal3.MinDate = TODAY()                              <span class="c">! nothing in the past</span>
+  Cal3.MaxDate = TODAY() + 90                         <span class="c">! and no further than a quarter out</span></pre>
+      <h3>Weekends</h3>
+      <p><code>NoWeekends = 1</code> blocks Saturdays and Sundays the same way — a delivery date, a working
+        day, a court date. Weekend numbers are drawn muted whether or not they are blocked, so the shape of
+        the week is always readable.</p>
+      <div class="callout note"><b>Blocked days are skipped, not refused</b>
+        A blocked day simply does not respond, and a drag that passes over one keeps going. There is no
+        error message to dismiss.</div>
+      </div>
+      <div class="es">
+      <h3>Primer día de la semana</h3>
+      <p><code>Cal:Sunday</code> o <code>Cal:Monday</code>. Mueve toda la rejilla, no solo la fila de
+        cabecera, así que las columnas siempre quedan bajo el nombre de su día.</p>
+      <h3>Números de semana</h3>
+      <p><code>ShowWeekNo = 1</code> añade una columna estrecha a la izquierda de cada mes con el número de
+        semana <b>ISO-8601</b> de cada fila: la semana que contiene el jueves, de modo que el cambio de año
+        cae donde lo espera un calendario europeo (el 1 de enero de 2026 es la semana 1, el 4 de enero de
+        2027 es la semana 1).</p>
+      <h3>Límites</h3>
+      <p><code>MinDate</code> y <code>MaxDate</code> atenúan todo lo que quede fuera y lo dejan sordo al
+        ratón. Cualquiera de los dos puede quedarse a cero para «sin límite».</p>
+      <pre>  Cal3.MinDate = TODAY()                              <span class="c">! nada en el pasado</span>
+  Cal3.MaxDate = TODAY() + 90                         <span class="c">! y no mas alla de un trimestre</span></pre>
+      <h3>Fines de semana</h3>
+      <p><code>NoWeekends = 1</code> bloquea sábados y domingos de la misma forma: una fecha de entrega, un
+        día laborable, una fecha de juicio. Los números del fin de semana se dibujan atenuados estén
+        bloqueados o no, para que la forma de la semana siempre se lea.</p>
+      <div class="callout note"><b>Los días bloqueados se ignoran, no se rechazan</b>
+        Un día bloqueado simplemente no responde, y un arrastre que pasa por encima sigue su camino. No hay
+        ningún mensaje de error que cerrar.</div>
+      </div>
+    </section>
+
+    <section id="keys">
+      <h2><span class="en">Mouse &amp; keyboard</span><span class="es">Ratón y teclado</span> <a href="#keys" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>Do this</th><th>Get that</th></tr>
+        <tr><td>Click a day</td><td>Picks it (single mode), or opens / closes the range.</td></tr>
+        <tr><td>Press and sweep</td><td>Marks a range, live.</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Closes without changing anything — the same as Cancel.</td></tr>
+        <tr><td><kbd>Tab</kbd></td><td>Moves through the navigation controls and the buttons as usual.</td></tr>
+        <tr><td>The year spin</td><td>Type a year straight into it, or use the arrows. 1801 to 2500.</td></tr>
+        <tr><td>Today</td><td>Jumps the view to this month without picking anything.</td></tr>
+        <tr><td>Clear</td><td>Empties the selection.</td></tr>
+      </table>
+      <div class="callout note"><b>The days are drawn, not controls</b>
+        A month is painted into an IMAGE with native <code>BOX</code> / <code>LINE</code> / <code>SHOW</code>,
+        and a transparent REGION over the top collects the mouse. That is what makes a whole year cheap
+        enough to draw — and why the days themselves are not in the tab order.</div>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Haz esto</th><th>Y pasa esto</th></tr>
+        <tr><td>Clic en un día</td><td>Lo selecciona (modo simple), o abre / cierra el rango.</td></tr>
+        <tr><td>Pulsar y arrastrar</td><td>Marca un rango, en vivo.</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Cierra sin cambiar nada — igual que Cancelar.</td></tr>
+        <tr><td><kbd>Tab</kbd></td><td>Recorre los controles de navegación y los botones como siempre.</td></tr>
+        <tr><td>El spin del año</td><td>Teclea el año directamente, o usa las flechas. De 1801 a 2500.</td></tr>
+        <tr><td>Hoy</td><td>Lleva la vista a este mes sin seleccionar nada.</td></tr>
+        <tr><td>Limpiar</td><td>Vacía la selección.</td></tr>
+      </table>
+      <div class="callout note"><b>Los días están dibujados, no son controles</b>
+        El mes se pinta en un IMAGE con <code>BOX</code> / <code>LINE</code> / <code>SHOW</code> nativos, y
+        un REGION transparente encima recoge el ratón. Eso es lo que hace barato dibujar un año entero, y
+        también por qué los días no entran en el orden de tabulación.</div>
+      </div>
+    </section>
+
+    <section id="classref">
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#classref" class="top">#</a></h2>
+      <div class="en">
+      <h3>Equates</h3>
+      <table>
+        <tr><th>Group</th><th>Equates</th></tr>
+        <tr><td>View</td><td><code>Cal:OneMonth</code> <code>Cal:TwoMonths</code> <code>Cal:ThreeMonths</code> <code>Cal:SixMonths</code> <code>Cal:Year</code></td></tr>
+        <tr><td>Stacking</td><td><code>Cal:Across</code> (0) <code>Cal:Down</code> (1)</td></tr>
+        <tr><td>Selection</td><td><code>Cal:Single</code> (0) <code>Cal:Range</code> (1)</td></tr>
+        <tr><td>Week</td><td><code>Cal:Sunday</code> (0) <code>Cal:Monday</code> (1)</td></tr>
+        <tr><td>Language</td><td><code>Cal:English</code> (1) <code>Cal:Spanish</code> (2)</td></tr>
+      </table>
+      <h3>Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Type</th><th>Meaning</th></tr>
+        <tr><td><code>Months</code></td><td>BYTE</td><td>1, 2, 3, 6 or 12 on screen. Anything else falls back to 1.</td></tr>
+        <tr><td><code>Orient</code></td><td>BYTE</td><td><code>Cal:Across</code> or <code>Cal:Down</code>.</td></tr>
+        <tr><td><code>Selection</code></td><td>BYTE</td><td><code>Cal:Single</code> or <code>Cal:Range</code>.</td></tr>
+        <tr><td><code>Date1</code> / <code>Date2</code></td><td>LONG</td><td>The date, or the two ends of the range. <code>Date2</code> is 0 for a single date.</td></tr>
+        <tr><td><code>Anchor</code></td><td>LONG</td><td>Any date in the <b>first</b> month shown. Drives the view.</td></tr>
+        <tr><td><code>FirstDay</code></td><td>BYTE</td><td><code>Cal:Sunday</code> or <code>Cal:Monday</code>.</td></tr>
+        <tr><td><code>ShowWeekNo</code></td><td>BYTE</td><td>The ISO week gutter.</td></tr>
+        <tr><td><code>ShowToday</code></td><td>BYTE</td><td>Ring today. On by default.</td></tr>
+        <tr><td><code>NoWeekends</code></td><td>BYTE</td><td>Saturdays and Sundays cannot be picked.</td></tr>
+        <tr><td><code>MinDate</code> / <code>MaxDate</code></td><td>LONG</td><td>Limits; 0 = no limit.</td></tr>
+        <tr><td><code>Title</code></td><td>CSTRING(64)</td><td>The window caption. Blank = the localised word.</td></tr>
+        <tr><td><code>Language</code></td><td>BYTE</td><td><code>Cal:English</code> / <code>Cal:Spanish</code>.</td></tr>
+        <tr><td><code>DatePicture</code></td><td>CSTRING(16)</td><td>How the footer reads dates. Default <code>@d17</code>.</td></tr>
+        <tr><td><code>Persist</code> / <code>Profile</code> / <code>IniFile</code></td><td></td><td>See <a href="#remember">Remembering</a>.</td></tr>
+        <tr><td><code>Accepted</code></td><td>BYTE</td><td>1 if the user pressed Accept.</td></tr>
+        <tr><td><code>GridCols</code> <code>GridRows</code> <code>BlockW</code> <code>BlockH</code> <code>CanvasW</code> <code>CanvasH</code></td><td>LONG</td><td>Filled in by <code>Layout()</code>. Public so you can size your own IMAGE — see <a href="#hand">Driving it from code</a>.</td></tr>
+      </table>
+      <h3>Methods</h3>
+      <table>
+        <tr><th>Method</th><th>Returns</th><th>What it does</th></tr>
+        <tr><td><code>AskFor(*? pDate)</code></td><td>BYTE</td><td>Opens on <i>pDate</i>, writes the picked date back into it. 1 = accepted.</td></tr>
+        <tr><td><code>AskRange(*? pFrom,*? pTo)</code></td><td>BYTE</td><td>The same for a from/to pair, in the right order.</td></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>Just ask. Read <code>Date1</code> / <code>Date2</code> afterwards. VIRTUAL.</td></tr>
+        <tr><td><code>Reset()</code></td><td></td><td>Nothing picked, back to today.</td></tr>
+        <tr><td><code>SetDate(date)</code> <code>SetRange(from,to)</code></td><td></td><td>Set the selection (and the anchor) from code.</td></tr>
+        <tr><td><code>GoToday()</code> <code>GoMonth(n)</code> <code>GoYear(n)</code></td><td></td><td>Move the view. <i>n</i> may be negative.</td></tr>
+        <tr><td><code>Pick(date)</code></td><td></td><td>As if the user clicked that day — opens, closes or restarts the range.</td></tr>
+        <tr><td><code>Days()</code></td><td>LONG</td><td>How many days the selection spans, both ends counted.</td></tr>
+        <tr><td><code>Pickable(date)</code></td><td>BYTE</td><td>Inside the limits and not a blocked weekend.</td></tr>
+        <tr><td><code>InSelection(date)</code></td><td>BYTE</td><td>0 no, 1 an end, 2 in between.</td></tr>
+        <tr><td><code>AddMonths(date,n)</code></td><td>LONG</td><td>Month arithmetic, clamped: 31 Jan + 1 month = 28 Feb (29 in a leap year).</td></tr>
+        <tr><td><code>DaysInMonth(m,y)</code> <code>DayOfWeek(d)</code> <code>ColumnOf(d)</code> <code>WeekNumber(d)</code> <code>FirstOfMonth(d)</code></td><td>LONG</td><td>The date maths, all usable on their own.</td></tr>
+        <tr><td><code>MonthName(m)</code> <code>DayName(col)</code> <code>DateText(d)</code> <code>Txt(id)</code></td><td>STRING</td><td>Localised text.</td></tr>
+        <tr><td><code>Layout()</code></td><td></td><td>Works out the grid and the canvas size for <code>Months</code> / <code>Orient</code>.</td></tr>
+        <tr><td><code>Draw(window,?image)</code></td><td></td><td>Paints the whole grid into any IMAGE on any window.</td></tr>
+        <tr><td><code>DateAt(x,y)</code></td><td>LONG</td><td>The day under a canvas coordinate, or 0.</td></tr>
+        <tr><td><code>LoadSettings()</code> <code>SaveSettings()</code> <code>ForgetSettings()</code></td><td></td><td>The INI file.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <h3>Equates</h3>
+      <table>
+        <tr><th>Grupo</th><th>Equates</th></tr>
+        <tr><td>Vista</td><td><code>Cal:OneMonth</code> <code>Cal:TwoMonths</code> <code>Cal:ThreeMonths</code> <code>Cal:SixMonths</code> <code>Cal:Year</code></td></tr>
+        <tr><td>Colocación</td><td><code>Cal:Across</code> (0) <code>Cal:Down</code> (1)</td></tr>
+        <tr><td>Selección</td><td><code>Cal:Single</code> (0) <code>Cal:Range</code> (1)</td></tr>
+        <tr><td>Semana</td><td><code>Cal:Sunday</code> (0) <code>Cal:Monday</code> (1)</td></tr>
+        <tr><td>Idioma</td><td><code>Cal:English</code> (1) <code>Cal:Spanish</code> (2)</td></tr>
+      </table>
+      <h3>Propiedades</h3>
+      <table>
+        <tr><th>Propiedad</th><th>Tipo</th><th>Significado</th></tr>
+        <tr><td><code>Months</code></td><td>BYTE</td><td>1, 2, 3, 6 o 12 en pantalla. Cualquier otra cosa vuelve a 1.</td></tr>
+        <tr><td><code>Orient</code></td><td>BYTE</td><td><code>Cal:Across</code> o <code>Cal:Down</code>.</td></tr>
+        <tr><td><code>Selection</code></td><td>BYTE</td><td><code>Cal:Single</code> o <code>Cal:Range</code>.</td></tr>
+        <tr><td><code>Date1</code> / <code>Date2</code></td><td>LONG</td><td>La fecha, o los dos extremos del rango. <code>Date2</code> es 0 en fecha simple.</td></tr>
+        <tr><td><code>Anchor</code></td><td>LONG</td><td>Cualquier fecha del <b>primer</b> mes mostrado. Es lo que mueve la vista.</td></tr>
+        <tr><td><code>FirstDay</code></td><td>BYTE</td><td><code>Cal:Sunday</code> o <code>Cal:Monday</code>.</td></tr>
+        <tr><td><code>ShowWeekNo</code></td><td>BYTE</td><td>La columna de semanas ISO.</td></tr>
+        <tr><td><code>ShowToday</code></td><td>BYTE</td><td>Resaltar hoy. Activo por defecto.</td></tr>
+        <tr><td><code>NoWeekends</code></td><td>BYTE</td><td>No se pueden elegir sábados ni domingos.</td></tr>
+        <tr><td><code>MinDate</code> / <code>MaxDate</code></td><td>LONG</td><td>Límites; 0 = sin límite.</td></tr>
+        <tr><td><code>Title</code></td><td>CSTRING(64)</td><td>El título de la ventana. En blanco = la palabra traducida.</td></tr>
+        <tr><td><code>Language</code></td><td>BYTE</td><td><code>Cal:English</code> / <code>Cal:Spanish</code>.</td></tr>
+        <tr><td><code>DatePicture</code></td><td>CSTRING(16)</td><td>Cómo lee las fechas el pie. Por defecto <code>@d17</code>.</td></tr>
+        <tr><td><code>Persist</code> / <code>Profile</code> / <code>IniFile</code></td><td></td><td>Ver <a href="#remember">Recordar</a>.</td></tr>
+        <tr><td><code>Accepted</code></td><td>BYTE</td><td>1 si el usuario pulsó Aceptar.</td></tr>
+        <tr><td><code>GridCols</code> <code>GridRows</code> <code>BlockW</code> <code>BlockH</code> <code>CanvasW</code> <code>CanvasH</code></td><td>LONG</td><td>Los rellena <code>Layout()</code>. Son públicos para que puedas dimensionar tu propio IMAGE — ver <a href="#hand">Desde tu propio código</a>.</td></tr>
+      </table>
+      <h3>Métodos</h3>
+      <table>
+        <tr><th>Método</th><th>Devuelve</th><th>Qué hace</th></tr>
+        <tr><td><code>AskFor(*? pDate)</code></td><td>BYTE</td><td>Abre en <i>pDate</i> y escribe allí la fecha elegida. 1 = aceptado.</td></tr>
+        <tr><td><code>AskRange(*? pFrom,*? pTo)</code></td><td>BYTE</td><td>Lo mismo para un par desde/hasta, en el orden correcto.</td></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>Solo preguntar. Después lee <code>Date1</code> / <code>Date2</code>. VIRTUAL.</td></tr>
+        <tr><td><code>Reset()</code></td><td></td><td>Nada seleccionado, de vuelta a hoy.</td></tr>
+        <tr><td><code>SetDate(fecha)</code> <code>SetRange(desde,hasta)</code></td><td></td><td>Fija la selección (y el ancla) desde código.</td></tr>
+        <tr><td><code>GoToday()</code> <code>GoMonth(n)</code> <code>GoYear(n)</code></td><td></td><td>Mueve la vista. <i>n</i> puede ser negativo.</td></tr>
+        <tr><td><code>Pick(fecha)</code></td><td></td><td>Como si el usuario hiciera clic en ese día: abre, cierra o reinicia el rango.</td></tr>
+        <tr><td><code>Days()</code></td><td>LONG</td><td>Cuántos días abarca la selección, contando los dos extremos.</td></tr>
+        <tr><td><code>Pickable(fecha)</code></td><td>BYTE</td><td>Dentro de los límites y no es un fin de semana bloqueado.</td></tr>
+        <tr><td><code>InSelection(fecha)</code></td><td>BYTE</td><td>0 no, 1 un extremo, 2 en medio.</td></tr>
+        <tr><td><code>AddMonths(fecha,n)</code></td><td>LONG</td><td>Aritmética de meses, con ajuste: 31 ene + 1 mes = 28 feb (29 en bisiesto).</td></tr>
+        <tr><td><code>DaysInMonth(m,a)</code> <code>DayOfWeek(f)</code> <code>ColumnOf(f)</code> <code>WeekNumber(f)</code> <code>FirstOfMonth(f)</code></td><td>LONG</td><td>La aritmética de fechas, utilizable por separado.</td></tr>
+        <tr><td><code>MonthName(m)</code> <code>DayName(col)</code> <code>DateText(f)</code> <code>Txt(id)</code></td><td>STRING</td><td>Texto traducido.</td></tr>
+        <tr><td><code>Layout()</code></td><td></td><td>Calcula la rejilla y el tamaño del lienzo para <code>Months</code> / <code>Orient</code>.</td></tr>
+        <tr><td><code>Draw(ventana,?imagen)</code></td><td></td><td>Pinta toda la rejilla en cualquier IMAGE de cualquier ventana.</td></tr>
+        <tr><td><code>DateAt(x,y)</code></td><td>LONG</td><td>El día bajo una coordenada del lienzo, o 0.</td></tr>
+        <tr><td><code>LoadSettings()</code> <code>SaveSettings()</code> <code>ForgetSettings()</code></td><td></td><td>El fichero INI.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <section id="colours">
+      <h2><span class="en">Colours</span><span class="es">Colores</span> <a href="#colours" class="top">#</a></h2>
+      <div class="en">
+      <p>Every colour is a public property, as a Clarion BGR long. Assign before the call to restyle the
+        whole calendar:</p>
+      <table>
+        <tr><th>Property</th><th>Default</th><th>Paints</th></tr>
+        <tr><td><code>BackColor</code></td><td><span class="swatch" style="background:#ffffff"></span><code>0FFFFFFH</code></td><td>The paper</td></tr>
+        <tr><td><code>TitleColor</code></td><td><span class="swatch" style="background:#1f3a60"></span><code>0603A1FH</code></td><td>The month name</td></tr>
+        <tr><td><code>InkColor</code></td><td><span class="swatch" style="background:#23303b"></span><code>03B3023H</code></td><td>Weekday numbers</td></tr>
+        <tr><td><code>MutedColor</code></td><td><span class="swatch" style="background:#8a96a3"></span><code>0A3968AH</code></td><td>Weekend numbers, the day headings</td></tr>
+        <tr><td><code>LineColor</code></td><td><span class="swatch" style="background:#dce3ea"></span><code>0EAE3DCH</code></td><td>The rules</td></tr>
+        <tr><td><code>SelColor</code> / <code>SelTextColor</code></td><td><span class="swatch" style="background:#1f3a60"></span><code>0603A1FH</code> / white</td><td>A picked day</td></tr>
+        <tr><td><code>RangeColor</code></td><td><span class="swatch" style="background:#dce9f7"></span><code>0F7E9DCH</code></td><td>The days between the two ends</td></tr>
+        <tr><td><code>TodayColor</code></td><td><span class="swatch" style="background:#e8a33d"></span><code>03DA3E8H</code></td><td>The ring around today</td></tr>
+      </table>
+      <div class="callout warn"><b>BGR, not RGB</b>
+        Clarion colour longs are <code>0BBGGRR<b>H</b></code>. The navy above is <code>#1F3A60</code> in
+        HTML and <code>0603A1FH</code> in Clarion — the same three bytes, back to front.</div>
+      </div>
+      <div class="es">
+      <p>Cada color es una propiedad pública, como long BGR de Clarion. Asígnalos antes de la llamada para
+        cambiar el aspecto de todo el calendario:</p>
+      <table>
+        <tr><th>Propiedad</th><th>Por defecto</th><th>Pinta</th></tr>
+        <tr><td><code>BackColor</code></td><td><span class="swatch" style="background:#ffffff"></span><code>0FFFFFFH</code></td><td>El papel</td></tr>
+        <tr><td><code>TitleColor</code></td><td><span class="swatch" style="background:#1f3a60"></span><code>0603A1FH</code></td><td>El nombre del mes</td></tr>
+        <tr><td><code>InkColor</code></td><td><span class="swatch" style="background:#23303b"></span><code>03B3023H</code></td><td>Números de los días laborables</td></tr>
+        <tr><td><code>MutedColor</code></td><td><span class="swatch" style="background:#8a96a3"></span><code>0A3968AH</code></td><td>Números del fin de semana, cabeceras de días</td></tr>
+        <tr><td><code>LineColor</code></td><td><span class="swatch" style="background:#dce3ea"></span><code>0EAE3DCH</code></td><td>Las líneas</td></tr>
+        <tr><td><code>SelColor</code> / <code>SelTextColor</code></td><td><span class="swatch" style="background:#1f3a60"></span><code>0603A1FH</code> / blanco</td><td>Un día seleccionado</td></tr>
+        <tr><td><code>RangeColor</code></td><td><span class="swatch" style="background:#dce9f7"></span><code>0F7E9DCH</code></td><td>Los días entre los dos extremos</td></tr>
+        <tr><td><code>TodayColor</code></td><td><span class="swatch" style="background:#e8a33d"></span><code>03DA3E8H</code></td><td>El recuadro de hoy</td></tr>
+      </table>
+      <div class="callout warn"><b>BGR, no RGB</b>
+        Los longs de color de Clarion son <code>0BBGGRR<b>H</b></code>. El azul marino de arriba es
+        <code>#1F3A60</code> en HTML y <code>0603A1FH</code> en Clarion: los mismos tres bytes, al revés.</div>
+      </div>
+    </section>
+
+    <section id="hand">
+      <h2><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span> <a href="#hand" class="top">#</a></h2>
+      <div class="en">
+      <p>The class is useful without the pop-up at all. <code>Layout()</code> works out the canvas size and
+        <code>Draw()</code> paints into any IMAGE on any window of yours — an always-visible month on a
+        dashboard, say, with your own hit handling through <code>DateAt()</code>:</p>
+      <pre>Cal      <span class="k">CalendarClass</span>
+Wnd  <span class="k">WINDOW</span>(<span class="s">'Planner'</span>),AT(,,400,300),SYSTEM,GRAY
+       <span class="k">IMAGE</span>,AT(10,10,200,150),USE(?Canvas)
+       <span class="k">REGION</span>,AT(10,10,200,150),USE(?Hot),IMM
+     <span class="k">END</span>
+  <span class="k">CODE</span>
+  Cal.Months     = Cal:ThreeMonths
+  Cal.Orient     = Cal:Down
+  Cal.ShowWeekNo = 1
+  Cal.Layout()                                        <span class="c">! now CanvasW / CanvasH are known</span>
+  <span class="k">OPEN</span>(Wnd)
+  ?Canvas{PROP:Width}  = Cal.CanvasW                  <span class="c">! size the image to fit</span>
+  ?Canvas{PROP:Height} = Cal.CanvasH
+  ?Hot{PROP:Width}     = Cal.CanvasW
+  ?Hot{PROP:Height}    = Cal.CanvasH
+  Cal.Draw(Wnd,?Canvas)
+  <span class="k">ACCEPT</span>
+    <span class="k">IF</span> FIELD() = ?Hot <span class="k">AND</span> EVENT() = EVENT:MouseDown
+      d = Cal.DateAt(MOUSEX() - ?Canvas{PROP:Xpos},MOUSEY() - ?Canvas{PROP:Ypos})
+      <span class="k">IF</span> d <span class="k">AND</span> Cal.Pickable(d)
+        Cal.Pick(d)
+        Cal.Draw(Wnd,?Canvas)
+      <span class="k">END</span>
+    <span class="k">END</span>
+  <span class="k">END</span></pre>
+      <p>The date maths stands alone too — <code>AddMonths</code>, <code>DaysInMonth</code>,
+        <code>WeekNumber</code> and <code>DayOfWeek</code> need no window and no object state.</p>
+      <div class="callout tip"><b>Override <code class="i">Ask</code></b>
+        It is VIRTUAL. Derive the class and replace the whole window with your own if the shipped one is not
+        the shape you want — everything below it keeps working.</div>
+      </div>
+      <div class="es">
+      <p>La clase es útil aun sin la ventana emergente. <code>Layout()</code> calcula el tamaño del lienzo y
+        <code>Draw()</code> pinta en cualquier IMAGE de cualquier ventana tuya —un mes siempre visible en un
+        panel, por ejemplo— con tu propio manejo del ratón a través de <code>DateAt()</code>:</p>
+      <pre>Cal      <span class="k">CalendarClass</span>
+Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300),SYSTEM,GRAY
+       <span class="k">IMAGE</span>,AT(10,10,200,150),USE(?Canvas)
+       <span class="k">REGION</span>,AT(10,10,200,150),USE(?Hot),IMM
+     <span class="k">END</span>
+  <span class="k">CODE</span>
+  Cal.Months     = Cal:ThreeMonths
+  Cal.Orient     = Cal:Down
+  Cal.ShowWeekNo = 1
+  Cal.Layout()                                        <span class="c">! ya se conocen CanvasW / CanvasH</span>
+  <span class="k">OPEN</span>(Wnd)
+  ?Canvas{PROP:Width}  = Cal.CanvasW                  <span class="c">! ajusta el image al tamano</span>
+  ?Canvas{PROP:Height} = Cal.CanvasH
+  ?Hot{PROP:Width}     = Cal.CanvasW
+  ?Hot{PROP:Height}    = Cal.CanvasH
+  Cal.Draw(Wnd,?Canvas)
+  <span class="k">ACCEPT</span>
+    <span class="k">IF</span> FIELD() = ?Hot <span class="k">AND</span> EVENT() = EVENT:MouseDown
+      d = Cal.DateAt(MOUSEX() - ?Canvas{PROP:Xpos},MOUSEY() - ?Canvas{PROP:Ypos})
+      <span class="k">IF</span> d <span class="k">AND</span> Cal.Pickable(d)
+        Cal.Pick(d)
+        Cal.Draw(Wnd,?Canvas)
+      <span class="k">END</span>
+    <span class="k">END</span>
+  <span class="k">END</span></pre>
+      <p>La aritmética de fechas también vale por sí sola: <code>AddMonths</code>,
+        <code>DaysInMonth</code>, <code>WeekNumber</code> y <code>DayOfWeek</code> no necesitan ventana ni
+        estado del objeto.</p>
+      <div class="callout tip"><b>Sobrescribe <code class="i">Ask</code></b>
+        Es VIRTUAL. Deriva la clase y sustituye toda la ventana por la tuya si la que viene no tiene la
+        forma que quieres: todo lo demás sigue funcionando.</div>
+      </div>
+    </section>
+
+    <section id="traps">
+      <h2><span class="en">Clarion notes</span><span class="es">Notas de Clarion</span> <a href="#traps" class="top">#</a></h2>
+      <div class="en">
+      <p>Things worth knowing, most of them learned the hard way while building this:</p>
+      <table>
+        <tr><th>Note</th><th>Detail</th></tr>
+        <tr><td>Dates are days</td><td>A Clarion date is days since 28 Dec 1800, so <code>date % 7</code> is the day of the week with <b>0 = Sunday</b>. 1 Jan 1801 was a Thursday and its value is 4.</td></tr>
+        <tr><td>Month length without a table</td><td><code>DATE(m+1,1,y) - DATE(m,1,y)</code>. Clarion normalises month 13 to January of the next year, so December needs no special case, and February is right in every leap year including 1900 and 2000.</td></tr>
+        <tr><td>Two-argument SETTARGET</td><td><code>SETTARGET(window,?image)</code> makes 0,0 the image's own top-left, so all the drawing arithmetic is in canvas coordinates.</td></tr>
+        <tr><td>REGION with IMM</td><td>Reports <code>EVENT:MouseDown</code>, <code>MouseMove</code> and <code>MouseUp</code>. <code>MOUSEX()</code> / <code>MOUSEY()</code> are window-relative in the same dialog units as <code>PROP:Xpos</code>, so subtracting the canvas position gives the exact space <code>Draw()</code> used.</td></tr>
+        <tr><td>Paint after the window is up</td><td>Drawing before <code>EVENT:OpenWindow</code> can land on nothing. The class paints once before ACCEPT and again on OpenWindow.</td></tr>
+        <tr><td><code>by</code> is reserved</td><td><code>LOOP … BY -1</code> makes <code>by</code> a keyword; a variable of that name will not compile. (This one cost an afternoon.)</td></tr>
+        <tr><td>Do not name a method <code>Format</code></td><td>It shadows the built-in <code>FORMAT()</code> inside the class. The date formatter here is called <code>DateText</code>.</td></tr>
+        <tr><td>ANSI and CRLF</td><td>An LF-only <code>.inc</code> produces the baffling <code>Illegal data type: CALENDARCLASS</code> at every use site. The shipped files are correct — keep them that way if you edit them.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <p>Cosas que conviene saber, casi todas aprendidas a base de golpes al construir esto:</p>
+      <table>
+        <tr><th>Nota</th><th>Detalle</th></tr>
+        <tr><td>Las fechas son días</td><td>Una fecha Clarion son días desde el 28 dic 1800, así que <code>fecha % 7</code> es el día de la semana con <b>0 = domingo</b>. El 1 ene 1801 fue jueves y su valor es 4.</td></tr>
+        <tr><td>Días del mes sin tabla</td><td><code>DATE(m+1,1,a) - DATE(m,1,a)</code>. Clarion normaliza el mes 13 a enero del año siguiente, así que diciembre no necesita caso especial, y febrero sale bien en todos los bisiestos, 1900 y 2000 incluidos.</td></tr>
+        <tr><td>SETTARGET de dos argumentos</td><td><code>SETTARGET(ventana,?imagen)</code> hace que 0,0 sea la esquina del propio image, así que todo el cálculo del dibujo va en coordenadas del lienzo.</td></tr>
+        <tr><td>REGION con IMM</td><td>Informa de <code>EVENT:MouseDown</code>, <code>MouseMove</code> y <code>MouseUp</code>. <code>MOUSEX()</code> / <code>MOUSEY()</code> son relativas a la ventana en las mismas unidades de diálogo que <code>PROP:Xpos</code>, así que restando la posición del lienzo se obtiene el espacio exacto que usó <code>Draw()</code>.</td></tr>
+        <tr><td>Pintar con la ventana ya abierta</td><td>Dibujar antes de <code>EVENT:OpenWindow</code> puede caer en el vacío. La clase pinta una vez antes del ACCEPT y otra en OpenWindow.</td></tr>
+        <tr><td><code>by</code> es reservada</td><td><code>LOOP … BY -1</code> convierte <code>by</code> en palabra clave; una variable con ese nombre no compila. (Esta costó una tarde.)</td></tr>
+        <tr><td>No llames <code>Format</code> a un método</td><td>Tapa la función <code>FORMAT()</code> dentro de la clase. Aquí el formateador de fechas se llama <code>DateText</code>.</td></tr>
+        <tr><td>ANSI y CRLF</td><td>Un <code>.inc</code> con solo LF produce el desconcertante <code>Illegal data type: CALENDARCLASS</code> en cada uso. Los ficheros que se entregan son correctos: mantenlos así si los editas.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <section id="trouble">
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>Symptom</th><th>Cause and cure</th></tr>
+        <tr><td><code>Illegal data type: CALENDARCLASS</code></td><td><code>CalendarClass.inc</code> has LF-only line endings, or is UTF-8. Save it as ANSI with CRLF.</td></tr>
+        <tr><td><code>Unknown identifier: myCalendarLanguage</code></td><td>The <b class="i">myCalendar - Global</b> extension is missing. Add it to Global Properties — the button normally pulls it in by itself.</td></tr>
+        <tr><td>The button has no icon</td><td><code>cal16.ico</code> is not on the redirection path at <b>build</b> time. It is compiled into the EXE, so it is only needed then.</td></tr>
+        <tr><td>Nothing happens when the button is pressed</td><td>The <b class="i">Date field to fill in</b> prompt is empty, or in range mode one of the two field prompts is. The template emits nothing until it knows where the answer goes.</td></tr>
+        <tr><td>Changing the global language does nothing</td><td>The button's own <b class="i">Language</b> prompt is set to English or Spanish instead of <b class="i">Use the application setting</b>.</td></tr>
+        <tr><td>Two buttons share a view</td><td>They are using the same <b class="i">Profile</b>. Give each its own, or leave the prompt blank to take the procedure name.</td></tr>
+        <tr><td>The calendar opens on today, not on the field</td><td>The field was empty or zero. That is intended — there is nothing to open on.</td></tr>
+        <tr><td>The user cannot pick anything</td><td><code>MinDate</code> / <code>MaxDate</code> exclude the whole visible month, or <code>NoWeekends</code> is on and the view is a weekend.</td></tr>
+        <tr><td>The window is wider than the screen</td><td>The full year across is 4 × 3 and wants about 1100 px. Use <b class="i">Down</b>, or a smaller view, on low resolutions.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa y solución</th></tr>
+        <tr><td><code>Illegal data type: CALENDARCLASS</code></td><td><code>CalendarClass.inc</code> tiene saltos de línea solo LF, o está en UTF-8. Guárdalo como ANSI con CRLF.</td></tr>
+        <tr><td><code>Unknown identifier: myCalendarLanguage</code></td><td>Falta la extensión <b class="i">myCalendar - Global</b>. Agrégala en Global Properties — normalmente el botón la trae sola.</td></tr>
+        <tr><td>El botón sale sin icono</td><td><code>cal16.ico</code> no está en la ruta de redirección al <b>compilar</b>. Se compila dentro del EXE, así que solo hace falta entonces.</td></tr>
+        <tr><td>No pasa nada al pulsar el botón</td><td>El prompt <b class="i">Date field to fill in</b> está vacío, o en modo rango lo está uno de los dos. La plantilla no genera nada hasta saber dónde va la respuesta.</td></tr>
+        <tr><td>Cambiar el idioma global no hace nada</td><td>El prompt <b class="i">Language</b> del botón está en inglés o español en vez de <b class="i">Use the application setting</b>.</td></tr>
+        <tr><td>Dos botones comparten la vista</td><td>Están usando el mismo <b class="i">Profile</b>. Dale uno propio a cada uno, o deja el prompt en blanco para que tome el nombre del procedimiento.</td></tr>
+        <tr><td>El calendario abre en hoy, no en el campo</td><td>El campo estaba vacío o a cero. Es lo previsto: no hay fecha sobre la que abrir.</td></tr>
+        <tr><td>El usuario no puede elegir nada</td><td><code>MinDate</code> / <code>MaxDate</code> excluyen todo el mes visible, o <code>NoWeekends</code> está activo y la vista es un fin de semana.</td></tr>
+        <tr><td>La ventana es más ancha que la pantalla</td><td>El año completo en fila es 4 × 3 y pide unos 1100 px. Usa <b class="i">En columna</b>, o una vista más pequeña, en resoluciones bajas.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    </div>
+    <footer>
+      <span class="en">myCalendar · Programmer's Documentation · part of the templatemaker template set ·
+        pure Clarion, no external dependencies.</span>
+      <span class="es">myCalendar · Documentación del programador · parte de la colección templatemaker ·
+        Clarion puro, sin dependencias externas.</span>
+    </footer>
+  </main>
+</div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mc-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mc-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
+</body>
+</html>

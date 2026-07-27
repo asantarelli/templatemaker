@@ -84,6 +84,12 @@ templates/                      # ready-to-register Clarion templates
     calc16.ico                  #     the little calculator on the button
     myCalc.tpl                  #     global extension + button control + code template
     myCalc.zip                  #     the four files above, zipped for easy distribution
+  myCalendar/                   #   pop-up date picker beside a date field (see below)
+    CalendarClass.inc           #     the calendar (views, range, EN/ES strings)
+    CalendarClass.clw           #     the implementation (date maths, drawing, window)
+    cal16.ico                   #     the little calendar on the button
+    myCalendar.tpl              #     global extension + button control + code template
+    myCalendar.zip              #     the four files above, zipped for easy distribution
   myExport/                     #   export any browse/list to 7 file formats (see below)
     ExportClass.inc             #     the export engine (config + method prototypes)
     ExportClass.clw             #     the implementation (dialog + 7 writers + ZIP + UTF-8)
@@ -568,6 +574,51 @@ programmer's documentation — **bilingual English/Spanish** — is
 ![The scientific calculator, and the accountant tape in Spanish](docs/myCalc-scientific.png)
 
 ![Contable (cinta)](docs/myCalc-accountant-es.png)
+
+### `templates/myCalendar/` — a pop-up date picker beside any date field
+Drag **myCalendar - Calendar button** next to a date entry and point it at that entry. A small calendar icon
+appears; pressing it opens a modal calendar already sitting on whatever the field holds, and **Accept puts the
+date back into the field**.
+
+**One button can fill in two fields.** Set *Pick* to *a from-and-to range* and the user **drags across the
+days** — over as many months as are on screen — to sweep out a period; the first day goes into the FROM field
+and the last into the TO field, sorted whichever way they dragged. The selection follows the mouse live, and
+clicking one day then another marks the range too.
+
+**How much is on screen is up to you and the user**: one month, two, three, six, or a **full year** — and two
+and three can be stacked **across** (side by side) or **down** (one under the other), with six going 3×2 or
+2×3 and a year 4×3 or 3×4. Both the view and the stacking are drop lists in the window itself, the window
+resizes itself to fit, and **both choices come back the next time the program runs** (per profile, in the
+app's own INI) along with the first day of the week, the week-number gutter and the today ring. Navigation is
+`<<` year, `<` month, a month drop and a year spin, `>` month, `>>` year, plus **Today**. Options cover
+**ISO-8601 week numbers**, Sunday or Monday first, today ringed in amber, **weekends blocked**, and earliest /
+latest date allowed — blocked days are simply deaf to the mouse, so there is no error box to dismiss.
+
+**And it speaks Spanish**: the **language setting on the global extension** is what every calendar in the
+application follows — month names, day headings, the view and stacking lists, Today / Clear / Accept / Cancel
+and the footer that counts the days — with an optional per-button override. Like myCalc, the language is
+deliberately *not* remembered between runs, so changing the setting takes effect immediately.
+
+The months are painted with native `BOX` / `LINE` / `SHOW` into an IMAGE (the two-argument
+`SETTARGET(window, ?image)`, so 0,0 is the image's own top-left) with a transparent `REGION` + `IMM` over the
+top to collect the mouse — which is what makes a whole year cheap enough to draw, and makes the hit test plain
+arithmetic. `Layout()`, `Draw()` and `DateAt()` are public, so the same class will paint an always-visible
+calendar into an IMAGE on a window of your own; the date maths (`AddMonths` with the short-month clamp,
+`DaysInMonth`, ISO `WeekNumber`, `DayOfWeek`) stands alone as well. A 62-assertion headless suite covers all of
+it. Three registrations: **myCalendarButton** (the drag-on control template, MULTI, single-date or from/to),
+**myCalendarHere** (a code template for an existing button, menu item or hot key) and **myCalendarGlobal**
+(the class plus the application-wide language, first day, view and stacking). Copy `CalendarClass.inc`,
+`CalendarClass.clw` (**ANSI, CRLF**) and `cal16.ico` to the redirection path — the icon is compiled into the
+exe's resources, so there is nothing extra to deploy. A runnable demo is
+[`examples/myCalendar/CalendarDemo.clw`](examples/myCalendar/CalendarDemo.clw), and the full programmer's
+documentation — **bilingual English/Spanish** — is
+[`docs/myCalendar-template.html`](docs/myCalendar-template.html).
+
+![The myCalendar demo](docs/myCalendar-demo.png)
+
+![Three months across, and one month with a dragged range](docs/myCalendar-three-across.png)
+
+![A full year on one canvas](docs/myCalendar-year.png)
 
 ### `templates/myExport/` — export any browse or list to seven file formats
 Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
