@@ -84,6 +84,11 @@ templates/                      # ready-to-register Clarion templates
     calc16.ico                  #     the little calculator on the button
     myCalc.tpl                  #     global extension + button control + code template
     myCalc.zip                  #     the four files above, zipped for easy distribution
+  myFilter/                     #   build filters for any browse (see below)
+    MyFilterClass.inc           #     the filter builder (fields, operators, EN/ES)
+    MyFilterClass.clw           #     the implementation (expressions + the window)
+    myFilter.tpl                #     global extension + browse button + code template
+    FilterTables.txt            #     table structures, if saved filters are shared
   myCalendar/                   #   pop-up date picker beside a date field (see below)
     MyCalendarClass.inc         #     the calendar (views, range, EN/ES strings)
     MyCalendarClass.clw         #     the implementation (date maths, drawing, window)
@@ -625,6 +630,45 @@ documentation — **bilingual English/Spanish** — is
 ![Three months across, and one month with a dragged range](docs/myCalendar-three-across.png)
 
 ![A full year on one canvas](docs/myCalendar-year.png)
+
+### `templates/myFilter/` — build filters for any browse
+Drop **myFilter - Filters button** on a browse window and name the browse object. Pressing the button opens a
+window listing **the browse's own fields**: pick one, say how to test it, press Add, repeat. **Apply** hands
+the browse a real filter.
+
+The field list is not typed by hand — the template walks the browse's queue back to the dictionary fields at
+generate time, the same way the shipped QBE does (`#FOR(%QueueField)` → strip any `[subscript]` →
+`#FIX(%Field,…)`), then the joined files, with a fall-back to every field if the view is entirely PROJECTED.
+Each field's type comes from its picture first and its storage second, so a date held in a LONG is still
+offered date tests.
+
+**23 tests, offered by type.** Text: equals, not equals, begins with, ends with, contains, doesn't contain, is
+empty, is not empty, matches a `*`/`?` pattern. Numbers: the six comparisons, between, not between. Dates: all
+of those plus **is today, was yesterday, in the last N days, in the next N days, in month, in year**. Flags:
+is yes / is no. Conditions join with **AND or OR**, the built expression is on screen as you go, and filters
+can be **saved by name** and picked again later.
+
+**The filter is ANDed, not substituted.** It goes in through `BRW1.SetFilter(expr,'7 myFilter')` — ABC keeps
+filters in a named, conjunctive list, so a range limit, a locator or a QBE still apply alongside it, and
+applying an empty filter deletes the slot rather than leaving a stale one behind.
+
+**One prerequisite: tick Bindable on the file in the dictionary.** A filter is evaluated by field name at run
+time and the runtime refuses a field it was never told about — `BIND has not been called for CUS:Name`. ABC
+calls `BIND` on every file open, but only for a file carrying `BINDABLE`.
+
+Every operator was **measured, not assumed**: a probe builds a real TPS file and runs each candidate
+expression against a VIEW. That caught two things that would otherwise have shipped broken — slicing a field
+inside a filter (`UPPER(f)[1 : 5] = 'SMITH'`) **silently matches every record**, so "begins with" uses `SUB()`;
+and the BIND requirement above. A 102-assertion suite applies every generated expression to a real file and
+counts the surviving rows, apostrophes in values and decimal points included. Saved filters reload by **field
+name, not position**, so adding a column to the browse cannot silently repoint an old filter at another field.
+
+Saved filters live in the application's own INI by default — no setup, per user. For filters shared between
+users, [`templates/myFilter/FilterTables.txt`](templates/myFilter/FilterTables.txt) has the `FilterHdr` /
+`FilterLine` structures and the operator numbers; derive the class and fill in the four table hooks. Three
+registrations: **myFilterButton** (the drag-on control template, MULTI), **myFilterHere** (a code template for
+a button or menu you already have) and **myFilterGlobal** (the class, the language and the storage choice).
+Copy `MyFilterClass.inc` and `MyFilterClass.clw` (**ANSI, CRLF** — they are pure ASCII) to the redirection path.
 
 ### `templates/myExport/` — export any browse or list to seven file formats
 Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
