@@ -771,6 +771,9 @@ answered with the configured button, a `*wildcard*` rule answering `Retry`, a ru
 code that answered `Cancel`, a `STOP` ignored with execution continuing past it, the counters, the CSV
 quote-doubling, and the roll-over to `.bak`.
 
+Full programmer's documentation, English and Spanish in one page with a language toggle:
+[`docs/myHook-template.html`](docs/myHook-template.html).
+
 ## Install
 
 Copy the two folders into your Claude Code config (`~/.claude` on macOS/Linux,

@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myHook — Programmer's Documentation / Documentación del programador</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  kbd{background:#fff;border:1px solid #c9d3e0;border-bottom-width:2px;border-radius:5px;
+    padding:1px 7px;font-size:12.5px;color:#33455c}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .danger{background:var(--red-bg);border-color:#e6b8b2;color:#7c241b}
+  .callout b{display:block;margin-bottom:2px}
+  .callout b.i{display:inline;margin:0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .top{font-size:12px;color:var(--muted);float:right}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .shot{max-width:100%;border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 2px 10px rgba(14,26,43,.14)}
+  .shots{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin:16px 0}
+  .shots figure{margin:0;flex:1 1 300px;min-width:0}
+  .shots figcaption{font-size:12.5px;color:var(--muted);padding-top:6px;text-align:center}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #00000022;
+    vertical-align:-1px;margin-right:6px}
+</style>
+</head><body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>myHook</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#events" class="h2"><span class="en">The six events</span><span class="es">Los seis eventos</span></a>
+    <a href="#actions" class="h2"><span class="en">What you can do</span><span class="es">Qué puedes hacer</span></a>
+    <a href="#rules" class="h2"><span class="en">Rules</span><span class="es">Reglas</span></a>
+    <a href="#log" class="h2"><span class="en">The log</span><span class="es">El registro</span></a>
+    <a href="#halt" class="h2"><span class="en">STOP and HALT</span><span class="es">STOP y HALT</span></a>
+    <div class="grp"><span class="en">Your own code</span><span class="es">Tu propio código</span></div>
+    <a href="#yourcode" class="h2"><span class="en">Handing it over</span><span class="es">Pasarlo a tu código</span></a>
+    <a href="#pause" class="h2"><span class="en">One quiet procedure</span><span class="es">Una procedure sin filtro</span></a>
+    <a href="#here" class="h2"><span class="en">From an embed</span><span class="es">Desde un embed</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#api" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#equates" class="h2"><span class="en">Equates</span><span class="es">Equates</span></a>
+    <a href="#dll" class="h2"><span class="en">Multi-DLL</span><span class="es">Multi-DLL</span></a>
+    <a href="#how" class="h2"><span class="en">How it works</span><span class="es">Cómo funciona</span></a>
+    <a href="#tested" class="h2"><span class="en">What was tested</span><span class="es">Qué se probó</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Problemas</span></a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <h1>myHook</h1>
+      <p class="en">Take <b>MESSAGE</b>, <b>STOP</b>, <b>HALT</b>, <b>ASSERT</b>, run-time errors and GPFs
+         away from the Clarion run-time library and decide for yourself what happens: ignore them, answer
+         them for the user, hand them to your own code — and <b>write every one of them to a log</b>.</p>
+      <p class="es">Quita a la librería de ejecución de Clarion sus propios diálogos —<b>MESSAGE</b>,
+         <b>STOP</b>, <b>HALT</b>, <b>ASSERT</b>, errores de ejecución y GPF— y decide tú qué pasa:
+         ignorarlos, responderlos por el usuario, pasarlos a tu código, y <b>escribirlos todos en un
+         registro</b>.</p>
+      <span class="pill en">6 events · 7 actions · rule table · text / CSV / TSV log · EN / ES · no dependencies</span>
+      <span class="pill es">6 eventos · 7 acciones · tabla de reglas · registro texto / CSV / TSV · EN / ES · sin dependencias</span>
+    </header>
+
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="body">
+
+    <!-- ================================================================= -->
+    <section id="over">
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Add <b>myHook&nbsp;-&nbsp;Global message/stop/halt interceptor</b> once to the
+        application and the run-time library's own dialogs stop being the run-time library's business.
+        Every <code>MESSAGE</code>, <code>STOP</code>, <code>HALT</code>, failed <code>ASSERT</code>,
+        run-time error and GPF passes through your object first.</p>
+      <p>Each of the six gets a <b>default action</b>. On top of that sits an ordered <b>rule table</b> that
+        tests the message text, so one stray <i>"Record Not Found"</i> can be answered and logged while
+        every other message still reaches the user untouched.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myHook</th></tr>
+        <tr><td>Needs a DLL / OCX / control</td><td><b>No</b> — pure Clarion, nothing to deploy</td></tr>
+        <tr><td>Scope</td><td>The whole application — one extension, added once</td></tr>
+        <tr><td>Catches</td><td>MESSAGE, STOP, HALT, ASSERT, run-time errors, GPFs</td></tr>
+        <tr><td>Can do</td><td>Show as usual · ignore · answer for the user · hand it to your procedure ·
+            show it as a plain message · halt · log and swallow</td></tr>
+        <tr><td>Rules</td><td>Contains / starts with / is exactly / <code>*</code> <code>?</code> pattern,
+            over the text, the caption or either</td></tr>
+        <tr><td>Log</td><td>Plain text, CSV (with a heading row) or tab separated; append-only, roll-over to
+            <code>.bak</code></td></tr>
+        <tr><td>Your code</td><td>A derived <code>TakeEvent()</code>, or a procedure you name per event or
+            per rule</td></tr>
+        <tr><td>Threads</td><td>Suspend and resume per thread; the log is shared safely</td></tr>
+      </table>
+      <div class="callout note"><b>Where it fits</b>
+        Anywhere the built-in dialogs are a nuisance or a mystery — an unattended or overnight process that
+        must never stop on a message box, a support case where you need to know what the user was told, a
+        third-party or legacy module whose messages you cannot edit, or simply an audit trail of everything
+        the program ever said.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Añade <b>myHook&nbsp;-&nbsp;Global message/stop/halt interceptor</b> una sola vez a la
+        aplicación y los diálogos propios de la librería de ejecución dejan de ser asunto suyo. Cada
+        <code>MESSAGE</code>, <code>STOP</code>, <code>HALT</code>, <code>ASSERT</code> fallido, error de
+        ejecución y GPF pasa antes por tu objeto.</p>
+      <p>Cada uno de los seis tiene una <b>acción por defecto</b>. Encima va una <b>tabla de reglas</b>
+        ordenada que examina el texto del mensaje, de modo que un <i>"Record Not Found"</i> suelto se puede
+        responder y registrar mientras el resto de mensajes siguen llegando al usuario intactos.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myHook</th></tr>
+        <tr><td>¿Necesita DLL / OCX / control?</td><td><b>No</b> — Clarion puro, nada que instalar</td></tr>
+        <tr><td>Ámbito</td><td>Toda la aplicación — una extensión, añadida una vez</td></tr>
+        <tr><td>Captura</td><td>MESSAGE, STOP, HALT, ASSERT, errores de ejecución, GPF</td></tr>
+        <tr><td>Puede</td><td>Mostrarlo como siempre · ignorarlo · responderlo por el usuario · pasarlo a tu
+            procedure · mostrarlo como mensaje normal · terminar · registrarlo y tragárselo</td></tr>
+        <tr><td>Reglas</td><td>Contiene / empieza por / es exactamente / patrón <code>*</code>
+            <code>?</code>, sobre el texto, el título o cualquiera de los dos</td></tr>
+        <tr><td>Registro</td><td>Texto, CSV (con fila de encabezados) o separado por tabuladores; solo
+            añade, con relevo a <code>.bak</code></td></tr>
+        <tr><td>Tu código</td><td>Un <code>TakeEvent()</code> derivado, o una procedure que nombras por
+            evento o por regla</td></tr>
+        <tr><td>Hilos</td><td>Suspender y reanudar por hilo; el registro se comparte con seguridad</td></tr>
+      </table>
+      <div class="callout note"><b>Dónde encaja</b>
+        Donde los diálogos de serie estorban o son un misterio: un proceso desatendido o nocturno que no
+        puede detenerse en una caja de mensaje, una incidencia de soporte en la que necesitas saber qué le
+        dijeron al usuario, un módulo de terceros o heredado cuyos mensajes no puedes tocar, o simplemente
+        un rastro de auditoría de todo lo que el programa ha dicho jamás.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="install">
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="en">
+      <p>Three files ship together:</p>
+      <div class="filetree">
+        myHook.tpl<br>
+        MsgHookClass.inc<br>
+        MsgHookClass.clw
+      </div>
+      <ol>
+        <li>Copy <code>MsgHookClass.inc</code> and <code>MsgHookClass.clw</code> to a folder on the Clarion
+          redirection path — the application's own folder, or <code>\clarion12\libsrc\win</code>. Both must
+          be <b>ANSI with CRLF line endings</b> (they are pure ASCII, so any editor will do).</li>
+        <li>In the IDE: <b>Setup ▸ Template Registry ▸ Register</b>, and pick <code>myHook.tpl</code>.</li>
+        <li>Open the application, <b>Global Properties ▸ Extensions ▸ Insert</b>, and choose
+          <b>myHook - Global message/stop/halt interceptor (add once)</b>.</li>
+        <li>Fill in the tabs, then <b>Generate</b>.</li>
+      </ol>
+      <p><code>MsgHookClass.clw</code> carries a <code>LINK</code> attribute, so it pulls itself into the
+        build — there is nothing to add to the project.</p>
+      <div class="callout tip"><b>Nothing happens until Install() runs</b>
+        On the <b>General</b> tab, <i>Start intercepting</i> defaults to <b>As soon as the program starts</b>,
+        which puts <code>MsgHook.Install()</code> in the program's setup code. Choose the other option if you
+        want to configure things yourself first, then switch it on from an embed with the
+        <b>myHookHere</b> code template.</div>
+      <h3>The three registrations</h3>
+      <table>
+        <tr><th>Name</th><th>Kind</th><th>What it is for</th></tr>
+        <tr><td><b>myHookGlobal</b></td><td><code>APPLICATION</code></td>
+            <td>The whole thing. Add it <b>once</b>. Every event, every rule and the log are configured here.</td></tr>
+        <tr><td><b>myHookPause</b></td><td><code>PROCEDURE</code></td>
+            <td>Lets one procedure's messages through untouched, on that thread only.</td></tr>
+        <tr><td><b>myHookHere</b></td><td><code>CODE</code></td>
+            <td>Install, remove, suspend, resume, or write your own line to the log, from any embed.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <p>Se distribuyen tres ficheros juntos:</p>
+      <div class="filetree">
+        myHook.tpl<br>
+        MsgHookClass.inc<br>
+        MsgHookClass.clw
+      </div>
+      <ol>
+        <li>Copia <code>MsgHookClass.inc</code> y <code>MsgHookClass.clw</code> a una carpeta del camino de
+          redirección de Clarion: la carpeta de la propia aplicación, o
+          <code>\clarion12\libsrc\win</code>. Ambos deben estar en <b>ANSI con finales de línea CRLF</b>
+          (son ASCII puro, así que vale cualquier editor).</li>
+        <li>En el IDE: <b>Setup ▸ Template Registry ▸ Register</b>, y elige <code>myHook.tpl</code>.</li>
+        <li>Abre la aplicación, <b>Global Properties ▸ Extensions ▸ Insert</b>, y elige
+          <b>myHook - Global message/stop/halt interceptor (add once)</b>.</li>
+        <li>Rellena las pestañas y pulsa <b>Generate</b>.</li>
+      </ol>
+      <p><code>MsgHookClass.clw</code> lleva el atributo <code>LINK</code>, así que se incorpora sola a la
+        compilación: no hay nada que añadir al proyecto.</p>
+      <div class="callout tip"><b>No pasa nada hasta que se llama a Install()</b>
+        En la pestaña <b>General</b>, <i>Start intercepting</i> viene por defecto en <b>As soon as the
+        program starts</b>, lo que coloca <code>MsgHook.Install()</code> en el arranque del programa. Elige
+        la otra opción si prefieres configurar cosas primero y encenderlo después desde un embed con la
+        plantilla de código <b>myHookHere</b>.</div>
+      <h3>Los tres registros</h3>
+      <table>
+        <tr><th>Nombre</th><th>Tipo</th><th>Para qué sirve</th></tr>
+        <tr><td><b>myHookGlobal</b></td><td><code>APPLICATION</code></td>
+            <td>Todo. Se añade <b>una vez</b>. Aquí se configuran los eventos, las reglas y el registro.</td></tr>
+        <tr><td><b>myHookPause</b></td><td><code>PROCEDURE</code></td>
+            <td>Deja pasar sin tocar los mensajes de una procedure, solo en ese hilo.</td></tr>
+        <tr><td><b>myHookHere</b></td><td><code>CODE</code></td>
+            <td>Instalar, quitar, suspender, reanudar o escribir tu propia línea en el registro, desde
+                cualquier embed.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="events">
+      <h2><span class="en">The six events</span><span class="es">Los seis eventos</span> <a href="#events" class="top">#</a></h2>
+      <div class="en">
+      <p>Each has its own tab, its own tick box and its own default action. Nothing is intercepted unless
+        you tick it — an event you leave alone behaves exactly as it always did.</p>
+      <table>
+        <tr><th>Tab</th><th>Catches</th><th>Run-time property used</th><th>Equate</th></tr>
+        <tr><td>MESSAGE</td><td>Every <code>MESSAGE()</code></td><td><code>SYSTEM{PROP:MessageHook}</code></td><td><code>Hook:Message</code></td></tr>
+        <tr><td>STOP and HALT</td><td>Every <code>STOP()</code></td><td><code>SYSTEM{PROP:StopHook}</code></td><td><code>Hook:Stop</code></td></tr>
+        <tr><td>STOP and HALT</td><td>Every <code>HALT()</code></td><td><code>SYSTEM{PROP:HaltHook}</code></td><td><code>Hook:Halt</code></td></tr>
+        <tr><td>Errors</td><td>A failed <code>ASSERT()</code></td><td><code>{PROP:AssertHook}</code> and <code>{PROP:AssertHook2}</code></td><td><code>Hook:Assert</code></td></tr>
+        <tr><td>Errors</td><td>Run-time errors</td><td><code>SYSTEM{PROP:FatalErrorHook}</code></td><td><code>Hook:Fatal</code></td></tr>
+        <tr><td>Errors</td><td>GPFs / unhandled exceptions</td><td><code>SYSTEM{PROP:LastChanceHook}</code></td><td><code>Hook:Exception</code></td></tr>
+      </table>
+      <div class="callout warn"><b>The GPF hook has only one seat</b>
+        <code>PROP:LastChanceHook</code> is a single slot for the whole process. If something else in the
+        application already owns it — a GPF reporter, say — do not tick <i>Intercept GPFs</i>: the last one
+        set wins and the other tool goes quiet.</div>
+      <p>An <code>ASSERT</code> also brings its source file and line with it; they arrive as
+        <code>MsgHook.Info.Module</code> and <code>MsgHook.Info.Line</code> and go into the log. A GPF brings
+        the exception code and the address it failed at, as <code>Info.Code</code> and
+        <code>Info.Address</code>.</p>
+      </div>
+      <div class="es">
+      <p>Cada uno tiene su pestaña, su casilla y su acción por defecto. No se intercepta nada que no marques:
+        un evento que dejes en paz se comporta exactamente como siempre.</p>
+      <table>
+        <tr><th>Pestaña</th><th>Captura</th><th>Propiedad usada</th><th>Equate</th></tr>
+        <tr><td>MESSAGE</td><td>Cada <code>MESSAGE()</code></td><td><code>SYSTEM{PROP:MessageHook}</code></td><td><code>Hook:Message</code></td></tr>
+        <tr><td>STOP and HALT</td><td>Cada <code>STOP()</code></td><td><code>SYSTEM{PROP:StopHook}</code></td><td><code>Hook:Stop</code></td></tr>
+        <tr><td>STOP and HALT</td><td>Cada <code>HALT()</code></td><td><code>SYSTEM{PROP:HaltHook}</code></td><td><code>Hook:Halt</code></td></tr>
+        <tr><td>Errors</td><td>Un <code>ASSERT()</code> fallido</td><td><code>{PROP:AssertHook}</code> y <code>{PROP:AssertHook2}</code></td><td><code>Hook:Assert</code></td></tr>
+        <tr><td>Errors</td><td>Errores de ejecución</td><td><code>SYSTEM{PROP:FatalErrorHook}</code></td><td><code>Hook:Fatal</code></td></tr>
+        <tr><td>Errors</td><td>GPF / excepciones no controladas</td><td><code>SYSTEM{PROP:LastChanceHook}</code></td><td><code>Hook:Exception</code></td></tr>
+      </table>
+      <div class="callout warn"><b>El hook de GPF solo tiene una plaza</b>
+        <code>PROP:LastChanceHook</code> es una única ranura para todo el proceso. Si otra cosa de la
+        aplicación ya la ocupa —un informador de GPF, por ejemplo— no marques <i>Intercept GPFs</i>: gana el
+        último que se ponga y la otra herramienta se queda muda.</div>
+      <p>Un <code>ASSERT</code> trae además su fichero fuente y su línea; llegan como
+        <code>MsgHook.Info.Module</code> y <code>MsgHook.Info.Line</code> y van al registro. Un GPF trae el
+        código de excepción y la dirección donde falló, como <code>Info.Code</code> e
+        <code>Info.Address</code>.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="actions">
+      <h2><span class="en">What you can do with one</span><span class="es">Qué puedes hacer con uno</span> <a href="#actions" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>On the tab</th><th>Equate</th><th>What happens</th></tr>
+        <tr><td>Show it as usual</td><td><code>HookDo:Normal</code></td>
+            <td>Behaves exactly as if myHook were not there. Still counted, and still logged if you asked
+                for everything.</td></tr>
+        <tr><td>Ignore it</td><td><code>HookDo:Ignore</code></td>
+            <td>Swallowed. No window at all. For a <code>MESSAGE</code> the caller gets the button you
+                nominated.</td></tr>
+        <tr><td>Answer it for the user</td><td><code>HookDo:Answer</code></td>
+            <td>Swallowed, and the button you picked is handed back as if the user had pressed it.</td></tr>
+        <tr><td>Hand it to my procedure</td><td><code>HookDo:Call</code></td>
+            <td>Your code runs and decides — see <a href="#yourcode">Handing it over</a>.</td></tr>
+        <tr><td>Show it as a plain message</td><td><code>HookDo:Show</code></td>
+            <td>Turns a <code>STOP</code>, <code>ASSERT</code> or error into an ordinary
+                <code>MESSAGE</code> with an OK button.</td></tr>
+        <tr><td>Halt the program</td><td><code>HookDo:Halt</code></td>
+            <td>Ends it, there and then.</td></tr>
+        <tr><td>Write it to the log and swallow it</td><td><code>HookDo:Log</code></td>
+            <td>It goes to the file and nowhere else.</td></tr>
+      </table>
+      <p>Not every action makes sense for every event, so each tab offers only the ones that do. The drop
+        list on the MESSAGE tab, for instance, has no <i>halt</i>; the HALT tab has no <i>ignore</i>
+        (see <a href="#halt">STOP and HALT</a>).</p>
+      <h3>Answering for the user</h3>
+      <p>When the action is <i>Answer</i> — and also for <i>Ignore</i> and <i>log and swallow</i> — a second
+        prompt appears asking <b>which button</b> to hand back: Ok, Yes, No, Abort, Retry, Ignore or Cancel.
+        That value is what <code>MESSAGE()</code> returns to whoever called it, so it matters whenever the
+        code behind the message tests the answer:</p>
+      <pre><span class="k">IF</span> MESSAGE(<span class="s">'Delete this record?'</span>,<span class="s">'Delete'</span>,ICON:Question,BUTTON:Yes+BUTTON:No) = BUTTON:Yes
+  DELETE(Orders)                        <span class="c">! answering Yes here would delete silently</span>
+<span class="k">END</span></pre>
+      <div class="callout warn"><b>Think about what you are agreeing to</b>
+        Answering a question you have not read is how records get deleted. Prefer a <b>rule</b> matched on
+        the exact wording over a blanket default of <i>Answer Yes</i>, and if the message is a question you
+        do not recognise, answer <b>No</b> or <b>Cancel</b> rather than <b>Ok</b>.</div>
+      <p>If you leave the button unset, the class works one out: the message's own default button if it had
+        one, otherwise the first of Ok, Yes, No, Retry, Ignore, Cancel, Abort that the message actually
+        offered.</p>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>En la pestaña</th><th>Equate</th><th>Qué ocurre</th></tr>
+        <tr><td>Show it as usual</td><td><code>HookDo:Normal</code></td>
+            <td>Se comporta exactamente como si myHook no estuviera. Igualmente se cuenta, y se registra si
+                pediste registrarlo todo.</td></tr>
+        <tr><td>Ignore it</td><td><code>HookDo:Ignore</code></td>
+            <td>Se lo traga. Ninguna ventana. Para un <code>MESSAGE</code>, quien llamó recibe el botón que
+                indicaste.</td></tr>
+        <tr><td>Answer it for the user</td><td><code>HookDo:Answer</code></td>
+            <td>Se lo traga y devuelve el botón que elegiste, como si el usuario lo hubiera pulsado.</td></tr>
+        <tr><td>Hand it to my procedure</td><td><code>HookDo:Call</code></td>
+            <td>Tu código se ejecuta y decide — ver <a href="#yourcode">Pasarlo a tu código</a>.</td></tr>
+        <tr><td>Show it as a plain message</td><td><code>HookDo:Show</code></td>
+            <td>Convierte un <code>STOP</code>, <code>ASSERT</code> o error en un <code>MESSAGE</code>
+                normal con un botón Aceptar.</td></tr>
+        <tr><td>Halt the program</td><td><code>HookDo:Halt</code></td>
+            <td>Lo termina en ese mismo momento.</td></tr>
+        <tr><td>Write it to the log and swallow it</td><td><code>HookDo:Log</code></td>
+            <td>Va al fichero y a ningún otro sitio.</td></tr>
+      </table>
+      <p>No todas las acciones tienen sentido para todos los eventos, así que cada pestaña ofrece solo las
+        que sí. La lista de la pestaña MESSAGE, por ejemplo, no tiene <i>halt</i>; la de HALT no tiene
+        <i>ignore</i> (ver <a href="#halt">STOP y HALT</a>).</p>
+      <h3>Responder por el usuario</h3>
+      <p>Cuando la acción es <i>Answer</i> —y también con <i>Ignore</i> y <i>log and swallow</i>— aparece un
+        segundo prompt que pregunta <b>qué botón</b> devolver: Ok, Yes, No, Abort, Retry, Ignore o Cancel.
+        Ese valor es lo que <code>MESSAGE()</code> devuelve a quien lo llamó, así que importa siempre que el
+        código de detrás compruebe la respuesta:</p>
+      <pre><span class="k">IF</span> MESSAGE(<span class="s">'¿Borrar este registro?'</span>,<span class="s">'Borrar'</span>,ICON:Question,BUTTON:Yes+BUTTON:No) = BUTTON:Yes
+  DELETE(Orders)                        <span class="c">! responder Yes aquí borraría en silencio</span>
+<span class="k">END</span></pre>
+      <div class="callout warn"><b>Piensa en lo que estás aceptando</b>
+        Responder a una pregunta que no has leído es como se borran registros. Es mejor una <b>regla</b>
+        que case con el texto exacto que un valor por defecto general de <i>Answer Yes</i>; y si el mensaje
+        es una pregunta que no reconoces, responde <b>No</b> o <b>Cancel</b> antes que <b>Ok</b>.</div>
+      <p>Si dejas el botón sin fijar, la clase deduce uno: el botón por defecto del propio mensaje si lo
+        tenía, y si no el primero de Ok, Yes, No, Retry, Ignore, Cancel, Abort que el mensaje ofreciera de
+        verdad.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="rules">
+      <h2><span class="en">Rules</span><span class="es">Reglas</span> <a href="#rules" class="top">#</a></h2>
+      <div class="en">
+      <p>The <b>Rules</b> tab is where myHook earns its keep. A rule tests the text of an event and, if it
+        matches, gives that one its own treatment. Rules are checked <b>in the order you entered them</b>,
+        the <b>first match wins</b>, and anything that matches nothing falls back to the default action for
+        its kind of event.</p>
+      <table>
+        <tr><th>Prompt</th><th>What it does</th></tr>
+        <tr><td>When it is</td><td>Any of them, or just one kind: a MESSAGE, a STOP, a HALT, an ASSERT, a
+            run-time error, a GPF.</td></tr>
+        <tr><td>Look at</td><td>The message text, the caption (title bar), or either of them.</td></tr>
+        <tr><td>Test</td><td>Anything at all · Contains · Starts with · Is exactly · Matches, with
+            <code>*</code> and <code>?</code></td></tr>
+        <tr><td>For this text</td><td>What to look for. <b>Not case sensitive.</b></td></tr>
+        <tr><td>Then do this</td><td>Any of the seven actions.</td></tr>
+        <tr><td>Answer with</td><td>The button, when the action is <i>Answer</i>.</td></tr>
+        <tr><td>Call this procedure</td><td>The procedure, when the action is <i>hand it to my
+            procedure</i>.</td></tr>
+        <tr><td>Replace the text with</td><td>New wording, for <i>show it as a plain message</i> and
+            <i>show it as usual</i>. Leave it empty to keep the original.</td></tr>
+      </table>
+      <h3>Worked examples</h3>
+      <table>
+        <tr><th>Goal</th><th>When</th><th>Test</th><th>Text</th><th>Then</th></tr>
+        <tr><td>Never show one particular nuisance</td><td>A MESSAGE</td><td>Contains</td>
+            <td><code>Record Not Found</code></td><td>Answer · Ok</td></tr>
+        <tr><td>Log anything about a locked file, silently</td><td>Any of them</td><td>Matches</td>
+            <td><code>*locked*</code></td><td>Write it to the log and swallow it</td></tr>
+        <tr><td>Let one module's errors reach your code</td><td>A run-time error</td><td>Starts with</td>
+            <td><code>Invalid</code></td><td>Hand it to my procedure</td></tr>
+        <tr><td>Re-word a blunt message for users</td><td>A STOP</td><td>Is exactly</td>
+            <td><code>Bad index</code></td><td>Show it as a plain message · <i>replace with</i> a polite
+            sentence</td></tr>
+      </table>
+      <div class="callout note"><b>About the wildcard test</b>
+        <code>*</code> and <code>?</code> match the <b>whole</b> string, the way a file mask does — so
+        <code>locked</code> matches only a message that is exactly that word, while <code>*locked*</code>
+        matches one that mentions it anywhere. <code>?</code> is exactly one character.</div>
+      <div class="callout warn"><b>No apostrophes in the rule text</b>
+        What you type goes into the generated source as a quoted Clarion string, so an apostrophe in
+        <i>For this text</i> will break generation. Match on a stretch of the message that has none — a
+        <i>contains</i> test rarely needs the whole sentence.</div>
+      <div class="callout tip"><b>A rule only fires for an event you are intercepting</b>
+        The hook has to be in place before a rule can be consulted. A rule about STOPs does nothing until
+        <i>Intercept STOP</i> is ticked on its tab.</div>
+      </div>
+      <div class="es">
+      <p>La pestaña <b>Rules</b> es donde myHook se gana el sueldo. Una regla examina el texto de un evento
+        y, si casa, le da a ese un trato propio. Las reglas se comprueban <b>en el orden en que las
+        escribiste</b>, gana <b>la primera que case</b>, y lo que no case con ninguna recibe la acción por
+        defecto de su tipo de evento.</p>
+      <table>
+        <tr><th>Prompt</th><th>Qué hace</th></tr>
+        <tr><td>When it is</td><td>Cualquiera, o solo un tipo: MESSAGE, STOP, HALT, ASSERT, error de
+            ejecución, GPF.</td></tr>
+        <tr><td>Look at</td><td>El texto del mensaje, el título, o cualquiera de los dos.</td></tr>
+        <tr><td>Test</td><td>Cualquier cosa · Contiene · Empieza por · Es exactamente · Casa con
+            <code>*</code> y <code>?</code></td></tr>
+        <tr><td>For this text</td><td>Qué buscar. <b>No distingue mayúsculas.</b></td></tr>
+        <tr><td>Then do this</td><td>Cualquiera de las siete acciones.</td></tr>
+        <tr><td>Answer with</td><td>El botón, cuando la acción es <i>Answer</i>.</td></tr>
+        <tr><td>Call this procedure</td><td>La procedure, cuando la acción es <i>hand it to my
+            procedure</i>.</td></tr>
+        <tr><td>Replace the text with</td><td>Otro texto, para <i>show it as a plain message</i> y <i>show
+            it as usual</i>. Déjalo vacío para conservar el original.</td></tr>
+      </table>
+      <h3>Ejemplos resueltos</h3>
+      <table>
+        <tr><th>Objetivo</th><th>Cuándo</th><th>Prueba</th><th>Texto</th><th>Entonces</th></tr>
+        <tr><td>No mostrar nunca una molestia concreta</td><td>A MESSAGE</td><td>Contains</td>
+            <td><code>Record Not Found</code></td><td>Answer · Ok</td></tr>
+        <tr><td>Registrar en silencio todo lo de ficheros bloqueados</td><td>Any of them</td><td>Matches</td>
+            <td><code>*locked*</code></td><td>Write it to the log and swallow it</td></tr>
+        <tr><td>Que los errores de un módulo lleguen a tu código</td><td>A run-time error</td><td>Starts with</td>
+            <td><code>Invalid</code></td><td>Hand it to my procedure</td></tr>
+        <tr><td>Reescribir un mensaje brusco</td><td>A STOP</td><td>Is exactly</td>
+            <td><code>Bad index</code></td><td>Show it as a plain message · <i>replace with</i> una frase
+            amable</td></tr>
+      </table>
+      <div class="callout note"><b>Sobre la prueba con comodines</b>
+        <code>*</code> y <code>?</code> casan con la cadena <b>entera</b>, igual que una máscara de
+        ficheros: <code>locked</code> solo casa con un mensaje que sea exactamente esa palabra, mientras que
+        <code>*locked*</code> casa con uno que la mencione en cualquier sitio. <code>?</code> es exactamente
+        un carácter.</div>
+      <div class="callout warn"><b>Sin apóstrofes en el texto de la regla</b>
+        Lo que escribas va al código generado como una cadena Clarion entrecomillada, así que un apóstrofe
+        en <i>For this text</i> romperá la generación. Busca un trozo del mensaje que no lo tenga: una
+        prueba <i>contains</i> rara vez necesita la frase completa.</div>
+      <div class="callout tip"><b>Una regla solo actúa sobre un evento que estés interceptando</b>
+        El hook tiene que estar puesto para que se consulte una regla. Una regla sobre STOP no hace nada
+        hasta que marques <i>Intercept STOP</i> en su pestaña.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="log">
+      <h2><span class="en">The log</span><span class="es">El registro</span> <a href="#log" class="top">#</a></h2>
+      <div class="en">
+      <p>Tick <b>Write a log</b> on the <b>Log</b> tab and everything that comes through is appended to a
+        text file.</p>
+      <table>
+        <tr><th>Prompt</th><th>What it does</th></tr>
+        <tr><td>File</td><td>Where it goes. A typed name is quoted for you; switch <i>That is</i> to
+            <b>a variable or an expression</b> to use something like
+            <code>CLIP(GLO:LogPath) &amp; 'app.log'</code>, written into the source exactly as you type
+            it.</td></tr>
+        <tr><td>Format</td><td>Readable text, CSV (for a spreadsheet) or tab separated.</td></tr>
+        <tr><td>Log which ones</td><td>Every one that comes through, or only the ones you interfered
+            with.</td></tr>
+        <tr><td>Put the date and time in front</td><td>Text format only — CSV and TSV always carry
+            it.</td></tr>
+        <tr><td>Record the window that was on screen</td><td>Adds the active window's title, which is
+            usually the fastest way to find where a message came from.</td></tr>
+        <tr><td>Roll over past (KB)</td><td>Past that size the file is renamed to <code>.bak</code> and a
+            fresh one started. Only one <code>.bak</code> is kept. 0 lets it grow.</td></tr>
+      </table>
+      <h3>What a line looks like</h3>
+      <p>Readable text:</p>
+      <pre>2026-07-27 09:13:45  [MESSAGE]  "Delete"  Delete this record?  -&gt; answered No  {thread 1, Update an Order}
+2026-07-27 09:13:45  [STOP]  "Stop"  a stop that should be ignored  -&gt; ignored Ignore  {thread 1}
+2026-07-27 09:13:45  [HALT]  "Halt"  shutting down  -&gt; logged only  {thread 1}</pre>
+      <p>CSV, with the heading row it writes into a new file:</p>
+      <pre>"When","Event","What we did","Thread","Window","Caption","Text","Answer","Module","Line","Code"
+"2026-07-27 09:16:29","MESSAGE","answered",1,"","Cap One","he said ""hi"", with  spaces","No","",0,0</pre>
+      <p>Quotes inside a value are doubled the way a spreadsheet expects, and the message text is flattened
+        to a single line — every line break or <code>|</code> becomes <code>&nbsp;|&nbsp;</code>, so one
+        event is always one row.</p>
+      <div class="callout tip"><b>Why it is safe to share</b>
+        The file is opened for append and closed again <b>on every line</b>. Several threads can write to
+        it, several copies of the program can write to it, and a line written immediately before a
+        <code>HALT</code> is still on disk afterwards. It costs an open and a close per line, which is
+        nothing next to a dialog the user has to read.</div>
+      <h3>Your own lines</h3>
+      <p><code>Write()</code> appends a raw line, so your code can leave notes in the same file:</p>
+      <pre>MsgHook.Write(<span class="s">'--- nightly posting started for '</span> &amp; CLIP(GLO:Branch))</pre>
+      <p>The <b>myHookHere</b> code template does this from an embed without you typing anything, and can
+        also drop a one-line tally of everything seen so far.</p>
+      </div>
+      <div class="es">
+      <p>Marca <b>Write a log</b> en la pestaña <b>Log</b> y todo lo que pase por el hook se añade a un
+        fichero de texto.</p>
+      <table>
+        <tr><th>Prompt</th><th>Qué hace</th></tr>
+        <tr><td>File</td><td>Dónde va. Un nombre escrito se entrecomilla por ti; cambia <i>That is</i> a
+            <b>a variable or an expression</b> para usar algo como
+            <code>CLIP(GLO:LogPath) &amp; 'app.log'</code>, que se escribe en el código tal cual lo
+            teclees.</td></tr>
+        <tr><td>Format</td><td>Texto legible, CSV (para hoja de cálculo) o separado por tabuladores.</td></tr>
+        <tr><td>Log which ones</td><td>Todos los que pasen, o solo aquellos en los que interviniste.</td></tr>
+        <tr><td>Put the date and time in front</td><td>Solo en formato texto: CSV y TSV siempre la
+            llevan.</td></tr>
+        <tr><td>Record the window that was on screen</td><td>Añade el título de la ventana activa, que suele
+            ser la forma más rápida de saber de dónde salió un mensaje.</td></tr>
+        <tr><td>Roll over past (KB)</td><td>Pasado ese tamaño el fichero se renombra a <code>.bak</code> y
+            empieza uno nuevo. Solo se guarda un <code>.bak</code>. 0 lo deja crecer.</td></tr>
+      </table>
+      <h3>Cómo es una línea</h3>
+      <p>Texto legible:</p>
+      <pre>2026-07-27 09:13:45  [MESSAGE]  "Delete"  ¿Borrar este registro?  -&gt; answered No  {thread 1, Update an Order}
+2026-07-27 09:13:45  [STOP]  "Stop"  a stop that should be ignored  -&gt; ignored Ignore  {thread 1}
+2026-07-27 09:13:45  [HALT]  "Halt"  cerrando  -&gt; logged only  {thread 1}</pre>
+      <p>CSV, con la fila de encabezados que escribe al crear el fichero:</p>
+      <pre>"When","Event","What we did","Thread","Window","Caption","Text","Answer","Module","Line","Code"
+"2026-07-27 09:16:29","MESSAGE","answered",1,"","Cap One","he said ""hi"", with  spaces","No","",0,0</pre>
+      <p>Las comillas dentro de un valor se duplican como espera una hoja de cálculo, y el texto del mensaje
+        se aplana a una sola línea: cada salto de línea o <code>|</code> se convierte en
+        <code>&nbsp;|&nbsp;</code>, así que un evento siempre es una fila.</p>
+      <div class="callout tip"><b>Por qué se puede compartir sin riesgo</b>
+        El fichero se abre para añadir y se cierra otra vez <b>en cada línea</b>. Pueden escribir varios
+        hilos, pueden escribir varias copias del programa, y una línea escrita justo antes de un
+        <code>HALT</code> sigue estando en disco después. Cuesta una apertura y un cierre por línea, que no
+        es nada al lado de un diálogo que el usuario tiene que leer.</div>
+      <h3>Tus propias líneas</h3>
+      <p><code>Write()</code> añade una línea en crudo, así que tu código puede dejar notas en el mismo
+        fichero:</p>
+      <pre>MsgHook.Write(<span class="s">'--- empieza el proceso nocturno de '</span> &amp; CLIP(GLO:Branch))</pre>
+      <p>La plantilla de código <b>myHookHere</b> hace esto desde un embed sin teclear nada, y también puede
+        dejar un recuento de una línea con todo lo visto hasta el momento.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="halt">
+      <h2><span class="en">STOP and HALT</span><span class="es">STOP y HALT</span> <a href="#halt" class="top">#</a></h2>
+      <div class="en">
+      <div class="callout danger"><b>A HALT cannot be called off</b>
+        The run-time library ends the program as soon as the halt hook returns, whichever action you pick.
+        This was established by building a program against the class and running it — not assumed from the
+        documentation.</div>
+      <p>So for a <code>HALT</code>, the choices change <b>what is said on the way out</b> and what lands in
+        the log, not whether it happens:</p>
+      <table>
+        <tr><th>On the tab</th><th>What actually happens</th></tr>
+        <tr><td>Halt as usual, with its message</td><td>The program ends and the message is shown, exactly
+            as it would have been.</td></tr>
+        <tr><td>Halt, but say nothing</td><td>The program ends in silence — the message is swallowed.</td></tr>
+        <tr><td>Say something else, then halt</td><td>Your wording is shown as an ordinary
+            <code>MESSAGE</code>, then it ends.</td></tr>
+        <tr><td>Hand it to my procedure, then halt</td><td>Your code runs first — a last chance to flush a
+            file, close a connection or write a note — then it ends.</td></tr>
+        <tr><td>Write it to the log, then halt</td><td>The default. A line in the log, then it ends.</td></tr>
+      </table>
+      <p>That is still worth having: an unexplained shutdown becomes a timestamped line naming the window
+        that was on screen and the thread it happened on.</p>
+      <h3>A STOP is different</h3>
+      <p><code>STOP</code> really can be ignored. Set it to <i>Ignore it - carry on regardless</i> and
+        execution resumes on the line after the <code>STOP</code>, as though it had never been reached.</p>
+      <pre>  STOP(<span class="s">'this would normally offer Abort or Ignore'</span>)
+  <span class="c">! with Hook:Stop set to HookDo:Ignore, this next line runs</span>
+  post:Total += 1</pre>
+      <div class="callout warn"><b>Carrying on has consequences</b>
+        A <code>STOP</code> is usually there because something was wrong. Ignoring it means the code after
+        it runs with whatever state caused the STOP in the first place. Use a rule so you only ignore the
+        one you meant to, and log it.</div>
+      </div>
+      <div class="es">
+      <div class="callout danger"><b>Un HALT no se puede cancelar</b>
+        La librería de ejecución termina el programa en cuanto el hook de halt devuelve el control, elijas
+        la acción que elijas. Esto se comprobó compilando un programa contra la clase y ejecutándolo, no se
+        supuso a partir de la documentación.</div>
+      <p>Así que para un <code>HALT</code> las opciones cambian <b>lo que se dice al salir</b> y lo que
+        queda en el registro, no si ocurre o no:</p>
+      <table>
+        <tr><th>En la pestaña</th><th>Qué pasa de verdad</th></tr>
+        <tr><td>Halt as usual, with its message</td><td>El programa termina y se muestra el mensaje,
+            exactamente como habría sido.</td></tr>
+        <tr><td>Halt, but say nothing</td><td>El programa termina en silencio: el mensaje se lo traga.</td></tr>
+        <tr><td>Say something else, then halt</td><td>Se muestra tu texto como un <code>MESSAGE</code>
+            normal y luego termina.</td></tr>
+        <tr><td>Hand it to my procedure, then halt</td><td>Tu código se ejecuta primero —una última
+            oportunidad de vaciar un fichero, cerrar una conexión o dejar una nota— y luego termina.</td></tr>
+        <tr><td>Write it to the log, then halt</td><td>El valor por defecto. Una línea en el registro y
+            termina.</td></tr>
+      </table>
+      <p>Aun así merece la pena: un cierre inexplicable se convierte en una línea con fecha y hora que
+        nombra la ventana que había en pantalla y el hilo en el que ocurrió.</p>
+      <h3>Un STOP es distinto</h3>
+      <p>Un <code>STOP</code> sí se puede ignorar de verdad. Ponlo en <i>Ignore it - carry on regardless</i>
+        y la ejecución sigue en la línea siguiente al <code>STOP</code>, como si nunca se hubiera
+        alcanzado.</p>
+      <pre>  STOP(<span class="s">'esto normalmente ofrecería Abort o Ignore'</span>)
+  <span class="c">! con Hook:Stop en HookDo:Ignore, esta línea siguiente se ejecuta</span>
+  post:Total += 1</pre>
+      <div class="callout warn"><b>Seguir adelante tiene consecuencias</b>
+        Un <code>STOP</code> suele estar ahí porque algo iba mal. Ignorarlo significa que el código
+        posterior se ejecuta con el mismo estado que provocó el STOP. Usa una regla para ignorar solo el que
+        querías, y regístralo.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="yourcode">
+      <h2><span class="en">Handing it over to your code</span><span class="es">Pasarlo a tu código</span> <a href="#yourcode" class="top">#</a></h2>
+      <div class="en">
+      <p>Set an action to <b>Hand it to my procedure</b> and name the procedure. It takes <b>no
+        parameters</b> — everything about the event is on the object, in <code>MsgHook.Info</code>:</p>
+      <table>
+        <tr><th>Field</th><th>Holds</th></tr>
+        <tr><td><code>Info.Event</code></td><td><code>Hook:Message</code>, <code>Hook:Stop</code>,
+            <code>Hook:Halt</code>, <code>Hook:Assert</code>, <code>Hook:Fatal</code>,
+            <code>Hook:Exception</code></td></tr>
+        <tr><td><code>Info.Text</code></td><td>What it says</td></tr>
+        <tr><td><code>Info.Caption</code></td><td>The title bar</td></tr>
+        <tr><td><code>Info.Icon</code></td><td>The MESSAGE icon</td></tr>
+        <tr><td><code>Info.Buttons</code></td><td>The buttons offered, as a BOR of the <code>BUTTON:</code>
+            equates</td></tr>
+        <tr><td><code>Info.DefButton</code></td><td>Which of them was the default</td></tr>
+        <tr><td><code>Info.Window</code></td><td>The title of the window that was on screen</td></tr>
+        <tr><td><code>Info.Thread</code></td><td>The thread it happened on</td></tr>
+        <tr><td><code>Info.Module</code>, <code>Info.Line</code></td><td>ASSERT source file and line</td></tr>
+        <tr><td><code>Info.Code</code></td><td>Halt code, error number, or exception code</td></tr>
+        <tr><td><code>Info.Address</code></td><td>Where a GPF failed</td></tr>
+        <tr><td><code>Info.Tag</code></td><td>Which rule fired — 1 for the first rule, 2 for the second, and
+            so on; <b>0</b> if no rule matched</td></tr>
+      </table>
+      <p>Three fields are yours to set on the way out:</p>
+      <table>
+        <tr><th>Set</th><th>To</th></tr>
+        <tr><td><code>Info.Action</code></td><td>Any <code>HookDo:</code> value, to change your mind about
+            what happens next</td></tr>
+        <tr><td><code>Info.Answer</code></td><td>The <code>BUTTON:</code> value to hand back</td></tr>
+        <tr><td><code>Info.Handled</code></td><td><code>1</code> to say it is dealt with — nothing more is
+            shown</td></tr>
+      </table>
+      <h3>A named procedure</h3>
+      <pre><span class="t">CheckTheMessage</span>  PROCEDURE()
+  <span class="k">CODE</span>
+  <span class="k">IF</span> INSTRING(<span class="s">'TIMEOUT'</span>,UPPER(MsgHook.Info.Text),1,1)
+    MsgHook.Info.Action = HookDo:Answer         <span class="c">! retry quietly, no window</span>
+    MsgHook.Info.Answer = BUTTON:Retry
+  <span class="k">ELSE</span>
+    MsgHook.Info.Action = HookDo:Normal         <span class="c">! let the user see anything else</span>
+  <span class="k">END</span></pre>
+      <p>If the procedure is one of the application's own, AppGen has already prototyped it and there is
+        nothing more to do. If it lives in hand-written source, tick <b>Add a prototype for each procedure I
+        named</b> on the <b>Advanced</b> tab — each distinct name is added once, however many tabs and rules
+        point at it.</p>
+      <h3>Or derive TakeEvent yourself</h3>
+      <p>The template generates a derived class whose <code>TakeEvent()</code> routes to the procedures you
+        named. You can put code straight into it instead, through the embed <b>myHook - your own code, every
+        intercepted event</b>:</p>
+      <pre>%HookObject.TakeEvent PROCEDURE()
+  <span class="k">CODE</span>
+  <span class="c">! rule 2 asked for us</span>
+  <span class="k">IF</span> SELF.Info.Tag = 2
+    SELF.Info.Action  = HookDo:Answer
+    SELF.Info.Answer  = BUTTON:Cancel
+    SELF.Info.Handled = 1
+  <span class="k">END</span></pre>
+      <div class="callout tip"><b>You are inside the hook</b>
+        Keep this code short and self-contained. Opening a window, running a report or raising another
+        <code>MESSAGE</code> from here is asking for trouble — write to the log, set a flag, and deal with
+        it when the program is back on its feet.</div>
+      </div>
+      <div class="es">
+      <p>Pon una acción en <b>Hand it to my procedure</b> y nombra la procedure. <b>No lleva
+        parámetros</b>: todo lo del evento está en el objeto, en <code>MsgHook.Info</code>:</p>
+      <table>
+        <tr><th>Campo</th><th>Contiene</th></tr>
+        <tr><td><code>Info.Event</code></td><td><code>Hook:Message</code>, <code>Hook:Stop</code>,
+            <code>Hook:Halt</code>, <code>Hook:Assert</code>, <code>Hook:Fatal</code>,
+            <code>Hook:Exception</code></td></tr>
+        <tr><td><code>Info.Text</code></td><td>Lo que dice</td></tr>
+        <tr><td><code>Info.Caption</code></td><td>El título</td></tr>
+        <tr><td><code>Info.Icon</code></td><td>El icono del MESSAGE</td></tr>
+        <tr><td><code>Info.Buttons</code></td><td>Los botones ofrecidos, como BOR de los equates
+            <code>BUTTON:</code></td></tr>
+        <tr><td><code>Info.DefButton</code></td><td>Cuál de ellos era el predeterminado</td></tr>
+        <tr><td><code>Info.Window</code></td><td>El título de la ventana que había en pantalla</td></tr>
+        <tr><td><code>Info.Thread</code></td><td>El hilo en el que ocurrió</td></tr>
+        <tr><td><code>Info.Module</code>, <code>Info.Line</code></td><td>Fichero y línea del ASSERT</td></tr>
+        <tr><td><code>Info.Code</code></td><td>Código de halt, número de error o código de excepción</td></tr>
+        <tr><td><code>Info.Address</code></td><td>Dónde falló un GPF</td></tr>
+        <tr><td><code>Info.Tag</code></td><td>Qué regla actuó: 1 para la primera, 2 para la segunda, etc.;
+            <b>0</b> si no casó ninguna</td></tr>
+      </table>
+      <p>Tres campos son tuyos para fijarlos al salir:</p>
+      <table>
+        <tr><th>Fija</th><th>A</th></tr>
+        <tr><td><code>Info.Action</code></td><td>Cualquier valor <code>HookDo:</code>, para cambiar de
+            opinión sobre lo que pasa después</td></tr>
+        <tr><td><code>Info.Answer</code></td><td>El valor <code>BUTTON:</code> que se devuelve</td></tr>
+        <tr><td><code>Info.Handled</code></td><td><code>1</code> para decir que ya está resuelto: no se
+            muestra nada más</td></tr>
+      </table>
+      <h3>Una procedure con nombre</h3>
+      <pre><span class="t">CheckTheMessage</span>  PROCEDURE()
+  <span class="k">CODE</span>
+  <span class="k">IF</span> INSTRING(<span class="s">'TIMEOUT'</span>,UPPER(MsgHook.Info.Text),1,1)
+    MsgHook.Info.Action = HookDo:Answer         <span class="c">! reintenta en silencio, sin ventana</span>
+    MsgHook.Info.Answer = BUTTON:Retry
+  <span class="k">ELSE</span>
+    MsgHook.Info.Action = HookDo:Normal         <span class="c">! que el usuario vea cualquier otra cosa</span>
+  <span class="k">END</span></pre>
+      <p>Si la procedure es una de la propia aplicación, AppGen ya la ha prototipado y no hay nada más que
+        hacer. Si vive en código escrito a mano, marca <b>Add a prototype for each procedure I named</b> en
+        la pestaña <b>Advanced</b>: cada nombre distinto se añade una sola vez, apunten a él las pestañas y
+        reglas que apunten.</p>
+      <h3>O deriva TakeEvent tú mismo</h3>
+      <p>La plantilla genera una clase derivada cuyo <code>TakeEvent()</code> reparte hacia las procedures
+        que nombraste. Puedes poner código directamente ahí, mediante el embed <b>myHook - your own code,
+        every intercepted event</b>:</p>
+      <pre>%HookObject.TakeEvent PROCEDURE()
+  <span class="k">CODE</span>
+  <span class="c">! nos ha llamado la regla 2</span>
+  <span class="k">IF</span> SELF.Info.Tag = 2
+    SELF.Info.Action  = HookDo:Answer
+    SELF.Info.Answer  = BUTTON:Cancel
+    SELF.Info.Handled = 1
+  <span class="k">END</span></pre>
+      <div class="callout tip"><b>Estás dentro del hook</b>
+        Mantén este código corto y autónomo. Abrir una ventana, lanzar un informe o provocar otro
+        <code>MESSAGE</code> desde aquí es buscarse problemas: escribe en el registro, marca una bandera y
+        atiéndelo cuando el programa vuelva a estar en pie.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="pause">
+      <h2><span class="en">One quiet procedure</span><span class="es">Una procedure sin filtro</span> <a href="#pause" class="top">#</a></h2>
+      <div class="en">
+      <p>Add the extension <b>myHook - let this procedure be noisy (suspend interception)</b> to a procedure
+        and, while it is open, <code>MESSAGE</code>, <code>STOP</code> and the rest come out the normal way
+        <b>on that thread</b>. The rules and the log sit that one out. Interception starts again when it
+        closes.</p>
+      <p>Useful for a diagnostic window, a maintenance screen, or any procedure whose messages you genuinely
+        want the user to see even though the rest of the application is muzzled.</p>
+      <p>It is generated into the ABC window manager's <code>Init</code> and <code>Kill</code>, so it suits
+        window procedures. From anywhere else, call the pair yourself:</p>
+      <pre>  MsgHook.Suspend()          <span class="c">! this thread only</span>
+  <span class="c">! ... whatever should be allowed to speak up</span>
+  MsgHook.Resume()</pre>
+      <div class="callout note"><b>Per thread, on purpose</b>
+        Suspending is thread-local, so a background thread carries on being intercepted while the window in
+        front of the user is free to talk. The hooks themselves are process-wide; it is the suspend flag
+        that is per thread.</div>
+      </div>
+      <div class="es">
+      <p>Añade la extensión <b>myHook - let this procedure be noisy (suspend interception)</b> a una
+        procedure y, mientras esté abierta, <code>MESSAGE</code>, <code>STOP</code> y los demás salen de la
+        forma habitual <b>en ese hilo</b>. Las reglas y el registro se quedan al margen. La interceptación
+        vuelve al cerrarse.</p>
+      <p>Útil para una ventana de diagnóstico, una pantalla de mantenimiento, o cualquier procedure cuyos
+        mensajes sí quieras que el usuario vea aunque el resto de la aplicación esté amordazada.</p>
+      <p>Se genera en el <code>Init</code> y el <code>Kill</code> del gestor de ventanas de ABC, así que
+        encaja con procedures de ventana. Desde cualquier otro sitio, llama tú al par:</p>
+      <pre>  MsgHook.Suspend()          <span class="c">! solo este hilo</span>
+  <span class="c">! ... lo que deba poder hablar</span>
+  MsgHook.Resume()</pre>
+      <div class="callout note"><b>Por hilo, a propósito</b>
+        La suspensión es local al hilo, así que un hilo en segundo plano sigue interceptado mientras la
+        ventana que tiene delante el usuario puede hablar. Los hooks en sí son de todo el proceso; lo que es
+        por hilo es la bandera de suspensión.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="here">
+      <h2><span class="en">From an embed</span><span class="es">Desde un embed</span> <a href="#here" class="top">#</a></h2>
+      <div class="en">
+      <p>The code template <b>myHook - install, remove, suspend, resume or log from here</b> drops one
+        statement wherever you put it:</p>
+      <table>
+        <tr><th>Action</th><th>Generates</th></tr>
+        <tr><td>Start intercepting</td><td><code>MsgHook.Install()</code></td></tr>
+        <tr><td>Stop intercepting</td><td><code>MsgHook.Remove()</code></td></tr>
+        <tr><td>Suspend it on this thread</td><td><code>MsgHook.Suspend()</code></td></tr>
+        <tr><td>Resume it on this thread</td><td><code>MsgHook.Resume()</code></td></tr>
+        <tr><td>Write my own line to the log</td><td><code>MsgHook.Write('…')</code>, typed text quoted for
+            you or an expression written verbatim</td></tr>
+        <tr><td>Log how many have been seen</td><td>A one-line tally of every event type, seen and
+            changed</td></tr>
+      </table>
+      <p>The tally line is handy at the end of a long unattended run:</p>
+      <pre>MESSAGE 42 seen, 42 changed; STOP 0/0; HALT 0/0; ASSERT 0/0; ERROR 3/3; GPF 0/0</pre>
+      </div>
+      <div class="es">
+      <p>La plantilla de código <b>myHook - install, remove, suspend, resume or log from here</b> coloca una
+        sola instrucción donde la pongas:</p>
+      <table>
+        <tr><th>Acción</th><th>Genera</th></tr>
+        <tr><td>Start intercepting</td><td><code>MsgHook.Install()</code></td></tr>
+        <tr><td>Stop intercepting</td><td><code>MsgHook.Remove()</code></td></tr>
+        <tr><td>Suspend it on this thread</td><td><code>MsgHook.Suspend()</code></td></tr>
+        <tr><td>Resume it on this thread</td><td><code>MsgHook.Resume()</code></td></tr>
+        <tr><td>Write my own line to the log</td><td><code>MsgHook.Write('…')</code>, con el texto
+            entrecomillado por ti o una expresión escrita tal cual</td></tr>
+        <tr><td>Log how many have been seen</td><td>Un recuento de una línea de cada tipo de evento, vistos
+            y modificados</td></tr>
+      </table>
+      <p>La línea de recuento viene bien al final de un proceso desatendido largo:</p>
+      <pre>MESSAGE 42 seen, 42 changed; STOP 0/0; HALT 0/0; ASSERT 0/0; ERROR 3/3; GPF 0/0</pre>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="api">
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#api" class="top">#</a></h2>
+      <div class="en">
+      <p>The object the template declares is global, so every one of these can be called from any embed.
+        The default name is <code>MsgHook</code>.</p>
+      <h3>Setting it up</h3>
+      <table>
+        <tr><th>Method</th><th>What it does</th></tr>
+        <tr><td><code>Init()</code></td><td>Back to defaults: nothing watched, no rules, no log.</td></tr>
+        <tr><td><code>SetEvent(event, action, answer)</code></td><td>Watch one event and give it its default
+            action. <code>answer</code> is optional.</td></tr>
+        <tr><td><code>AddRule(event, match, mode, action, answer, look, newText)</code></td>
+            <td>Append a rule; returns its tag. Everything after <code>match</code> has a default —
+            <code>HookMatch:Contains</code>, <code>HookDo:Ignore</code>, 0, <code>HookIn:Either</code>.</td></tr>
+        <tr><td><code>ClearRules()</code></td><td>Throw them all away.</td></tr>
+        <tr><td><code>SetLog(file, format, what, maxBytes)</code></td><td>Point the log somewhere and say how
+            it is written.</td></tr>
+      </table>
+      <h3>Turning it on and off</h3>
+      <table>
+        <tr><th>Method</th><th>What it does</th></tr>
+        <tr><td><code>Install()</code></td><td>Put the hooks in place for every watched event. Safe to call
+            again after changing settings.</td></tr>
+        <tr><td><code>Remove()</code></td><td>Take them off again.</td></tr>
+        <tr><td><code>Suspend()</code> / <code>Resume()</code></td><td>Pause and restart interception on the
+            calling thread.</td></tr>
+        <tr><td><code>Suspended()</code></td><td>1 if this thread is suspended.</td></tr>
+      </table>
+      <h3>Yours to derive</h3>
+      <table>
+        <tr><th>Method</th><th>What it does</th></tr>
+        <tr><td><code>TakeEvent()</code>, VIRTUAL</td><td>Called when the action is <code>HookDo:Call</code>.
+            Read <code>SELF.Info</code>, set <code>Action</code> / <code>Answer</code> /
+            <code>Handled</code>.</td></tr>
+        <tr><td><code>Decide()</code>, VIRTUAL</td><td>Runs the rules over <code>SELF.Info</code>. Derive it
+            to replace the matching entirely.</td></tr>
+        <tr><td><code>Log()</code>, VIRTUAL</td><td>Formats and writes one line. Derive it for a layout of
+            your own, or to send it somewhere other than a file.</td></tr>
+      </table>
+      <h3>Odds and ends</h3>
+      <table>
+        <tr><th>Member</th><th>What it is</th></tr>
+        <tr><td><code>Write(line)</code></td><td>Append a raw line to the log.</td></tr>
+        <tr><td><code>Seen[event]</code></td><td>How many of that event have come through.</td></tr>
+        <tr><td><code>Changed[event]</code></td><td>How many of them you interfered with.</td></tr>
+        <tr><td><code>Info</code></td><td>Everything about the event in hand — see
+            <a href="#yourcode">Handing it over</a>.</td></tr>
+        <tr><td><code>EventName(e)</code>, <code>ActionName(a)</code>, <code>ButtonName(b)</code></td>
+            <td>Readable names, as used in the log.</td></tr>
+        <tr><td><code>Stamp()</code></td><td><code>'YYYY-MM-DD HH:MM:SS'</code> right now.</td></tr>
+        <tr><td><code>Flat(text)</code></td><td>A multi-line message squashed to one line.</td></tr>
+        <tr><td><code>Hex(n)</code></td><td>A LONG as <code>0C0000005H</code>.</td></tr>
+        <tr><td><code>LogStamp</code>, <code>LogWindow</code>, <code>LogMax</code>, <code>LogFormat</code>,
+            <code>LogWhat</code>, <code>LogName</code></td><td>The log settings, if you would rather set
+            them directly than through <code>SetLog()</code>.</td></tr>
+      </table>
+      <h3>All of it by hand</h3>
+      <pre>  <span class="k">INCLUDE</span>(<span class="s">'MsgHookClass.INC'</span>),ONCE
+MsgHook  MsgHookClass                            <span class="c">! one per program</span>
+
+  <span class="k">CODE</span>
+  MsgHook.SetEvent(Hook:Message, HookDo:Log)     <span class="c">! log every message</span>
+  MsgHook.SetEvent(Hook:Halt,    HookDo:Log)     <span class="c">! and every halt</span>
+  MsgHook.AddRule(Hook:Message, <span class="s">'Record Not Found'</span>, HookMatch:Contains, |
+                  HookDo:Answer, BUTTON:Ok)
+  MsgHook.SetLog(<span class="s">'.\app.log'</span>, HookLog:Text, HookLogged:All, 512 * 1024)
+  MsgHook.Install()
+  <span class="c">! ...</span>
+  MsgHook.Remove()</pre>
+      </div>
+      <div class="es">
+      <p>El objeto que declara la plantilla es global, así que todos estos se pueden llamar desde cualquier
+        embed. El nombre por defecto es <code>MsgHook</code>.</p>
+      <h3>Configuración</h3>
+      <table>
+        <tr><th>Método</th><th>Qué hace</th></tr>
+        <tr><td><code>Init()</code></td><td>Vuelta a los valores iniciales: nada vigilado, sin reglas, sin
+            registro.</td></tr>
+        <tr><td><code>SetEvent(evento, acción, respuesta)</code></td><td>Vigila un evento y le da su acción
+            por defecto. <code>respuesta</code> es opcional.</td></tr>
+        <tr><td><code>AddRule(evento, texto, modo, acción, respuesta, dónde, textoNuevo)</code></td>
+            <td>Añade una regla; devuelve su tag. Todo lo que va después de <code>texto</code> tiene valor
+            por defecto: <code>HookMatch:Contains</code>, <code>HookDo:Ignore</code>, 0,
+            <code>HookIn:Either</code>.</td></tr>
+        <tr><td><code>ClearRules()</code></td><td>Tirarlas todas.</td></tr>
+        <tr><td><code>SetLog(fichero, formato, qué, maxBytes)</code></td><td>Apunta el registro a un sitio y
+            dice cómo se escribe.</td></tr>
+      </table>
+      <h3>Encender y apagar</h3>
+      <table>
+        <tr><th>Método</th><th>Qué hace</th></tr>
+        <tr><td><code>Install()</code></td><td>Pone los hooks de cada evento vigilado. Se puede volver a
+            llamar tras cambiar la configuración.</td></tr>
+        <tr><td><code>Remove()</code></td><td>Los quita.</td></tr>
+        <tr><td><code>Suspend()</code> / <code>Resume()</code></td><td>Pausa y reanuda la interceptación en
+            el hilo que llama.</td></tr>
+        <tr><td><code>Suspended()</code></td><td>1 si este hilo está suspendido.</td></tr>
+      </table>
+      <h3>Para derivar</h3>
+      <table>
+        <tr><th>Método</th><th>Qué hace</th></tr>
+        <tr><td><code>TakeEvent()</code>, VIRTUAL</td><td>Se llama cuando la acción es
+            <code>HookDo:Call</code>. Lee <code>SELF.Info</code> y fija <code>Action</code> /
+            <code>Answer</code> / <code>Handled</code>.</td></tr>
+        <tr><td><code>Decide()</code>, VIRTUAL</td><td>Pasa las reglas sobre <code>SELF.Info</code>. Deriva
+            para sustituir el emparejamiento entero.</td></tr>
+        <tr><td><code>Log()</code>, VIRTUAL</td><td>Da formato y escribe una línea. Deriva para un formato
+            propio, o para enviarlo a otro sitio que no sea un fichero.</td></tr>
+      </table>
+      <h3>Varios</h3>
+      <table>
+        <tr><th>Miembro</th><th>Qué es</th></tr>
+        <tr><td><code>Write(línea)</code></td><td>Añade una línea en crudo al registro.</td></tr>
+        <tr><td><code>Seen[evento]</code></td><td>Cuántos de ese evento han pasado.</td></tr>
+        <tr><td><code>Changed[evento]</code></td><td>En cuántos interviniste.</td></tr>
+        <tr><td><code>Info</code></td><td>Todo sobre el evento en curso — ver
+            <a href="#yourcode">Pasarlo a tu código</a>.</td></tr>
+        <tr><td><code>EventName(e)</code>, <code>ActionName(a)</code>, <code>ButtonName(b)</code></td>
+            <td>Nombres legibles, los que usa el registro.</td></tr>
+        <tr><td><code>Stamp()</code></td><td><code>'AAAA-MM-DD HH:MM:SS'</code> de ahora mismo.</td></tr>
+        <tr><td><code>Flat(texto)</code></td><td>Un mensaje de varias líneas aplastado a una.</td></tr>
+        <tr><td><code>Hex(n)</code></td><td>Un LONG como <code>0C0000005H</code>.</td></tr>
+        <tr><td><code>LogStamp</code>, <code>LogWindow</code>, <code>LogMax</code>, <code>LogFormat</code>,
+            <code>LogWhat</code>, <code>LogName</code></td><td>Los ajustes del registro, si prefieres
+            fijarlos directamente en vez de con <code>SetLog()</code>.</td></tr>
+      </table>
+      <h3>Todo a mano</h3>
+      <pre>  <span class="k">INCLUDE</span>(<span class="s">'MsgHookClass.INC'</span>),ONCE
+MsgHook  MsgHookClass                            <span class="c">! uno por programa</span>
+
+  <span class="k">CODE</span>
+  MsgHook.SetEvent(Hook:Message, HookDo:Log)     <span class="c">! registra cada mensaje</span>
+  MsgHook.SetEvent(Hook:Halt,    HookDo:Log)     <span class="c">! y cada halt</span>
+  MsgHook.AddRule(Hook:Message, <span class="s">'Record Not Found'</span>, HookMatch:Contains, |
+                  HookDo:Answer, BUTTON:Ok)
+  MsgHook.SetLog(<span class="s">'.\app.log'</span>, HookLog:Text, HookLogged:All, 512 * 1024)
+  MsgHook.Install()
+  <span class="c">! ...</span>
+  MsgHook.Remove()</pre>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="equates">
+      <h2><span class="en">Equates</span><span class="es">Equates</span> <a href="#equates" class="top">#</a></h2>
+      <div class="en">
+      <p>All from <code>MsgHookClass.inc</code>. The template writes these names into the generated source,
+        so what you set in the prompts is readable in the <code>.clw</code>.</p>
+      </div>
+      <div class="es">
+      <p>Todos de <code>MsgHookClass.inc</code>. La plantilla escribe estos nombres en el código generado,
+        así que lo que fijas en los prompts se lee tal cual en el <code>.clw</code>.</p>
+      </div>
+      <table>
+        <tr><th><span class="en">Group</span><span class="es">Grupo</span></th><th><span class="en">Equates</span><span class="es">Equates</span></th></tr>
+        <tr><td><span class="en">The event</span><span class="es">El evento</span></td>
+            <td><code>Hook:Any</code> <code>Hook:Message</code> <code>Hook:Stop</code>
+                <code>Hook:Halt</code> <code>Hook:Assert</code> <code>Hook:Fatal</code>
+                <code>Hook:Exception</code></td></tr>
+        <tr><td><span class="en">The action</span><span class="es">La acción</span></td>
+            <td><code>HookDo:Normal</code> <code>HookDo:Ignore</code> <code>HookDo:Answer</code>
+                <code>HookDo:Call</code> <code>HookDo:Show</code> <code>HookDo:Halt</code>
+                <code>HookDo:Log</code></td></tr>
+        <tr><td><span class="en">The test</span><span class="es">La prueba</span></td>
+            <td><code>HookMatch:Any</code> <code>HookMatch:Contains</code> <code>HookMatch:Starts</code>
+                <code>HookMatch:Exact</code> <code>HookMatch:Wild</code></td></tr>
+        <tr><td><span class="en">What to look at</span><span class="es">Dónde mirar</span></td>
+            <td><code>HookIn:Text</code> <code>HookIn:Caption</code> <code>HookIn:Either</code></td></tr>
+        <tr><td><span class="en">The log</span><span class="es">El registro</span></td>
+            <td><code>HookLog:Off</code> <code>HookLog:Text</code> <code>HookLog:CSV</code>
+                <code>HookLog:Tab</code> · <code>HookLogged:All</code>
+                <code>HookLogged:Changed</code></td></tr>
+        <tr><td><span class="en">Buttons</span><span class="es">Botones</span></td>
+            <td><span class="en">Clarion's own</span><span class="es">Los propios de Clarion</span>
+                <code>BUTTON:Ok</code> <code>BUTTON:Yes</code> <code>BUTTON:No</code>
+                <code>BUTTON:Abort</code> <code>BUTTON:Retry</code> <code>BUTTON:Ignore</code>
+                <code>BUTTON:Cancel</code></td></tr>
+      </table>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="dll">
+      <h2><span class="en">Multi-DLL</span><span class="es">Multi-DLL</span> <a href="#dll" class="top">#</a></h2>
+      <div class="en">
+      <p>Handled for you. The target that owns the object declares it and exports it; every other target
+        imports the same instance:</p>
+      <pre><span class="c">! in the owning target</span>
+MsgHook   <span class="k">CLASS</span>(MsgHookClass)
+TakeEvent   PROCEDURE(),DERIVED
+          <span class="k">END</span>
+
+<span class="c">! in every other target</span>
+MsgHook   MsgHookClass,EXTERNAL,DLL(dll_mode)</pre>
+      <p>So one set of rules and one log cover the whole application, and a message raised inside a satellite
+        DLL is judged by the same rules and lands in the same file. The class carries an unconditional
+        <code>LINK</code>, so each target links its own copy of the code — only the shared instance is
+        exported.</p>
+      <div class="callout note"><b>Add the extension once</b>
+        To the application that owns the object. The satellites need nothing: they see the instance through
+        the export, and its virtual <code>TakeEvent()</code> still lands in the owner's code.</div>
+      </div>
+      <div class="es">
+      <p>Resuelto por ti. El destino que posee el objeto lo declara y lo exporta; todos los demás importan la
+        misma instancia:</p>
+      <pre><span class="c">! en el destino propietario</span>
+MsgHook   <span class="k">CLASS</span>(MsgHookClass)
+TakeEvent   PROCEDURE(),DERIVED
+          <span class="k">END</span>
+
+<span class="c">! en todos los demás</span>
+MsgHook   MsgHookClass,EXTERNAL,DLL(dll_mode)</pre>
+      <p>Así, un solo juego de reglas y un solo registro cubren toda la aplicación, y un mensaje lanzado
+        dentro de una DLL satélite se juzga con las mismas reglas y acaba en el mismo fichero. La clase
+        lleva un <code>LINK</code> incondicional, de modo que cada destino enlaza su propia copia del
+        código: solo se exporta la instancia compartida.</p>
+      <div class="callout note"><b>Añade la extensión una vez</b>
+        A la aplicación que posee el objeto. Los satélites no necesitan nada: ven la instancia a través de
+        la exportación, y su <code>TakeEvent()</code> virtual sigue cayendo en el código del
+        propietario.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="how">
+      <h2><span class="en">How it works</span><span class="es">Cómo funciona</span> <a href="#how" class="top">#</a></h2>
+      <div class="en">
+      <p>The Clarion run-time library will hand its own dialogs over to your code if you give it the address
+        of a replacement procedure. There is one property per dialog, all on <code>SYSTEM</code>, and all
+        listed in <code>\clarion12\libsrc\win\property.clw</code> as part of the
+        <code>PROP:LibHook</code> family.</p>
+      <p>The exact prototypes those replacements must have are not guessed here: they are copied from
+        <b><code>\clarion12\libsrc\win\WBHOOK.CLW</code></b>, the shipped WebBuilder layer, which uses the
+        same seven hooks to move a desktop <code>MESSAGE</code> onto a web page. That is also where the
+        odder details come from — the buttons bitmap, for example, arrives at the message hook as a
+        <b>string</b>.</p>
+      <p><code>Install()</code> sets the properties to <code>ADDRESS()</code> of module-level procedures in
+        <code>MsgHookClass.clw</code>; those hand straight over to the object. <code>Remove()</code> sets
+        them back to 0.</p>
+      <h3>Letting one through</h3>
+      <p>To show a message the normal way, the class has to lift its own hook first — otherwise the run-time
+        library would call straight back into it and go round for ever:</p>
+      <pre>saved = SYSTEM{PROP:MessageHook}
+SYSTEM{PROP:MessageHook} = 0
+answer = MESSAGE(...)                  <span class="c">! the real one</span>
+SYSTEM{PROP:MessageHook} = saved</pre>
+      <div class="callout warn"><b>The gap that opens</b>
+        That gap is a few milliseconds wide and it is <b>process-wide</b>, so a <code>MESSAGE</code> raised
+        on another thread during it goes out un-intercepted. The run-time library's own hook code does
+        exactly the same thing. If that matters for your case, <b>answer</b> rather than pass through — an
+        answered message never calls the real <code>MESSAGE()</code> at all.</div>
+      <h3>One per program</h3>
+      <p>The hooks are process-wide, so the last object to call <code>Install()</code> is the one the
+        run-time library talks to. One object, added once, is the intended arrangement.</p>
+      </div>
+      <div class="es">
+      <p>La librería de ejecución de Clarion entrega sus propios diálogos a tu código si le das la dirección
+        de una procedure sustituta. Hay una propiedad por diálogo, todas sobre <code>SYSTEM</code>, y todas
+        listadas en <code>\clarion12\libsrc\win\property.clw</code> como parte de la familia
+        <code>PROP:LibHook</code>.</p>
+      <p>Los prototipos exactos que deben tener esas sustitutas no se han adivinado aquí: están copiados de
+        <b><code>\clarion12\libsrc\win\WBHOOK.CLW</code></b>, la capa WebBuilder que se distribuye con
+        Clarion y que usa los mismos siete hooks para llevar un <code>MESSAGE</code> de escritorio a una
+        página web. De ahí salen también los detalles más raros: el mapa de bits de los botones, por
+        ejemplo, le llega al hook de mensaje como una <b>cadena</b>.</p>
+      <p><code>Install()</code> pone en las propiedades el <code>ADDRESS()</code> de unas procedures de
+        módulo de <code>MsgHookClass.clw</code>, que se lo pasan directamente al objeto.
+        <code>Remove()</code> las deja otra vez a 0.</p>
+      <h3>Dejar pasar uno</h3>
+      <p>Para mostrar un mensaje de la forma normal, la clase tiene que quitar antes su propio hook; si no,
+        la librería la volvería a llamar y daría vueltas para siempre:</p>
+      <pre>saved = SYSTEM{PROP:MessageHook}
+SYSTEM{PROP:MessageHook} = 0
+answer = MESSAGE(...)                  <span class="c">! el de verdad</span>
+SYSTEM{PROP:MessageHook} = saved</pre>
+      <div class="callout warn"><b>El hueco que se abre</b>
+        Ese hueco dura unos milisegundos y afecta a <b>todo el proceso</b>, así que un <code>MESSAGE</code>
+        lanzado en otro hilo durante ese instante sale sin interceptar. El propio código de hooks de la
+        librería hace exactamente lo mismo. Si eso importa en tu caso, <b>responde</b> en vez de dejar
+        pasar: un mensaje respondido no llega a llamar al <code>MESSAGE()</code> real.</div>
+      <h3>Uno por programa</h3>
+      <p>Los hooks son de todo el proceso, así que el último objeto que llame a <code>Install()</code> es
+        aquel con el que habla la librería. Un objeto, añadido una vez, es la disposición prevista.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="tested">
+      <h2><span class="en">What was tested</span><span class="es">Qué se probó</span> <a href="#tested" class="top">#</a></h2>
+      <div class="en">
+      <p>The class was compiled into a standalone Clarion program and run, not merely read. Verified end to
+        end:</p>
+      <table>
+        <tr><th>Checked</th><th>Result</th></tr>
+        <tr><td>A message with no matching rule</td><td>Answered with the event's configured button</td></tr>
+        <tr><td>A <code>*wildcard*</code> rule</td><td>Matched and answered <code>Retry</code></td></tr>
+        <tr><td>A rule set to <i>hand it over</i></td><td>Reached derived code, which answered
+            <code>Cancel</code></td></tr>
+        <tr><td>A <code>STOP</code> set to <i>ignore</i></td><td>Swallowed; execution continued on the next
+            line</td></tr>
+        <tr><td>A <code>HALT</code> set to <i>ignore</i></td><td><b>Program ended anyway</b> — the finding
+            behind <a href="#halt">STOP and HALT</a></td></tr>
+        <tr><td>The log</td><td>Correct lines, CRLF, internal spacing preserved, multi-line text flattened</td></tr>
+        <tr><td>CSV</td><td>Quotes doubled, heading row written once across two separate runs</td></tr>
+        <tr><td>Roll-over</td><td>Renamed to <code>.bak</code> at the size limit and a fresh file started</td></tr>
+        <tr><td>Counters</td><td><code>Seen</code> and <code>Changed</code> both correct</td></tr>
+        <tr><td>Build</td><td>Clean — 0 errors, 0 warnings</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <p>La clase se compiló dentro de un programa Clarion independiente y se ejecutó, no solo se leyó.
+        Comprobado de principio a fin:</p>
+      <table>
+        <tr><th>Comprobado</th><th>Resultado</th></tr>
+        <tr><td>Un mensaje sin regla que case</td><td>Respondido con el botón configurado del evento</td></tr>
+        <tr><td>Una regla <code>*wildcard*</code></td><td>Casó y respondió <code>Retry</code></td></tr>
+        <tr><td>Una regla en <i>hand it over</i></td><td>Llegó al código derivado, que respondió
+            <code>Cancel</code></td></tr>
+        <tr><td>Un <code>STOP</code> en <i>ignore</i></td><td>Se lo tragó; la ejecución siguió en la línea
+            siguiente</td></tr>
+        <tr><td>Un <code>HALT</code> en <i>ignore</i></td><td><b>El programa terminó igualmente</b>: el
+            hallazgo detrás de <a href="#halt">STOP y HALT</a></td></tr>
+        <tr><td>El registro</td><td>Líneas correctas, CRLF, espaciado interno conservado, texto multilínea
+            aplanado</td></tr>
+        <tr><td>CSV</td><td>Comillas duplicadas, fila de encabezados escrita una sola vez en dos ejecuciones
+            distintas</td></tr>
+        <tr><td>Relevo</td><td>Renombrado a <code>.bak</code> al llegar al límite y fichero nuevo</td></tr>
+        <tr><td>Contadores</td><td><code>Seen</code> y <code>Changed</code> ambos correctos</td></tr>
+        <tr><td>Compilación</td><td>Limpia: 0 errores, 0 avisos</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <section id="trouble">
+      <h2><span class="en">Troubleshooting</span><span class="es">Problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>Symptom</th><th>Cause and cure</th></tr>
+        <tr><td>Nothing is intercepted at all</td>
+            <td>Either no event is ticked, or <code>Install()</code> never ran. Check <i>Start
+            intercepting</i> on the General tab; if it is set to <i>Only when I call Install() myself</i>,
+            you have to place the <b>myHookHere</b> code template somewhere.</td></tr>
+        <tr><td>One event is still shown as usual</td>
+            <td>Its tick box is off on its own tab. Watching and acting are separate: an event you do not
+            tick is not passed through the object at all, so its rules and its log lines never
+            happen.</td></tr>
+        <tr><td><code>Procedure … duplicated</code> at compile time</td>
+            <td><b>Add a prototype for each procedure I named</b> is ticked on the Advanced tab for a
+            procedure that is one of the application's own — AppGen has already prototyped it. Untick
+            it.</td></tr>
+        <tr><td>The generated source will not compile around a rule</td>
+            <td>An apostrophe in <i>For this text</i> or <i>Replace the text with</i>. Both go into the
+            source as quoted strings.</td></tr>
+        <tr><td>The program still ends on a HALT</td>
+            <td>By design — see <a href="#halt">STOP and HALT</a>. It cannot be called off.</td></tr>
+        <tr><td>The log file never appears</td>
+            <td>A relative name is relative to the program's <b>current</b> directory, which is not always
+            where the exe lives. Try a full path, or an expression built from one, and check the folder is
+            writable.</td></tr>
+        <tr><td>Your GPF reporter went quiet</td>
+            <td><code>PROP:LastChanceHook</code> has one seat and myHook took it. Untick <i>Intercept
+            GPFs</i>.</td></tr>
+        <tr><td><code>Illegal data type</code> on the class declaration</td>
+            <td>Almost always <code>MsgHookClass.inc</code> / <code>.clw</code> saved with Unix line
+            endings. They must be <b>CRLF</b>.</td></tr>
+        <tr><td>A message got through while another thread was busy</td>
+            <td>The pass-through gap — see <a href="#how">How it works</a>. Answer instead of passing
+            through.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa y remedio</th></tr>
+        <tr><td>No se intercepta nada</td>
+            <td>O no hay ningún evento marcado, o <code>Install()</code> nunca se ejecutó. Mira <i>Start
+            intercepting</i> en la pestaña General; si está en <i>Only when I call Install() myself</i>,
+            tienes que colocar la plantilla de código <b>myHookHere</b> en algún sitio.</td></tr>
+        <tr><td>Un evento se sigue mostrando como siempre</td>
+            <td>Su casilla está sin marcar en su pestaña. Vigilar y actuar son cosas distintas: un evento
+            que no marcas ni siquiera pasa por el objeto, así que sus reglas y sus líneas de registro no
+            llegan a ocurrir.</td></tr>
+        <tr><td><code>Procedure … duplicated</code> al compilar</td>
+            <td>Está marcado <b>Add a prototype for each procedure I named</b> en la pestaña Advanced para
+            una procedure que es de la propia aplicación, y AppGen ya la prototipó. Desmárcalo.</td></tr>
+        <tr><td>El código generado no compila alrededor de una regla</td>
+            <td>Un apóstrofe en <i>For this text</i> o en <i>Replace the text with</i>. Los dos van al
+            código como cadenas entrecomilladas.</td></tr>
+        <tr><td>El programa sigue terminando en un HALT</td>
+            <td>Es lo previsto: ver <a href="#halt">STOP y HALT</a>. No se puede cancelar.</td></tr>
+        <tr><td>El fichero de registro no aparece</td>
+            <td>Un nombre relativo lo es respecto del directorio <b>actual</b> del programa, que no siempre
+            es donde está el exe. Prueba con una ruta completa, o una expresión construida a partir de una,
+            y comprueba que se puede escribir en la carpeta.</td></tr>
+        <tr><td>Tu informador de GPF se quedó mudo</td>
+            <td><code>PROP:LastChanceHook</code> tiene una sola plaza y myHook la ocupó. Desmarca
+            <i>Intercept GPFs</i>.</td></tr>
+        <tr><td><code>Illegal data type</code> en la declaración de la clase</td>
+            <td>Casi siempre es <code>MsgHookClass.inc</code> / <code>.clw</code> guardado con finales de
+            línea Unix. Tienen que ser <b>CRLF</b>.</td></tr>
+        <tr><td>Se coló un mensaje mientras otro hilo trabajaba</td>
+            <td>El hueco al dejar pasar: ver <a href="#how">Cómo funciona</a>. Responde en vez de dejar
+            pasar.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    </div>
+    <footer>
+      <span class="en">myHook · Programmer's Documentation · part of the templatemaker template set ·
+        pure Clarion, no external dependencies.</span>
+      <span class="es">myHook · Documentación del programador · parte de la colección templatemaker ·
+        Clarion puro, sin dependencias externas.</span>
+    </footer>
+  </main>
+</div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mc-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mc-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
+</body>
+</html>
