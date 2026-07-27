@@ -88,8 +88,12 @@
   #!  An explicit field list wins: it is the only way to mirror the browse's
   #!  own columns, which is what the user is looking at and what they mean by
   #!  "the fields of the view". Whole files are the fallback.
+  #!  #FIND, not #FIX. #FIX(%Field,..) only looks inside the file that happens
+  #!  to be fixed at the time, so every field from any other file silently
+  #!  failed to resolve and was dropped - which is why a list of eight came out
+  #!  as one. #FIND searches them all, and is what the shipped QBE uses.
   #FOR(%mfPicked)
-    #FIX(%Field,%mfPickField)
+    #FIND(%Field,%mfPickField)
     #IF(%Field)
       #CALL(%mfEmitPicked,%pObject)
     #ENDIF
