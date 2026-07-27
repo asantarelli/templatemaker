@@ -182,6 +182,10 @@ d  LONG,AUTO
   RETURN ''
 
 
+!  The Spanish strings spell their accents as Clarion <nnn> escapes rather
+!  than raw high bytes: 225 = a-acute, 237 = i-acute, 241 = n-tilde,
+!  243 = o-acute. That keeps this file pure ASCII, so no editor can quietly
+!  rewrite it as UTF-8 and turn every accent into a question mark.
 MyCalendarClass.Txt PROCEDURE(LONG pId)
   CODE
   IF SELF.Language = Cal:Spanish
@@ -192,7 +196,7 @@ MyCalendarClass.Txt PROCEDURE(LONG pId)
     OF CTx:TwoMonths     ; RETURN 'Dos meses'
     OF CTx:ThreeMonths   ; RETURN 'Tres meses'
     OF CTx:SixMonths     ; RETURN 'Seis meses'
-    OF CTx:Year          ; RETURN 'Un a�o'
+    OF CTx:Year          ; RETURN 'Un a<241>o'
     OF CTx:Today         ; RETURN 'Ho&y'
     OF CTx:Accept        ; RETURN '&Aceptar'
     OF CTx:Cancel        ; RETURN 'Cancelar'
@@ -200,17 +204,17 @@ MyCalendarClass.Txt PROCEDURE(LONG pId)
     OF CTx:From          ; RETURN 'Desde'
     OF CTx:To            ; RETURN 'hasta'
     OF CTx:Date          ; RETURN 'Fecha'
-    OF CTx:HintSingle    ; RETURN 'Haz clic en un d�a.   Esc = cerrar'
+    OF CTx:HintSingle    ; RETURN 'Haz clic en un d<237>a.   Esc = cerrar'
     OF CTx:HintRange     ; RETURN 'Arrastra para marcar un rango.   Esc = cerrar'
-    OF CTx:Days          ; RETURN 'd�as'
-    OF CTx:PrevYear      ; RETURN 'A�o anterior'
+    OF CTx:Days          ; RETURN 'd<237>as'
+    OF CTx:PrevYear      ; RETURN 'A<241>o anterior'
     OF CTx:PrevMonth     ; RETURN 'Mes anterior'
     OF CTx:NextMonth     ; RETURN 'Mes siguiente'
-    OF CTx:NextYear      ; RETURN 'A�o siguiente'
+    OF CTx:NextYear      ; RETURN 'A<241>o siguiente'
     OF CTx:Week          ; RETURN 'Sm'
     OF CTx:NothingPicked ; RETURN 'Elige una fecha primero.'
-    OF CTx:OutOfRange    ; RETURN 'Esa fecha est� fuera de los l�mites permitidos.'
-    OF CTx:Layout        ; RETURN 'Disposici�n'
+    OF CTx:OutOfRange    ; RETURN 'Esa fecha est<225> fuera de los l<237>mites permitidos.'
+    OF CTx:Layout        ; RETURN 'Disposici<243>n'
     OF CTx:Across        ; RETURN 'En fila'
     OF CTx:Down          ; RETURN 'En columna'
     END
@@ -324,9 +328,16 @@ MyCalendarClass.Days PROCEDURE()
 
 MyCalendarClass.InSelection PROCEDURE(LONG pDate)
   CODE
-  IF ~pDate OR ~SELF.Date1 THEN RETURN 0 .
-  IF pDate = SELF.Date1 OR pDate = SELF.Date2 THEN RETURN 1 .
-  IF SELF.Date2 AND pDate > SELF.Date1 AND pDate < SELF.Date2 THEN RETURN 2 .
+  RETURN SELF.StateIn(pDate,SELF.Date1,SELF.Date2)
+
+
+!  The same question against an arbitrary pair, so DrawChanged can ask what a
+!  day USED to look like after Date1/Date2 have already moved on.
+MyCalendarClass.StateIn PROCEDURE(LONG pDate,LONG pFrom,LONG pTo)
+  CODE
+  IF ~pDate OR ~pFrom THEN RETURN 0 .
+  IF pDate = pFrom OR pDate = pTo THEN RETURN 1 .
+  IF pTo AND pDate > pFrom AND pDate < pTo THEN RETURN 2 .
   RETURN 0
 
 
@@ -365,6 +376,7 @@ first  LONG,AUTO
   SELF.Layout()
   SELF.Canvas = pImage
   SETTARGET(pWin,pImage)                                    ! 0,0 is the image's top-left
+  SETPENCOLOR(SELF.BackColor)                               ! BOX outlines in the current pen
   BOX(0,0,SELF.CanvasW,SELF.CanvasH,SELF.BackColor)         ! clear, or the old month shows through
   first = SELF.FirstOfMonth(CHOOSE(SELF.Anchor <> 0,SELF.Anchor,TODAY()))
   LOOP i = 0 TO SELF.Months - 1
@@ -425,30 +437,7 @@ t     CSTRING(48)
     col = idx % 7
     cx  = gx + col * Cal:CellW
     cy  = pY + Cal:TitleH + Cal:DayH + row * Cal:CellH
-    sel = SELF.InSelection(d)
-    IF sel = 2
-      BOX(cx, cy, Cal:CellW, Cal:CellH, SELF.RangeColor)
-    ELSIF sel = 1
-      BOX(cx, cy, Cal:CellW, Cal:CellH, SELF.SelColor)
-    END
-    IF SELF.ShowToday AND d = TODAY()                       ! a ring, so it survives a fill
-      SETPENCOLOR(SELF.TodayColor)
-      LINE(cx, cy, Cal:CellW - 1, 0)
-      LINE(cx, cy + Cal:CellH - 1, Cal:CellW - 1, 0)
-      LINE(cx, cy, 0, Cal:CellH - 1)
-      LINE(cx + Cal:CellW - 1, cy, 0, Cal:CellH - 1)
-    END
-    dow = d % 7
-    IF sel = 1
-      SETPENCOLOR(SELF.SelTextColor)
-    ELSIF ~SELF.Pickable(d) OR dow = 0 OR dow = 6
-      SETPENCOLOR(SELF.MutedColor)
-    ELSE
-      SETPENCOLOR(SELF.InkColor)
-    END
-    t = dd
-    t = CLIP(LEFT(t))
-    SHOW(cx + Cal:CellW - 3 - LEN(t) * Cal:CharW, cy + 2, t)
+    SELF.DrawCell(d, cx, cy, 0)                             ! 0 = no erase, Draw cleared already
 !   One number per week row, keyed off the first day DRAWN in that row - the
 !   opening row may have no Monday at all, and it still needs its number.
     IF SELF.ShowWeekNo AND row <> lastrow
@@ -459,6 +448,131 @@ t     CSTRING(48)
       SHOW(pX + Cal:WeekW - 3 - LEN(t) * Cal:CharW, cy + 2, t)
     END
   END
+
+
+!  One day cell, at a coordinate the caller worked out. Everything that makes a
+!  day look the way it does lives here, so the full repaint and the one-cell
+!  repaint can never drift apart.
+!    pErase - 1 when painting over a cell that is already on screen. The full
+!             Draw() clears the whole canvas first and passes 0, which saves a
+!             BOX per cell over a year.
+MyCalendarClass.DrawCell PROCEDURE(LONG pDate,LONG pX,LONG pY,BYTE pErase)
+sel  BYTE,AUTO
+dow  LONG,AUTO
+t    CSTRING(12)
+  CODE
+  sel = SELF.InSelection(pDate)
+!  BOX outlines the rectangle in the CURRENT pen, so the pen has to be set
+!  every time - otherwise a cell borrows whatever colour the last thing drawn
+!  left behind, and the same day comes out differently depending on what was
+!  painted before it. Pen = fill gives a clean edge-to-edge wash.
+  IF pErase
+    SETPENCOLOR(SELF.BackColor)
+    BOX(pX, pY, Cal:CellW, Cal:CellH, SELF.BackColor)
+  END
+  IF sel = 2
+    SETPENCOLOR(SELF.RangeColor)
+    BOX(pX, pY, Cal:CellW, Cal:CellH, SELF.RangeColor)
+  ELSIF sel = 1
+    SETPENCOLOR(SELF.SelColor)
+    BOX(pX, pY, Cal:CellW, Cal:CellH, SELF.SelColor)
+  END
+  IF SELF.ShowToday AND pDate = TODAY()                     ! a ring, so it survives a fill
+    SETPENCOLOR(SELF.TodayColor)
+    LINE(pX, pY, Cal:CellW - 1, 0)
+    LINE(pX, pY + Cal:CellH - 1, Cal:CellW - 1, 0)
+    LINE(pX, pY, 0, Cal:CellH - 1)
+    LINE(pX + Cal:CellW - 1, pY, 0, Cal:CellH - 1)
+  END
+  dow = pDate % 7
+  IF sel = 1
+    SETPENCOLOR(SELF.SelTextColor)
+  ELSIF ~SELF.Pickable(pDate) OR dow = 0 OR dow = 6
+    SETPENCOLOR(SELF.MutedColor)
+  ELSE
+    SETPENCOLOR(SELF.InkColor)
+  END
+  t = DAY(pDate)
+  t = CLIP(LEFT(t))
+  SHOW(pX + Cal:CellW - 3 - LEN(t) * Cal:CharW, pY + 2, t)
+
+
+!  Where a date's cell is on the canvas - the exact reverse of DateAt, and the
+!  same arithmetic Draw uses. Returns 0 if that date is not on screen.
+MyCalendarClass.CellAt PROCEDURE(LONG pDate,*LONG pX,*LONG pY)
+first LONG,AUTO
+bi    LONG,AUTO
+idx   LONG,AUTO
+gx    LONG,AUTO
+  CODE
+  pX = 0
+  pY = 0
+  IF ~pDate THEN RETURN 0 .
+  SELF.Layout()
+  first = SELF.FirstOfMonth(CHOOSE(SELF.Anchor <> 0,SELF.Anchor,TODAY()))
+  bi    = (YEAR(pDate) - YEAR(first)) * 12 + MONTH(pDate) - MONTH(first)
+  IF bi < 0 OR bi >= SELF.Months THEN RETURN 0 .            ! not one of the months shown
+  gx  = (bi % SELF.GridCols) * (SELF.BlockW + Cal:Gap) + |
+        CHOOSE(SELF.ShowWeekNo = 1,Cal:WeekW,0)
+  idx = SELF.ColumnOf(SELF.FirstOfMonth(pDate)) + DAY(pDate) - 1
+  pX  = gx + (idx % 7) * Cal:CellW
+  pY  = INT(bi / SELF.GridCols) * (SELF.BlockH + Cal:Gap) + |
+        Cal:TitleH + Cal:DayH + INT(idx / 7) * Cal:CellH
+  RETURN 1
+
+
+!  Repaint a single day where it sits, leaving the rest of the canvas alone.
+MyCalendarClass.DrawDay PROCEDURE(WINDOW pWin,SIGNED pImage,LONG pDate)
+cx LONG,AUTO
+cy LONG,AUTO
+  CODE
+  IF ~SELF.CellAt(pDate,cx,cy) THEN RETURN .
+  SELF.Canvas = pImage
+  SETTARGET(pWin,pImage)
+  SELF.DrawCell(pDate,cx,cy,1)
+  SETTARGET()
+
+
+!  The selection has just changed from (pOldFrom,pOldTo) to whatever Date1 and
+!  Date2 now say. Repaint ONLY the days that look different because of it, and
+!  return how many that was.
+!
+!  This is the whole reason a drag across a year is smooth: dragging the end of
+!  a range by one day repaints one or two cells instead of the ~1,100 drawing
+!  calls a full Draw() of a twelve-month canvas costs.
+MyCalendarClass.DrawChanged PROCEDURE(WINDOW pWin,SIGNED pImage,LONG pOldFrom,LONG pOldTo)
+lo LONG(0)
+hi LONG(0)
+a  LONG,AUTO
+b  LONG,AUTO
+d  LONG,AUTO
+n  LONG(0)
+cx LONG,AUTO
+cy LONG,AUTO
+  CODE
+  IF pOldFrom                                               ! the span the old range covered
+    lo = pOldFrom
+    hi = CHOOSE(pOldTo <> 0,pOldTo,pOldFrom)
+  END
+  IF SELF.Date1                                             ! ...widened by the new one
+    a = SELF.Date1
+    b = CHOOSE(SELF.Date2 <> 0,SELF.Date2,SELF.Date1)
+    IF ~lo OR a < lo THEN lo = a .
+    IF b > hi         THEN hi = b .
+  END
+  IF ~lo THEN RETURN 0 .                                    ! nothing was selected either way
+  SELF.Canvas = pImage
+  SETTARGET(pWin,pImage)
+  LOOP d = lo TO hi
+    IF SELF.StateIn(d,pOldFrom,pOldTo) <> SELF.StateIn(d,SELF.Date1,SELF.Date2)
+      IF SELF.CellAt(d,cx,cy)                               ! skip anything scrolled off
+        SELF.DrawCell(d,cx,cy,1)
+        n += 1
+      END
+    END
+  END
+  SETTARGET()
+  RETURN n
 
 
 !  x,y are relative to the image's top-left, the same space Draw uses.
@@ -628,6 +742,9 @@ d            LONG,AUTO
 hover        LONG(0)
 moved        BYTE(0)
 pend         LONG(0)
+of1          LONG(0)                                        ! the selection before the mouse
+of2          LONG(0)                                        ! touched it - see the Touched routine
+anc          LONG(0)                                        ! the view's anchor, held still while dragging
 winW         LONG,AUTO
 cx           LONG,AUTO
 fy           LONG,AUTO
@@ -709,12 +826,15 @@ CalWnd WINDOW('Calendar'),AT(,,372,252),FONT('Segoe UI',9,,FONT:regular,CHARSET:
         moved = 0
         hover = 0
         IF pend AND SELF.Pickable(pend)
+!         Pressing on a day STARTS OVER. Whatever was marked before is gone and
+!         this day is the anchor - so a sweep never leaves a stale range behind
+!         and the user always ends up with exactly what they just dragged.
           SELF.Dragging = CHOOSE(SELF.Selection = Cal:Range,1,0)
-          IF SELF.Selection = Cal:Single
-            SELF.Date1 = pend
-            SELF.Date2 = 0
-            DO Repaint
-          END
+          of1           = SELF.Date1
+          of2           = SELF.Date2
+          SELF.Date1    = pend
+          SELF.Date2    = 0
+          DO Touched
         ELSE
           pend = 0
         END
@@ -724,18 +844,21 @@ CalWnd WINDOW('Calendar'),AT(,,372,252),FONT('Segoe UI',9,,FONT:regular,CHARSET:
           IF d AND d <> hover
             hover = d
             moved = 1
-            SELF.SetRange(pend,d)                           ! live, while the button is down
-            DO Repaint
+            of1   = SELF.Date1
+            of2   = SELF.Date2
+            anc   = SELF.Anchor
+            SELF.SetRange(pend,d)                           ! live, while the button is down;
+            SELF.Anchor = anc                               ! backwards is fine, SetRange sorts
+!           SetRange moves the anchor to the start of the range, and the anchor
+!           is what decides which month is drawn first. Put it back, or sweeping
+!           up from a later month scrolls the view out from under the mouse.
+            DO Touched                                      ! only the cells that changed
           END
         END
       OF EVENT:MouseUp
         IF SELF.Dragging
-          SELF.Dragging = 0
-          IF ~moved AND pend                                ! a plain click, not a sweep
-            SELF.Pick(pend)                                 ! first click opens, second closes
-            DO Repaint
-          END
-        END
+          SELF.Dragging = 0                                 ! MouseDown already anchored it,
+        END                                                 ! so a click with no sweep is one day
         pend = 0
       END
 !  ---- navigation -----------------------------------------------------------
@@ -806,9 +929,11 @@ CalWnd WINDOW('Calendar'),AT(,,372,252),FONT('Segoe UI',9,,FONT:regular,CHARSET:
 !  ---- footer ---------------------------------------------------------------
     OF ?CClear
       IF EVENT() = EVENT:Accepted
+        of1        = SELF.Date1
+        of2        = SELF.Date2
         SELF.Date1 = 0
         SELF.Date2 = 0
-        DO Repaint
+        DO Touched
       END
     OF ?COk
       IF EVENT() = EVENT:Accepted
@@ -889,6 +1014,13 @@ Moved ROUTINE
 
 Repaint ROUTINE
   SELF.Draw(CalWnd,?CCanvas)
+  DO ShowPick
+
+!  The selection moved, and nothing else did. Repaint the handful of cells that
+!  look different rather than the whole canvas - this is what keeps a drag
+!  smooth on the six-month and full-year views.
+Touched ROUTINE
+  SELF.DrawChanged(CalWnd,?CCanvas,of1,of2)
   DO ShowPick
 
 ShowPick ROUTINE

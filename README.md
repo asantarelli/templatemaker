@@ -583,7 +583,8 @@ date back into the field**.
 **One button can fill in two fields.** Set *Pick* to *a from-and-to range* and the user **drags across the
 days** — over as many months as are on screen — to sweep out a period; the first day goes into the FROM field
 and the last into the TO field, sorted whichever way they dragged. The selection follows the mouse live, and
-clicking one day then another marks the range too.
+**every press starts a fresh range** — putting the mouse down on a day clears whatever was marked before and
+anchors there, so you never have to untangle a new sweep from the last one.
 
 **How much is on screen is up to you and the user**: one month, two, three, six, or a **full year** — and two
 and three can be stacked **across** (side by side) or **down** (one under the other), with six going 3×2 or

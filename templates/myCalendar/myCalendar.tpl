@@ -71,7 +71,7 @@
   #ENDTAB
   #TAB('&Defaults')
     #BOXED('Language')
-      #PROMPT('Calendar &language:',DROP('English[1]|Espaï¿½ol (Spanish)[2]')),%mdgLanguage,DEFAULT('1')
+      #PROMPT('Calendar &language:',DROP('English[1]|Español (Spanish)[2]')),%mdgLanguage,DEFAULT('1')
       #DISPLAY('The language every calendar in this application opens in: the')
       #DISPLAY('month names, the day headings, the view list and the buttons.')
       #DISPLAY('Each calendar button can override this on its own tab.')
@@ -153,7 +153,8 @@ myCalendarWeekNo     BYTE(%mdgWeekNo)                     ! show the week-number
         #DISPLAY('One button, two fields. The user drags across the days - over')
         #DISPLAY('as many months as are on screen - and Accept writes the first')
         #DISPLAY('day into the FROM field and the last into the TO field.')
-        #DISPLAY('Clicking one day and then another marks the range too.')
+        #DISPLAY('Every press starts a fresh range: pressing on a day clears')
+        #DISPLAY('whatever was marked and anchors there. Sweep either way.')
       #ENDBOXED
       #PROMPT('&Window title (blank = the localised name):',@s64),%mdTitle,DEFAULT('')
     #ENDBOXED
@@ -173,7 +174,7 @@ myCalendarWeekNo     BYTE(%mdgWeekNo)                     ! show the week-number
       #PROMPT('&Ring today''s date',CHECK),%mdToday,DEFAULT(1),AT(10)
     #ENDBOXED
     #BOXED('Language')
-      #PROMPT('&Language:',DROP('Use the application setting[0]|English[1]|Espaï¿½ol (Spanish)[2]')),%mdLang,DEFAULT('0')
+      #PROMPT('&Language:',DROP('Use the application setting[0]|English[1]|Español (Spanish)[2]')),%mdLang,DEFAULT('0')
       #DISPLAY('The application setting lives on the myCalendar - Global')
       #DISPLAY('extension, and is what every calendar uses unless you say here.')
     #ENDBOXED
@@ -340,7 +341,7 @@ INCLUDE('MyCalendarClass.INC'),ONCE
       #PROMPT('&First day of the week:',DROP('Use the application setting[9]|Sunday[0]|Monday[1]')),%mnFirstDay,DEFAULT('9')
       #PROMPT('Show &week numbers:',DROP('Use the application setting[9]|No[0]|Yes[1]')),%mnWeekNo,DEFAULT('9')
       #PROMPT('&Ring today''s date',CHECK),%mnToday,DEFAULT(1),AT(10)
-      #PROMPT('&Language:',DROP('Use the application setting[0]|English[1]|Espaï¿½ol (Spanish)[2]')),%mnLang,DEFAULT('0')
+      #PROMPT('&Language:',DROP('Use the application setting[0]|English[1]|Español (Spanish)[2]')),%mnLang,DEFAULT('0')
     #ENDBOXED
   #ENDTAB
   #TAB('&Limits')

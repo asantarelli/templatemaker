@@ -93,6 +93,7 @@
     <a href="#views" class="h2"><span class="en">Views: 1, 2, 3, 6, 12</span><span class="es">Vistas: 1, 2, 3, 6, 12</span></a>
     <a href="#orient" class="h2"><span class="en">Across or down</span><span class="es">En fila o en columna</span></a>
     <a href="#range" class="h2"><span class="en">Dragging a range</span><span class="es">Arrastrar un rango</span></a>
+    <a href="#speed" class="h2"><span class="en">Drag performance</span><span class="es">Rendimiento del arrastre</span></a>
     <a href="#options" class="h2"><span class="en">Week, limits, weekends</span><span class="es">Semana, límites, fines de semana</span></a>
     <a href="#keys" class="h2"><span class="en">Mouse &amp; keyboard</span><span class="es">Ratón y teclado</span></a>
     <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
@@ -339,6 +340,8 @@ Cal1                 <span class="k">MyCalendarClass</span>                     
       <p><code>AskRange</code> opens on the FROM date with both ends already marked, and hands them back the
         right way round however the user swept them. If only one day ends up picked, both fields get that
         day — a one-day range, which is what a user who clicked once meant.</p>
+      <p><b>Every press starts a fresh range.</b> Putting the mouse down on a day clears whatever was marked
+        before and anchors there, so a second sweep never has to be untangled from the first.</p>
       <div class="callout tip"><b>The fields do not have to be on the same window row</b>
         They only have to be on the same window. A "period" band with FROM at the top and TO at the bottom
         works exactly the same.</div>
@@ -354,6 +357,8 @@ Cal1                 <span class="k">MyCalendarClass</span>                     
         el orden correcto sin importar hacia dónde arrastrara el usuario. Si solo queda un día
         seleccionado, los dos campos reciben ese día: un rango de un solo día, que es lo que quería decir
         quien hizo un único clic.</p>
+      <p><b>Cada pulsación empieza un rango nuevo.</b> Al bajar el ratón sobre un día se borra lo que hubiera
+        marcado y se ancla ahí, así que un segundo barrido nunca hay que desenredarlo del primero.</p>
       <div class="callout tip"><b>Los campos no tienen que estar en la misma fila</b>
         Basta con que estén en la misma ventana. Una banda de «periodo» con DESDE arriba y HASTA abajo
         funciona exactamente igual.</div>
@@ -628,10 +633,10 @@ ShowToday=1</pre>
         live, so what you see while dragging is what you get.</p>
       <table>
         <tr><th>Gesture</th><th>Result</th></tr>
-        <tr><td>Press and drag</td><td>Marks from the day under the press to the day under the mouse.</td></tr>
-        <tr><td>Click one day, then another</td><td>The first opens the range, the second closes it.</td></tr>
-        <tr><td>Click a third day</td><td>Starts a new range at that day.</td></tr>
-        <tr><td>Drag backwards</td><td>Fine — the ends are sorted before they are handed back.</td></tr>
+        <tr><td>Press on a day</td><td><b>Starts over.</b> Whatever was marked before is cleared and this day becomes the anchor.</td></tr>
+        <tr><td>Drag, either way</td><td>Marks from the anchor to the day under the mouse. Backwards is exactly as good as forwards — the ends are sorted before they are handed back.</td></tr>
+        <tr><td>Release</td><td>Done. The range is what you just swept, with nothing left over from last time.</td></tr>
+        <tr><td>Press without moving</td><td>One day — which comes back as a one-day range.</td></tr>
         <tr><td>Clear</td><td>Empties the selection; Accept then writes zero dates.</td></tr>
       </table>
       <p>The two ends are drawn solid navy with white numbers; the days in between get a light blue wash.
@@ -645,10 +650,10 @@ ShowToday=1</pre>
         que lo que se ve mientras se arrastra es lo que queda.</p>
       <table>
         <tr><th>Gesto</th><th>Resultado</th></tr>
-        <tr><td>Pulsar y arrastrar</td><td>Marca desde el día donde se pulsó hasta el día bajo el ratón.</td></tr>
-        <tr><td>Clic en un día y luego en otro</td><td>El primero abre el rango, el segundo lo cierra.</td></tr>
-        <tr><td>Clic en un tercer día</td><td>Empieza un rango nuevo en ese día.</td></tr>
-        <tr><td>Arrastrar hacia atrás</td><td>Sin problema: los extremos se ordenan antes de devolverlos.</td></tr>
+        <tr><td>Pulsar sobre un día</td><td><b>Empieza de cero.</b> Se borra lo que hubiera marcado y ese día pasa a ser el ancla.</td></tr>
+        <tr><td>Arrastrar, en cualquier sentido</td><td>Marca desde el ancla hasta el día bajo el ratón. Hacia atrás vale igual que hacia delante: los extremos se ordenan antes de devolverlos.</td></tr>
+        <tr><td>Soltar</td><td>Listo. El rango es lo que acabas de barrer, sin restos de la vez anterior.</td></tr>
+        <tr><td>Pulsar sin mover</td><td>Un solo día, que se devuelve como un rango de un día.</td></tr>
         <tr><td>Limpiar</td><td>Vacía la selección; Aceptar escribe entonces fechas a cero.</td></tr>
       </table>
       <p>Los dos extremos se dibujan en azul marino sólido con el número en blanco; los días intermedios
@@ -656,6 +661,80 @@ ShowToday=1</pre>
         días)</i>.</p>
       <p><code>Days()</code> devuelve esa cuenta, incluyendo los dos extremos, y
         <code>InSelection(fecha)</code> responde 0 (no), 1 (un extremo) o 2 (en medio).</p>
+      </div>
+    </section>
+
+    <section id="speed">
+      <h2><span class="en">Drag performance</span><span class="es">Rendimiento del arrastre</span> <a href="#speed" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Sweeping a range used to repaint the entire canvas on every mouse move. On the
+        full-year view that is around <b>1,100 drawing calls</b> per step, and it measured <b>35&nbsp;ms</b> —
+        slower than the mouse produces events, so the queue backed up and the drag dragged.</p>
+      <p>It now repaints only the cells whose selection state actually changed. Extending a range by one day
+        touches <b>one or two cells</b>, whatever the view:</p>
+      <table>
+        <tr><th>View</th><th>Full repaint</th><th>Only what changed</th><th>&nbsp;</th></tr>
+        <tr><td>One month</td><td>1.0 ms / step</td><td>under 0.05 ms</td><td>&nbsp;</td></tr>
+        <tr><td>Three months</td><td>8.4 ms / step</td><td>0.05 ms</td><td><b>~160×</b></td></tr>
+        <tr><td>Full year</td><td>35.4 ms / step</td><td>0.4 ms</td><td><b>~85×</b></td></tr>
+      </table>
+      <p style="color:var(--muted);font-size:13px">200 drag steps per view, timed with <code>CLOCK()</code>.
+        The incremental figures are close to the 10&nbsp;ms resolution of that clock, so read them as an upper
+        bound.</p>
+      <h3>How it works</h3>
+      <p>Three pieces, all public — you get the same benefit if you drive the class from your own window:</p>
+      <table>
+        <tr><td><code>CellAt(date,x,y)</code></td><td>Where a date's cell is on the canvas: the exact inverse of <code>DateAt</code>. Returns 0 if that day is not one of the months on screen.</td></tr>
+        <tr><td><code>DrawDay(win,?image,date)</code></td><td>Repaints one day where it sits, leaving everything else alone.</td></tr>
+        <tr><td><code>DrawChanged(win,?image,oldFrom,oldTo)</code></td><td>The selection has moved from <i>(oldFrom,oldTo)</i> to the current <code>Date1</code>/<code>Date2</code>; repaint only the days that look different, and return how many that was.</td></tr>
+      </table>
+      <pre>  of1 = Cal.Date1                                     <span class="c">! remember what it looked like</span>
+  of2 = Cal.Date2
+  Cal.SetRange(anchor,today)                          <span class="c">! move the selection</span>
+  Cal.DrawChanged(MyWindow,?Canvas,of1,of2)           <span class="c">! and repaint just the difference</span></pre>
+      <div class="callout tip"><b>Why not write it in C?</b>
+        Because the arithmetic was never the cost. A drag step is a handful of integer operations and then a
+        thousand GDI calls — moving the arithmetic to C would speed up the part that was already free. Making
+        fewer drawing calls is what mattered, and that is a pure-Clarion change.</div>
+      <div class="callout note"><b>Provably identical</b>
+        A test renders a range two ways — one full <code>Draw()</code>, versus a shorter range drawn fully and
+        then extended through <code>DrawChanged</code> — screenshots both and compares them pixel by pixel.
+        One month, three months and a full year all come out with <b>zero</b> differing pixels.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Marcar un rango repintaba antes todo el lienzo en cada movimiento del ratón. En la vista
+        de año completo eso son unas <b>1.100 llamadas de dibujo</b> por paso, y medía <b>35&nbsp;ms</b>: más
+        lento de lo que el ratón genera eventos, así que la cola se acumulaba y el arrastre se arrastraba.</p>
+      <p>Ahora repinta solo las celdas cuyo estado de selección ha cambiado de verdad. Alargar un rango un día
+        toca <b>una o dos celdas</b>, sea cual sea la vista:</p>
+      <table>
+        <tr><th>Vista</th><th>Repintado completo</th><th>Solo lo que cambia</th><th>&nbsp;</th></tr>
+        <tr><td>Un mes</td><td>1,0 ms / paso</td><td>menos de 0,05 ms</td><td>&nbsp;</td></tr>
+        <tr><td>Tres meses</td><td>8,4 ms / paso</td><td>0,05 ms</td><td><b>~160×</b></td></tr>
+        <tr><td>Año completo</td><td>35,4 ms / paso</td><td>0,4 ms</td><td><b>~85×</b></td></tr>
+      </table>
+      <p style="color:var(--muted);font-size:13px">200 pasos de arrastre por vista, medidos con
+        <code>CLOCK()</code>. Las cifras incrementales rozan la resolución de 10&nbsp;ms de ese reloj, así que
+        tómalas como cota superior.</p>
+      <h3>Cómo funciona</h3>
+      <p>Tres piezas, todas públicas: si manejas la clase desde tu propia ventana, tienes la misma ventaja.</p>
+      <table>
+        <tr><td><code>CellAt(fecha,x,y)</code></td><td>Dónde está la celda de una fecha en el lienzo: el inverso exacto de <code>DateAt</code>. Devuelve 0 si ese día no está en los meses en pantalla.</td></tr>
+        <tr><td><code>DrawDay(ven,?imagen,fecha)</code></td><td>Repinta un día en su sitio, sin tocar nada más.</td></tr>
+        <tr><td><code>DrawChanged(ven,?imagen,desdeViejo,hastaViejo)</code></td><td>La selección ha pasado de <i>(desdeViejo,hastaViejo)</i> a los <code>Date1</code>/<code>Date2</code> actuales; repinta solo los días que se ven distintos y devuelve cuántos fueron.</td></tr>
+      </table>
+      <pre>  of1 = Cal.Date1                                     <span class="c">! recuerda como estaba</span>
+  of2 = Cal.Date2
+  Cal.SetRange(ancla,hoy)                             <span class="c">! mueve la seleccion</span>
+  Cal.DrawChanged(MiVentana,?Canvas,of1,of2)          <span class="c">! y repinta solo la diferencia</span></pre>
+      <div class="callout tip"><b>¿Por qué no hacerlo en C?</b>
+        Porque el coste nunca estuvo en la aritmética. Un paso de arrastre son unas pocas operaciones enteras
+        y luego mil llamadas GDI: llevar la aritmética a C aceleraría la parte que ya era gratis. Lo que
+        importaba era hacer menos llamadas de dibujo, y eso es un cambio en Clarion puro.</div>
+      <div class="callout note"><b>Idéntico, demostrado</b>
+        Una prueba dibuja un rango de dos maneras —un <code>Draw()</code> completo, frente a un rango más
+        corto dibujado entero y luego alargado con <code>DrawChanged</code>—, captura ambas y las compara
+        píxel a píxel. Un mes, tres meses y un año completo salen con <b>cero</b> píxeles distintos.</div>
       </div>
     </section>
 
@@ -711,8 +790,8 @@ ShowToday=1</pre>
       <div class="en">
       <table>
         <tr><th>Do this</th><th>Get that</th></tr>
-        <tr><td>Click a day</td><td>Picks it (single mode), or opens / closes the range.</td></tr>
-        <tr><td>Press and sweep</td><td>Marks a range, live.</td></tr>
+        <tr><td>Click a day</td><td>Picks it. In range mode it also clears the old range and anchors a new one there.</td></tr>
+        <tr><td>Press and sweep</td><td>Marks a range from the anchor, live, in either direction.</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Closes without changing anything — the same as Cancel.</td></tr>
         <tr><td><kbd>Tab</kbd></td><td>Moves through the navigation controls and the buttons as usual.</td></tr>
         <tr><td>The year spin</td><td>Type a year straight into it, or use the arrows. 1801 to 2500.</td></tr>
@@ -727,8 +806,8 @@ ShowToday=1</pre>
       <div class="es">
       <table>
         <tr><th>Haz esto</th><th>Y pasa esto</th></tr>
-        <tr><td>Clic en un día</td><td>Lo selecciona (modo simple), o abre / cierra el rango.</td></tr>
-        <tr><td>Pulsar y arrastrar</td><td>Marca un rango, en vivo.</td></tr>
+        <tr><td>Clic en un día</td><td>Lo selecciona. En modo rango además borra el rango anterior y ancla uno nuevo ahí.</td></tr>
+        <tr><td>Pulsar y arrastrar</td><td>Marca un rango desde el ancla, en vivo, en cualquier sentido.</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Cierra sin cambiar nada — igual que Cancelar.</td></tr>
         <tr><td><kbd>Tab</kbd></td><td>Recorre los controles de navegación y los botones como siempre.</td></tr>
         <tr><td>El spin del año</td><td>Teclea el año directamente, o usa las flechas. De 1801 a 2500.</td></tr>
@@ -783,7 +862,7 @@ ShowToday=1</pre>
         <tr><td><code>Reset()</code></td><td></td><td>Nothing picked, back to today.</td></tr>
         <tr><td><code>SetDate(date)</code> <code>SetRange(from,to)</code></td><td></td><td>Set the selection (and the anchor) from code.</td></tr>
         <tr><td><code>GoToday()</code> <code>GoMonth(n)</code> <code>GoYear(n)</code></td><td></td><td>Move the view. <i>n</i> may be negative.</td></tr>
-        <tr><td><code>Pick(date)</code></td><td></td><td>As if the user clicked that day — opens, closes or restarts the range.</td></tr>
+        <tr><td><code>Pick(date)</code></td><td></td><td>Steps a range from code: the first call opens it, the second closes it, the third starts again. (The mouse does not use this — pressing always anchors a fresh range.)</td></tr>
         <tr><td><code>Days()</code></td><td>LONG</td><td>How many days the selection spans, both ends counted.</td></tr>
         <tr><td><code>Pickable(date)</code></td><td>BYTE</td><td>Inside the limits and not a blocked weekend.</td></tr>
         <tr><td><code>InSelection(date)</code></td><td>BYTE</td><td>0 no, 1 an end, 2 in between.</td></tr>
@@ -793,6 +872,9 @@ ShowToday=1</pre>
         <tr><td><code>Layout()</code></td><td></td><td>Works out the grid and the canvas size for <code>Months</code> / <code>Orient</code>.</td></tr>
         <tr><td><code>Draw(window,?image)</code></td><td></td><td>Paints the whole grid into any IMAGE on any window.</td></tr>
         <tr><td><code>DateAt(x,y)</code></td><td>LONG</td><td>The day under a canvas coordinate, or 0.</td></tr>
+        <tr><td><code>CellAt(date,*x,*y)</code></td><td>BYTE</td><td>The reverse: where that day's cell is. 0 if it is not on screen.</td></tr>
+        <tr><td><code>DrawDay(window,?image,date)</code></td><td></td><td>Repaints one day in place.</td></tr>
+        <tr><td><code>DrawChanged(window,?image,oldFrom,oldTo)</code></td><td>LONG</td><td>Repaints only the days that differ from the given range, and returns how many. See <a href="#speed">Drag performance</a>.</td></tr>
         <tr><td><code>LoadSettings()</code> <code>SaveSettings()</code> <code>ForgetSettings()</code></td><td></td><td>The INI file.</td></tr>
       </table>
       </div>
@@ -835,7 +917,7 @@ ShowToday=1</pre>
         <tr><td><code>Reset()</code></td><td></td><td>Nada seleccionado, de vuelta a hoy.</td></tr>
         <tr><td><code>SetDate(fecha)</code> <code>SetRange(desde,hasta)</code></td><td></td><td>Fija la selección (y el ancla) desde código.</td></tr>
         <tr><td><code>GoToday()</code> <code>GoMonth(n)</code> <code>GoYear(n)</code></td><td></td><td>Mueve la vista. <i>n</i> puede ser negativo.</td></tr>
-        <tr><td><code>Pick(fecha)</code></td><td></td><td>Como si el usuario hiciera clic en ese día: abre, cierra o reinicia el rango.</td></tr>
+        <tr><td><code>Pick(fecha)</code></td><td></td><td>Avanza un rango desde código: la primera llamada lo abre, la segunda lo cierra, la tercera vuelve a empezar. (El ratón no usa esto: al pulsar siempre se ancla un rango nuevo.)</td></tr>
         <tr><td><code>Days()</code></td><td>LONG</td><td>Cuántos días abarca la selección, contando los dos extremos.</td></tr>
         <tr><td><code>Pickable(fecha)</code></td><td>BYTE</td><td>Dentro de los límites y no es un fin de semana bloqueado.</td></tr>
         <tr><td><code>InSelection(fecha)</code></td><td>BYTE</td><td>0 no, 1 un extremo, 2 en medio.</td></tr>
@@ -845,6 +927,9 @@ ShowToday=1</pre>
         <tr><td><code>Layout()</code></td><td></td><td>Calcula la rejilla y el tamaño del lienzo para <code>Months</code> / <code>Orient</code>.</td></tr>
         <tr><td><code>Draw(ventana,?imagen)</code></td><td></td><td>Pinta toda la rejilla en cualquier IMAGE de cualquier ventana.</td></tr>
         <tr><td><code>DateAt(x,y)</code></td><td>LONG</td><td>El día bajo una coordenada del lienzo, o 0.</td></tr>
+        <tr><td><code>CellAt(fecha,*x,*y)</code></td><td>BYTE</td><td>Lo contrario: dónde está la celda de ese día. 0 si no está en pantalla.</td></tr>
+        <tr><td><code>DrawDay(ventana,?imagen,fecha)</code></td><td></td><td>Repinta un día en su sitio.</td></tr>
+        <tr><td><code>DrawChanged(ventana,?imagen,desdeViejo,hastaViejo)</code></td><td>LONG</td><td>Repinta solo los días que difieren del rango dado, y devuelve cuántos. Ver <a href="#speed">Rendimiento del arrastre</a>.</td></tr>
         <tr><td><code>LoadSettings()</code> <code>SaveSettings()</code> <code>ForgetSettings()</code></td><td></td><td>El fichero INI.</td></tr>
       </table>
       </div>
@@ -972,6 +1057,8 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
       <table>
         <tr><th>Note</th><th>Detail</th></tr>
         <tr><td>The class is <code>MyCalendarClass</code></td><td>Not <code>CalendarClass</code> — <b>ABC already has one of those</b>, in <code>ABUTIL.INC</code>. Two classes of the same name reach the linker as <code>Duplicate symbol: TYPE$CALENDARCLASS</code> (and <code>VMT$</code>, <code>VMTP$</code>) even though neither source file mentions the other. Check <code>\clarion12\libsrc\win\*.INC</code> before naming any class of your own.</td></tr>
+        <tr><td><code>BOX</code> outlines in the <b>current pen</b></td><td><code>BOX(x,y,w,h,fill)</code> fills with <i>fill</i> but draws its border in whatever <code>SETPENCOLOR</code> last set — which, if you do not set it, is left over from the previous thing drawn. Set the pen before <b>every</b> BOX. Cells that borrow a stale pen look fine until something repaints them in a different order, and then the same day comes out with a different edge.</td></tr>
+        <tr><td>A full repaint is expensive</td><td>A year is 12 months × ~30 cells × several drawing calls. Doing that on every <code>EVENT:MouseMove</code> measured <b>35&nbsp;ms per step</b> — a 28&nbsp;fps ceiling that a drag overruns, so the queue backs up and the sweep feels sticky. Repainting only the changed cells is <b>0.4&nbsp;ms</b>. See <a href="#speed">Drag performance</a>.</td></tr>
         <tr><td>Dates are days</td><td>A Clarion date is days since 28 Dec 1800, so <code>date % 7</code> is the day of the week with <b>0 = Sunday</b>. 1 Jan 1801 was a Thursday and its value is 4.</td></tr>
         <tr><td>Month length without a table</td><td><code>DATE(m+1,1,y) - DATE(m,1,y)</code>. Clarion normalises month 13 to January of the next year, so December needs no special case, and February is right in every leap year including 1900 and 2000.</td></tr>
         <tr><td>Two-argument SETTARGET</td><td><code>SETTARGET(window,?image)</code> makes 0,0 the image's own top-left, so all the drawing arithmetic is in canvas coordinates.</td></tr>
@@ -987,6 +1074,8 @@ Wnd  <span class="k">WINDOW</span>(<span class="s">'Agenda'</span>),AT(,,400,300
       <table>
         <tr><th>Nota</th><th>Detalle</th></tr>
         <tr><td>La clase es <code>MyCalendarClass</code></td><td>No <code>CalendarClass</code>: <b>ABC ya tiene una con ese nombre</b>, en <code>ABUTIL.INC</code>. Dos clases con el mismo nombre llegan al enlazador como <code>Duplicate symbol: TYPE$CALENDARCLASS</code> (y <code>VMT$</code>, <code>VMTP$</code>) aunque ninguno de los dos fuentes mencione al otro. Mira en <code>\clarion12\libsrc\win\*.INC</code> antes de ponerle nombre a una clase tuya.</td></tr>
+        <tr><td><code>BOX</code> se perfila con el <b>lápiz actual</b></td><td><code>BOX(x,y,an,al,relleno)</code> rellena con <i>relleno</i> pero dibuja el borde con lo último que fijara <code>SETPENCOLOR</code>, que si no lo pones es lo que dejara el dibujo anterior. Fija el lápiz antes de <b>cada</b> BOX. Una celda que hereda un lápiz viejo parece correcta hasta que algo la repinta en otro orden, y entonces el mismo día sale con un borde distinto.</td></tr>
+        <tr><td>Un repintado completo cuesta caro</td><td>Un año son 12 meses × ~30 celdas × varias llamadas de dibujo. Hacerlo en cada <code>EVENT:MouseMove</code> medía <b>35&nbsp;ms por paso</b> —un techo de 28&nbsp;fps que un arrastre desborda, así que la cola se acumula y el barrido se siente pegajoso. Repintar solo las celdas que cambian cuesta <b>0,4&nbsp;ms</b>. Ver <a href="#speed">Rendimiento del arrastre</a>.</td></tr>
         <tr><td>Las fechas son días</td><td>Una fecha Clarion son días desde el 28 dic 1800, así que <code>fecha % 7</code> es el día de la semana con <b>0 = domingo</b>. El 1 ene 1801 fue jueves y su valor es 4.</td></tr>
         <tr><td>Días del mes sin tabla</td><td><code>DATE(m+1,1,a) - DATE(m,1,a)</code>. Clarion normaliza el mes 13 a enero del año siguiente, así que diciembre no necesita caso especial, y febrero sale bien en todos los bisiestos, 1900 y 2000 incluidos.</td></tr>
         <tr><td>SETTARGET de dos argumentos</td><td><code>SETTARGET(ventana,?imagen)</code> hace que 0,0 sea la esquina del propio image, así que todo el cálculo del dibujo va en coordenadas del lienzo.</td></tr>

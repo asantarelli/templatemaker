@@ -180,9 +180,18 @@ DateText             PROCEDURE(LONG pDate),STRING   ! the date as the user sees 
 
 ! ---- drawing and hit testing ----------------------------------------------
 Layout               PROCEDURE                 ! work out the grid for Months
-Draw                 PROCEDURE(WINDOW pWin,SIGNED pImage)
+Draw                 PROCEDURE(WINDOW pWin,SIGNED pImage)   ! the whole canvas
 DateAt               PROCEDURE(LONG pX,LONG pY),LONG        ! the day under a point, or 0
+CellAt               PROCEDURE(LONG pDate,*LONG pX,*LONG pY),BYTE  ! and the reverse; 0 = off screen
 InSelection          PROCEDURE(LONG pDate),BYTE             ! 0 no, 1 an end, 2 between
+
+! ---- drawing ONE day, so a drag does not repaint the world -----------------
+!  A full Draw() of a year is 12 months x ~30 cells x 3 drawing calls, and a
+!  drag would do that on every mouse move. DrawChanged repaints only the cells
+!  whose selection state actually differs from the range it is given - one or
+!  two of them, for a drag of one day - which is what makes sweeping smooth.
+DrawDay              PROCEDURE(WINDOW pWin,SIGNED pImage,LONG pDate)
+DrawChanged          PROCEDURE(WINDOW pWin,SIGNED pImage,LONG pOldFrom,LONG pOldTo),LONG,PROC
 
 ! ---- words ----------------------------------------------------------------
 Txt                  PROCEDURE(LONG pId),STRING
@@ -194,6 +203,8 @@ ForgetSettings       PROCEDURE()
 
 ! ---- internals (protected) ------------------------------------------------
 DrawMonth            PROCEDURE(LONG pFirst,LONG pX,LONG pY),PROTECTED
+DrawCell             PROCEDURE(LONG pDate,LONG pX,LONG pY,BYTE pErase),PROTECTED
+StateIn              PROCEDURE(LONG pDate,LONG pFrom,LONG pTo),BYTE,PROTECTED
 IniPath              PROCEDURE(),STRING,PROTECTED
 IniSection           PROCEDURE(),STRING,PROTECTED
                    END
