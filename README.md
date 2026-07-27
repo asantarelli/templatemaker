@@ -559,7 +559,9 @@ its 24-case arithmetic suite runs. Three registrations: **myCalcButton** (the dr
 **myCalcHere** (a code template for an existing button, menu item or hot key) and **myCalcGlobal** (the class
 plus the application language). Copy `CalcClass.inc`, `CalcClass.clw` (**ANSI, CRLF**) and `calc16.ico` to the
 redirection path — the icon is compiled into the exe's resources, so there is nothing extra to deploy. A
-runnable demo is [`examples/myCalc/CalcDemo.clw`](examples/myCalc/CalcDemo.clw).
+runnable demo is [`examples/myCalc/CalcDemo.clw`](examples/myCalc/CalcDemo.clw), and the full
+programmer's documentation — **bilingual English/Spanish** — is
+[`docs/myCalc-template.html`](docs/myCalc-template.html).
 
 ![The myCalc demo](docs/myCalc-demo.png)
 

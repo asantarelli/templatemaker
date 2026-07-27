@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>myCalc — Programmer's Documentation / Documentación del programador</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line)} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:60px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .danger{background:var(--red-bg);border-color:#e6b8b2;color:#7c241b}
+  .callout b{display:block;margin-bottom:2px}
+  .callout b.i{display:inline;margin:0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .top{font-size:12px;color:var(--muted);float:right}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+</style>
+</head><body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>myCalc</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#button" class="h2"><span class="en">The calculator button</span><span class="es">El botón de la calculadora</span></a>
+    <a href="#code" class="h2"><span class="en">An existing button or menu</span><span class="es">Un botón o menú que ya tienes</span></a>
+    <a href="#language" class="h2"><span class="en">Language (EN / ES)</span><span class="es">Idioma (EN / ES)</span></a>
+    <a href="#remember" class="h2"><span class="en">Remembering the last session</span><span class="es">Recordar la última sesión</span></a>
+    <div class="grp"><span class="en">The calculators</span><span class="es">Las calculadoras</span></div>
+    <a href="#standard" class="h2"><span class="en">Standard</span><span class="es">Estándar</span></a>
+    <a href="#scientific" class="h2"><span class="en">Scientific</span><span class="es">Científica</span></a>
+    <a href="#programmer" class="h2"><span class="en">Programmer</span><span class="es">Programador</span></a>
+    <a href="#accountant" class="h2"><span class="en">Accountant (tape)</span><span class="es">Contable (cinta)</span></a>
+    <a href="#roll" class="h2"><span class="en">The paper roll</span><span class="es">La cinta de papel</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#keys" class="h2"><span class="en">Keyboard</span><span class="es">Teclado</span></a>
+    <a href="#classref" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#hand" class="h2"><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span></a>
+    <a href="#traps" class="h2"><span class="en">Clarion notes</span><span class="es">Notas de Clarion</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>myCalc</h1>
+      <p class="en">A pop-up <b>calculator</b> beside any numeric field — standard, scientific, programmer and
+         an <b>accountant's tape</b>, sharing one paper roll. Press Accept and the answer lands in the field.
+         Pure Clarion, in English or Spanish.</p>
+      <p class="es">Una <b>calculadora</b> emergente junto a cualquier campo numérico — estándar, científica,
+         de programador y una <b>cinta de contable</b>, compartiendo una misma cinta de papel. Pulsa Aceptar y
+         el resultado cae en el campo. Clarion puro, en inglés o español.</p>
+      <span class="pill en">4 calculators · paper roll · remembers the mode · EN / ES · no dependencies</span>
+      <span class="pill es">4 calculadoras · cinta de papel · recuerda el modo · EN / ES · sin dependencias</span>
+    </header>
+
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="body">
+
+    <section id="over">
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Drag <b>myCalc&nbsp;-&nbsp;Calculator button</b> next to a numeric entry and point it at
+        that entry. A small calculator icon appears beside the field; pressing it opens a modal calculator
+        already holding whatever the field contains, and <b>Accept</b> puts the answer back.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalc-demo.png" alt="Three fields, each with a calculator button"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      <p><b>Four calculators live in one window</b>, chosen from a drop list, and they share one paper roll —
+        the adding-machine tape in accountant mode, the history of finished calculations in the others.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myCalc</th></tr>
+        <tr><td>Needs a DLL / OCX / control</td><td><b>No</b> — pure Clarion, nothing to deploy</td></tr>
+        <tr><td>Calculators</td><td>Standard, Scientific, Programmer, Accountant (tape)</td></tr>
+        <tr><td>Paper roll</td><td>Tape or history, copyable to the clipboard</td></tr>
+        <tr><td>Remembers</td><td>Which calculator you were last on, and its options, between runs</td></tr>
+        <tr><td>Languages</td><td>English and Spanish, set once for the whole application</td></tr>
+        <tr><td>Writes back</td><td>Straight into the field the button sits beside</td></tr>
+      </table>
+      <div class="callout note"><b>Where it fits</b>
+        Anywhere there is a number to work out — an update form behind a browse, a totals window, a
+        parameters screen. The button is a normal control template, so it goes wherever you drop it.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Arrastra <b>myCalc&nbsp;-&nbsp;Calculator button</b> junto a un campo numérico y
+        apúntalo a ese campo. Aparece un pequeño icono de calculadora al lado; al pulsarlo se abre una
+        calculadora modal que ya contiene lo que hubiera en el campo, y <b>Aceptar</b> devuelve el
+        resultado.</p>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalc-demo.png" alt="Tres campos, cada uno con su botón de calculadora"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      <p><b>Cuatro calculadoras viven en una sola ventana</b>, elegidas de una lista desplegable, y comparten
+        una misma cinta de papel: la cinta de sumadora en el modo contable, y el historial de cálculos
+        terminados en los demás.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>myCalc</th></tr>
+        <tr><td>¿Necesita DLL / OCX / control?</td><td><b>No</b> — Clarion puro, nada que instalar</td></tr>
+        <tr><td>Calculadoras</td><td>Estándar, Científica, Programador, Contable (cinta)</td></tr>
+        <tr><td>Cinta de papel</td><td>Cinta o historial, se copia al portapapeles</td></tr>
+        <tr><td>Recuerda</td><td>En qué calculadora estabas, y sus opciones, entre ejecuciones</td></tr>
+        <tr><td>Idiomas</td><td>Inglés y español, se fija una vez para toda la aplicación</td></tr>
+        <tr><td>Devuelve el valor</td><td>Directo al campo junto al que está el botón</td></tr>
+      </table>
+      <div class="callout note"><b>Dónde encaja</b>
+        En cualquier sitio donde haya un número que calcular: el formulario de actualización detrás de un
+        browse, una ventana de totales, una pantalla de parámetros. El botón es una plantilla de control
+        normal, así que va donde tú lo sueltes.</div>
+      </div>
+    </section>
+
+    <section id="install">
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="en">
+      <ol>
+        <li>Copy <code>templates/myCalc/CalcClass.inc</code>, <code>CalcClass.clw</code> and
+          <code>calc16.ico</code> to a folder on the Clarion redirection path (your app folder, or
+          <code>\clarion12\libsrc\win</code>). The two source files <b>must be ANSI with CRLF line
+          endings</b>.</li>
+        <li>Copy <code>templates/myCalc/myCalc.tpl</code> into your template folder.</li>
+        <li>In the IDE: <b>Setup ▸ Template Registry ▸ Register</b>, pick <code>myCalc.tpl</code>.</li>
+        <li>Open a window, and from the control-template list drag
+          <b>myCalc - Calculator button beside a numeric field</b> next to the entry you want it to fill in.</li>
+        <li>Set <b>Field to calculate into</b> to that entry. That is the only required prompt.</li>
+      </ol>
+      <div class="callout tip"><b>The icon is a build-time file only</b>
+        Clarion compiles an <code>ICON()</code> into the executable's own resources, so
+        <code>calc16.ico</code> needs to be findable when you <i>build</i> — there is nothing extra to ship
+        with the finished program.</div>
+      <div class="callout note"><b>The global extension is added for you</b>
+        The button carries <code>REQ(myCalcGlobal)</code>, so dropping it adds <b class="i">myCalc - Global</b>
+        to the application automatically. That is where the class include and the
+        <a href="#language">language setting</a> live.</div>
+      <div class="filetree">
+templates/myCalc/<br>
+&nbsp;&nbsp;CalcClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the calculator: modes, actions, strings, prototypes</span><br>
+&nbsp;&nbsp;CalcClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the implementation: keypad, arithmetic, window</span><br>
+&nbsp;&nbsp;calc16.ico&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the little calculator on the button</span><br>
+&nbsp;&nbsp;myCalc.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">global extension + button control + code template</span><br>
+&nbsp;&nbsp;myCalc.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the four files above, for distribution</span><br>
+examples/myCalc/<br>
+&nbsp;&nbsp;CalcDemo.clw / .cwproj&nbsp;<span style="color:#6b7785">a runnable demo — three fields, three buttons</span>
+      </div>
+      </div>
+      <div class="es">
+      <ol>
+        <li>Copia <code>templates/myCalc/CalcClass.inc</code>, <code>CalcClass.clw</code> y
+          <code>calc16.ico</code> a una carpeta del camino de redirección de Clarion (la carpeta de tu app, o
+          <code>\clarion12\libsrc\win</code>). Los dos archivos de código <b>tienen que estar en ANSI y con
+          finales de línea CRLF</b>.</li>
+        <li>Copia <code>templates/myCalc/myCalc.tpl</code> a tu carpeta de plantillas.</li>
+        <li>En el IDE: <b>Setup ▸ Template Registry ▸ Register</b>, y elige <code>myCalc.tpl</code>.</li>
+        <li>Abre una ventana y arrastra desde la lista de plantillas de control
+          <b>myCalc - Calculator button beside a numeric field</b> junto al campo que quieras rellenar.</li>
+        <li>Pon <b>Field to calculate into</b> apuntando a ese campo. Es el único prompt obligatorio.</li>
+      </ol>
+      <div class="callout tip"><b>El icono solo hace falta al compilar</b>
+        Clarion mete el <code>ICON()</code> en los recursos del propio ejecutable, así que
+        <code>calc16.ico</code> tiene que encontrarse al <i>compilar</i> — no hay nada extra que distribuir
+        con el programa terminado.</div>
+      <div class="callout note"><b>La extensión global se agrega sola</b>
+        El botón lleva <code>REQ(myCalcGlobal)</code>, así que al soltarlo se añade
+        <b class="i">myCalc - Global</b> a la aplicación automáticamente. Ahí viven el include de la clase y
+        la <a href="#language">selección de idioma</a>.</div>
+      <div class="filetree">
+templates/myCalc/<br>
+&nbsp;&nbsp;CalcClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la calculadora: modos, acciones, textos, prototipos</span><br>
+&nbsp;&nbsp;CalcClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la implementación: teclado, aritmética, ventana</span><br>
+&nbsp;&nbsp;calc16.ico&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la calculadorita del botón</span><br>
+&nbsp;&nbsp;myCalc.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">extensión global + control del botón + code template</span><br>
+&nbsp;&nbsp;myCalc.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">los cuatro archivos anteriores, para distribuir</span><br>
+examples/myCalc/<br>
+&nbsp;&nbsp;CalcDemo.clw / .cwproj&nbsp;<span style="color:#6b7785">demo que compila — tres campos, tres botones</span>
+      </div>
+      </div>
+    </section>
+
+    <section id="button">
+      <h2><span class="en">The calculator button</span><span class="es">El botón de la calculadora</span> <a href="#button" class="top">#</a></h2>
+      <div class="en">
+      <p><b>myCalcButton</b> is a <code>#CONTROL</code> template: dragging it onto the window drops the button
+        and generates everything behind it. It is <code>MULTI</code>, so give every numeric field on the form
+        its own.</p>
+      <h3>Prompts</h3>
+      <table>
+        <tr><th>Tab</th><th>Prompt</th><th>What it does</th></tr>
+        <tr><td rowspan="3">General</td><td>Object name</td><td>The <code>CalcClass</code> instance, default <code>Calc1</code>.</td></tr>
+        <tr><td>Field to calculate into</td><td>The numeric ENTRY this button sits beside. <b class="i">Required.</b></td></tr>
+        <tr><td>Window title</td><td>Leave blank to get the localised name (Calculator / Calculadora).</td></tr>
+        <tr><td rowspan="3">Calculators</td><td>Standard / Scientific / Programmer / Accountant</td><td>Which ones the drop list offers. Untick the ones your users do not need.</td></tr>
+        <tr><td>Mode the first time</td><td>What opens before the user has ever chosen. After that, <a href="#remember">the last one used</a> comes back.</td></tr>
+        <tr><td>Show the paper roll</td><td>Whether the roll starts visible. The user can toggle it.</td></tr>
+        <tr><td rowspan="4">Options</td><td>Decimals on the tape</td><td>0–8, for the accountant readout.</td></tr>
+        <tr><td>Tax rate</td><td>Percent, used by the TAX+ / TAX- keys.</td></tr>
+        <tr><td>Start in radians</td><td>Scientific mode's initial DEG/RAD state.</td></tr>
+        <tr><td>Programmer word size</td><td>8, 16 or 32 bits.</td></tr>
+        <tr><td>Remember</td><td>See <a href="#remember">Remembering the last session</a></td><td>On by default.</td></tr>
+        <tr><td>Language</td><td>See <a href="#language">Language</a></td><td>Follows the application setting unless you override it here.</td></tr>
+      </table>
+      <h3>What it generates</h3>
+      <p>An object in <code>%DataSection</code> and, in the button's <code>Accepted</code> handler:</p>
+<pre>  Calc1.Allow    = 15                          <span class="c">! the four mode tick boxes, as a bit mask</span>
+  Calc1.Mode     = 1
+  Calc1.Decimals = 2
+  Calc1.TaxRate  = 16
+  Calc1.Persist  = 1                           <span class="c">! remember the calculator type</span>
+  Calc1.Profile  = <span class="s">'UpdateOrder'</span>
+  Calc1.Language = myCalcLanguage              <span class="c">! whatever the global says</span>
+  <span class="k">IF</span> Calc1.AskFor(ORD:Amount)                 <span class="c">! seeds from the field, writes it back</span>
+    <span class="k">DISPLAY</span>(?ORD:Amount)
+  <span class="k">END</span></pre>
+      <p>The field's USE variable is read at generate time out of the control's own <code>USE</code>
+        attribute, so there is nothing to type and nothing to keep in sync.</p>
+      <div class="callout note"><b>Two hidden embeds</b>
+        <code>myCalc - before the calculator opens</code> and
+        <code>myCalc - after the value was accepted</code> let you seed or post-process the number.</div>
+      </div>
+      <div class="es">
+      <p><b>myCalcButton</b> es una plantilla <code>#CONTROL</code>: al arrastrarla a la ventana coloca el
+        botón y genera todo lo que hay detrás. Es <code>MULTI</code>, así que dale uno a cada campo numérico
+        del formulario.</p>
+      <h3>Prompts</h3>
+      <table>
+        <tr><th>Pestaña</th><th>Prompt</th><th>Qué hace</th></tr>
+        <tr><td rowspan="3">General</td><td>Object name</td><td>La instancia de <code>CalcClass</code>; por defecto <code>Calc1</code>.</td></tr>
+        <tr><td>Field to calculate into</td><td>El campo numérico junto al que está el botón. <b class="i">Obligatorio.</b></td></tr>
+        <tr><td>Window title</td><td>Déjalo en blanco para usar el nombre traducido (Calculator / Calculadora).</td></tr>
+        <tr><td rowspan="3">Calculators</td><td>Standard / Scientific / Programmer / Accountant</td><td>Cuáles ofrece la lista desplegable. Desmarca las que tus usuarios no necesiten.</td></tr>
+        <tr><td>Mode the first time</td><td>Con cuál se abre antes de que el usuario haya elegido nunca. Después vuelve <a href="#remember">la última usada</a>.</td></tr>
+        <tr><td>Show the paper roll</td><td>Si la cinta empieza visible. El usuario puede alternarla.</td></tr>
+        <tr><td rowspan="4">Options</td><td>Decimals on the tape</td><td>0–8, para la lectura contable.</td></tr>
+        <tr><td>Tax rate</td><td>Porcentaje que usan las teclas IVA+ / IVA-.</td></tr>
+        <tr><td>Start in radians</td><td>El estado DEG/RAD inicial del modo científico.</td></tr>
+        <tr><td>Programmer word size</td><td>8, 16 o 32 bits.</td></tr>
+        <tr><td>Remember</td><td>Ver <a href="#remember">Recordar la última sesión</a></td><td>Activado por defecto.</td></tr>
+        <tr><td>Language</td><td>Ver <a href="#language">Idioma</a></td><td>Sigue el ajuste de la aplicación salvo que lo cambies aquí.</td></tr>
+      </table>
+      <h3>Qué genera</h3>
+      <p>Un objeto en <code>%DataSection</code> y, en el manejador <code>Accepted</code> del botón:</p>
+<pre>  Calc1.Allow    = 15                          <span class="c">! las cuatro casillas de modo, como máscara</span>
+  Calc1.Mode     = 1
+  Calc1.Decimals = 2
+  Calc1.TaxRate  = 16
+  Calc1.Persist  = 1                           <span class="c">! recordar el tipo de calculadora</span>
+  Calc1.Profile  = <span class="s">'UpdateOrder'</span>
+  Calc1.Language = myCalcLanguage              <span class="c">! lo que diga la global</span>
+  <span class="k">IF</span> Calc1.AskFor(ORD:Amount)                 <span class="c">! toma el valor del campo y lo devuelve</span>
+    <span class="k">DISPLAY</span>(?ORD:Amount)
+  <span class="k">END</span></pre>
+      <p>La variable USE del campo se lee en tiempo de generación del propio atributo <code>USE</code> del
+        control, así que no hay nada que escribir ni que mantener sincronizado.</p>
+      <div class="callout note"><b>Dos embeds ocultos</b>
+        <code>myCalc - before the calculator opens</code> y
+        <code>myCalc - after the value was accepted</code> te permiten preparar o post-procesar el número.</div>
+      </div>
+    </section>
+
+    <section id="code">
+      <h2><span class="en">Already have a button or menu?</span><span class="es">¿Ya tienes un botón o un menú?</span> <a href="#code" class="top">#</a></h2>
+      <div class="en">
+      <p><b>myCalcHere</b> is a <code>#CODE</code> template with the same prompts. Drop it into the
+        <code>Accepted</code> embed of any existing button, menu item, toolbar entry or hot key. Instead of
+        pointing at a control it takes the <b>variable or file field</b> to fill in, and optionally a control
+        to refresh afterwards.</p>
+      <p>Use it when the calculator belongs on your <b>Tools ▸ Calculator</b> menu rather than on a button, or
+        when the window has no room for another control.</p>
+      </div>
+      <div class="es">
+      <p><b>myCalcHere</b> es una plantilla <code>#CODE</code> con los mismos prompts. Suéltala en el embed
+        <code>Accepted</code> de cualquier botón, opción de menú, entrada de toolbar o tecla rápida que ya
+        tengas. En vez de apuntar a un control recibe la <b>variable o campo de archivo</b> que hay que
+        rellenar y, si quieres, un control que refrescar después.</p>
+      <p>Úsala cuando la calculadora pertenezca a tu menú <b>Herramientas ▸ Calculadora</b> en vez de a un
+        botón, o cuando en la ventana no quepa otro control.</p>
+      </div>
+    </section>
+
+    <section id="language">
+      <h2><span class="en">Language</span><span class="es">Idioma</span> <a href="#language" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">The calculator speaks <b>English</b> or <b>Spanish</b>. The setting lives on the
+        <b>myCalc - Global</b> extension and is what every calculator in the application follows.</p>
+      <p>It changes the mode names, the window labels and the word keys. Digits, operators and the maths
+        names (<code>sin</code>, <code>log</code>, <code>x^y</code>, <code>HEX</code>…) read the same in both
+        languages, so they are deliberately left alone.</p>
+      <table>
+        <tr><th>English</th><th>Español</th></tr>
+        <tr><td>Standard / Scientific / Programmer / Accountant (tape)</td><td>Estándar / Científica / Programador / Contable (cinta)</td></tr>
+        <tr><td>Mode: · Paper roll · Roll · Copy · Clear</td><td>Modo: · Cinta de papel · Cinta · Copiar · Limpiar</td></tr>
+        <tr><td>Accept · Cancel</td><td>Aceptar · Cancelar</td></tr>
+        <tr><td>Bksp · SUB · TOTAL · GT · TAX+ · TAX- · WORD</td><td>Borr · SUBT · TOTAL · TG · IVA+ · IVA- · BITS</td></tr>
+        <tr><td>Enter = equals   Esc = close</td><td>Entrar = igual   Esc = cerrar</td></tr>
+        <tr><td>Cannot divide by zero · Invalid input</td><td>No se puede dividir entre cero · Entrada no válida</td></tr>
+      </table>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalc-accountant-es.png" alt="La calculadora contable en español"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      <p>The global extension publishes the choice as a real global variable, and each button reads it:</p>
+<pre>myCalcLanguage       <span class="k">BYTE</span>(2)                    <span class="c">! from the global extension: 1 = EN, 2 = ES</span>
+  …
+  Calc1.Language = myCalcLanguage              <span class="c">! what every calculator follows</span></pre>
+      <p>A single button can opt out on its own <b>Language</b> tab — useful for one screen that must stay in
+        one language — but leaving it on <i>Use the application setting</i> is the normal case.</p>
+      <div class="callout warn"><b>The language is not remembered between runs — on purpose</b>
+        There is no language picker inside the calculator; it is a <i>developer</i> setting that comes from
+        the template. If it were saved with the other settings, a value written by an earlier build would
+        silently override whatever you set today. Everything the user <i>can</i> change in the window is
+        remembered; the language is not.</div>
+      </div>
+      <div class="es">
+      <p class="lead">La calculadora habla <b>inglés</b> o <b>español</b>. El ajuste vive en la extensión
+        <b>myCalc - Global</b> y es el que sigue toda calculadora de la aplicación.</p>
+      <p>Cambia los nombres de los modos, las etiquetas de la ventana y las teclas con palabras. Los dígitos,
+        los operadores y los nombres matemáticos (<code>sin</code>, <code>log</code>, <code>x^y</code>,
+        <code>HEX</code>…) se leen igual en los dos idiomas, así que se dejan tal cual a propósito.</p>
+      <table>
+        <tr><th>English</th><th>Español</th></tr>
+        <tr><td>Standard / Scientific / Programmer / Accountant (tape)</td><td>Estándar / Científica / Programador / Contable (cinta)</td></tr>
+        <tr><td>Mode: · Paper roll · Roll · Copy · Clear</td><td>Modo: · Cinta de papel · Cinta · Copiar · Limpiar</td></tr>
+        <tr><td>Accept · Cancel</td><td>Aceptar · Cancelar</td></tr>
+        <tr><td>Bksp · SUB · TOTAL · GT · TAX+ · TAX- · WORD</td><td>Borr · SUBT · TOTAL · TG · IVA+ · IVA- · BITS</td></tr>
+        <tr><td>Enter = equals   Esc = close</td><td>Entrar = igual   Esc = cerrar</td></tr>
+        <tr><td>Cannot divide by zero · Invalid input</td><td>No se puede dividir entre cero · Entrada no válida</td></tr>
+      </table>
+      <p style="text-align:center;margin:18px 0">
+        <img src="myCalc-accountant-es.png" alt="La calculadora contable en español"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      <p>La extensión global publica la elección como una variable global de verdad, y cada botón la lee:</p>
+<pre>myCalcLanguage       <span class="k">BYTE</span>(2)                    <span class="c">! de la extensión global: 1 = EN, 2 = ES</span>
+  …
+  Calc1.Language = myCalcLanguage              <span class="c">! lo que sigue toda calculadora</span></pre>
+      <p>Un botón concreto puede desmarcarse en su propia pestaña <b>Language</b> — útil para una pantalla que
+        deba quedarse en un idioma — pero lo normal es dejarlo en <i>Use the application setting</i>.</p>
+      <div class="callout warn"><b>El idioma no se recuerda entre ejecuciones, y es a propósito</b>
+        Dentro de la calculadora no hay selector de idioma: es un ajuste del <i>desarrollador</i> que viene de
+        la plantilla. Si se guardara junto con lo demás, un valor escrito por una versión anterior anularía en
+        silencio lo que pongas hoy. Se recuerda todo lo que el usuario <i>sí</i> puede cambiar en la ventana;
+        el idioma no.</div>
+      </div>
+    </section>
+
+    <section id="remember">
+      <h2><span class="en">Remembering the last session</span><span class="es">Recordar la última sesión</span> <a href="#remember" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Whichever calculator the user was last on comes back the next time the <i>program</i>
+        runs — not just the next time the window opens.</p>
+      <p>When the calculator closes, these are written to an INI section and read back next time:</p>
+      <ul>
+        <li>the <b>calculator type</b> (standard / scientific / programmer / accountant);</li>
+        <li>whether the <b>paper roll</b> was showing;</li>
+        <li><b>DEG/RAD</b>, the <b>number base</b>, the <b>word size</b>, the <b>decimals</b> and the
+          <b>tax rate</b>.</li>
+      </ul>
+<pre>[myCalc_UpdateOrder]
+Mode=4
+ShowTape=1
+Angle=0
+Base=10
+WordBits=32
+Decimals=2
+TaxRate=16.00</pre>
+      <p>The section is named from a <b>Profile</b>, which defaults to the procedure name — so the calculator
+        on your invoice form and the one on your stock form each remember their own. <b>INI file</b> defaults
+        to <code>&lt;your program&gt;.INI</code> beside the executable.</p>
+      <div class="callout tip"><b>Turning it off</b>
+        Untick <b class="i">Remember the calculator type and options between runs</b>, or set
+        <code>Persist = 0</code>. <code>ForgetSettings()</code> wipes one profile so the next open starts
+        from the template's defaults again.</div>
+      </div>
+      <div class="es">
+      <p class="lead">La calculadora en la que el usuario estuvo por última vez vuelve la próxima vez que se
+        ejecuta el <i>programa</i>, no solo la próxima vez que se abre la ventana.</p>
+      <p>Al cerrar la calculadora se escriben en una sección de un INI, y se releen la vez siguiente:</p>
+      <ul>
+        <li>el <b>tipo de calculadora</b> (estándar / científica / programador / contable);</li>
+        <li>si la <b>cinta de papel</b> estaba visible;</li>
+        <li><b>DEG/RAD</b>, la <b>base numérica</b>, el <b>tamaño de palabra</b>, los <b>decimales</b> y el
+          <b>tipo de impuesto</b>.</li>
+      </ul>
+<pre>[myCalc_UpdateOrder]
+Mode=4
+ShowTape=1
+Angle=0
+Base=10
+WordBits=32
+Decimals=2
+TaxRate=16.00</pre>
+      <p>La sección toma su nombre de un <b>Profile</b>, que por defecto es el del procedimiento — así que la
+        calculadora de tu formulario de facturas y la de tu formulario de existencias recuerdan cada una lo
+        suyo. <b>INI file</b> apunta por defecto a <code>&lt;tu programa&gt;.INI</code>, junto al ejecutable.</p>
+      <div class="callout tip"><b>Cómo desactivarlo</b>
+        Desmarca <b class="i">Remember the calculator type and options between runs</b>, o pon
+        <code>Persist = 0</code>. <code>ForgetSettings()</code> borra un perfil para que la próxima apertura
+        vuelva a partir de los valores de la plantilla.</div>
+      </div>
+    </section>
+
+    <section id="standard">
+      <h2><span class="en">Standard</span><span class="es">Estándar</span> <a href="#standard" class="top">#</a></h2>
+      <div class="en">
+      <p>The everyday keypad: the four functions, percent, square root, x², 1/x, sign change, backspace,
+        C / CE, and a full memory row (MC MR M+ M- MS). An <b>M</b> shows in the readout while memory holds
+        something.</p>
+      <p><code>%</code> follows the usual calculator convention: after <code>+</code> or <code>-</code> it is
+        a percentage <i>of the running value</i>, so <code>200 + 10 % =</code> gives <b>220</b>. Anywhere else
+        it simply divides by a hundred.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-standard.png" alt="The standard calculator"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+      <div class="es">
+      <p>El teclado de todos los días: las cuatro operaciones, porcentaje, raíz cuadrada, x², 1/x, cambio de
+        signo, retroceso, C / CE y una fila completa de memoria (MC MR M+ M- MS). Mientras la memoria guarda
+        algo aparece una <b>M</b> en la pantalla.</p>
+      <p><code>%</code> sigue la convención habitual: después de <code>+</code> o <code>-</code> es un
+        porcentaje <i>del valor acumulado</i>, así que <code>200 + 10 % =</code> da <b>220</b>. En cualquier
+        otro sitio simplemente divide entre cien.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-standard.png" alt="La calculadora estándar"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+    </section>
+
+    <section id="scientific">
+      <h2><span class="en">Scientific</span><span class="es">Científica</span> <a href="#scientific" class="top">#</a></h2>
+      <div class="en">
+      <p>Adds trigonometry (<code>sin cos tan asin acos atan</code>), logarithms (<code>ln log e^x
+        10^x</code>), powers and roots (<code>x^2 x^3 x^y sqrt cbrt 1/x</code>), <code>n!</code>,
+        <code>abs</code>, <code>mod</code>, the constants <code>pi</code> and <code>e</code>, and
+        <b>parentheses</b> nested up to sixteen deep.</p>
+      <p>The <b>DEG</b> key toggles degrees and radians, and the current state shows beside the readout so you
+        can never be in the wrong one by accident.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-scientific.png" alt="The scientific calculator"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+      <div class="es">
+      <p>Añade trigonometría (<code>sin cos tan asin acos atan</code>), logaritmos (<code>ln log e^x
+        10^x</code>), potencias y raíces (<code>x^2 x^3 x^y sqrt cbrt 1/x</code>), <code>n!</code>,
+        <code>abs</code>, <code>mod</code>, las constantes <code>pi</code> y <code>e</code>, y
+        <b>paréntesis</b> anidados hasta dieciséis niveles.</p>
+      <p>La tecla <b>DEG</b> alterna entre grados y radianes, y el estado actual se ve junto a la pantalla,
+        así que nunca puedes estar en el equivocado sin darte cuenta.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-scientific-es.png" alt="La calculadora científica en español"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+    </section>
+
+    <section id="programmer">
+      <h2><span class="en">Programmer</span><span class="es">Programador</span> <a href="#programmer" class="top">#</a></h2>
+      <div class="en">
+      <p>Works in <b>HEX</b>, <b>DEC</b>, <b>OCT</b> or <b>BIN</b> — switching base converts the value in
+        place, and the digits the base has no use for are <b>greyed out</b> rather than hidden, so the keypad
+        never moves under your fingers.</p>
+      <p>Bitwise <code>AND OR XOR NOT</code>, <code>Lsh</code> / <code>Rsh</code> shifts and <code>MOD</code>,
+        with a <b>WORD</b> key cycling 8 / 16 / 32 bits. Every result is masked to the word size, so
+        <code>NOT 0</code> at 8 bits gives <b>255</b>, not −1. The base and word size show beside the
+        readout.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-programmer.png" alt="The programmer calculator, DEC base"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+      <div class="es">
+      <p>Trabaja en <b>HEX</b>, <b>DEC</b>, <b>OCT</b> o <b>BIN</b> — al cambiar de base el valor se convierte
+        en el sitio, y los dígitos que esa base no usa se <b>desactivan en gris</b> en vez de esconderse, así
+        que el teclado nunca se mueve bajo tus dedos.</p>
+      <p>Operaciones de bits <code>AND OR XOR NOT</code>, desplazamientos <code>Lsh</code> / <code>Rsh</code>
+        y <code>MOD</code>, con una tecla <b>BITS</b> que va rotando 8 / 16 / 32 bits. Cada resultado se
+        enmascara al tamaño de palabra, así que <code>NOT 0</code> con 8 bits da <b>255</b>, no −1. La base y
+        el tamaño de palabra se ven junto a la pantalla.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-programmer.png" alt="La calculadora de programador, base DEC"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+    </section>
+
+    <section id="accountant">
+      <h2><span class="en">Accountant — the adding-machine tape</span><span class="es">Contable — la cinta de sumadora</span> <a href="#accountant" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">A real adding machine. You type a number and press <code>+</code> or <code>-</code>,
+        which <b>posts it to the roll</b> and updates the running total — it does not wait for
+        <code>=</code>.</p>
+      <table>
+        <tr><th>Key</th><th>What it does</th></tr>
+        <tr><td><code>+</code> / <code>-</code></td><td>Post the entry to the roll and add / subtract it from the running total.</td></tr>
+        <tr><td><code>SUB</code></td><td>Print a <b>subtotal</b> line and keep going.</td></tr>
+        <tr><td><code>TOTAL</code></td><td>Print the <b>total</b>, add it to the grand total and start a fresh run.</td></tr>
+        <tr><td><code>GT</code></td><td>Print the <b>grand total</b> of all the totals so far, and reset it.</td></tr>
+        <tr><td><code>TAX+</code> / <code>TAX-</code></td><td>Add tax to the entry, or back it out of a gross figure, at the configured rate.</td></tr>
+        <tr><td><code>00</code></td><td>The adding-machine double zero.</td></tr>
+        <tr><td><code>*</code> / <code>/</code></td><td>Work on the entry as usual, so you can multiply before posting.</td></tr>
+      </table>
+      <p>The running total shows beside the readout as <code>T&nbsp;…</code>, and the roll prints each posting
+        with its sign, subtotals with <code>*</code> and totals with <code>T</code> — the way a paper tape
+        does.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-accountant.png" alt="The accountant tape"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+      <div class="es">
+      <p class="lead">Una sumadora de verdad. Escribes un número y pulsas <code>+</code> o <code>-</code>, y
+        eso <b>lo anota en la cinta</b> y actualiza el total acumulado — no espera a que pulses
+        <code>=</code>.</p>
+      <table>
+        <tr><th>Tecla</th><th>Qué hace</th></tr>
+        <tr><td><code>+</code> / <code>-</code></td><td>Anota la entrada en la cinta y la suma o resta del total acumulado.</td></tr>
+        <tr><td><code>SUBT</code></td><td>Imprime una línea de <b>subtotal</b> y sigue.</td></tr>
+        <tr><td><code>TOTAL</code></td><td>Imprime el <b>total</b>, lo suma al total general y empieza una tanda nueva.</td></tr>
+        <tr><td><code>TG</code></td><td>Imprime el <b>total general</b> de todos los totales hasta ahora, y lo reinicia.</td></tr>
+        <tr><td><code>IVA+</code> / <code>IVA-</code></td><td>Añade el impuesto a la entrada, o lo saca de una cifra bruta, al tipo configurado.</td></tr>
+        <tr><td><code>00</code></td><td>El doble cero de las sumadoras.</td></tr>
+        <tr><td><code>*</code> / <code>/</code></td><td>Actúan sobre la entrada como siempre, para poder multiplicar antes de anotar.</td></tr>
+      </table>
+      <p>El total acumulado se ve junto a la pantalla como <code>T&nbsp;…</code>, y la cinta imprime cada
+        anotación con su signo, los subtotales con <code>*</code> y los totales con <code>T</code>, como hace
+        una cinta de papel.</p>
+      <p style="text-align:center;margin:16px 0">
+        <img src="myCalc-accountant-es.png" alt="La cinta contable"
+             style="max-width:100%;border:1px solid var(--line);border-radius:10px;
+                    box-shadow:0 2px 10px rgba(14,26,43,.14)"></p>
+      </div>
+    </section>
+
+    <section id="roll">
+      <h2><span class="en">The paper roll</span><span class="es">La cinta de papel</span> <a href="#roll" class="top">#</a></h2>
+      <div class="en">
+      <p>The roll down the right-hand side is shared by all four calculators:</p>
+      <ul>
+        <li>in <b>accountant</b> mode it is the tape — every posting, subtotal and total;</li>
+        <li>in the others it is the <b>history</b>: each finished calculation is printed as
+          <code>2 * 8 = 16</code>, and so is each one-key function such as <code>sqrt(9) = 3</code>.</li>
+      </ul>
+      <p><b>Copy</b> puts the whole roll on the clipboard as plain text — ready to paste into a note, an
+        e-mail or a spreadsheet. <b>Clear</b> starts a fresh sheet. The roll keeps the most recent 500 lines
+        and always scrolls to the newest.</p>
+      <p>The <b>Paper roll</b> tick box slides it in and out; the window narrows when it is hidden, and the
+        state is remembered with the rest of the settings.</p>
+      </div>
+      <div class="es">
+      <p>La cinta de la derecha la comparten las cuatro calculadoras:</p>
+      <ul>
+        <li>en modo <b>contable</b> es la cinta de la sumadora: cada anotación, subtotal y total;</li>
+        <li>en los demás es el <b>historial</b>: cada cálculo terminado se imprime como
+          <code>2 * 8 = 16</code>, igual que cada función de una tecla, por ejemplo
+          <code>sqrt(9) = 3</code>.</li>
+      </ul>
+      <p><b>Copiar</b> pone toda la cinta en el portapapeles como texto plano, lista para pegar en una nota,
+        un correo o una hoja de cálculo. <b>Limpiar</b> empieza una hoja nueva. La cinta guarda las últimas
+        500 líneas y siempre baja hasta la más reciente.</p>
+      <p>La casilla <b>Cinta de papel</b> la muestra u oculta; la ventana se estrecha cuando está oculta, y ese
+        estado se recuerda junto con el resto de los ajustes.</p>
+      </div>
+    </section>
+
+    <section id="keys">
+      <h2><span class="en">Keyboard</span><span class="es">Teclado</span> <a href="#keys" class="top">#</a></h2>
+      <div class="en">
+      <p>The calculator works from the keyboard as well as the mouse:</p>
+      <table>
+        <tr><th>Key</th><th>Does</th></tr>
+        <tr><td><b>0</b>–<b>9</b> (top row or numeric keypad)</td><td>Type a digit.</td></tr>
+        <tr><td><b>.</b> (either)</td><td>Decimal point.</td></tr>
+        <tr><td><b>+ − * /</b> (numeric keypad)</td><td>The four operators.</td></tr>
+        <tr><td><b>Enter</b> or <b>=</b></td><td>Equals — in accountant mode, prints the total.</td></tr>
+        <tr><td><b>Backspace</b></td><td>Rub out the last digit.</td></tr>
+        <tr><td><b>Delete</b></td><td>Clear the entry (CE).</td></tr>
+        <tr><td><b>Esc</b></td><td>Close without accepting.</td></tr>
+        <tr><td><b>Alt+A</b></td><td>Accept — put the value into the field.</td></tr>
+      </table>
+      <div class="callout note"><b>Why Enter is not Accept</b>
+        On a calculator, Enter means <i>equals</i> — that is what fingers expect. Accept is therefore
+        <b class="i">Alt+A</b> or a click, and the window says so along its bottom edge.</div>
+      </div>
+      <div class="es">
+      <p>La calculadora funciona con el teclado además de con el ratón:</p>
+      <table>
+        <tr><th>Tecla</th><th>Hace</th></tr>
+        <tr><td><b>0</b>–<b>9</b> (fila superior o teclado numérico)</td><td>Escribe un dígito.</td></tr>
+        <tr><td><b>.</b> (cualquiera)</td><td>Punto decimal.</td></tr>
+        <tr><td><b>+ − * /</b> (teclado numérico)</td><td>Los cuatro operadores.</td></tr>
+        <tr><td><b>Entrar</b> o <b>=</b></td><td>Igual — en modo contable, imprime el total.</td></tr>
+        <tr><td><b>Retroceso</b></td><td>Borra el último dígito.</td></tr>
+        <tr><td><b>Supr</b></td><td>Limpia la entrada (CE).</td></tr>
+        <tr><td><b>Esc</b></td><td>Cierra sin aceptar.</td></tr>
+        <tr><td><b>Alt+A</b></td><td>Aceptar — pone el valor en el campo.</td></tr>
+      </table>
+      <div class="callout note"><b>Por qué Entrar no es Aceptar</b>
+        En una calculadora, Entrar significa <i>igual</i>: es lo que esperan los dedos. Por eso Aceptar es
+        <b class="i">Alt+A</b> o un clic, y la ventana lo indica en su borde inferior.</div>
+      </div>
+    </section>
+
+    <section id="classref">
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#classref" class="top">#</a></h2>
+      <div class="en">
+      <h3>Opening it</h3>
+      <table>
+        <tr><th>Method</th><th>Returns</th><th>Meaning</th></tr>
+        <tr><td><code>AskFor(*? pField)</code></td><td>BYTE</td><td>Seed from a numeric variable or file field, open the calculator, and write the answer back if the user accepts. 1 = accepted.</td></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>Just open it. The answer is in <code>Value</code>. VIRTUAL — override for your own window.</td></tr>
+        <tr><td><code>Press(action, text)</code></td><td>—</td><td>Press one key from code. Every button goes through this, so the whole calculator can be driven or tested without a window.</td></tr>
+        <tr><td><code>SetValue(v)</code> / <code>Current()</code></td><td>— / REAL</td><td>Load the readout / read what it holds.</td></tr>
+        <tr><td><code>Reset()</code></td><td>—</td><td>Clear everything except memory.</td></tr>
+      </table>
+      <h3>Settings</h3>
+      <table>
+        <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>Mode</code></td><td><code>Calc:Standard</code></td><td>Which calculator opens.</td></tr>
+        <tr><td><code>Allow</code></td><td><code>15</code></td><td>Bit mask of offered modes — <code>Calc:AllowStandard</code> … <code>Calc:AllowAll</code>.</td></tr>
+        <tr><td><code>Value</code></td><td>0</td><td>The seed on the way in, the answer on the way out.</td></tr>
+        <tr><td><code>Title</code></td><td>blank</td><td>Header text; blank uses the localised name.</td></tr>
+        <tr><td><code>Language</code></td><td><code>Calc:English</code></td><td><code>Calc:English</code> / <code>Calc:Spanish</code>.</td></tr>
+        <tr><td><code>Decimals</code></td><td>2</td><td>Decimals on the tape readout.</td></tr>
+        <tr><td><code>TaxRate</code></td><td>16</td><td>Percent, for TAX+ / TAX-.</td></tr>
+        <tr><td><code>Angle</code></td><td>0</td><td>0 = degrees, 1 = radians.</td></tr>
+        <tr><td><code>Base</code> / <code>WordBits</code></td><td>10 / 32</td><td>Programmer base and word size.</td></tr>
+        <tr><td><code>ShowTape</code></td><td>1</td><td>Paper roll visible.</td></tr>
+        <tr><td><code>Persist</code> / <code>Profile</code> / <code>IniFile</code></td><td>0 / blank / blank</td><td>See <a href="#remember">Remembering the last session</a>.</td></tr>
+        <tr><td><code>Accepted</code></td><td>—</td><td>1 after the user pressed Accept.</td></tr>
+      </table>
+      <h3>The paper roll</h3>
+      <table>
+        <tr><td><code>AddTape(line, value, kind)</code></td><td>Print your own line on the roll.</td></tr>
+        <tr><td><code>TapeLines()</code> / <code>TapeLine(n)</code></td><td>How many lines, and line <i>n</i>.</td></tr>
+        <tr><td><code>TapeText()</code></td><td>The whole roll as CR/LF text — what <b>Copy</b> puts on the clipboard.</td></tr>
+        <tr><td><code>ClearTape()</code></td><td>Start a fresh sheet.</td></tr>
+      </table>
+      <h3>Remembering</h3>
+      <table>
+        <tr><td><code>LoadSettings()</code></td><td>Restore now — <code>Ask()</code> calls it the first time.</td></tr>
+        <tr><td><code>SaveSettings()</code></td><td>Save now — closing the window does it for you.</td></tr>
+        <tr><td><code>ForgetSettings()</code></td><td>Wipe this profile.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <h3>Abrirla</h3>
+      <table>
+        <tr><th>Método</th><th>Devuelve</th><th>Significado</th></tr>
+        <tr><td><code>AskFor(*? pField)</code></td><td>BYTE</td><td>Toma el valor de una variable o campo numérico, abre la calculadora y devuelve el resultado al campo si el usuario acepta. 1 = aceptado.</td></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>Solo abrirla. El resultado queda en <code>Value</code>. Es VIRTUAL — redefínela para tu propia ventana.</td></tr>
+        <tr><td><code>Press(action, text)</code></td><td>—</td><td>Pulsa una tecla desde código. Todos los botones pasan por aquí, así que la calculadora entera se puede manejar o probar sin ventana.</td></tr>
+        <tr><td><code>SetValue(v)</code> / <code>Current()</code></td><td>— / REAL</td><td>Cargar la pantalla / leer lo que tiene.</td></tr>
+        <tr><td><code>Reset()</code></td><td>—</td><td>Limpia todo menos la memoria.</td></tr>
+      </table>
+      <h3>Ajustes</h3>
+      <table>
+        <tr><th>Propiedad</th><th>Por defecto</th><th>Significado</th></tr>
+        <tr><td><code>Mode</code></td><td><code>Calc:Standard</code></td><td>Con qué calculadora se abre.</td></tr>
+        <tr><td><code>Allow</code></td><td><code>15</code></td><td>Máscara de modos ofrecidos — <code>Calc:AllowStandard</code> … <code>Calc:AllowAll</code>.</td></tr>
+        <tr><td><code>Value</code></td><td>0</td><td>El valor de entrada, y el resultado a la salida.</td></tr>
+        <tr><td><code>Title</code></td><td>vacío</td><td>Texto de la cabecera; en blanco usa el nombre traducido.</td></tr>
+        <tr><td><code>Language</code></td><td><code>Calc:English</code></td><td><code>Calc:English</code> / <code>Calc:Spanish</code>.</td></tr>
+        <tr><td><code>Decimals</code></td><td>2</td><td>Decimales en la lectura de la cinta.</td></tr>
+        <tr><td><code>TaxRate</code></td><td>16</td><td>Porcentaje, para IVA+ / IVA-.</td></tr>
+        <tr><td><code>Angle</code></td><td>0</td><td>0 = grados, 1 = radianes.</td></tr>
+        <tr><td><code>Base</code> / <code>WordBits</code></td><td>10 / 32</td><td>Base y tamaño de palabra del modo programador.</td></tr>
+        <tr><td><code>ShowTape</code></td><td>1</td><td>Cinta de papel visible.</td></tr>
+        <tr><td><code>Persist</code> / <code>Profile</code> / <code>IniFile</code></td><td>0 / vacío / vacío</td><td>Ver <a href="#remember">Recordar la última sesión</a>.</td></tr>
+        <tr><td><code>Accepted</code></td><td>—</td><td>1 después de que el usuario pulse Aceptar.</td></tr>
+      </table>
+      <h3>La cinta de papel</h3>
+      <table>
+        <tr><td><code>AddTape(line, value, kind)</code></td><td>Imprime tu propia línea en la cinta.</td></tr>
+        <tr><td><code>TapeLines()</code> / <code>TapeLine(n)</code></td><td>Cuántas líneas hay, y la línea <i>n</i>.</td></tr>
+        <tr><td><code>TapeText()</code></td><td>Toda la cinta como texto CR/LF — lo que <b>Copiar</b> pone en el portapapeles.</td></tr>
+        <tr><td><code>ClearTape()</code></td><td>Empezar una hoja nueva.</td></tr>
+      </table>
+      <h3>Recordar</h3>
+      <table>
+        <tr><td><code>LoadSettings()</code></td><td>Restaurar ahora — <code>Ask()</code> lo llama la primera vez.</td></tr>
+        <tr><td><code>SaveSettings()</code></td><td>Guardar ahora — cerrar la ventana ya lo hace.</td></tr>
+        <tr><td><code>ForgetSettings()</code></td><td>Borra este perfil.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <section id="hand">
+      <h2><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span> <a href="#hand" class="top">#</a></h2>
+      <div class="en">
+      <p>You do not need the template — the class works on its own:</p>
+<pre>Calc1   CalcClass
+
+  <span class="k">CODE</span>
+  <span class="k">IF</span> Calc1.AskFor(LOC:Total)                  <span class="c">! seed, ask, write back</span>
+    <span class="k">DISPLAY</span>(?LOC:Total)
+  <span class="k">END</span></pre>
+      <p>Open it on a particular calculator, in a particular language, with no drop list at all:</p>
+<pre>  Calc1.Allow    = Calc:AllowAccountant        <span class="c">! only the tape, so no mode list</span>
+  Calc1.Language = Calc:Spanish
+  Calc1.Decimals = 2
+  Calc1.TaxRate  = 21
+  <span class="k">IF</span> Calc1.Ask() <span class="k">THEN</span> total = Calc1.Value .</pre>
+      <p>Drive the keys from code — this is exactly how the arithmetic is tested, with no window open:</p>
+<pre>  Calc1.Press(Act:ClearAll,<span class="s">''</span>)
+  Calc1.Press(Act:Digit,<span class="s">'2'</span>)
+  Calc1.Press(Act:Mul,<span class="s">'*'</span>)
+  Calc1.Press(Act:Digit,<span class="s">'8'</span>)
+  Calc1.Press(Act:Equals,<span class="s">'='</span>)
+  Message(Calc1.DisplayText())                 <span class="c">! 16</span></pre>
+      <p>And print your own lines onto the roll — handy for showing where a figure came from:</p>
+<pre>  Calc1.AddTape(<span class="s">'invoice 1042'</span>, <span class="t">0</span>, <span class="t">1</span>)
+  Calc1.SetValue(ORD:Total)
+  <span class="k">IF</span> Calc1.Ask() <span class="k">THEN</span> ORD:Total = Calc1.Value .</pre>
+      </div>
+      <div class="es">
+      <p>No necesitas la plantilla — la clase funciona por su cuenta:</p>
+<pre>Calc1   CalcClass
+
+  <span class="k">CODE</span>
+  <span class="k">IF</span> Calc1.AskFor(LOC:Total)                  <span class="c">! tomar, preguntar, devolver</span>
+    <span class="k">DISPLAY</span>(?LOC:Total)
+  <span class="k">END</span></pre>
+      <p>Ábrela en una calculadora concreta, en un idioma concreto y sin lista de modos:</p>
+<pre>  Calc1.Allow    = Calc:AllowAccountant        <span class="c">! solo la cinta, así no hay lista</span>
+  Calc1.Language = Calc:Spanish
+  Calc1.Decimals = 2
+  Calc1.TaxRate  = 21
+  <span class="k">IF</span> Calc1.Ask() <span class="k">THEN</span> total = Calc1.Value .</pre>
+      <p>Maneja las teclas desde código — así es exactamente como se prueba la aritmética, sin abrir ventana:</p>
+<pre>  Calc1.Press(Act:ClearAll,<span class="s">''</span>)
+  Calc1.Press(Act:Digit,<span class="s">'2'</span>)
+  Calc1.Press(Act:Mul,<span class="s">'*'</span>)
+  Calc1.Press(Act:Digit,<span class="s">'8'</span>)
+  Calc1.Press(Act:Equals,<span class="s">'='</span>)
+  Message(Calc1.DisplayText())                 <span class="c">! 16</span></pre>
+      <p>Y escribe tus propias líneas en la cinta, útil para dejar constancia de dónde salió una cifra:</p>
+<pre>  Calc1.AddTape(<span class="s">'factura 1042'</span>, <span class="t">0</span>, <span class="t">1</span>)
+  Calc1.SetValue(ORD:Total)
+  <span class="k">IF</span> Calc1.Ask() <span class="k">THEN</span> ORD:Total = Calc1.Value .</pre>
+      </div>
+    </section>
+
+    <section id="traps">
+      <h2><span class="en">Clarion notes</span><span class="es">Notas de Clarion</span> <a href="#traps" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Three Clarion behaviours bit this template during construction. They are commented at the
+        places they matter, and they are worth knowing in any Clarion code that formats numbers.</p>
+      <div class="callout warn"><b>1. <code>@N</code> pictures always group</b>
+        <code>FORMAT(1024,@n24.10)</code> returns <code>1,024.0000000000</code> — and so does
+        <code>@n-24.10</code>. There is no spelling that turns the grouping off. For a plain, ungrouped number
+        use Clarion's own numeric → string conversion instead: assigning a REAL to a CSTRING gives
+        <code>1024</code>, <code>2.5</code>, <code>-7.25</code>, which is exactly what a readout wants.</div>
+      <div class="callout warn"><b>2. <code>DEFORMAT</code> <i>with</i> a picture eats the decimal point</b>
+        <code>DEFORMAT('116.00',@n-24.10)</code> returns <b class="i">11600</b> — it reads the
+        <code>.</code> as the thousands separator. Picture-less <code>DEFORMAT('116.00')</code> returns
+        116.00 correctly, keeps the sign and still strips grouping commas. For reading a number back, omit the
+        picture.</div>
+      <div class="callout warn"><b>3. <code>&lt;</code> opens an escape sequence in a string literal</b>
+        <code>'&lt;&lt;'</code> renders as a single <code>&lt;</code>, because that is the escaped form of one.
+        A shift key labelled <code>'&lt;&lt;'</code> therefore showed <code>&lt;</code>. The keys are labelled
+        <code>Lsh</code> and <code>Rsh</code> instead.</div>
+      <p>Two smaller ones. HTML entities mean nothing in a Clarion window — <code>&amp;#8730;</code> displays
+        literally — and the symbols √ ² ³ are not in the Windows-1252 code page either, so the keys read
+        <code>sqrt</code>, <code>x^2</code>, <code>x^3</code>, <code>cbrt</code>. And Clarion's own shipped
+        <code>MiniCalc.ico</code> is white-on-transparent, made for a dark toolbar; on an ordinary grey button
+        it is invisible, which is why this template brings its own <code>calc16.ico</code>.</p>
+      <h3>How the keypad is built</h3>
+      <p>The window holds a fixed 7 × 7 grid of buttons, <code>?B1</code>…<code>?B49</code>, declared
+        consecutively. Because Clarion numbers field equates in declaration order,
+        <code>FIELD() - ?B1 + 1</code> is the cell number — one handler for the whole keypad instead of a
+        49-way <code>CASE</code>. Each mode fills a small table of label + action, and cells it does not use
+        are hidden. Every key then goes through one <code>Press(action, text)</code> method, which is why the
+        calculator can be exercised head­lessly.</p>
+      </div>
+      <div class="es">
+      <p class="lead">Tres comportamientos de Clarion mordieron a esta plantilla mientras se construía. Están
+        comentados en los sitios donde importan, y conviene conocerlos en cualquier código Clarion que dé
+        formato a números.</p>
+      <div class="callout warn"><b>1. Las imágenes <code>@N</code> siempre agrupan</b>
+        <code>FORMAT(1024,@n24.10)</code> devuelve <code>1,024.0000000000</code>, y <code>@n-24.10</code>
+        también. No hay forma de escribirla que quite la agrupación. Para un número plano y sin agrupar usa la
+        conversión numérico → cadena del propio Clarion: asignar un REAL a un CSTRING da <code>1024</code>,
+        <code>2.5</code>, <code>-7.25</code>, que es justo lo que quiere una pantalla.</div>
+      <div class="callout warn"><b>2. <code>DEFORMAT</code> <i>con</i> imagen se come el punto decimal</b>
+        <code>DEFORMAT('116.00',@n-24.10)</code> devuelve <b class="i">11600</b>: lee el <code>.</code> como
+        separador de miles. Sin imagen, <code>DEFORMAT('116.00')</code> devuelve 116.00 correctamente,
+        conserva el signo y aun así quita las comas de agrupación. Para releer un número, omite la imagen.</div>
+      <div class="callout warn"><b>3. <code>&lt;</code> abre una secuencia de escape en una cadena</b>
+        <code>'&lt;&lt;'</code> se muestra como un solo <code>&lt;</code>, porque esa es su forma escapada. Una
+        tecla de desplazamiento etiquetada <code>'&lt;&lt;'</code> mostraba <code>&lt;</code>. Por eso las
+        teclas se llaman <code>Lsh</code> y <code>Rsh</code>.</div>
+      <p>Dos más pequeños. Las entidades HTML no significan nada en una ventana Clarion —
+        <code>&amp;#8730;</code> se muestra literal — y los símbolos √ ² ³ tampoco están en la página de
+        códigos Windows-1252, así que las teclas dicen <code>sqrt</code>, <code>x^2</code>, <code>x^3</code>,
+        <code>cbrt</code>. Y el <code>MiniCalc.ico</code> que trae Clarion es blanco sobre transparente, hecho
+        para una barra oscura; sobre un botón gris normal es invisible, y por eso esta plantilla trae su propio
+        <code>calc16.ico</code>.</p>
+      <h3>Cómo está hecho el teclado</h3>
+      <p>La ventana lleva una rejilla fija de 7 × 7 botones, <code>?B1</code>…<code>?B49</code>, declarados
+        de forma consecutiva. Como Clarion numera los field equates en el orden de declaración,
+        <code>FIELD() - ?B1 + 1</code> es el número de celda: un solo manejador para todo el teclado en vez de
+        un <code>CASE</code> de 49 ramas. Cada modo llena una tablita de etiqueta + acción, y las celdas que no
+        usa se ocultan. Después, cada tecla pasa por un único método <code>Press(action, text)</code>, que es
+        justo lo que permite ejercitar la calculadora sin ventana.</p>
+      </div>
+    </section>
+
+    <section id="trouble">
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>Symptom</th><th>Cause / fix</th></tr>
+        <tr><td><code>Illegal data type: CALCCLASS</code></td><td><code>CalcClass.inc</code> has LF-only line endings, or is UTF-8. Save it as <b class="i">ANSI with CRLF</b>.</td></tr>
+        <tr><td>The button shows no icon</td><td><code>calc16.ico</code> was not on the redirection path when you built. Copy it beside the class files and rebuild.</td></tr>
+        <tr><td>Setting the language has no effect</td><td>The button may be overriding it on its own <b class="i">Language</b> tab — set that back to <i>Use the application setting</i>. (Older builds also saved the language; that was a bug and is fixed.)</td></tr>
+        <tr><td>It opens on the wrong calculator</td><td>It is remembering the last one used. Change it in the drop list, or set <code>Persist = 0</code> to always open on the template's mode.</td></tr>
+        <tr><td>Two fields share their settings</td><td>They are using the same <b class="i">Profile</b>. Give each its own, or leave the prompt blank to get the procedure name.</td></tr>
+        <tr><td>The decimal key does nothing</td><td>You are in programmer mode on a base other than 10, where fractions have no meaning. It is disabled on purpose.</td></tr>
+        <tr><td><code>Unknown identifier: myCalcLanguage</code></td><td>The <b class="i">myCalc - Global</b> extension is missing. Add it — the button normally brings it in automatically.</td></tr>
+        <tr><td>Accept does nothing</td><td>The readout is showing an error. Press C first — the popup says so.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa / solución</th></tr>
+        <tr><td><code>Illegal data type: CALCCLASS</code></td><td><code>CalcClass.inc</code> tiene finales de línea solo LF, o está en UTF-8. Guárdalo en <b class="i">ANSI con CRLF</b>.</td></tr>
+        <tr><td>El botón no muestra icono</td><td><code>calc16.ico</code> no estaba en el camino de redirección al compilar. Cópialo junto a los archivos de la clase y vuelve a compilar.</td></tr>
+        <tr><td>Cambiar el idioma no hace nada</td><td>Puede que el botón lo esté anulando en su pestaña <b class="i">Language</b>: vuelve a ponerlo en <i>Use the application setting</i>. (Las versiones antiguas además guardaban el idioma; eso era un error y ya está corregido.)</td></tr>
+        <tr><td>Se abre con la calculadora equivocada</td><td>Está recordando la última usada. Cámbiala en la lista, o pon <code>Persist = 0</code> para abrir siempre con el modo de la plantilla.</td></tr>
+        <tr><td>Dos campos comparten los ajustes</td><td>Están usando el mismo <b class="i">Profile</b>. Dale uno propio a cada uno, o deja el prompt en blanco para que tome el nombre del procedimiento.</td></tr>
+        <tr><td>La tecla del punto decimal no hace nada</td><td>Estás en modo programador con una base distinta de 10, donde los decimales no tienen sentido. Está desactivada a propósito.</td></tr>
+        <tr><td><code>Unknown identifier: myCalcLanguage</code></td><td>Falta la extensión <b class="i">myCalc - Global</b>. Agrégala — normalmente el botón la trae solo.</td></tr>
+        <tr><td>Aceptar no hace nada</td><td>La pantalla muestra un error. Pulsa C primero — el aviso lo dice.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    </div>
+    <footer>
+      <span class="en">myCalc · Programmer's Documentation · part of the templatemaker template set ·
+        pure Clarion, no external dependencies.</span>
+      <span class="es">myCalc · Documentación del programador · parte de la colección templatemaker ·
+        Clarion puro, sin dependencias externas.</span>
+    </footer>
+  </main>
+</div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('mc-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('mc-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
+</body>
+</html>
