@@ -80,26 +80,23 @@
 #!  anyway: filtering on a field the browse does not happen to show is a normal
 #!  thing to want, and BINDABLE covers the whole record either way.
 #!#############################################################################
-#GROUP(%mfAddFields,%pObject)
+#GROUP(%mfAddFields,%pObject,%pFile)
   #DECLARE(%mfType)
   #DECLARE(%mfLabel)
   #DECLARE(%mfAny,LONG)
   #SET(%mfAny,0)
-  #IF(%Primary)
-    #FIX(%File,%Primary)
+  #!  The file comes from the template's own prompt. %Primary reads as empty
+  #!  from a control template's embed - the schematic symbols are not in scope
+  #!  there - which produced a browse with no fields at all to filter on.
+  #IF(%pFile)
+    #FIX(%File,%pFile)
     #FOR(%Field)
       #CALL(%mfEmitField,%pObject)
     #ENDFOR
-    #FOR(%Secondary),WHERE(%SecondaryTo=%Primary)
-      #FIX(%File,%Secondary)
-      #FOR(%Field)
-        #CALL(%mfEmitField,%pObject)
-      #ENDFOR
-    #ENDFOR
   #ENDIF
   #IF(~%mfAny)
-    ! myFilter: this procedure has no file schematic, so there are no fields to
-    ! offer. Add the file to the procedure, or call AddField yourself here.
+    ! myFilter: no file chosen, so there are no fields to offer. Set "File whose
+    ! fields to offer" on the Filters button, or call AddField yourself here.
   #ENDIF
 #!-----------------------------------------------------------------------------
 #GROUP(%mfEmitField,%pObject)
@@ -189,6 +186,11 @@ myFilterStorage      BYTE(%mfgStorage)                    ! 0 = INI, 1 = table
     #ENDBOXED
     #BOXED('The browse it filters')
       #PROMPT('&Browse object:',@s64),%mfBrowse,REQ,DEFAULT('BRW1')
+      #PROMPT('&File whose fields to offer:',FILE),%mfFile,REQ
+      #DISPLAY('The file behind this browse. Every field of it is offered in')
+      #DISPLAY('the filter window - including ones the browse does not show,')
+      #DISPLAY('which is usually what you want. Tick BINDABLE on it in the')
+      #DISPLAY('dictionary or the filter cannot be evaluated at run time.')
       #DISPLAY('The ABC browse object on this window - BRW1 unless there is')
       #DISPLAY('more than one browse, in which case check the Browse Box')
       #DISPLAY('extension for the name.')
@@ -239,7 +241,7 @@ INCLUDE('MyFilterClass.INC'),ONCE
 !  The field list is built on the first press rather than at window open, so
 !  the button costs nothing on a window where nobody filters.
   IF ~%mfObject.FieldCount()
-#INSERT(%mfAddFields,%mfObject)
+#INSERT(%mfAddFields,%mfObject,%mfFile)
   END
 #IF(%mfTitle)
   %mfObject.Title         = '%mfTitle'
@@ -265,9 +267,9 @@ INCLUDE('MyFilterClass.INC'),ONCE
     %mfBrowse.ResetSort(1)
 #IF(%mfCount)
     IF %mfObject.CondCount()
-      ?%mfBtn{PROP:Text} = CLIP(%mfObject.Txt(FTx:Title)) & ' (' & %mfObject.CondCount() & ')'
+      %mfBtn{PROP:Text} = CLIP(%mfObject.Txt(FTx:Title)) & ' (' & %mfObject.CondCount() & ')'
     ELSE
-      ?%mfBtn{PROP:Text} = %mfObject.Txt(FTx:Title)
+      %mfBtn{PROP:Text} = %mfObject.Txt(FTx:Title)
     END
 #ENDIF
 #EMBED(%myFilterAfterApply,'myFilter - after the filter was applied'),%ActiveTemplateInstance,HIDE
@@ -282,6 +284,7 @@ INCLUDE('MyFilterClass.INC'),ONCE
     #BOXED('Object')
       #PROMPT('&Object name:',@s64),%mhObject,REQ,DEFAULT('Flt' & %ActiveTemplateInstance)
       #PROMPT('&Browse object:',@s64),%mhBrowse,REQ,DEFAULT('BRW1')
+      #PROMPT('&File whose fields to offer:',FILE),%mhFile,REQ
       #PROMPT('&Window title (blank = the localised word):',@s64),%mhTitle,DEFAULT('')
       #PROMPT('&Case sensitive text compares',CHECK),%mhCase,DEFAULT(0),AT(10)
       #PROMPT('&Profile name (blank = this procedure):',@s64),%mhProfile,DEFAULT('')
@@ -299,7 +302,7 @@ INCLUDE('MyFilterClass.INC'),ONCE
 #ENDAT
 #!
 IF ~%mhObject.FieldCount()
-#INSERT(%mfAddFields,%mhObject)
+#INSERT(%mfAddFields,%mhObject,%mhFile)
 END
 #IF(%mhTitle)
 %mhObject.Title         = '%mhTitle'
