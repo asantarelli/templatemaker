@@ -45,3 +45,13 @@ examples/**/col.ini
 docs/DrawPlus-*
 templates/DrawPlus/
 examples/DrawPlus/
+
+# xquickfilter is local-only - never push the template, its demo or its docs
+templates/xquickfilter/
+examples/xquickfilter/
+examples/xQuickFilter/
+docs/xquickfilter*
+docs/xquickfltr*
+docs/xQuickFilter*
+skills/xquickfilter/
+**/xquickfltr.*
