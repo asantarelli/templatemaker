@@ -35,6 +35,7 @@ i  LONG
   SELF.AutoScale = 1;  SELF.MinVal = 0; SELF.MaxVal = 0
   SELF.BarGapPct = 30
   SELF.TextW = 0; SELF.TextH = 0
+  SELF.EraseFirst = 1                                        ! Paint wipes its own rectangle before drawing
   SELF.BackColor = COLOR:None
   SELF.PlotColor = COLOR:None
   SELF.AxisColor = 02B2B2Bh                                  ! near-black
@@ -53,6 +54,11 @@ s  LONG
 i  LONG
   CODE
   SELF.NBars = 0
+  LOOP i = 1 TO GraficaBarra:MaxBars                         ! wipe series 1 as well, so a later SetValue()
+    SELF.BarLabel[i] = ''                                    ! cannot inherit a label or a color from the
+    SELF.BarValue[i] = 0                                     ! chart that was in here before
+    SELF.BarColor[i] = COLOR:None
+  END
   LOOP s = 1 TO GraficaBarra:MaxSeries2                      ! the extra series share the categories
     LOOP i = 1 TO GraficaBarra:MaxBars
       SELF.SeriesValue[s,i] = 0
@@ -372,16 +378,13 @@ avail  LONG
 rows   LONG
 dummy  LONG
 saved  LONG
+ex     LONG
+ey     LONG
 txt    STRING(64)
   CODE
   GETPOSITION(pFeq, x, y, w, h)
   SELF.zFeq = pFeq
   SELF.zWin = pWindowMode
-  IF pWindowMode                                             ! window: the IMAGE is the target (2-arg SETTARGET),
-    BLANK                                                    ! so origin is 0,0 and BLANK clears just this image.
-    x = 0; y = 0                                             ! report: keep the band offset, no clear.
-  END
-  SELF.zX = x; SELF.zY = y; SELF.zW = w; SELF.zH = h
   ! ---- text metrics: dialog units on a window, 1/1000 inch on a report ----
   IF SELF.TextW > 0
     SELF.zCW = SELF.TextW
@@ -399,6 +402,22 @@ txt    STRING(64)
   END
   SELF.zPad = INT(SELF.zCH / 4); IF SELF.zPad < 1 THEN SELF.zPad = 1.
   SELF.zSc = INT(SELF.zCH / 9);  IF SELF.zSc < 1 THEN SELF.zSc = 1.
+  ! ---- wipe what was here before -----------------------------------------
+  !  A window IMAGE is its own canvas, so BLANK clears the lot. A report BAND
+  !  is not: it keeps every primitive ever drawn into it, so painting a second
+  !  chart over the same placeholder lands ON TOP of the first - ClearAll()
+  !  throws the data away, never the ink. Clear just this chart's rectangle,
+  !  with a pad of bleed because a real font descender can sit a hair below
+  !  the cell height assumed above.
+  IF pWindowMode
+    IF SELF.EraseFirst = 1 THEN BLANK.
+    x = 0; y = 0                                             ! the IMAGE is the target: its origin is 0,0
+  ELSIF SELF.EraseFirst = 1
+    ex = x - SELF.zPad; IF ex < 0 THEN ex = 0.               ! never reach outside the band
+    ey = y - SELF.zPad; IF ey < 0 THEN ey = 0.
+    BLANK(ex, ey, x + w + SELF.zPad - ex, y + h + SELF.zPad - ey)
+  END
+  SELF.zX = x; SELF.zY = y; SELF.zW = w; SELF.zH = h
   ! ---- remember the target's own font so text can be re-colored ----
   SELF.zFont = ''; SELF.zFSize = 0; SELF.zFStyle = 0; SELF.zFChar = 0
   dummy = 0

@@ -253,6 +253,13 @@ Refresh:%gbWObject ROUTINE
       #! Blank = work it out from the report structure (indent level).
       #PROMPT('Ban&d to draw into (blank = the one holding the placeholder):',FROM(%ReportControl,%ReportControlType='DETAIL' OR %ReportControlType='HEADER' OR %ReportControlType='FOOTER' OR %ReportControlType='FORM')),%gbRBand,DEFAULT('')
       #PROMPT('&Hide the placeholder when printing',CHECK),%gbRHide,DEFAULT(1),AT(10)
+      #! A band keeps every primitive ever drawn into it, so painting a second
+      #! chart into the same placeholder lands ON TOP of the first unless the
+      #! rectangle is wiped. ClearAll() only drops the data, never the ink.
+      #PROMPT('&Erase the placeholder before drawing',CHECK),%gbRErase,DEFAULT(1),AT(10)
+      #BOXED,WHERE(%gbRErase=0)
+        #DISPLAY('Off: this chart draws on top of whatever is already in the band.')
+      #ENDBOXED
       #PROMPT('&Title text:',@s64),%gbRTitle,DEFAULT('')
     #ENDBOXED
     #BOXED('Chart')
@@ -436,6 +443,7 @@ Refresh:%gbWObject ROUTINE
   %gbRObject.DonutText = '%gbRDonutText'
   %gbRObject.TextW = %gbRTextW
   %gbRObject.TextH = %gbRTextH
+  %gbRObject.EraseFirst = %gbRErase                          ! 1 = wipe the placeholder's rectangle first
 #IF(%gbRUseBack)
   %gbRObject.BackColor = %gbRBackColor
 #ENDIF

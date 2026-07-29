@@ -64,3 +64,8 @@ templates/xquickfilter5/
 examples/xquickfilter5/
 examples/xQuickFilter5/
 **/xquickfltr5.*
+
+# graficaBarra ReportClear demo output (regenerate by running the exe)
+examples/graficaBarra/*.wmf
+examples/graficaBarra/rpt*.png
+examples/graficaBarra/ReportClear.log

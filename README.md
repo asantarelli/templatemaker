@@ -424,7 +424,17 @@ small as possible**. Pie/3D pie/donut ride on Clarion's own `PIE` statement and 
 ![the same charts, printed into a report band as vectors](docs/graficaBarra-report.png)
 
 A control in the band (IMAGE/BOX/REGION) is used *only* as the position/size placeholder and is hidden at
-print time. Each chart is aimed at **its own band** with `SETTARGET(report, band)` — the template works out
+print time. **Reusing one object for chart after chart works**: a report band keeps every primitive ever
+drawn into it, so painting a second chart over the same placeholder used to land *on top* of the first —
+`ClearAll()` throws the data away but can never un-draw ink. Painting now `BLANK`s the placeholder's own
+rectangle first (`EraseFirst`, on by default, "Erase the placeholder before drawing" in the prompts). It
+is a real erase, not a box painted over the top: the old primitives leave the band, so the **PDF gets
+smaller**, and neighbouring charts and the band's own controls are untouched. Set it off for a deliberate
+overlay:
+
+![clear and redraw into the same placeholder: EraseFirst off, then on](docs/graficaBarra-report-clear.png)
+
+Each chart is aimed at **its own band** with `SETTARGET(report, band)` — the template works out
 which band holds the placeholder from the report structure (indent level), so it handles a DETAIL, a group
 HEADER/FOOTER or a FORM without being told. Both procedure extensions are **MULTI**, so you can put
 **several charts on one report or one window** — each is its own local object, and on a report they follow
@@ -434,8 +444,11 @@ values). Three registrations:
 **graficaBarraGlobal** (include the class once), **graficaBarra** (window), **graficaBarraReport** (report).
 Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
 [`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy
-distribution. `examples/graficaBarra/` has two runnable demos: **ChartDemo** (pick a type, watch it draw)
-and **ChartShots** (six charts per page, `ChartShots 1|2|3`). Full docs — prompts, class API, run-time
+distribution. `examples/graficaBarra/` has three runnable demos: **ChartDemo** (pick a type, watch it draw),
+**ChartShots** (six charts per page, `ChartShots 1|2|3`) and **ReportClear** — a headless report that writes
+its pages out as metafiles: `ReportClear` paints, clears and repaints into one placeholder page by page,
+`ReportClear 2` compares the candidate fixes, and `ReportClear 3` walks the report with `PROP:NextField`
+and logs a control census (the count never moves — a chart is ink, not controls). Full docs — prompts, class API, run-time
 control — in [`docs/graficaBarra-template.html`](docs/graficaBarra-template.html); a bilingual (English +
 Spanish) developer's reference with worked example code is in
 [`docs/graficaBarra-reference.html`](docs/graficaBarra-reference.html).

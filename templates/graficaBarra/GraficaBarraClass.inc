@@ -39,7 +39,13 @@
 !
 !    Ventas.Draw(MyWindow, ?Graph)             ! window: draw into the IMAGE
 !    ! report (per band):
-!    !   SETTARGET(MyReport) ; Ventas.Paint(?Placeholder) ; SETTARGET()
+!    !   SETTARGET(MyReport, ?Band) ; Ventas.Paint(?Placeholder) ; SETTARGET()
+!
+!  REUSING ONE OBJECT: ClearAll() throws the DATA away, it cannot un-draw a
+!  chart that is already on the page. Paint therefore clears the placeholder's
+!  own rectangle before it draws (EraseFirst=1), so a second chart painted into
+!  the same placeholder REPLACES the first instead of landing on top of it.
+!  Set EraseFirst=0 only when you really do want to overlay.
 !
 !  Values may be negative (bars hang below the zero baseline). If AutoScale=1
 !  (default) the value axis is computed from the data and rounded up to a
@@ -115,6 +121,9 @@ MaxVal             REAL
 BarGapPct          LONG                                        ! gap between bars, percent of one slot
 TextW              LONG                                        ! char cell width override (0 = auto per target)
 TextH              LONG                                        ! char cell height override (0 = auto per target)
+EraseFirst         BYTE                                        ! 1 (default) = Paint clears its own rectangle
+                                                               ! before drawing. 0 = draw ON TOP of whatever is
+                                                               ! already there (deliberate overlays).
 ! ---- colors (Clarion BGR longs) ----
 BackColor          LONG                                        ! whole-control background (COLOR:None = leave)
 PlotColor          LONG                                        ! plot-area fill (COLOR:None = leave)
@@ -136,7 +145,9 @@ SeriesValue        REAL,DIM(GraficaBarra:MaxSeries2,GraficaBarra:MaxBars) ! seri
 ! ---- methods: data --------------------------------------------------------
 Construct          PROCEDURE
 ClearBars          PROCEDURE                                   ! drop the categories (keeps the series names)
-ClearAll           PROCEDURE                                   ! drop the categories AND the series
+ClearAll           PROCEDURE                                   ! drop the categories AND the series. DATA only -
+                                                               ! it does not un-draw a chart already on the page;
+                                                               ! EraseFirst (default 1) does that at Paint time.
 AddBar             PROCEDURE(STRING pLabel,REAL pValue,LONG pColor=-1)
 AddSeries          PROCEDURE(STRING pName,LONG pColor=-1),LONG,PROC ! returns the series number
 AddCat             PROCEDURE(STRING pLabel,REAL v1,REAL v2=0,REAL v3=0,REAL v4=0,REAL v5=0,REAL v6=0,REAL v7=0,REAL v8=0)
@@ -147,8 +158,9 @@ Demo               PROCEDURE                                   ! sample data sui
 ! ---- methods: drawing -----------------------------------------------------
 Draw               PROCEDURE(WINDOW pWin,SIGNED pImageFeq)     ! window: target the IMAGE, clear, paint
 Paint              PROCEDURE(SIGNED pFeq,BYTE pWindowMode=0)   ! paint into the CURRENT target at pFeq's rect;
-                                                               ! pWindowMode=1 clears the image first (windows),
-                                                               ! 0 = no clear, band offset kept (reports)
+                                                               ! pWindowMode=1 = image-relative (windows),
+                                                               ! 0 = band offset kept (reports). Either way
+                                                               ! EraseFirst=1 clears pFeq's rect beforehand.
 ! ---- internal: helpers ----------------------------------------------------
 NiceMax            PROCEDURE(REAL v),REAL                      ! round up to 1/2/5 x 10^k
 Palette            PROCEDURE(LONG i),LONG                      ! professional auto colors (cycles)
