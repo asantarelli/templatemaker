@@ -55,3 +55,9 @@ docs/xquickfltr*
 docs/xQuickFilter*
 skills/xquickfilter/
 **/xquickfltr.*
+
+# xquickfilter5 - same deal, local only
+templates/xquickfilter5/
+examples/xquickfilter5/
+examples/xQuickFilter5/
+**/xquickfltr5.*
