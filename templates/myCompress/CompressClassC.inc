@@ -14,8 +14,11 @@
 !  CompressClassC (this one). Use this class only when you want the C fast-path
 !  - it is ~4x faster at compression and needs mc.c on the redirection path.
 !
-!  Single-threaded: mc.c uses file-scope work tables. For concurrent
-!  compression use the pure-Clarion CompressClass instead.
+!  Single-threaded, as used here: mc_compress/mc_decompress share one global
+!  context. For concurrent compression either use the pure-Clarion CompressClass
+!  or call mc.c's mc_compress_ctx() directly, giving each thread its own buffer
+!  of mc_cctx_size() bytes - that entry point keeps no shared state. (The
+!  decompressor has not been given the same treatment yet.)
 !
 !  USAGE (handled for you by the myCompress template):
 !    Copy CompressClass.inc/.clw + CompressClassC.inc/.clw + mc.c (ANSI, CRLF)

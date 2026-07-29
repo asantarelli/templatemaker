@@ -52,13 +52,42 @@ static const int dstbase[30] = {1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,3
 static const int dstx[30]    = {0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13};
 static const int clorder[19] = {16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15};
 
-/* =====================  COMPRESS  ===================== */
-static u8* out; static int outpos; static int outcap; static int oerr; static u32 bacc; static int bn;
-static void putbyte(int b) { if (outpos >= outcap) { oerr = 1; return; } out[outpos++] = (u8)b; }
-static void putbits(u32 v, int n) { bacc |= (v & ((1u << n) - 1)) << bn; bn += n; while (bn >= 8) { putbyte(bacc & 0xFF); bacc >>= 8; bn -= 8; } }
+/* =====================  COMPRESS  =====================
+ *
+ *  The compressor's working state lives in an mc_cctx the CALLER owns, so two
+ *  threads can compress at once as long as they pass different contexts. That
+ *  matters because Clarion reports run on their own thread and can be exporting
+ *  PDFs simultaneously; sharing the match tables would silently produce wrong
+ *  back-references, not an error.
+ *
+ *  mc_compress() keeps the original signature and uses one file-scope context,
+ *  so it stays single-threaded exactly as before - nothing that calls it today
+ *  changes behaviour. Use mc_compress_ctx() when you need concurrency.
+ *
+ *  (flcode/fllen/fixdone and crctab/crcready remain file-scope. They are
+ *  write-once lookup tables and every writer computes identical values, so a
+ *  race there is harmless.)
+ */
+#define WSIZE 32768
+#define WMASK 32767
+#define HSIZE 32768
+#define HMASK 32767
+#define MINM  3
+#define MAXM  258
+
+typedef struct {
+    u8* out; int outpos; int outcap; int oerr; u32 bacc; int bn;
+    int head[HSIZE];
+    int hprev[WSIZE];
+} mc_cctx;
+
+int mc_cctx_size(void) { return (int)sizeof(mc_cctx); }
+
+static void putbyte(mc_cctx* z, int b) { if (z->outpos >= z->outcap) { z->oerr = 1; return; } z->out[z->outpos++] = (u8)b; }
+static void putbits(mc_cctx* z, u32 v, int n) { z->bacc |= (v & ((1u << n) - 1)) << z->bn; z->bn += n; while (z->bn >= 8) { putbyte(z, z->bacc & 0xFF); z->bacc >>= 8; z->bn -= 8; } }
 static u32  revbits(u32 v, int n) { u32 r = 0; int i; for (i = 0; i < n; i++) { r = (r << 1) | (v & 1); v >>= 1; } return r; }
-static void puthuff(int code, int n) { putbits(revbits((u32)code, n), n); }
-static void flushbits(void) { if (bn > 0) { putbyte(bacc & 0xFF); bacc = 0; bn = 0; } }
+static void puthuff(mc_cctx* z, int code, int n) { putbits(z, revbits((u32)code, n), n); }
+static void flushbits(mc_cctx* z) { if (z->bn > 0) { putbyte(z, z->bacc & 0xFF); z->bacc = 0; z->bn = 0; } }
 
 static int flcode[288], fllen[288], fixdone = 0;
 static void fixinit(void) {
@@ -73,70 +102,73 @@ static void fixinit(void) {
     fixdone = 1;
 }
 
-#define WSIZE 32768
-#define WMASK 32767
-#define HSIZE 32768
-#define HMASK 32767
-#define MINM  3
-#define MAXM  258
-static int head[HSIZE];
-static int hprev[WSIZE];
 static int hashof(const u8* s, int i) { return ((s[i] << 10) ^ (s[i + 1] << 5) ^ s[i + 2]) & HMASK; }
 
-static void deflate_body(const u8* src, int srclen, int level) {
+static void deflate_body(mc_cctx* z, const u8* src, int srclen, int level) {
     int i, maxchain, cur, chain, bestlen, bestdist, ml, k, p, h, ls, ds;
     maxchain = level <= 1 ? 8 : level <= 4 ? 32 : level <= 6 ? 128 : level <= 8 ? 1024 : 4096;
-    for (i = 0; i < HSIZE; i++) head[i] = -1;
-    putbits(1, 1); putbits(1, 2);            /* BFINAL=1, BTYPE=01 (fixed Huffman) */
+    for (i = 0; i < HSIZE; i++) z->head[i] = -1;
+    putbits(z, 1, 1); putbits(z, 1, 2);      /* BFINAL=1, BTYPE=01 (fixed Huffman) */
     i = 0;
     while (i < srclen) {
         bestlen = 0; bestdist = 0;
         if (i + MINM <= srclen) {
-            h = hashof(src, i); cur = head[h]; chain = maxchain;
+            h = hashof(src, i); cur = z->head[h]; chain = maxchain;
             while (cur >= 0 && chain > 0) {
                 if (i - cur > WSIZE) break;
                 ml = 0; while (ml < MAXM && i + ml < srclen && src[cur + ml] == src[i + ml]) ml++;
                 if (ml > bestlen) { bestlen = ml; bestdist = i - cur; if (ml >= MAXM) break; }
-                cur = hprev[cur & WMASK]; chain--;
+                cur = z->hprev[cur & WMASK]; chain--;
             }
-            hprev[i & WMASK] = head[h]; head[h] = i;
+            z->hprev[i & WMASK] = z->head[h]; z->head[h] = i;
         }
         if (bestlen >= MINM) {
             for (ls = 28; ls >= 0; ls--) if (lenbase[ls] <= bestlen) break;
-            puthuff(flcode[257 + ls], fllen[257 + ls]);
-            if (lenx[ls] > 0) putbits((u32)(bestlen - lenbase[ls]), lenx[ls]);
+            puthuff(z, flcode[257 + ls], fllen[257 + ls]);
+            if (lenx[ls] > 0) putbits(z, (u32)(bestlen - lenbase[ls]), lenx[ls]);
             for (ds = 29; ds >= 0; ds--) if (dstbase[ds] <= bestdist) break;
-            puthuff(ds, 5);
-            if (dstx[ds] > 0) putbits((u32)(bestdist - dstbase[ds]), dstx[ds]);
-            for (k = 1; k < bestlen; k++) { p = i + k; if (p + MINM <= srclen) { h = hashof(src, p); hprev[p & WMASK] = head[h]; head[h] = p; } }
+            puthuff(z, ds, 5);
+            if (dstx[ds] > 0) putbits(z, (u32)(bestdist - dstbase[ds]), dstx[ds]);
+            for (k = 1; k < bestlen; k++) { p = i + k; if (p + MINM <= srclen) { h = hashof(src, p); z->hprev[p & WMASK] = z->head[h]; z->head[h] = p; } }
             i += bestlen;
-        } else { puthuff(flcode[src[i]], fllen[src[i]]); i++; }
+        } else { puthuff(z, flcode[src[i]], fllen[src[i]]); i++; }
     }
-    puthuff(flcode[256], fllen[256]);        /* end of block */
-    flushbits();
+    puthuff(z, flcode[256], fllen[256]);     /* end of block */
+    flushbits(z);
 }
 
-/* Compress src into dst. format: 0 raw, 1 zlib, 2 gzip. Returns length or -1. */
-int mc_compress(u8* dst, int dstcap, const u8* src, int srclen, int level, int format) {
+/* Compress src into dst using a caller-owned context. Safe to call from more
+ * than one thread provided each passes its own ctx, which must be at least
+ * mc_cctx_size() bytes. format: 0 raw, 1 zlib, 2 gzip. Returns length or -1. */
+int mc_compress_ctx(void* ctx, u8* dst, int dstcap, const u8* src, int srclen, int level, int format) {
+    mc_cctx* z = (mc_cctx*)ctx;
     u32 crc, ad;
+    if (!z) return -1;
     fixinit();
-    out = dst; outpos = 0; outcap = dstcap; oerr = 0; bacc = 0; bn = 0;
+    z->out = dst; z->outpos = 0; z->outcap = dstcap; z->oerr = 0; z->bacc = 0; z->bn = 0;
     if (format == 2) {                       /* gzip header */
-        putbyte(0x1F); putbyte(0x8B); putbyte(8); putbyte(0);
-        putbyte(0); putbyte(0); putbyte(0); putbyte(0); putbyte(0); putbyte(0xFF);
+        putbyte(z, 0x1F); putbyte(z, 0x8B); putbyte(z, 8); putbyte(z, 0);
+        putbyte(z, 0); putbyte(z, 0); putbyte(z, 0); putbyte(z, 0); putbyte(z, 0); putbyte(z, 0xFF);
     } else if (format == 1) {                /* zlib header (0x78 0x01) */
-        putbyte(0x78); putbyte(0x01);
+        putbyte(z, 0x78); putbyte(z, 0x01);
     }
-    deflate_body(src, srclen, level);
+    deflate_body(z, src, srclen, level);
     if (format == 2) {                       /* gzip trailer: CRC32 + ISIZE (LE) */
         crc = mc_crc32(src, srclen);
-        putbyte(crc & 0xFF); putbyte((crc >> 8) & 0xFF); putbyte((crc >> 16) & 0xFF); putbyte((crc >> 24) & 0xFF);
-        putbyte(srclen & 0xFF); putbyte((srclen >> 8) & 0xFF); putbyte((srclen >> 16) & 0xFF); putbyte((srclen >> 24) & 0xFF);
+        putbyte(z, crc & 0xFF); putbyte(z, (crc >> 8) & 0xFF); putbyte(z, (crc >> 16) & 0xFF); putbyte(z, (crc >> 24) & 0xFF);
+        putbyte(z, srclen & 0xFF); putbyte(z, (srclen >> 8) & 0xFF); putbyte(z, (srclen >> 16) & 0xFF); putbyte(z, (srclen >> 24) & 0xFF);
     } else if (format == 1) {                /* zlib trailer: Adler32 (big-endian) */
         ad = mc_adler32(src, srclen);
-        putbyte((ad >> 24) & 0xFF); putbyte((ad >> 16) & 0xFF); putbyte((ad >> 8) & 0xFF); putbyte(ad & 0xFF);
+        putbyte(z, (ad >> 24) & 0xFF); putbyte(z, (ad >> 16) & 0xFF); putbyte(z, (ad >> 8) & 0xFF); putbyte(z, ad & 0xFF);
     }
-    return oerr ? -1 : outpos;            /* -1 = dst too small (caller grows + retries) */
+    return z->oerr ? -1 : z->outpos;      /* -1 = dst too small (caller grows + retries) */
+}
+
+/* Original entry point, unchanged for every existing caller: one shared context,
+ * therefore still single-threaded. */
+static mc_cctx mc_global_cctx;
+int mc_compress(u8* dst, int dstcap, const u8* src, int srclen, int level, int format) {
+    return mc_compress_ctx(&mc_global_cctx, dst, dstcap, src, srclen, level, format);
 }
 
 /* =====================  DECOMPRESS  ===================== */
