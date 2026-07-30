@@ -928,12 +928,27 @@ A private category is registered by nobody unless that template asks for it, so 
 the generated export list and links per-app as before. Only **myExport** registers its category today
 (`MYEXPORT`), which is what lets one copy of `ExportClass` serve a whole multi-DLL suite.
 
-Two consequences worth knowing:
+Three consequences worth knowing:
 
 - **When you upgrade, replace the `.inc` on your redirection path**, not just the one in your project — the
   registry reads *that* copy. A leftover bare-tagged one keeps the old behaviour.
 - **A renamed or superseded class left on the redirection path will break a data DLL** even though no
   template references it any more, because the registry still finds it. Delete stale copies.
+- **These files belong in `Accessory\libsrc\win` and nowhere else.** `CLARION120.RED` searches `.` (the app
+  folder), then `%ROOT%\libsrc\win`, and only then `%ROOT%\Accessory\libsrc\win` — so a duplicate in an
+  earlier folder *wins*, and updating the right copy fixes nothing. And because the class registry reads
+  **every** copy while the compiler obeys precedence, a method whose signature changed between two copies is
+  registered twice: the `.EXP` exports both spellings and the half that the compiled `.clw` doesn't implement
+  comes out unresolved. **A class failing on only some of its methods is the signature of a duplicate `.inc`.**
+
+Run [`installer/Check-InstalledClasses.ps1`](installer/Check-InstalledClasses.ps1) to audit all of that in one
+command — it reports anything installed that is out of date, in the wrong folder, or still bare-tagged:
+
+```powershell
+.\installer\Check-InstalledClasses.ps1                      # report
+.\installer\Check-InstalledClasses.ps1 -Fix                 # refresh stale copies from the repo
+.\installer\Check-InstalledClasses.ps1 -RemoveMisplaced     # delete copies outside Accessory\libsrc\win
+```
 
 ## Visual designer & installer
 

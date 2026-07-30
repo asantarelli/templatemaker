@@ -143,12 +143,22 @@ Traps, all three hit for real:
 > is simply never auto-exported, and the class still links per-app exactly as before; there is no downside and
 > nothing else to change. Only add the registration (step 3) when you actually want the class shared.
 >
-> Two corollaries that cost real debugging time:
+> Three corollaries, each of which cost real debugging time:
 > - **The registry reads the `.inc` on the redirection path**, not your project's copy. Tell developers to
 >   replace *that* one on upgrade, or the old tag keeps the old behaviour.
 > - **A renamed or superseded class left on the redirection path still breaks a data DLL**, because the
 >   registry finds it even though no template references it any more. `CalendarClass.inc`, superseded by
 >   `MyCalendarClass`, sat there for three days and produced exactly the error above.
+> - **There is more than one libsrc folder, and the registry reads them ALL while the compiler obeys
+>   precedence.** `CLARION120.RED` searches `.` (the app folder), then `%ROOT%\libsrc\win`, and only then
+>   `%ROOT%\Accessory\libsrc\win` — so a stale duplicate in an earlier folder *wins*, and updating the
+>   right one fixes nothing. Worse, because the registry registers every copy it finds, a method whose
+>   signature changed between the two copies ends up registered **twice**: the `.EXP` gets both spellings
+>   (`BUILD@F10AZTECCLASSRsc` from the old `*CSTRING` prototype and `BUILD@F10AZTECCLASSsb` from the new
+>   `STRING` one) while the compiler builds only the copy that won redirection — so roughly half the
+>   methods of each affected class come out unresolved. If a class fails on *some* of its methods rather
+>   than all of them, stop looking at the template and go hunting for a duplicate `.inc`. `installer\`
+>   `Check-InstalledClasses.ps1` in this repo audits all of it in one command.
 
 ### CapeSoft route — only if the `cape0*.tpw` chain is registered
 ```
