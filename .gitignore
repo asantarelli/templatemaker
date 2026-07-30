@@ -78,6 +78,13 @@ docs/xDataBackup*
 **/zlib.clw
 **/zlib.inc
 
+# xdbpro5 - the revamped xDataBackup, same deal, local only
+templates/xdbpro5/
+examples/xdbpro5/
+examples/xDBPro5/
+docs/xdbpro5*
+docs/xDBPro5*
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
