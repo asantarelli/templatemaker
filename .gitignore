@@ -65,6 +65,19 @@ examples/xquickfilter5/
 examples/xQuickFilter5/
 **/xquickfltr5.*
 
+# xdbpro (xDataBackup Manager Pro) - local-only, never push the template,
+# its class, its demo or its docs
+templates/xdbpro/
+examples/xdbpro/
+examples/xDBPro/
+docs/xdbpro*
+docs/xDBPro*
+docs/xDataBackup*
+**/xdbpro.*
+**/xDBPro.*
+**/zlib.clw
+**/zlib.inc
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
