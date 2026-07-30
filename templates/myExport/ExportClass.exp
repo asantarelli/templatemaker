@@ -1,0 +1,95 @@
+;=============================================================================
+; ExportClass.exp  -  the export list for ExportClass (the myExport template).
+;
+; YOU DO NOT NEED THIS FILE IN AN APPGEN APPLICATION. Add the myExportGlobal
+; extension to every app in the suite and Clarion writes these same lines into
+; the owning DLL's .EXP for you, from the class registry - see myExport.tpl.
+;
+; This copy is for a HAND-CODED multi-DLL build, where nothing generates an
+; .EXP for you. Paste the lines below under the EXPORTS line of the .EXP of the
+; DLL that compiles ExportClass.clw, and give each project its defines:
+;
+;   the DLL that owns the class   _myExportLinkMode_=>1  _myExportDllMode_=>0
+;   every app that imports it     _myExportLinkMode_=>0  _myExportDllMode_=>1
+;
+; These are Clarion's mangled names, so they follow the class's prototypes: if
+; you add, remove or re-prototype a method, regenerate this list or the link
+; will fail. The reliable way to regenerate it is to let AppGen do it (generate
+; any DLL app that has myExportGlobal on it and copy the EXPORTCLASS lines out
+; of its .EXP); the names can also be read out of a compiled ExportClass.obj.
+;
+; Generated from Clarion 12.0.13941 AppGen output.  73 entries.
+;=============================================================================
+  VMT$EXPORTCLASS                                         @?
+  TYPE$EXPORTCLASS                                        @?
+  ADDROW@F11EXPORTCLASS                                   @?
+  ALLOWED@F11EXPORTCLASSl                                 @?
+  ARCCAT@F11EXPORTCLASSsb                                 @?
+  ARCNEED@F11EXPORTCLASSl                                 @?
+  ASK@F11EXPORTCLASS                                      @?
+  ASKFILENAME@F11EXPORTCLASS                              @?
+  CRC32@F11EXPORTCLASSRsbl                                @?
+  CAT@F11EXPORTCLASSsb                                    @?
+  CATCSVFIELD@F11EXPORTCLASSsbsb                          @?
+  CATFLATFIELD@F11EXPORTCLASSsb                           @?
+  CATHTMLTEXT@F11EXPORTCLASSsb                            @?
+  CATJSONTEXT@F11EXPORTCLASSsb                            @?
+  CATXMLTEXT@F11EXPORTCLASSsb                             @?
+  CELLNUMBER@F11EXPORTCLASSl                              @?
+  CELLTEXT@F11EXPORTCLASSl                                @?
+  CLASSIFY@F11EXPORTCLASSl                                @?
+  COLREF@F11EXPORTCLASSl                                  @?
+  COLUMNDEFAULT@F11EXPORTCLASSl                           @?
+  COLUMNDEFAULTPIC@F11EXPORTCLASSl                        @?
+  COLUMNHEADING@F11EXPORTCLASSl                           @?
+  COLUMNON@F11EXPORTCLASSl                                @?
+  COLUMNPIC@F11EXPORTCLASSl                               @?
+  COLUMNPICTURE@F11EXPORTCLASSlsb                         @?
+  COLUMNRENAME@F11EXPORTCLASSlsb                          @?
+  COLUMNUSE@F11EXPORTCLASSlUc                             @?
+  COLUMNS@F11EXPORTCLASS                                  @?
+  CONSTRUCT@F11EXPORTCLASS                                @?
+  CRCINIT@F11EXPORTCLASS                                  @?
+  DESTRUCT@F11EXPORTCLASS                                 @?
+  ENDFILE@F11EXPORTCLASS                                  @?
+  EXPORTQUEUE@F11EXPORTCLASS                              @?
+  FOLDEROF@F11EXPORTCLASSsb                               @?
+  FORCEEXT@F11EXPORTCLASSl                                @?
+  FORGETSETTINGS@F11EXPORTCLASS                           @?
+  FORMATEXT@F11EXPORTCLASSl                               @?
+  FORMATHINT@F11EXPORTCLASSl                              @?
+  FORMATMASK@F11EXPORTCLASSl                              @?
+  FORMATNAME@F11EXPORTCLASSl                              @?
+  FREEBUFFERS@F11EXPORTCLASS                              @?
+  HEADERTEXT@F11EXPORTCLASSl                              @?
+  INIPATH@F11EXPORTCLASS                                  @?
+  INISECTION@F11EXPORTCLASS                               @?
+  INIT@F11EXPORTCLASSlBq                                  @?
+  ISASCII@F11EXPORTCLASSRsbl                              @?
+  KILL@F11EXPORTCLASS                                     @?
+  LAYOUTSIG@F11EXPORTCLASS                                @?
+  LE16@F11EXPORTCLASSUl                                   @?
+  LE32@F11EXPORTCLASSUl                                   @?
+  LOADSETTINGS@F11EXPORTCLASS                             @?
+  NEED@F11EXPORTCLASSl                                    @?
+  NOTE@F11EXPORTCLASSsbsbl                                @?
+  RESCAN@F11EXPORTCLASS                                   @?
+  RESETCOLUMNS@F11EXPORTCLASS                             @?
+  RUN@F11EXPORTCLASS                                      @?
+  SAFETAG@F11EXPORTCLASSsbl                               @?
+  SAVESETTINGS@F11EXPORTCLASS                             @?
+  SCANCOLUMNS@F11EXPORTCLASS                              @?
+  SELECTALL@F11EXPORTCLASSUc                              @?
+  SELECTED@F11EXPORTCLASS                                 @?
+  SEP@F11EXPORTCLASS                                      @?
+  SHEETNAME@F11EXPORTCLASSsb                              @?
+  SHELLOPEN@F11EXPORTCLASSsb                              @?
+  SIGKEY@F11EXPORTCLASS                                   @?
+  STARTFILE@F11EXPORTCLASS                                @?
+  SUGGESTNAME@F11EXPORTCLASS                              @?
+  TOUTF8@F11EXPORTCLASSRsbl                               @?
+  U8NEED@F11EXPORTCLASSl                                  @?
+  WRITEDISK@F11EXPORTCLASSsbRsbl                          @?
+  XLSXWRITE@F11EXPORTCLASS                                @?
+  ZIPADD@F11EXPORTCLASSsbRsbl                             @?
+  ZIPFINISH@F11EXPORTCLASS                                @?

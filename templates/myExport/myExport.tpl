@@ -1,4 +1,4 @@
-#TEMPLATE(myExport,'myExport - Export any browse or list to CSV / TSV / XML / JSON / Excel - v1.0'),FAMILY('ABC')
+#TEMPLATE(myExport,'myExport - Export any browse or list to CSV / TSV / XML / JSON / Excel - v1.1'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  myExport template set  -  puts an "Export..." button on any browse or list.
 #!
@@ -24,12 +24,18 @@
 #!  column pictures, all carry across without you configuring a thing.
 #!
 #!  THE TEMPLATES
-#!    myExportGlobal (APPLICATION) - INCLUDEs ExportClass. Add once, globally.
+#!    myExportGlobal (APPLICATION) - INCLUDEs ExportClass and decides where its
+#!                   code lives. Add once per app; REQUIRED in a multi-DLL suite.
 #!    myExportButton (CONTROL)     - THE EASY PATH: drag onto a browse window and
 #!                   it drops a ready-wired Export button. Multiple per window.
-#!                   Self-contained; the global extension is optional.
+#!                   Self-contained; the global extension is optional in an EXE.
 #!    myExportHere   (CODE)        - already have a button, menu item or toolbar
 #!                   entry? Drop this code template into its Accepted embed.
+#!
+#!  MULTI-DLL: add myExportGlobal to every app in the suite. The app that owns
+#!  the data compiles the class in and exports it from its .EXP; the others
+#!  import it. Nothing to configure - it follows each app's External setting.
+#!  See the Multi-DLL tab, and the note above the category registration below.
 #!
 #!  REQUIRED FILES: copy these (shipped beside this .tpl) to a folder on the
 #!  Clarion redirection path (the app folder or \clarion12\libsrc\win), ANSI:
@@ -49,25 +55,85 @@
 #SHEET
   #TAB('&General')
     #BOXED('myExport')
-      #DISPLAY('myExport Global - Version 1.0')
+      #DISPLAY('myExport Global - Version 1.1')
       #DISPLAY('Makes ExportClass available to every procedure in the app.')
       #DISPLAY('')
       #DISPLAY('IMPORTANT: copy ExportClass.inc and ExportClass.clw to the')
       #DISPLAY('redirection path (the app folder, or \clarion12\libsrc\win).')
       #DISPLAY('Both files must be ANSI. ExportClass.clw links itself in.')
       #DISPLAY('')
-      #DISPLAY('This extension is OPTIONAL - the Export button control template')
-      #DISPLAY('pulls the class in on its own. Add it if you want to call the')
-      #DISPLAY('class from hand-written code in procedures with no button.')
+      #DISPLAY('This extension is OPTIONAL in a single-EXE application - the')
+      #DISPLAY('Export button control template pulls the class in on its own.')
+      #DISPLAY('Add it if you want to call the class from hand-written code in')
+      #DISPLAY('procedures with no button.')
+      #DISPLAY('')
+      #DISPLAY('In a MULTI-DLL application it is REQUIRED, in every app of the')
+      #DISPLAY('suite - see the Multi-DLL tab.')
     #ENDBOXED
     #BOXED('Options')
       #PROMPT('&Disable this template',CHECK),%xgDisable,DEFAULT(0),AT(10)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Multi-DLL')
+    #BOXED('Where ExportClass lives')
+      #DISPLAY('Out of the box myExport follows this application''s own')
+      #DISPLAY('External setting, which is already what a multi-DLL suite')
+      #DISPLAY('wants:')
+      #DISPLAY('')
+      #DISPLAY('  the app that owns the data (External: None) compiles')
+      #DISPLAY('  ExportClass.clw in and exports the whole class from its')
+      #DISPLAY('  own .EXP, and every app set to External: DLL imports it')
+      #DISPLAY('  from there instead of compiling its own copy.')
+      #DISPLAY('')
+      #DISPLAY('So one copy of the class serves the whole suite, and no app')
+      #DISPLAY('but the owner carries its code.')
+      #DISPLAY('')
+      #DISPLAY('This has to be decided per APPLICATION, which is why the')
+      #DISPLAY('button and code templates cannot do it: add this extension')
+      #DISPLAY('to every app in the suite and leave the box below alone.')
+    #ENDBOXED
+    #BOXED('Override - place the class by hand')
+      #INSERT(%AbcLibraryPrompts(ABC))
+      #DISPLAY('')
+      #DISPLAY('Linked in   - compile ExportClass.clw into this app (and, if')
+      #DISPLAY('              this app is a DLL, export the class from it).')
+      #DISPLAY('External DLL- import the class from another DLL in the suite.')
+      #DISPLAY('External LIB- link against a .LIB you built yourself.')
+      #DISPLAY('None        - do neither; you add the .clw to the project.')
+    #ENDBOXED
+    #BOXED('If the class is missing from the generated .EXP')
+      #DISPLAY('The export list is built from the IDE''s class registry. If')
+      #DISPLAY('ExportClass is not in it yet, press "Refresh Application')
+      #DISPLAY('Builder Class Information" on the Global Properties Classes')
+      #DISPLAY('tab (or close and re-open the application) and generate again.')
     #ENDBOXED
   #ENDTAB
 #ENDSHEET
 #!
 #AT(%AfterGlobalIncludes),WHERE(%xgDisable=0)
 INCLUDE('ExportClass.INC'),ONCE
+#ENDAT
+#!-----------------------------------------------------------------------------
+#!  MULTI-DLL. ExportClass carries the tag !ABCIncludeFile(MYEXPORT) on line 1,
+#!  so the IDE's class registry files it under category MYEXPORT. Registering
+#!  that category here hands the whole job to the shipped ABC machinery:
+#!
+#!    ABPROGRM.TPW:88  #CALL(%DefineCategoryPragmas) writes the project defines
+#!                     _myExportLinkMode_ / _myExportDllMode_ that the class's
+#!                     LINK() and DLL() attributes read.
+#!    ABBLDEXP.TPW     while building the .EXP of a DLL, walks the registry and
+#!                     emits VMT$ / TYPE$ / every non-private method of every
+#!                     link-mode category class - name-mangled by LINKNAME().
+#!
+#!  That last part is why nothing here lists a mangled symbol: add a method to
+#!  ExportClass and the export list follows on the next generate.
+#!
+#!  Corpus precedent for a third-party class registering its own category:
+#!  svgraph.tpl:38, qcenter.tpw:98, abmail.tpl:310.
+#!-----------------------------------------------------------------------------
+#AT(%BeforeGenerateApplication),WHERE(%xgDisable=0)
+  #CALL(%AddCategory(ABC),'MYEXPORT')
+  #CALL(%SetCategoryLocationFromPrompts(ABC),'MYEXPORT','myExport','')
 #ENDAT
 #!#############################################################################
 #!  CONTROL TEMPLATE - myExportButton  -  drag an Export button onto a browse
@@ -102,6 +168,10 @@ INCLUDE('ExportClass.INC'),ONCE
     #BOXED('Object')
       #PROMPT('&Disable this button',CHECK),%xbDisable,DEFAULT(0),AT(10)
       #PROMPT('&Object name:',@s64),%xbObject,REQ,DEFAULT('Exporter' & %ActiveTemplateInstance)
+      #DISPLAY('')
+      #DISPLAY('Multi-DLL: where the class itself lives is an application-wide')
+      #DISPLAY('decision, so it is made by the myExportGlobal extension. Add')
+      #DISPLAY('that to every app in the suite; nothing to set here.')
     #ENDBOXED
     #BOXED('What to export')
       #PROMPT('&List control to export:',CONTROL),%xbList,REQ

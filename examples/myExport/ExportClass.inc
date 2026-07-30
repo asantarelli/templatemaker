@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYEXPORT)
 ! ============================================================================
 !  ExportClass - export ANY Clarion LIST / browse to a file.
 !
@@ -57,7 +57,29 @@
 !  myCompress, set _ExportDeflate_ to 1 below and put CompressClass.inc /
 !  CompressClass.clw on the redirection path - the parts are then DEFLATEd and
 !  a big workbook shrinks by roughly 8-10x. Nothing else changes.
+!
+!  MULTI-DLL
+!  ---------
+!  The class is registered with the ABC class chain as category MYEXPORT (the
+!  !ABCIncludeFile(MYEXPORT) tag on line 1), so where its code lives is decided
+!  by two project defines, exactly like every ABC class:
+!
+!    _myExportLinkMode_   1 = compile ExportClass.clw into THIS app
+!    _myExportDllMode_    1 = import the class from another DLL instead
+!
+!  The myExportGlobal template sets both for you from the application's own
+!  "External" setting, and - in the app that owns the class - adds the whole
+!  class to that DLL's generated .EXP. Add myExportGlobal to every app in the
+!  suite and nothing else is needed.
+!
+!  Neither symbol has to exist: undefined means "link it in", which is what a
+!  single EXE and a hand-coded project want. For a hand-coded multi-DLL build,
+!  set the two defines in each project's Defines list and paste the shipped
+!  ExportClass.exp into the exporting DLL's .EXP.
 ! ============================================================================
+
+  OMIT('_EndOfInclude_',_ExportClassPresent_)
+_ExportClassPresent_ EQUATE(1)
 
 _ExportDeflate_    EQUATE(0)                    ! 1 = deflate .xlsx parts with CompressClass (myCompress)
 
@@ -111,7 +133,7 @@ EOfs                 ULONG
 EMeth                USHORT
                    END
 
-ExportClass        CLASS,TYPE,MODULE('ExportClass.CLW'),LINK('ExportClass.CLW')
+ExportClass        CLASS,TYPE,MODULE('ExportClass.CLW'),LINK('ExportClass.CLW',_myExportLinkMode_),DLL(_myExportDllMode_)
 ! ---- what to export -------------------------------------------------------
 ListControl          SIGNED                     ! the LIST field equate
 Q                    &QUEUE                     ! the queue that LIST displays
@@ -242,3 +264,5 @@ ZipAdd               PROCEDURE(STRING pName,*STRING pData,LONG pLen),PROTECTED
 ZipFinish            PROCEDURE,PROTECTED
 XlsxWrite            PROCEDURE(),BYTE,PROTECTED             ! zip the parts and write the .xlsx
                    END
+
+  _EndOfInclude_

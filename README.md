@@ -99,8 +99,9 @@ templates/                      # ready-to-register Clarion templates
   myExport/                     #   export any browse/list to 7 file formats (see below)
     ExportClass.inc             #     the export engine (config + method prototypes)
     ExportClass.clw             #     the implementation (dialog + 7 writers + ZIP + UTF-8)
+    ExportClass.exp             #     export list, for a hand-coded multi-DLL build only
     myExport.tpl                #     global extension + Export-button control + code template
-    myExport.zip                #     the three files above, zipped for easy distribution
+    myExport.zip                #     the four files above, zipped for easy distribution
   myHook/                       #   intercept MESSAGE / STOP / HALT / errors (see below)
     MsgHookClass.inc            #     the interceptor (rules, log, the seven RTL hooks)
     MsgHookClass.clw            #     the implementation (hook thunks + append-only logger)
@@ -823,10 +824,28 @@ there is nothing to type. By default it walks the **whole browse view** (`BRW1.R
 `SetQueueRecord()`), honouring the current sort order, range limits and filters — not just the page of rows
 the ABC queue happens to hold; a queue-only mode is one prompt away for hand-coded lists.
 
+**Multi-DLL suites share one copy of the class.** `ExportClass.inc` is tagged `!ABCIncludeFile(MYEXPORT)`, and
+**myExportGlobal** registers that category with the ABC chain (`%AddCategory` + `%SetCategoryLocationFromPrompts`).
+That hands the whole job to the shipped machinery: `ABPROGRM.TPW` writes the `_myExportLinkMode_` /
+`_myExportDllMode_` project defines the class's `LINK()` and `DLL()` attributes read, and `ABBLDEXP.TPW` — while
+building a DLL's `.EXP` — walks the class registry and emits `VMT$`, `TYPE$` and all 71 methods, name-mangled by
+`LINKNAME()`. **Nothing to configure:** it follows each application's own *External* setting, so the app that
+owns the data compiles the class in and exports it, and every app set to *External → DLL* imports it instead of
+carrying its own copy. Add the global extension to **every app in the suite** — placing a class is a
+per-application decision, so the button and code templates cannot make it. An *Override defaults* box
+(LINK / DLL / LIB / None) is there if you want to place it by hand, and `ExportClass.exp` ships the same export
+list for hand-coded projects that have no AppGen to generate one. **Upgrading from v1.0: replace the
+`ExportClass.inc` on your redirection path** — the class registry reads *that* copy, and a leftover v1.0 one
+(no `(MYEXPORT)` on its tag) files the class under the ABC category instead, which only misbehaves once the two
+locations disagree. With neither define present — a single EXE, or
+the demo — the class is simply linked in, exactly as before. Verified both ways: a generated ABC DLL app really
+does emit the 73 export lines, and an EXE built with `_myExportDllMode_=>1` imports the class from a DLL and
+writes a valid `.xlsx` with none of the class's code in it.
+
 Three registrations: **myExportButton** (the drag-on control template, `MULTI`, self-contained),
 **myExportHere** (a code template for an existing button, menu item or toolbar entry) and **myExportGlobal**
-(optional — only if you want the class in procedures with no button). Copy `ExportClass.inc` and
-`ExportClass.clw` (**ANSI, CRLF**) to the redirection path. `.xlsx` parts are **stored** by default so the
+(optional in a single EXE — only if you want the class in procedures with no button; **required in a multi-DLL
+application**). Copy `ExportClass.inc` and `ExportClass.clw` (**ANSI, CRLF**) to the redirection path. `.xlsx` parts are **stored** by default so the
 class has zero dependencies; if you also have **myCompress**, setting `_ExportDeflate_` to 1 in
 `ExportClass.inc` switches them to real DEFLATE and shrinks a big workbook by roughly 10×. A runnable demo —
 [`examples/myExport/ExportDemo.clw`](examples/myExport/ExportDemo.clw) — is a plain list with one Export

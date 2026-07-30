@@ -71,7 +71,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>myExport</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <div class="brand"><h1>myExport</h1><span class="en">Programmer's Documentation · v1.1</span><span class="es">Documentación del programador · v1.1</span></div>
     <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
     <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
     <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
@@ -81,6 +81,7 @@
     <a href="#picker" class="h2"><span class="en">Choosing the columns</span><span class="es">Elegir las columnas</span></a>
     <a href="#remember" class="h2"><span class="en">Remembering the last export</span><span class="es">Recordar la última exportación</span></a>
     <a href="#scope" class="h2"><span class="en">Which records get exported</span><span class="es">Qué registros se exportan</span></a>
+    <a href="#multidll" class="h2"><span class="en">Multi-DLL applications</span><span class="es">Aplicaciones multi-DLL</span></a>
     <div class="grp"><span class="en">The formats</span><span class="es">Los formatos</span></div>
     <a href="#formats" class="h2"><span class="en">All seven, compared</span><span class="es">Los siete, comparados</span></a>
     <a href="#excel" class="h2"><span class="en">Excel .xlsx</span><span class="es">Excel .xlsx</span></a>
@@ -194,14 +195,18 @@
       </ol>
       <div class="callout tip"><b>That is the whole setup</b>
         The class's <code>LINK</code> attribute pulls <code>ExportClass.clw</code> into the build, and the
-        control template emits its own <code>INCLUDE('ExportClass.INC'),ONCE</code>. The global extension <b class="i">myExport - Global</b> is optional — add it only if you also want to call the class from
-        hand-written code in procedures that have no Export button.</div>
+        control template emits its own <code>INCLUDE('ExportClass.INC'),ONCE</code>. In a single-EXE
+        application the global extension <b class="i">myExport - Global</b> is optional — add it only if you
+        also want to call the class from hand-written code in procedures that have no Export button. In a
+        <b class="i">multi-DLL</b> application it is required, in every app: see
+        <a href="#multidll">Multi-DLL applications</a>.</div>
       <div class="filetree">
 templates/myExport/<br>
 &nbsp;&nbsp;ExportClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the engine (config + method prototypes)</span><br>
 &nbsp;&nbsp;ExportClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the implementation: dialog, 7 writers, ZIP, UTF-8</span><br>
+&nbsp;&nbsp;ExportClass.exp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">export list — only for a hand-coded multi-DLL build</span><br>
 &nbsp;&nbsp;myExport.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">global extension + control template + code template</span><br>
-&nbsp;&nbsp;myExport.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the three files above, for distribution</span><br>
+&nbsp;&nbsp;myExport.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">the four files above, for distribution</span><br>
 examples/myExport/<br>
 &nbsp;&nbsp;ExportDemo.clw / .cwproj&nbsp;&nbsp;<span style="color:#6b7785">a runnable demo — a list and one Export button</span>
       </div>
@@ -223,15 +228,18 @@ examples/myExport/<br>
       </ol>
       <div class="callout tip"><b>Esa es toda la instalación</b>
         El atributo <code>LINK</code> de la clase mete <code>ExportClass.clw</code> en la compilación, y la
-        plantilla de control emite su propio <code>INCLUDE('ExportClass.INC'),ONCE</code>. La extensión
-        global <b class="i">myExport - Global</b> es opcional: agrégala solo si además quieres llamar a la
-        clase desde código escrito a mano en procedimientos que no tienen botón.</div>
+        plantilla de control emite su propio <code>INCLUDE('ExportClass.INC'),ONCE</code>. En una aplicación
+        de un solo EXE la extensión global <b class="i">myExport - Global</b> es opcional: agrégala solo si
+        además quieres llamar a la clase desde código escrito a mano en procedimientos que no tienen botón.
+        En una aplicación <b class="i">multi-DLL</b> es obligatoria, en todas las apps: ver
+        <a href="#multidll">Aplicaciones multi-DLL</a>.</div>
       <div class="filetree">
 templates/myExport/<br>
 &nbsp;&nbsp;ExportClass.inc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">el motor (configuración + prototipos)</span><br>
 &nbsp;&nbsp;ExportClass.clw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">la implementación: diálogo, 7 escritores, ZIP, UTF-8</span><br>
+&nbsp;&nbsp;ExportClass.exp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">lista de exportación — solo para multi-DLL escrito a mano</span><br>
 &nbsp;&nbsp;myExport.tpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">extensión global + plantilla de control + code template</span><br>
-&nbsp;&nbsp;myExport.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">los tres archivos anteriores, para distribuir</span><br>
+&nbsp;&nbsp;myExport.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6b7785">los cuatro archivos anteriores, para distribuir</span><br>
 examples/myExport/<br>
 &nbsp;&nbsp;ExportDemo.clw / .cwproj&nbsp;&nbsp;<span style="color:#6b7785">demo que compila y corre — una lista y un botón Exportar</span>
       </div>
@@ -646,6 +654,157 @@ Exporter1.ExportQueue()</pre>
       </div>
     </section>
 
+    <section id="multidll">
+      <h2><span class="en">Multi-DLL applications</span><span class="es">Aplicaciones multi-DLL</span> <a href="#multidll" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">One copy of <code>ExportClass</code> serves the whole suite, and there is nothing to
+        configure: add the <b>myExport&nbsp;-&nbsp;Global</b> extension to <b>every app</b> in the suite and
+        each one works out for itself whether it owns the class or imports it.</p>
+      <p>The rule it follows is the application's own <b>External</b> setting, the one you already set when
+        you built the suite:</p>
+      <table>
+        <tr><th>The app</th><th>Global Properties → External</th><th>What happens</th></tr>
+        <tr><td>The one that owns the data (your data DLL)</td><td><i>None external</i></td>
+            <td><code>ExportClass.clw</code> is compiled into it, and the whole class is added to that DLL's
+                generated <code>.EXP</code> — so the rest of the suite can call it.</td></tr>
+        <tr><td>Every other app — DLLs and the EXE</td><td><i>All external → Dynamic Link Library</i></td>
+            <td>The class is <b>imported</b> from that DLL. No copy of its code is compiled in.</td></tr>
+      </table>
+      <p>Two project defines carry the decision, exactly as the ABC classes do it:</p>
+      <pre><code>! the app that owns the class
+#pragma define(_myExportLinkMode_=&gt;1)
+#pragma define(_myExportDllMode_=&gt;0)
+
+! every app that imports it
+#pragma define(_myExportLinkMode_=&gt;0)
+#pragma define(_myExportDllMode_=&gt;1)</code></pre>
+      <p>Both are written into the project for you, and the export list is generated from Clarion's own class
+        registry — so if a later version of <code>ExportClass</code> gains a method, the exports follow on the
+        next generate. Nothing in the template names a mangled symbol.</p>
+      <div class="callout note"><b>The one thing you must not skip</b>
+        Where a class lives is a <b class="i">per-application</b> decision, so only the global extension can
+        make it — the Export button and the code template cannot. If you add the button to a procedure in a
+        child app but forget the global extension there, that app quietly compiles its own private copy of the
+        class again. It still works; it is just no longer sharing.</div>
+      <h3>Under the bonnet</h3>
+      <p><code>ExportClass.inc</code> is tagged <code>!ABCIncludeFile(MYEXPORT)</code> on line 1, which files
+        it in the IDE's class registry under its own category. The global extension registers that category
+        with the ABC chain:</p>
+      <pre><code>#AT(%BeforeGenerateApplication),WHERE(%xgDisable=0)
+  #CALL(%AddCategory(ABC),'MYEXPORT')
+  #CALL(%SetCategoryLocationFromPrompts(ABC),'MYEXPORT','myExport','')
+#ENDAT</code></pre>
+      <p>From there the shipped machinery does the rest: <code>ABPROGRM.TPW</code> writes the two pragmas, and
+        <code>ABBLDEXP.TPW</code> — while building a DLL's <code>.EXP</code> — walks the registry and emits
+        <code>VMT$</code>, <code>TYPE$</code> and every method of every linked-in category class, name-mangled
+        by <code>LINKNAME()</code>. For <code>ExportClass</code> that is 73 lines:</p>
+      <pre><code>  VMT$EXPORTCLASS                                         @?
+  TYPE$EXPORTCLASS                                        @?
+  ADDROW@F11EXPORTCLASS                                   @?
+  ALLOWED@F11EXPORTCLASSl                                 @?
+  ...
+  ZIPFINISH@F11EXPORTCLASS                                @?</code></pre>
+      <h3>Placing it by hand</h3>
+      <p>The <b>Multi-DLL</b> tab of the global extension has the standard <i>Override defaults</i> box if you
+        want to decide for yourself: <i>Linked in</i>, <i>External DLL</i>, <i>External LIB</i> or <i>None</i>.
+        You rarely need it.</p>
+      <h3>Hand-coded projects</h3>
+      <p>Without AppGen nothing writes an <code>.EXP</code> for you, so the shipped
+        <code>ExportClass.exp</code> holds the same 73 lines ready to paste under the <code>EXPORTS</code>
+        line of the owning DLL's export file. Set the two defines in each project's <i>Defines</i> list and
+        that is all. If neither define exists — a single EXE, or the demo — the class is simply linked in,
+        which is what you want.</p>
+      <div class="callout warn"><b>Upgrading from v1.0: replace the installed copy</b>
+        The class registry reads the <code>ExportClass.inc</code> that is <b class="i">on the redirection
+        path</b> — not the one in your project folder or in this repository. A leftover v1.0 copy has no
+        <code>(MYEXPORT)</code> on its <code>!ABCIncludeFile</code> tag, so the class is filed under the
+        <b class="i">ABC</b> category instead, and the export list then follows the ABC chain's location rather
+        than myExport's. Everything still builds while the two agree — which they do unless you use the
+        Override box — so the mistake can hide for a while. Copy the new
+        <code>ExportClass.inc</code> over the old one.</div>
+      <div class="callout warn"><b>If the class is missing from the generated .EXP</b>
+        The export list comes from the IDE's class registry, and the IDE caches it. Press <b class="i">Refresh
+        Application Builder Class Information</b> on the Global Properties <b class="i">Classes</b> tab (or
+        close and re-open the application) and generate again. Also check that <code>ExportClass.inc</code> is
+        really on the redirection path.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Una sola copia de <code>ExportClass</code> sirve para todo el conjunto, y no hay nada
+        que configurar: añade la extensión <b>myExport&nbsp;-&nbsp;Global</b> a <b>todas</b> las aplicaciones
+        del conjunto y cada una decide por sí misma si es la dueña de la clase o si la importa.</p>
+      <p>La regla que sigue es el propio ajuste <b>External</b> de la aplicación, el que ya pusiste cuando
+        montaste el conjunto:</p>
+      <table>
+        <tr><th>La aplicación</th><th>Global Properties → External</th><th>Qué ocurre</th></tr>
+        <tr><td>La dueña de los datos (tu DLL de datos)</td><td><i>None external</i></td>
+            <td>Se compila <code>ExportClass.clw</code> dentro de ella y la clase completa se añade al
+                <code>.EXP</code> que genera esa DLL, para que el resto del conjunto pueda llamarla.</td></tr>
+        <tr><td>Todas las demás — DLLs y el EXE</td><td><i>All external → Dynamic Link Library</i></td>
+            <td>La clase se <b>importa</b> de esa DLL. No se compila ninguna copia de su código.</td></tr>
+      </table>
+      <p>La decisión viaja en dos defines de proyecto, igual que en las clases ABC:</p>
+      <pre><code>! la aplicación dueña de la clase
+#pragma define(_myExportLinkMode_=&gt;1)
+#pragma define(_myExportDllMode_=&gt;0)
+
+! todas las que la importan
+#pragma define(_myExportLinkMode_=&gt;0)
+#pragma define(_myExportDllMode_=&gt;1)</code></pre>
+      <p>Los dos se escriben en el proyecto por ti, y la lista de exportación se genera desde el propio
+        registro de clases de Clarion — así que si una versión futura de <code>ExportClass</code> gana un
+        método, las exportaciones lo siguen en la siguiente generación. Nada en la plantilla nombra un símbolo
+        decorado.</p>
+      <div class="callout note"><b>Lo único que no puedes olvidar</b>
+        Dónde vive una clase es una decisión <b class="i">por aplicación</b>, así que solo la extensión global
+        puede tomarla: el botón Exportar y la plantilla de código no pueden. Si añades el botón a un
+        procedimiento de una aplicación hija pero olvidas la extensión global allí, esa aplicación vuelve a
+        compilar en silencio su propia copia privada de la clase. Sigue funcionando; simplemente ya no
+        comparte.</div>
+      <h3>Por dentro</h3>
+      <p><code>ExportClass.inc</code> lleva la marca <code>!ABCIncludeFile(MYEXPORT)</code> en la línea 1, que
+        lo registra en el registro de clases del IDE bajo su propia categoría. La extensión global registra
+        esa categoría en la cadena ABC:</p>
+      <pre><code>#AT(%BeforeGenerateApplication),WHERE(%xgDisable=0)
+  #CALL(%AddCategory(ABC),'MYEXPORT')
+  #CALL(%SetCategoryLocationFromPrompts(ABC),'MYEXPORT','myExport','')
+#ENDAT</code></pre>
+      <p>A partir de ahí lo hace la maquinaria que ya viene con Clarion: <code>ABPROGRM.TPW</code> escribe los
+        dos pragmas, y <code>ABBLDEXP.TPW</code> — mientras construye el <code>.EXP</code> de una DLL —
+        recorre el registro y emite <code>VMT$</code>, <code>TYPE$</code> y todos los métodos de cada clase de
+        categoría enlazada, con el nombre decorado por <code>LINKNAME()</code>. Para
+        <code>ExportClass</code> son 73 líneas:</p>
+      <pre><code>  VMT$EXPORTCLASS                                         @?
+  TYPE$EXPORTCLASS                                        @?
+  ADDROW@F11EXPORTCLASS                                   @?
+  ALLOWED@F11EXPORTCLASSl                                 @?
+  ...
+  ZIPFINISH@F11EXPORTCLASS                                @?</code></pre>
+      <h3>Colocarla a mano</h3>
+      <p>La pestaña <b>Multi-DLL</b> de la extensión global trae el cuadro estándar <i>Override defaults</i>
+        si prefieres decidirlo tú: <i>Linked in</i>, <i>External DLL</i>, <i>External LIB</i> o <i>None</i>.
+        Casi nunca hace falta.</p>
+      <h3>Proyectos escritos a mano</h3>
+      <p>Sin AppGen nadie te escribe un <code>.EXP</code>, así que el <code>ExportClass.exp</code> que se
+        entrega tiene esas mismas 73 líneas listas para pegar debajo de la línea <code>EXPORTS</code> del
+        archivo de exportación de la DLL dueña. Pon los dos defines en la lista <i>Defines</i> de cada
+        proyecto y ya está. Si ninguno de los dos existe — un EXE único, o el demo — la clase simplemente se
+        enlaza dentro, que es lo que quieres.</p>
+      <div class="callout warn"><b>Si vienes de la v1.0: reemplaza la copia instalada</b>
+        El registro de clases lee el <code>ExportClass.inc</code> que está <b class="i">en la ruta de
+        redirección</b>, no el de la carpeta de tu proyecto ni el del repositorio. Una copia v1.0 olvidada no
+        lleva <code>(MYEXPORT)</code> en su marca <code>!ABCIncludeFile</code>, así que la clase queda
+        archivada en la categoría <b class="i">ABC</b> y la lista de exportación sigue la ubicación de la
+        cadena ABC en vez de la de myExport. Todo sigue compilando mientras ambas coincidan — y coinciden
+        salvo que uses el cuadro Override — así que el error puede pasar desapercibido un buen rato. Copia el
+        <code>ExportClass.inc</code> nuevo encima del viejo.</div>
+      <div class="callout warn"><b>Si la clase no aparece en el .EXP generado</b>
+        La lista de exportación sale del registro de clases del IDE, y el IDE lo guarda en caché. Pulsa
+        <b class="i">Refresh Application Builder Class Information</b> en la pestaña <b class="i">Classes</b>
+        de Global Properties (o cierra y vuelve a abrir la aplicación) y genera otra vez. Comprueba también
+        que <code>ExportClass.inc</code> está de verdad en la ruta de redirección.</div>
+      </div>
+    </section>
+
     <section id="formats">
       <h2><span class="en">All seven, compared</span><span class="es">Los siete, comparados</span> <a href="#formats" class="top">#</a></h2>
       <div class="en">
@@ -1047,6 +1206,9 @@ Exporter1.Run()</pre>
         <tr><td>"A Clarion picture starts with @"</td><td>The picture typed into the column popup is not a picture. Leave it blank for the raw value.</td></tr>
         <tr><td>"Could not create …"</td><td>The folder does not exist, or the file is open in Excel. The popup names the path.</td></tr>
         <tr><td>The browse jumps to the top after exporting</td><td>Expected: walking the view then <code>ResetSort(1)</code> re-displays from the top of the current sort order. Use the queue-only mode if that matters more than completeness.</td></tr>
+        <tr><td>Multi-DLL: <code>Unresolved external … EXPORTCLASS</code></td><td>The app is set to import the class but the DLL that owns it does not export it. Add the <b>myExport - Global</b> extension to the owning app too and re-generate it, so its <code>.EXP</code> gets the class. See <a href="#multidll">Multi-DLL applications</a>.</td></tr>
+        <tr><td>Multi-DLL: no <code>EXPORTCLASS</code> lines in the generated <code>.EXP</code></td><td>The IDE's class registry has not seen <code>ExportClass.inc</code>. Press <b>Refresh Application Builder Class Information</b> on the Global Properties Classes tab, check the file is on the redirection path, and generate again.</td></tr>
+        <tr><td>Multi-DLL: every DLL still carries its own copy</td><td>The global extension is missing from the child apps, so nothing sets <code>_myExportDllMode_</code> there. It has to be added per application — the button cannot do it.</td></tr>
       </table>
       </div>
       <div class="es">
@@ -1063,6 +1225,9 @@ Exporter1.Run()</pre>
         <tr><td>"A Clarion picture starts with @"</td><td>El picture escrito en la ventana de columna no es un picture. Déjalo en blanco para el valor crudo.</td></tr>
         <tr><td>"Could not create …"</td><td>La carpeta no existe, o el archivo está abierto en Excel. El aviso indica la ruta.</td></tr>
         <tr><td>El browse salta al principio tras exportar</td><td>Es lo esperado: recorrer la vista y luego <code>ResetSort(1)</code> vuelve a mostrar desde el principio del orden actual. Usa el modo "solo la cola" si eso te importa más que la exhaustividad.</td></tr>
+        <tr><td>Multi-DLL: <code>Unresolved external … EXPORTCLASS</code></td><td>La app está puesta para importar la clase, pero la DLL dueña no la exporta. Agrega también la extensión <b class="i">myExport - Global</b> a la app dueña y vuelve a generarla, para que su <code>.EXP</code> reciba la clase. Ver <a href="#multidll">Aplicaciones multi-DLL</a>.</td></tr>
+        <tr><td>Multi-DLL: no hay líneas <code>EXPORTCLASS</code> en el <code>.EXP</code> generado</td><td>El registro de clases del IDE no ha visto <code>ExportClass.inc</code>. Pulsa <b class="i">Refresh Application Builder Class Information</b> en la pestaña Classes de Global Properties, comprueba que el archivo está en la ruta de redirección y genera otra vez.</td></tr>
+        <tr><td>Multi-DLL: cada DLL sigue llevando su propia copia</td><td>Falta la extensión global en las apps hijas, así que allí nadie pone <code>_myExportDllMode_</code>. Hay que agregarla por aplicación — el botón no puede hacerlo.</td></tr>
       </table>
       </div>
     </section>
