@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYBARCODEGEN)
 ! ============================================================================
 !  AztecClass - self-contained Aztec Code encoder for Clarion.
 !

@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYBARCODEGEN)
 ! ============================================================================
 !  BarcodeClass - self-contained LINEAR (1D) barcode encoder for Clarion.
 !

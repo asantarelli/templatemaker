@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYCOMPRESS)
 ! ============================================================================
 !  CompressClassC - the C-backed fast engine for myCompress.
 !

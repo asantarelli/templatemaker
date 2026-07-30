@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYCALENDAR)
 ! ============================================================================
 !  MyCalendarClass - a pop-up date picker for Clarion.
 !

@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYCALC)
 ! ============================================================================
 !  CalcClass - a pop-up calculator for Clarion, in four flavours.
 !

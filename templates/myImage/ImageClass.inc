@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYIMAGE)
 ! ============================================================================
 !  ImageClass - read, convert and transform images from Clarion.
 !

@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYCOMPRESS)
 ! ============================================================================
 !  CompressClass - self-contained DEFLATE / zlib / gzip codec for Clarion.
 !

@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYPDFSIGN)
 ! ============================================================================
 !  PdfSignClass - read a digitally-signed PDF and report WHO signed it.
 !

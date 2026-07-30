@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MY3D)
 ! ============================================================================
 !  WebGL2Class - a 3D scene manager for Clarion that drives a real WebGL2
 !  renderer. You build a scene through a rich OOP API (camera, lights,

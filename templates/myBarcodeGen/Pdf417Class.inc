@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYBARCODEGEN)
 ! ============================================================================
 !  Pdf417Class - self-contained PDF417 encoder for Clarion.
 !

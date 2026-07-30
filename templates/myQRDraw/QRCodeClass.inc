@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYQRDRAW)
 ! ============================================================================
 !  QRCodeClass - self-contained offline QR-code encoder for Clarion.
 !

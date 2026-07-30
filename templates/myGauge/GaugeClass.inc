@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYGAUGE)
 ! ============================================================================
 !  GaugeClass - a configurable analog gauge / dial for Clarion, drawn into an
 !  IMAGE control with native graphics primitives (ARC, ELLIPSE, LINE, POLYGON,

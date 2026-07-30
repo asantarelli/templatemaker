@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYBARCODEGEN)
 ! ============================================================================
 !  DataMatrixClass - self-contained Data Matrix (ECC200) encoder for Clarion.
 !

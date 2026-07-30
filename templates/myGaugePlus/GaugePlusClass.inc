@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYGAUGEPLUS)
 ! ============================================================================
 !  GaugePlusClass - a beautiful ANTIALIASED analog gauge / dial for Clarion.
 !

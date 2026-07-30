@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYGAUGEPLUS)
 ! ============================================================================
 !  AaCanvasClass - a reusable ANTIALIASED 2D drawing canvas for Clarion.
 !

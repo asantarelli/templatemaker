@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYFILTER)
 ! ============================================================================
 !  MyFilterClass - a filter builder for any ABC browse.
 !

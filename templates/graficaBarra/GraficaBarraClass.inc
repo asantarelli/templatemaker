@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(GRAFICABARRA)
 ! ============================================================================
 !  GraficaBarraClass - charts for Clarion, drawn with native graphics
 !  primitives (BOX / LINE / POLYGON / ELLIPSE / PIE / SHOW). Works on WINDOWs

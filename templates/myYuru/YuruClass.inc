@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYYURU)
 ! ============================================================================
 !  YuruClass - "yuruyurau" animated flow-field / particle art for Clarion.
 !

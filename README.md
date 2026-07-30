@@ -911,6 +911,30 @@ cp agents/clarion-template-pro.md ~/.claude/agents/
 
 Restart Claude Code (or start a new session) so the skill and agent are picked up.
 
+### Every shipped class sits in its own `!ABCIncludeFile` category
+
+Each class `.inc` in `templates/` carries its own category tag on line 1 — `!ABCIncludeFile(MYIMAGE)`,
+`!ABCIncludeFile(MYCALC)`, and so on. This is not cosmetic. The ABC chain builds a data DLL's `.EXP` by
+walking the IDE's **class registry** and exporting every registered class whose category is link-mode, with
+**no check that your application actually uses the class** (`ABBLDEXP.TPW`). A bare `!ABCIncludeFile` puts a
+class in the `ABC` category, which *is* link-mode in a data DLL — so every such class on your redirection
+path gets exported from that DLL, and any whose `.clw` was never compiled in fails the build with
+
+```
+ADDMONTHS@F13CALENDARCLASSll is unresolved for export - data.exp:396,3
+```
+
+A private category is registered by nobody unless that template asks for it, so the class simply drops out of
+the generated export list and links per-app as before. Only **myExport** registers its category today
+(`MYEXPORT`), which is what lets one copy of `ExportClass` serve a whole multi-DLL suite.
+
+Two consequences worth knowing:
+
+- **When you upgrade, replace the `.inc` on your redirection path**, not just the one in your project — the
+  registry reads *that* copy. A leftover bare-tagged one keeps the old behaviour.
+- **A renamed or superseded class left on the redirection path will break a data DLL** even though no
+  template references it any more, because the registry still finds it. Delete stale copies.
+
 ## Visual designer & installer
 
 `designer/ClarionTplDesigner/` is a **.NET 9 / WPF** visual designer for a template's *prompt UI*:

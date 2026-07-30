@@ -1,4 +1,4 @@
-!ABCIncludeFile
+!ABCIncludeFile(MYHOOK)
 ! ============================================================================
 !  MsgHookClass - take MESSAGE, STOP, HALT, ASSERT, run-time errors and GPFs
 !  away from the Clarion run-time library and decide for yourself what happens.
