@@ -1,4 +1,4 @@
-#TEMPLATE(myExport,'myExport - Export any browse or list to CSV / TSV / XML / JSON / Excel - v1.1'),FAMILY('ABC')
+#TEMPLATE(myExport,'myExport - Export any browse or list to CSV / TSV / XML / JSON / Excel - v1.2'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  myExport template set  -  puts an "Export..." button on any browse or list.
 #!
@@ -55,7 +55,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('myExport')
-      #DISPLAY('myExport Global - Version 1.1')
+      #DISPLAY('myExport Global - Version 1.2')
       #DISPLAY('Makes ExportClass available to every procedure in the app.')
       #DISPLAY('')
       #DISPLAY('IMPORTANT: copy ExportClass.inc and ExportClass.clw to the')
@@ -72,6 +72,16 @@
     #ENDBOXED
     #BOXED('Options')
       #PROMPT('&Disable this template',CHECK),%xgDisable,DEFAULT(0),AT(10)
+    #ENDBOXED
+    #BOXED('Language')
+      #PROMPT('Export &language:',DROP('English[1]|Español (Spanish)[2]')),%xgLanguage,DEFAULT('1')
+      #DISPLAY('The application-wide default. It becomes the global variable')
+      #DISPLAY('myExportLanguage, which a button or code template picks up when')
+      #DISPLAY('its own Language prompt is set to "Use the application setting".')
+      #DISPLAY('')
+      #DISPLAY('Every word of the dialog, the Save-As box and the messages comes')
+      #DISPLAY('from ExportClass.Txt() - override that one method in a derived')
+      #DISPLAY('class to add a third language.')
     #ENDBOXED
   #ENDTAB
   #TAB('&Multi-DLL')
@@ -112,6 +122,25 @@
 #!
 #AT(%AfterGlobalIncludes),WHERE(%xgDisable=0)
 INCLUDE('ExportClass.INC'),ONCE
+#ENDAT
+#!
+#! The application-wide language, as a real global that a button or code
+#! template reads when its own Language prompt says "use the application
+#! setting". It is global DATA, so it gets the multi-DLL treatment: defined in
+#! the app that owns the data, EXTERNAL everywhere else, exported from the
+#! owner (corpus: cleansdw.tpw:25 uses these same ABC symbols).
+#AT(%GlobalData),WHERE(%xgDisable=0)
+  #IF(%DefaultExternal = 'None External')
+myExportLanguage     BYTE(%xgLanguage)                     ! 1 = English, 2 = Espanol
+  #ELSE
+myExportLanguage     BYTE,EXTERNAL,DLL(dll_mode)           ! it lives in the data DLL
+  #ENDIF
+#ENDAT
+#!
+#AT(%DLLExportList),WHERE(%xgDisable=0)
+  #IF(%DefaultExternal = 'None External' AND %ProgramExtension='DLL' AND %DefaultExport)
+  $myExportLanguage                                        @?
+  #ENDIF
 #ENDAT
 #!-----------------------------------------------------------------------------
 #!  MULTI-DLL. ExportClass carries the tag !ABCIncludeFile(MYEXPORT) on line 1,
@@ -233,6 +262,14 @@ INCLUDE('ExportClass.INC'),ONCE
       #PROMPT('&Suggest this folder (blank = the current directory):',@s128),%xbFolder,DEFAULT('')
       #DISPLAY('Only a suggestion - the user still picks the folder and name.')
     #ENDBOXED
+    #BOXED('Language')
+      #PROMPT('&Language:',DROP('English[1]|Español (Spanish)[2]|Use the application setting[0]')),%xbLang,DEFAULT('1')
+      #DISPLAY('The dialog, the Save-As box and every message follow this.')
+      #DISPLAY('')
+      #DISPLAY('"Use the application setting" reads the global myExportLanguage,')
+      #DISPLAY('so it needs the myExport - Global extension on the application.')
+      #DISPLAY('The other two choices need nothing but this button.')
+    #ENDBOXED
     #BOXED('Remember the last export')
       #PROMPT('Remember the &user''s choices between runs',CHECK),%xbPersist,DEFAULT(1),AT(10)
       #DISPLAY('Saves the format, the folder, the three tick boxes and the whole')
@@ -307,6 +344,11 @@ INCLUDE('ExportClass.INC'),ONCE
 #ENDIF
 #IF(%xbDelim)
   %xbObject.Delim        = '%xbDelim'
+#ENDIF
+#IF(%xbLang AND %xbLang <> '0')
+  %xbObject.Language     = %xbLang                         ! this button's own choice
+#ELSE
+  %xbObject.Language     = myExportLanguage                ! whatever the global says
 #ENDIF
   %xbObject.Headers      = %xbHeaders
   %xbObject.Pictures     = %xbPictures
@@ -404,6 +446,11 @@ INCLUDE('ExportClass.INC'),ONCE
         #PROMPT('&Profile name (blank = this procedure):',@s64),%xcProfile,DEFAULT('')
       #ENDENABLE
     #ENDBOXED
+    #BOXED('Language')
+      #PROMPT('&Language:',DROP('English[1]|Español (Spanish)[2]|Use the application setting[0]')),%xcLang,DEFAULT('1')
+      #DISPLAY('"Use the application setting" reads the global myExportLanguage,')
+      #DISPLAY('so it needs the myExport - Global extension on the application.')
+    #ENDBOXED
   #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
@@ -460,6 +507,11 @@ INCLUDE('ExportClass.INC'),ONCE
 #ENDIF
 #IF(%xcDelim)
 %xcObject.Delim        = '%xcDelim'
+#ENDIF
+#IF(%xcLang AND %xcLang <> '0')
+%xcObject.Language     = %xcLang
+#ELSE
+%xcObject.Language     = myExportLanguage
 #ENDIF
 %xcObject.Headers      = %xcHeaders
 %xcObject.Pictures     = %xcPictures

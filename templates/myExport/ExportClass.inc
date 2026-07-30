@@ -107,6 +107,103 @@ Exp:AllowXLSX      EQUATE(32)
 Exp:AllowHTML      EQUATE(64)
 Exp:AllowAll       EQUATE(127)
 
+! ---- languages ------------------------------------------------------------
+!  Every word the dialog, the Save-As box and the messages show comes out of
+!  the Txt() method, so adding a language means overriding one method - see the
+!  note above ExportClass.Txt in the .clw.
+Exp:English        EQUATE(1)
+Exp:Spanish        EQUATE(2)
+
+! ---- every string the user can see ----------------------------------------
+!  The export dialog
+Txt:WinTitle       EQUATE(1)                    ! window caption and banner
+Txt:Subtitle       EQUATE(2)
+Txt:SubtitleNoCol  EQUATE(3)                    ! ...when the column picker is off
+Txt:FormatLbl      EQUATE(4)
+Txt:SaveToLbl      EQUATE(5)
+Txt:FileTip        EQUATE(6)
+Txt:PickTip        EQUATE(7)
+Txt:ColumnsLbl     EQUATE(8)
+Txt:ColHint        EQUATE(9)
+Txt:ColUse         EQUATE(10)                   ! the four column-list headings
+Txt:ColNum         EQUATE(11)
+Txt:ColHeadFile    EQUATE(12)
+Txt:ColPicture     EQUATE(13)
+Txt:ColOnList      EQUATE(14)
+Txt:ToggleBtn      EQUATE(15)
+Txt:EditBtn        EQUATE(16)
+Txt:AllBtn         EQUATE(17)
+Txt:NoneBtn        EQUATE(18)
+Txt:DefBtn         EQUATE(19)
+Txt:DefTip         EQUATE(20)
+Txt:IncHeadings    EQUATE(21)
+Txt:ApplyPics      EQUATE(22)
+Txt:ApplyPicsTip   EQUATE(23)
+Txt:OpenAfter      EQUATE(24)
+Txt:ExportBtn      EQUATE(25)
+Txt:Cancel         EQUATE(26)
+Txt:OfWord         EQUATE(27)                   ! "(3 of 8 selected)"
+Txt:SelectedWord   EQUATE(28)
+!  The one-column popup
+Txt:EdTitle        EQUATE(29)
+Txt:EdHeading      EQUATE(30)
+Txt:OnTheList      EQUATE(31)
+Txt:HeadingLbl     EQUATE(32)
+Txt:HeadTip        EQUATE(33)
+Txt:PictureLbl     EQUATE(34)
+Txt:PicTip         EQUATE(35)
+Txt:EdDefBtn       EQUATE(36)
+Txt:EdFoot         EQUATE(37)
+Txt:OK             EQUATE(38)
+!  Format names, as the drop list and the Save-As title show them
+Txt:FmtCSV         EQUATE(39)
+Txt:FmtCSVU        EQUATE(40)
+Txt:FmtTSV         EQUATE(41)
+Txt:FmtXML         EQUATE(42)
+Txt:FmtJSON        EQUATE(43)
+Txt:FmtXLSX        EQUATE(44)
+Txt:FmtHTML        EQUATE(45)
+!  The Save-As file-type descriptions
+Txt:MaskCSV        EQUATE(46)
+Txt:MaskTSV        EQUATE(47)
+Txt:MaskXML        EQUATE(48)
+Txt:MaskJSON       EQUATE(49)
+Txt:MaskXLSX       EQUATE(50)
+Txt:MaskHTML       EQUATE(51)
+Txt:MaskText       EQUATE(52)
+Txt:MaskAll        EQUATE(53)
+!  The one-liner under the dialog, per format
+Txt:HintCSV        EQUATE(54)
+Txt:HintCSVU       EQUATE(55)
+Txt:HintTSV        EQUATE(56)
+Txt:HintXML        EQUATE(57)
+Txt:HintJSON       EQUATE(58)
+Txt:HintXLSX       EQUATE(59)
+Txt:HintHTML       EQUATE(60)
+!  Messages
+Txt:MsgTitle       EQUATE(61)
+Txt:NoColumns      EQUATE(62)
+Txt:NoFormats      EQUATE(63)
+Txt:NeedFile       EQUATE(64)
+Txt:NeedColumn     EQUATE(65)
+Txt:BadPicture     EQUATE(66)
+Txt:BadPicture2    EQUATE(67)
+Txt:PicTitle       EQUATE(68)
+Txt:FailTitle      EQUATE(69)
+Txt:NoneSelected   EQUATE(70)
+Txt:NoFileName     EQUATE(71)
+Txt:CantCreate     EQUATE(72)
+Txt:CantCreate2    EQUATE(73)
+Txt:CantWrite      EQUATE(74)
+Txt:CantWrite2     EQUATE(75)
+Txt:RowsExported   EQUATE(76)
+Txt:DoneTitle      EQUATE(77)
+Txt:ExportToTitle  EQUATE(78)
+Txt:RowsHtml       EQUATE(79)                   ! the count under the HTML table
+Txt:ColumnWord     EQUATE(80)                   ! heading for a column the list does not name
+Txt:ExportWord     EQUATE(81)                   ! the suggested file name when nothing better
+Txt:Strings        EQUATE(81)                   ! how many of the above there are
+
 ! ---- one row per data column found on the LIST ----------------------------
 !  Head / Pic are what the FILE gets and the user may edit them in the dialog;
 !  HeadDef / PicDef are what the LIST itself says, so "Defaults" can undo.
@@ -150,6 +247,7 @@ VisibleOnly          BYTE(1)                    ! start with hidden and icon col
 OpenWhenDone         BYTE(1)                    ! open the file in its default program
 Confirm              BYTE(1)                    ! show the "N rows exported" popup
 AllowColumns         BYTE(1)                    ! let the user pick/rename columns in the dialog
+Language             BYTE(1)                    ! Exp:English / Exp:Spanish
 Delim                STRING(1)                  ! CSV separator; blank = comma
 ! ---- remembering the last export ------------------------------------------
 Persist              BYTE(0)                    ! 1 = save/restore the choices between runs
@@ -215,6 +313,7 @@ Allowed              PROCEDURE(LONG pFmt),BYTE
 SuggestName          PROCEDURE(),STRING         ! Title (or the window title) + today's date
 ForceExt             PROCEDURE(LONG pFmt)       ! swap SELF.FileName's extension to match pFmt
 Note                 PROCEDURE(STRING pText,STRING pTitle,LONG pIcon),VIRTUAL   ! modal popup
+Txt                  PROCEDURE(LONG pId),STRING,VIRTUAL   ! one string, in SELF.Language
 
 ! ---- writing --------------------------------------------------------------
 StartFile            PROCEDURE(),BYTE           ! begin; writes the preamble + heading row

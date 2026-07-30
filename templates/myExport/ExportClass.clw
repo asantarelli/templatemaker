@@ -116,7 +116,7 @@ h    CSTRING(129)
       IF h[p] = '|' THEN h[p] = ' ' .
     END
     h = CLIP(LEFT(h))
-    IF ~h THEN h = 'Column' & n .
+    IF ~h THEN h = SELF.Txt(Txt:ColumnWord) & n .
     SELF.Cols.ColNo   = c
     SELF.Cols.FldNo   = f
     SELF.Cols.Width   = w
@@ -457,13 +457,13 @@ ExportClass.ColumnOn PROCEDURE(LONG pCol)
 ExportClass.FormatName PROCEDURE(LONG pFmt)
   CODE
   CASE pFmt
-  OF Exp:CSV     ; RETURN 'CSV - comma separated (*.csv)'
-  OF Exp:CSVUTF8 ; RETURN 'CSV - comma separated, UTF-8 (*.csv)'
-  OF Exp:TSV     ; RETURN 'TSV - tab separated (*.tsv)'
-  OF Exp:XML     ; RETURN 'XML document (*.xml)'
-  OF Exp:JSON    ; RETURN 'JSON document (*.json)'
-  OF Exp:XLSX    ; RETURN 'Excel workbook (*.xlsx)'
-  OF Exp:HTML    ; RETURN 'HTML table (*.html)'
+  OF Exp:CSV     ; RETURN SELF.Txt(Txt:FmtCSV)
+  OF Exp:CSVUTF8 ; RETURN SELF.Txt(Txt:FmtCSVU)
+  OF Exp:TSV     ; RETURN SELF.Txt(Txt:FmtTSV)
+  OF Exp:XML     ; RETURN SELF.Txt(Txt:FmtXML)
+  OF Exp:JSON    ; RETURN SELF.Txt(Txt:FmtJSON)
+  OF Exp:XLSX    ; RETURN SELF.Txt(Txt:FmtXLSX)
+  OF Exp:HTML    ; RETURN SELF.Txt(Txt:FmtHTML)
   END
   RETURN ''
 
@@ -486,31 +486,33 @@ ExportClass.FormatMask PROCEDURE(LONG pFmt)
   CODE
   CASE pFmt
   OF Exp:CSV OROF Exp:CSVUTF8
-    RETURN 'Comma separated|*.csv|Text files|*.txt|All files|*.*'
+    RETURN SELF.Txt(Txt:MaskCSV) & '|*.csv|' & SELF.Txt(Txt:MaskText) & '|*.txt|' & |
+           SELF.Txt(Txt:MaskAll) & '|*.*'
   OF Exp:TSV
-    RETURN 'Tab separated|*.tsv|Text files|*.txt|All files|*.*'
+    RETURN SELF.Txt(Txt:MaskTSV) & '|*.tsv|' & SELF.Txt(Txt:MaskText) & '|*.txt|' & |
+           SELF.Txt(Txt:MaskAll) & '|*.*'
   OF Exp:XML
-    RETURN 'XML documents|*.xml|All files|*.*'
+    RETURN SELF.Txt(Txt:MaskXML) & '|*.xml|' & SELF.Txt(Txt:MaskAll) & '|*.*'
   OF Exp:JSON
-    RETURN 'JSON documents|*.json|All files|*.*'
+    RETURN SELF.Txt(Txt:MaskJSON) & '|*.json|' & SELF.Txt(Txt:MaskAll) & '|*.*'
   OF Exp:XLSX
-    RETURN 'Excel workbooks|*.xlsx|All files|*.*'
+    RETURN SELF.Txt(Txt:MaskXLSX) & '|*.xlsx|' & SELF.Txt(Txt:MaskAll) & '|*.*'
   OF Exp:HTML
-    RETURN 'Web pages|*.html;*.htm|All files|*.*'
+    RETURN SELF.Txt(Txt:MaskHTML) & '|*.html;*.htm|' & SELF.Txt(Txt:MaskAll) & '|*.*'
   END
-  RETURN 'All files|*.*'
+  RETURN SELF.Txt(Txt:MaskAll) & '|*.*'
 
 
 ExportClass.FormatHint PROCEDURE(LONG pFmt)
   CODE
   CASE pFmt
-  OF Exp:CSV     ; RETURN 'Values are quoted only where they have to be (RFC 4180).'
-  OF Exp:CSVUTF8 ; RETURN 'Carries a UTF-8 byte-order mark, so Excel reads accented text correctly.'
-  OF Exp:TSV     ; RETURN 'Tabs and line breaks inside a value become single spaces.'
-  OF Exp:XML     ; RETURN 'UTF-8. Headings become element names, so keep them simple.'
-  OF Exp:JSON    ; RETURN 'UTF-8. Numeric columns are written as numbers, not strings.'
-  OF Exp:XLSX    ; RETURN 'A real workbook: numbers as numbers, frozen headings and an auto-filter.'
-  OF Exp:HTML    ; RETURN 'A styled table - print it, or paste it into Word or Excel.'
+  OF Exp:CSV     ; RETURN SELF.Txt(Txt:HintCSV)
+  OF Exp:CSVUTF8 ; RETURN SELF.Txt(Txt:HintCSVU)
+  OF Exp:TSV     ; RETURN SELF.Txt(Txt:HintTSV)
+  OF Exp:XML     ; RETURN SELF.Txt(Txt:HintXML)
+  OF Exp:JSON    ; RETURN SELF.Txt(Txt:HintJSON)
+  OF Exp:XLSX    ; RETURN SELF.Txt(Txt:HintXLSX)
+  OF Exp:HTML    ; RETURN SELF.Txt(Txt:HintHTML)
   END
   RETURN ''
 
@@ -527,7 +529,7 @@ s   CSTRING(129)
 i   LONG,AUTO
   CODE
   s = CLIP(LEFT(SELF.Title))
-  IF ~s THEN s = 'Export' .
+  IF ~s THEN s = SELF.Txt(Txt:ExportWord) .
   LOOP i = 1 TO LEN(s)
     IF INSTRING(s[i],'\/:*?"<>|. ',1,1) THEN s[i] = '_' .
   END
@@ -554,6 +556,218 @@ cut  LONG(0)
 ExportClass.Note PROCEDURE(STRING pText,STRING pTitle,LONG pIcon)
   CODE
   MESSAGE(pText,pTitle,pIcon,BUTTON:OK,BUTTON:OK,0)
+
+
+! ############################################################################
+!  Every word the user can see, in SELF.Language
+! ############################################################################
+!  The window structures below are declared with the English text - that is
+!  only the design-time placeholder. At run time the dialog assigns every
+!  caption from here, so this method is the single source of truth and the
+!  English and Spanish wording can never drift apart.
+!
+!  TO ADD A LANGUAGE: derive the class and override this one method -
+!
+!      MyExporter  CLASS(ExportClass)
+!      Txt           PROCEDURE(LONG pId),STRING,DERIVED
+!                  END
+!
+!      MyExporter.Txt PROCEDURE(LONG pId)
+!        CODE
+!        IF SELF.Language = 3                             ! your own equate
+!          CASE pId
+!          OF Txt:ExportBtn ; RETURN '&Exporter'
+!          ...
+!          END
+!        END
+!        RETURN PARENT.Txt(pId)                           ! anything you skip
+!
+!  Accented letters are written as Clarion <nnn> escapes (CP1252) so this file
+!  stays plain ASCII and survives any editor - see the note at the top.
+ExportClass.Txt PROCEDURE(LONG pId)
+  CODE
+  IF SELF.Language = Exp:Spanish
+    CASE pId
+!    the export dialog
+    OF Txt:WinTitle      ; RETURN 'Exportar datos'
+    OF Txt:Subtitle      ; RETURN 'Elige un formato y un destino, y luego las columnas.'
+    OF Txt:SubtitleNoCol ; RETURN 'Elige un formato y luego la carpeta y el nombre del archivo.'
+    OF Txt:FormatLbl     ; RETURN '&Formato:'
+    OF Txt:SaveToLbl     ; RETURN 'Guardar &en:'
+    OF Txt:FileTip       ; RETURN 'D<243>nde se escribir<225> el archivo exportado'
+    OF Txt:PickTip       ; RETURN 'Elegir la carpeta y el nombre del archivo'
+    OF Txt:ColumnsLbl    ; RETURN 'Columnas'
+    OF Txt:ColHint       ; RETURN 'Doble clic o Espacio para incluir o excluir.'
+    OF Txt:ColUse        ; RETURN 'Usar'
+    OF Txt:ColNum        ; RETURN '#'
+    OF Txt:ColHeadFile   ; RETURN 'Encabezado en el archivo'
+    OF Txt:ColPicture    ; RETURN 'Picture'
+    OF Txt:ColOnList     ; RETURN 'Columna en la lista'
+    OF Txt:ToggleBtn     ; RETURN '&Incluir / excluir'
+    OF Txt:EditBtn       ; RETURN '&Renombrar / picture...'
+    OF Txt:AllBtn        ; RETURN '&Todas'
+    OF Txt:NoneBtn       ; RETURN '&Ninguna'
+    OF Txt:DefBtn        ; RETURN '&Predeterminados'
+    OF Txt:DefTip        ; RETURN 'Devolver cada encabezado y picture a como los tiene la lista'
+    OF Txt:IncHeadings   ; RETURN 'Incluir los &encabezados de columna'
+    OF Txt:ApplyPics     ; RETURN 'Aplicar el &picture de cada columna'
+    OF Txt:ApplyPicsTip  ; RETURN 'Sin marcar = valores crudos; marcado = lo que muestra la lista'
+    OF Txt:OpenAfter     ; RETURN '&Abrir el archivo al terminar'
+    OF Txt:ExportBtn     ; RETURN 'E&xportar'
+    OF Txt:Cancel        ; RETURN 'Cancelar'
+    OF Txt:OfWord        ; RETURN ' de '
+    OF Txt:SelectedWord  ; RETURN ' seleccionadas)'
+!    the one-column popup
+    OF Txt:EdTitle       ; RETURN 'Columna'
+    OF Txt:EdHeading     ; RETURN 'Ajustes de la columna'
+    OF Txt:OnTheList     ; RETURN 'En la lista:'
+    OF Txt:HeadingLbl    ; RETURN '&Encabezado:'
+    OF Txt:HeadTip       ; RETURN 'C<243>mo se llama esta columna en el archivo exportado'
+    OF Txt:PictureLbl    ; RETURN '&Picture:'
+    OF Txt:PicTip        ; RETURN 'En blanco = escribir el valor crudo'
+    OF Txt:EdDefBtn      ; RETURN 'Pre&determinado'
+    OF Txt:EdFoot        ; RETURN 'Encabezado en blanco = el de la lista.  Picture en blanco = el valor crudo.'
+    OF Txt:OK            ; RETURN 'Aceptar'
+!    the formats
+    OF Txt:FmtCSV        ; RETURN 'CSV - separado por comas (*.csv)'
+    OF Txt:FmtCSVU       ; RETURN 'CSV - separado por comas, UTF-8 (*.csv)'
+    OF Txt:FmtTSV        ; RETURN 'TSV - separado por tabuladores (*.tsv)'
+    OF Txt:FmtXML        ; RETURN 'Documento XML (*.xml)'
+    OF Txt:FmtJSON       ; RETURN 'Documento JSON (*.json)'
+    OF Txt:FmtXLSX       ; RETURN 'Libro de Excel (*.xlsx)'
+    OF Txt:FmtHTML       ; RETURN 'Tabla HTML (*.html)'
+!    the Save-As file types
+    OF Txt:MaskCSV       ; RETURN 'Separado por comas'
+    OF Txt:MaskTSV       ; RETURN 'Separado por tabuladores'
+    OF Txt:MaskXML       ; RETURN 'Documentos XML'
+    OF Txt:MaskJSON      ; RETURN 'Documentos JSON'
+    OF Txt:MaskXLSX      ; RETURN 'Libros de Excel'
+    OF Txt:MaskHTML      ; RETURN 'P<225>ginas web'
+    OF Txt:MaskText      ; RETURN 'Archivos de texto'
+    OF Txt:MaskAll       ; RETURN 'Todos los archivos'
+!    the one-liner under the dialog
+    OF Txt:HintCSV       ; RETURN 'S<243>lo se entrecomillan los valores que lo necesitan (RFC 4180).'
+    OF Txt:HintCSVU      ; RETURN 'Lleva marca UTF-8 (BOM), as<237> Excel lee bien los acentos.'
+    OF Txt:HintTSV       ; RETURN 'Los tabuladores y saltos de l<237>nea dentro de un valor pasan a espacios.'
+    OF Txt:HintXML       ; RETURN 'UTF-8. Los encabezados se vuelven nombres de elemento: mantenlos simples.'
+    OF Txt:HintJSON      ; RETURN 'UTF-8. Las columnas num<233>ricas se escriben como n<250>meros, no como texto.'
+    OF Txt:HintXLSX      ; RETURN 'Un libro de verdad: n<250>meros como n<250>meros, encabezados fijos y autofiltro.'
+    OF Txt:HintHTML      ; RETURN 'Una tabla con estilo: impr<237>mela o p<233>gala en Word o Excel.'
+!    messages
+    OF Txt:MsgTitle      ; RETURN 'Exportar'
+    OF Txt:NoColumns     ; RETURN 'No hay nada que exportar: esta lista no tiene columnas de datos.'
+    OF Txt:NoFormats     ; RETURN 'No se ha habilitado ning<250>n formato de exportaci<243>n.'
+    OF Txt:NeedFile      ; RETURN 'Elige primero un nombre de archivo.'
+    OF Txt:NeedColumn    ; RETURN 'Marca al menos una columna para exportar.'
+    OF Txt:BadPicture    ; RETURN 'Un picture de Clarion empieza por @ - por ejemplo @n-11.2 o @d17.'
+    OF Txt:BadPicture2   ; RETURN 'D<233>jalo en blanco para escribir el valor crudo.'
+    OF Txt:PicTitle      ; RETURN 'Picture'
+    OF Txt:FailTitle     ; RETURN 'La exportaci<243>n fall<243>'
+    OF Txt:NoneSelected  ; RETURN 'No hay columnas seleccionadas para exportar.'
+    OF Txt:NoFileName    ; RETURN 'No se indic<243> ning<250>n nombre de archivo.'
+    OF Txt:CantCreate    ; RETURN 'No se pudo crear'
+    OF Txt:CantCreate2   ; RETURN 'Comprueba que la carpeta existe y que el archivo no est<233> abierto.'
+    OF Txt:CantWrite     ; RETURN 'No se pudo escribir en'
+    OF Txt:CantWrite2    ; RETURN 'El disco puede estar lleno o protegido contra escritura.'
+    OF Txt:RowsExported  ; RETURN ' fila(s) exportadas a'
+    OF Txt:DoneTitle     ; RETURN 'Exportaci<243>n terminada'
+    OF Txt:ExportToTitle ; RETURN 'Exportar a '
+    OF Txt:RowsHtml      ; RETURN ' fila(s)'
+    OF Txt:ColumnWord    ; RETURN 'Columna'
+    OF Txt:ExportWord    ; RETURN 'Exportar'
+    END
+    RETURN ''
+  END
+  CASE pId
+!  the export dialog
+  OF Txt:WinTitle      ; RETURN 'Export data'
+  OF Txt:Subtitle      ; RETURN 'Choose a format and a destination, then pick the columns.'
+  OF Txt:SubtitleNoCol ; RETURN 'Choose a format, then the folder and file name.'
+  OF Txt:FormatLbl     ; RETURN '&Format:'
+  OF Txt:SaveToLbl     ; RETURN 'Save &to:'
+  OF Txt:FileTip       ; RETURN 'Where the exported file will be written'
+  OF Txt:PickTip       ; RETURN 'Choose the folder and the file name'
+  OF Txt:ColumnsLbl    ; RETURN 'Columns'
+  OF Txt:ColHint       ; RETURN 'Double-click or press Space to include or exclude.'
+  OF Txt:ColUse        ; RETURN 'Use'
+  OF Txt:ColNum        ; RETURN '#'
+  OF Txt:ColHeadFile   ; RETURN 'Heading in the file'
+  OF Txt:ColPicture    ; RETURN 'Picture'
+  OF Txt:ColOnList     ; RETURN 'Column on the list'
+  OF Txt:ToggleBtn     ; RETURN '&Include / exclude'
+  OF Txt:EditBtn       ; RETURN '&Rename / picture...'
+  OF Txt:AllBtn        ; RETURN '&All'
+  OF Txt:NoneBtn       ; RETURN '&None'
+  OF Txt:DefBtn        ; RETURN '&Defaults'
+  OF Txt:DefTip        ; RETURN 'Put every heading and picture back the way the list has it'
+  OF Txt:IncHeadings   ; RETURN 'Include the column &headings'
+  OF Txt:ApplyPics     ; RETURN 'Apply each column''s &picture'
+  OF Txt:ApplyPicsTip  ; RETURN 'Off = raw values, on = exactly what the list shows'
+  OF Txt:OpenAfter     ; RETURN '&Open the file when it is done'
+  OF Txt:ExportBtn     ; RETURN '&Export'
+  OF Txt:Cancel        ; RETURN 'Cancel'
+  OF Txt:OfWord        ; RETURN ' of '
+  OF Txt:SelectedWord  ; RETURN ' selected)'
+!  the one-column popup
+  OF Txt:EdTitle       ; RETURN 'Column'
+  OF Txt:EdHeading     ; RETURN 'Column settings'
+  OF Txt:OnTheList     ; RETURN 'On the list:'
+  OF Txt:HeadingLbl    ; RETURN '&Heading:'
+  OF Txt:HeadTip       ; RETURN 'What this column is called in the exported file'
+  OF Txt:PictureLbl    ; RETURN '&Picture:'
+  OF Txt:PicTip        ; RETURN 'Blank = write the raw value'
+  OF Txt:EdDefBtn      ; RETURN 'De&fault'
+  OF Txt:EdFoot        ; RETURN 'Blank heading = the list''s own.  Blank picture = the raw value.'
+  OF Txt:OK            ; RETURN 'OK'
+!  the formats
+  OF Txt:FmtCSV        ; RETURN 'CSV - comma separated (*.csv)'
+  OF Txt:FmtCSVU       ; RETURN 'CSV - comma separated, UTF-8 (*.csv)'
+  OF Txt:FmtTSV        ; RETURN 'TSV - tab separated (*.tsv)'
+  OF Txt:FmtXML        ; RETURN 'XML document (*.xml)'
+  OF Txt:FmtJSON       ; RETURN 'JSON document (*.json)'
+  OF Txt:FmtXLSX       ; RETURN 'Excel workbook (*.xlsx)'
+  OF Txt:FmtHTML       ; RETURN 'HTML table (*.html)'
+!  the Save-As file types
+  OF Txt:MaskCSV       ; RETURN 'Comma separated'
+  OF Txt:MaskTSV       ; RETURN 'Tab separated'
+  OF Txt:MaskXML       ; RETURN 'XML documents'
+  OF Txt:MaskJSON      ; RETURN 'JSON documents'
+  OF Txt:MaskXLSX      ; RETURN 'Excel workbooks'
+  OF Txt:MaskHTML      ; RETURN 'Web pages'
+  OF Txt:MaskText      ; RETURN 'Text files'
+  OF Txt:MaskAll       ; RETURN 'All files'
+!  the one-liner under the dialog
+  OF Txt:HintCSV       ; RETURN 'Values are quoted only where they have to be (RFC 4180).'
+  OF Txt:HintCSVU      ; RETURN 'Carries a UTF-8 byte-order mark, so Excel reads accented text correctly.'
+  OF Txt:HintTSV       ; RETURN 'Tabs and line breaks inside a value become single spaces.'
+  OF Txt:HintXML       ; RETURN 'UTF-8. Headings become element names, so keep them simple.'
+  OF Txt:HintJSON      ; RETURN 'UTF-8. Numeric columns are written as numbers, not strings.'
+  OF Txt:HintXLSX      ; RETURN 'A real workbook: numbers as numbers, frozen headings and an auto-filter.'
+  OF Txt:HintHTML      ; RETURN 'A styled table - print it, or paste it into Word or Excel.'
+!  messages
+  OF Txt:MsgTitle      ; RETURN 'Export'
+  OF Txt:NoColumns     ; RETURN 'There is nothing to export - this list has no data columns.'
+  OF Txt:NoFormats     ; RETURN 'No export formats have been enabled.'
+  OF Txt:NeedFile      ; RETURN 'Please choose a file name first.'
+  OF Txt:NeedColumn    ; RETURN 'Please tick at least one column to export.'
+  OF Txt:BadPicture    ; RETURN 'A Clarion picture starts with @ - for example @n-11.2 or @d17.'
+  OF Txt:BadPicture2   ; RETURN 'Leave it blank to write the raw value.'
+  OF Txt:PicTitle      ; RETURN 'Picture'
+  OF Txt:FailTitle     ; RETURN 'Export failed'
+  OF Txt:NoneSelected  ; RETURN 'No columns are selected for export.'
+  OF Txt:NoFileName    ; RETURN 'No file name was given.'
+  OF Txt:CantCreate    ; RETURN 'Could not create'
+  OF Txt:CantCreate2   ; RETURN 'Check the folder exists and that the file is not already open.'
+  OF Txt:CantWrite     ; RETURN 'Could not write to'
+  OF Txt:CantWrite2    ; RETURN 'The disk may be full or write protected.'
+  OF Txt:RowsExported  ; RETURN ' row(s) exported to'
+  OF Txt:DoneTitle     ; RETURN 'Export complete'
+  OF Txt:ExportToTitle ; RETURN 'Export to '
+  OF Txt:RowsHtml      ; RETURN ' row(s)'
+  OF Txt:ColumnWord    ; RETURN 'Column'
+  OF Txt:ExportWord    ; RETURN 'Export'
+  END
+  RETURN ''
 
 
 ! ############################################################################
@@ -589,6 +803,10 @@ ExpOpen        BYTE
 EdHead         CSTRING(129)
 EdPic          CSTRING(33)
 EdOk           BYTE
+BtnFeq         LONG,DIM(5)                          ! the column-picker button row
+BtnCap         CSTRING(65)
+BtnX           LONG
+BtnW           LONG
 ExpWnd WINDOW('Export data'),AT(,,436,344),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
          PANEL,AT(0,0,436,36),USE(?ExpBand),FILL(0603A1FH)
          STRING('Export data'),AT(14,7),USE(?ExpT1),FONT('Segoe UI',12,COLOR:White,FONT:bold),TRN
@@ -637,7 +855,7 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
   CODE
   IF ~SELF.Columns() THEN SELF.ScanColumns() .
   IF ~SELF.Columns()
-    SELF.Note('There is nothing to export - this list has no data columns.','Export',ICON:Exclamation)
+    SELF.Note(SELF.Txt(Txt:NoColumns),SELF.Txt(Txt:MsgTitle),ICON:Exclamation)
     RETURN 0
   END
 !  Pick up where the user left off last time. This runs after the generated
@@ -651,7 +869,7 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
     ADD(FmtQ)
   END
   IF ~RECORDS(FmtQ)
-    SELF.Note('No export formats have been enabled.','Export',ICON:Exclamation)
+    SELF.Note(SELF.Txt(Txt:NoFormats),SELF.Txt(Txt:MsgTitle),ICON:Exclamation)
     RETURN 0
   END
   LOOP i = 1 TO RECORDS(FmtQ)                             ! preselect the last format used
@@ -672,6 +890,7 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
   ExpPics = SELF.Pictures
   ExpOpen = SELF.OpenWhenDone
   OPEN(ExpWnd)
+  DO SpeakDialog                                          ! every caption, in SELF.Language
   ?ExpFmt{PROP:Selected} = Sel
   DO FillCols
   IF ~SELF.AllowColumns THEN DO HideCols .
@@ -737,12 +956,12 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
       CASE EVENT()
       OF EVENT:Accepted
         IF ~CLIP(LEFT(ExpFile))
-          SELF.Note('Please choose a file name first.','Export',ICON:Exclamation)
+          SELF.Note(SELF.Txt(Txt:NeedFile),SELF.Txt(Txt:MsgTitle),ICON:Exclamation)
           SELECT(?ExpFile)
           CYCLE
         END
         IF ~SELF.Selected()
-          SELF.Note('Please tick at least one column to export.','Export',ICON:Exclamation)
+          SELF.Note(SELF.Txt(Txt:NeedColumn),SELF.Txt(Txt:MsgTitle),ICON:Exclamation)
           SELECT(?ExpCols)
           CYCLE
         END
@@ -767,6 +986,84 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
   RETURN Ok
 
 !  ---- rebuild the columns list from SELF.Cols, keeping the highlight -------
+!  ---- the whole dialog speaks SELF.Language ---------------------------------
+!  Run once, straight after OPEN. The English in the WINDOW structure above is
+!  only what the designer sees; these assignments are what the user reads, so
+!  there is exactly one place to change a word or add a language.
+SpeakDialog ROUTINE
+  ExpWnd{PROP:Text}     = SELF.Txt(Txt:WinTitle)
+  ?ExpT1{PROP:Text}     = SELF.Txt(Txt:WinTitle)
+  ?ExpT2{PROP:Text}     = SELF.Txt(Txt:Subtitle)
+  ?ExpP1{PROP:Text}     = SELF.Txt(Txt:FormatLbl)
+  ?ExpP2{PROP:Text}     = SELF.Txt(Txt:SaveToLbl)
+  ?ExpFile{PROP:Tip}    = SELF.Txt(Txt:FileTip)
+  ?ExpPick{PROP:Tip}    = SELF.Txt(Txt:PickTip)
+  ?ExpP3{PROP:Text}     = SELF.Txt(Txt:ColumnsLbl)
+  ?ExpHint{PROP:Text}   = SELF.Txt(Txt:ColHint)
+  ?ExpCols{PROPLIST:Header,1} = SELF.Txt(Txt:ColUse)      ! the picker's own headings
+  ?ExpCols{PROPLIST:Header,2} = SELF.Txt(Txt:ColNum)
+  ?ExpCols{PROPLIST:Header,3} = SELF.Txt(Txt:ColHeadFile)
+  ?ExpCols{PROPLIST:Header,4} = SELF.Txt(Txt:ColPicture)
+  ?ExpCols{PROPLIST:Header,5} = SELF.Txt(Txt:ColOnList)
+  ?ExpToggle{PROP:Text} = SELF.Txt(Txt:ToggleBtn)
+  ?ExpEdit{PROP:Text}   = SELF.Txt(Txt:EditBtn)
+  ?ExpAll{PROP:Text}    = SELF.Txt(Txt:AllBtn)
+  ?ExpNone{PROP:Text}   = SELF.Txt(Txt:NoneBtn)
+  ?ExpDef{PROP:Text}    = SELF.Txt(Txt:DefBtn)
+  ?ExpDef{PROP:Tip}     = SELF.Txt(Txt:DefTip)
+  ?ExpHdrs{PROP:Text}   = SELF.Txt(Txt:IncHeadings)
+  ?ExpPics{PROP:Text}   = SELF.Txt(Txt:ApplyPics)
+  ?ExpPics{PROP:Tip}    = SELF.Txt(Txt:ApplyPicsTip)
+  ?ExpOpen{PROP:Text}   = SELF.Txt(Txt:OpenAfter)
+  ?ExpOk{PROP:Text}     = SELF.Txt(Txt:ExportBtn)
+  ?ExpCancel{PROP:Text} = SELF.Txt(Txt:Cancel)
+  DO SizeButtons
+
+
+!  ---- the button row fits its own words -------------------------------------
+!  'Defaults' is 8 characters; 'Predeterminados' is 15, and a button sized for
+!  the English would cut it in half. So the five picker buttons are laid out
+!  here instead of trusting the widths in the WINDOW structure: each one gets a
+!  width from its own caption and the row is packed left to right. There are
+!  ~150 spare dialog units to the right of the row, so a longer language grows
+!  into empty space rather than off the edge.
+!
+!  The 3 units per character (plus padding) is for the dialog's Segoe UI 9 and
+!  reproduces the hand-picked English widths to within a unit or two. '&' is
+!  the accelerator marker and takes no space, so it is not counted.
+SizeButtons ROUTINE
+  BtnFeq[1] = ?ExpToggle
+  BtnFeq[2] = ?ExpEdit
+  BtnFeq[3] = ?ExpAll
+  BtnFeq[4] = ?ExpNone
+  BtnFeq[5] = ?ExpDef
+  BtnX = 14
+  LOOP i = 1 TO 5
+    BtnCap = BtnFeq[i]{PROP:Text}
+    BtnW   = LEN(CLIP(BtnCap))
+    IF INSTRING('&',BtnCap,1,1) THEN BtnW -= 1 .          ! the accelerator marker
+    BtnW = BtnW * 3 + 16
+    IF BtnW < 30 THEN BtnW = 30 .                         ! keep All/None clickable
+    BtnFeq[i]{PROP:Xpos}  = BtnX
+    BtnFeq[i]{PROP:Width} = BtnW
+    BtnX += BtnW + 4
+  END
+
+
+SpeakColumn ROUTINE
+  EdWnd{PROP:Text}      = SELF.Txt(Txt:EdTitle)
+  ?EdT1{PROP:Text}      = SELF.Txt(Txt:EdHeading)
+  ?EdP0{PROP:Text}      = SELF.Txt(Txt:OnTheList)
+  ?EdP1{PROP:Text}      = SELF.Txt(Txt:HeadingLbl)
+  ?EdHead{PROP:Tip}     = SELF.Txt(Txt:HeadTip)
+  ?EdP2{PROP:Text}      = SELF.Txt(Txt:PictureLbl)
+  ?EdPic{PROP:Tip}      = SELF.Txt(Txt:PicTip)
+  ?EdDef{PROP:Text}     = SELF.Txt(Txt:EdDefBtn)
+  ?EdHint{PROP:Text}    = SELF.Txt(Txt:EdFoot)
+  ?EdOk{PROP:Text}      = SELF.Txt(Txt:OK)
+  ?EdCancel{PROP:Text}  = SELF.Txt(Txt:Cancel)
+
+
 FillCols ROUTINE
   DATA
 keep  LONG,AUTO
@@ -789,7 +1086,8 @@ c     LONG,AUTO
   DO ShowInfo
 
 ShowInfo ROUTINE
-  ?ExpCount{PROP:Text} = '(' & SELF.Selected() & ' of ' & SELF.Columns() & ' selected)'
+  ?ExpCount{PROP:Text} = '(' & SELF.Selected() & SELF.Txt(Txt:OfWord) & |
+                         SELF.Columns() & SELF.Txt(Txt:SelectedWord)
   ?ExpInfo{PROP:Text}  = SELF.FormatHint(SELF.Fmt)
 
 !  ---- include / exclude the highlighted column -----------------------------
@@ -807,6 +1105,7 @@ EditRow ROUTINE
   EdPic  = SELF.ColumnPic(row)
   EdOk   = 0
   OPEN(EdWnd)
+  DO SpeakColumn                                          ! every caption, in SELF.Language
   ?EdSrc{PROP:Text} = SELF.ColumnDefault(row)
   ACCEPT
     CASE EVENT()
@@ -824,9 +1123,9 @@ EditRow ROUTINE
     OF ?EdOk
       IF EVENT() = EVENT:Accepted
         IF CLIP(LEFT(EdPic)) AND SUB(CLIP(LEFT(EdPic)),1,1) <> '@'
-          SELF.Note('A Clarion picture starts with @ - for example @n-11.2 or @d17.' & |
-                    Exp:CRLF & Exp:CRLF & 'Leave it blank to write the raw value.', |
-                    'Picture',ICON:Exclamation)
+          SELF.Note(SELF.Txt(Txt:BadPicture) & |
+                    Exp:CRLF & Exp:CRLF & SELF.Txt(Txt:BadPicture2), |
+                    SELF.Txt(Txt:PicTitle),ICON:Exclamation)
           SELECT(?EdPic)
           CYCLE
         END
@@ -847,7 +1146,7 @@ EditRow ROUTINE
 !  ---- no column picking: hide that block and close the gap -----------------
 HideCols ROUTINE
   Shrink = 158                                            ! 92..250, the whole columns block
-  ?ExpT2{PROP:Text}    = 'Choose a format, then the folder and file name.'
+  ?ExpT2{PROP:Text}    = SELF.Txt(Txt:SubtitleNoCol)
   ?ExpP3{PROP:Hide}    = 1
   ?ExpCount{PROP:Hide} = 1
   ?ExpHint{PROP:Hide}  = 1
@@ -873,7 +1172,7 @@ Name  CSTRING(261)
   CODE
   Name = CLIP(LEFT(SELF.FileName))
   IF ~Name THEN Name = SELF.SuggestName() & SELF.FormatExt(SELF.Fmt) .
-  IF FILEDIALOG('Export to ' & SELF.FormatName(SELF.Fmt),Name,SELF.FormatMask(SELF.Fmt), |
+  IF FILEDIALOG(SELF.Txt(Txt:ExportToTitle) & SELF.FormatName(SELF.Fmt),Name,SELF.FormatMask(SELF.Fmt), |
                 FILE:Save + FILE:KeepDir + FILE:LongName + FILE:AddExtension)
     SELF.FileName = Name
     SELF.ForceExt(SELF.Fmt)
@@ -935,17 +1234,17 @@ dlm   STRING(1)
   n = SELF.Columns()
   IF ~n
     SELF.ErrCode = 1
-    SELF.ErrText = 'There is nothing to export - this list has no data columns.'
+    SELF.ErrText = SELF.Txt(Txt:NoColumns)
     RETURN 0
   END
   IF ~SELF.Selected()
     SELF.ErrCode = 3
-    SELF.ErrText = 'No columns are selected for export.'
+    SELF.ErrText = SELF.Txt(Txt:NoneSelected)
     RETURN 0
   END
   IF ~CLIP(LEFT(SELF.FileName))
     SELF.ErrCode = 2
-    SELF.ErrText = 'No file name was given.'
+    SELF.ErrText = SELF.Txt(Txt:NoFileName)
     RETURN 0
   END
   SELF.FreeBuffers()
@@ -1165,7 +1464,7 @@ ok    BYTE(0)
   CODE
   IF ~SELF.Started
     IF SELF.ErrCode AND SELF.Confirm
-      SELF.Note(SELF.ErrText,'Export failed',ICON:Hand)
+      SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand)
     END
     RETURN 0
   END
@@ -1179,7 +1478,7 @@ ok    BYTE(0)
     SELF.Cat(Exp:CRLF & ']' & Exp:CRLF)
   OF Exp:HTML
     SELF.Cat('</tbody></table>' & Exp:CRLF)
-    SELF.Cat('<p class="meta">' & CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & ' row(s)</p>' & Exp:CRLF)
+    SELF.Cat('<p class="meta">' & CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & SELF.Txt(Txt:RowsHtml) & '</p>' & Exp:CRLF)
     SELF.Cat('</body></html>' & Exp:CRLF)
   OF Exp:XLSX
     SELF.Cat('</sheetData>')
@@ -1211,13 +1510,13 @@ ok    BYTE(0)
 
   SELF.FreeBuffers()
   IF ~ok
-    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,'Export failed',ICON:Hand) .
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
     RETURN 0
   END
   IF SELF.Persist THEN SELF.SaveSettings() .              ! remember how they left it
   IF SELF.Confirm
-    SELF.Note(CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & ' row(s) exported to' & Exp:CRLF & Exp:CRLF & |
-              CLIP(SELF.FileName),'Export complete',ICON:Asterisk)
+    SELF.Note(CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & SELF.Txt(Txt:RowsExported) & Exp:CRLF & Exp:CRLF & |
+              CLIP(SELF.FileName),SELF.Txt(Txt:DoneTitle),ICON:Asterisk)
   END
   IF SELF.OpenWhenDone THEN SELF.ShellOpen(SELF.FileName) .
   RETURN 1
@@ -1605,8 +1904,8 @@ wr    ULONG,AUTO
   h  = exCreateFile(nm,40000000h,0,0,2,80h,0)             ! GENERIC_WRITE, CREATE_ALWAYS, NORMAL
   IF h = 0 OR h = -1
     SELF.ErrCode = 10
-    SELF.ErrText = 'Could not create' & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
-                   'Check the folder exists and that the file is not already open.'
+    SELF.ErrText = SELF.Txt(Txt:CantCreate) & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
+                   SELF.Txt(Txt:CantCreate2)
     RETURN 0
   END
   IF pLen > 0
@@ -1614,8 +1913,8 @@ wr    ULONG,AUTO
     IF ~exWriteFile(h,pData,pLen,wr,0) OR wr <> pLen
       exCloseHandle(h)
       SELF.ErrCode = 11
-      SELF.ErrText = 'Could not write to' & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
-                     'The disk may be full or write protected.'
+      SELF.ErrText = SELF.Txt(Txt:CantWrite) & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
+                     SELF.Txt(Txt:CantWrite2)
       RETURN 0
     END
   END

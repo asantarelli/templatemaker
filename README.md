@@ -824,6 +824,19 @@ there is nothing to type. By default it walks the **whole browse view** (`BRW1.R
 `SetQueueRecord()`), honouring the current sort order, range limits and filters — not just the page of rows
 the ABC queue happens to hold; a queue-only mode is one prompt away for hand-coded lists.
 
+**English or Spanish, everywhere the user looks.** The dialog, the column popup, the column-list headings, the
+tool tips, the Save-As file types and every message come from one virtual method, `Txt(id)` — 81 strings, both
+languages, verified complete in both. Pick it per application (*myExport - Global* → *Export language*, which
+emits the global `myExportLanguage`) or per button (*Language*: English, Español, or *Use the application
+setting*). Only that last choice touches the global, so **the button stays self-contained** — no `REQ()` on the
+control template. From code it is one line: `Exporter1.Language = Exp:Spanish`. A third language is one
+`DERIVED` override of `Txt()`, with anything you skip falling through to English. Two details worth stealing:
+the window structures keep the English text as the *designer's* placeholder while every caption is assigned
+from `Txt()` at run time, so the languages cannot drift; and **the button row measures itself** — "Defaults" is
+8 characters, "Predeterminados" is 15, so those five buttons are sized from their own captions and packed left
+to right rather than clipped by fixed widths. Accents are Clarion `<nnn>` escapes so the `.clw` stays 7-bit
+ASCII and can't be mangled by a UTF-8 editor.
+
 **Multi-DLL suites share one copy of the class.** `ExportClass.inc` is tagged `!ABCIncludeFile(MYEXPORT)`, and
 **myExportGlobal** registers that category with the ABC chain (`%AddCategory` + `%SetCategoryLocationFromPrompts`).
 That hands the whole job to the shipped machinery: `ABPROGRM.TPW` writes the `_myExportLinkMode_` /

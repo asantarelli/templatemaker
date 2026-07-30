@@ -71,7 +71,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>myExport</h1><span class="en">Programmer's Documentation · v1.1</span><span class="es">Documentación del programador · v1.1</span></div>
+    <div class="brand"><h1>myExport</h1><span class="en">Programmer's Documentation · v1.2</span><span class="es">Documentación del programador · v1.2</span></div>
     <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
     <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
     <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
@@ -81,6 +81,7 @@
     <a href="#picker" class="h2"><span class="en">Choosing the columns</span><span class="es">Elegir las columnas</span></a>
     <a href="#remember" class="h2"><span class="en">Remembering the last export</span><span class="es">Recordar la última exportación</span></a>
     <a href="#scope" class="h2"><span class="en">Which records get exported</span><span class="es">Qué registros se exportan</span></a>
+    <a href="#language" class="h2"><span class="en">English or Spanish</span><span class="es">Inglés o español</span></a>
     <a href="#multidll" class="h2"><span class="en">Multi-DLL applications</span><span class="es">Aplicaciones multi-DLL</span></a>
     <div class="grp"><span class="en">The formats</span><span class="es">Los formatos</span></div>
     <a href="#formats" class="h2"><span class="en">All seven, compared</span><span class="es">Los siete, comparados</span></a>
@@ -651,6 +652,120 @@ Exporter1.ExportQueue()</pre>
           opción correcta para un LIST + QUEUE escrito a mano, o para un browse cargado por completo, y no
           molesta al browse en absoluto.</li>
       </ul>
+      </div>
+    </section>
+
+    <section id="language">
+      <h2><span class="en">English or Spanish</span><span class="es">Inglés o español</span> <a href="#language" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">The whole run-time side speaks either language: the dialog, the column popup, the
+        column-list headings, the tool tips, the Save-As file types and every message. One prompt picks it.</p>
+      <table>
+        <tr><th>Where</th><th>Prompt</th><th>Effect</th></tr>
+        <tr><td><b>myExport - Global</b>, General tab</td><td><i>Export language</i></td>
+            <td>The application-wide default. Emits the global <code>myExportLanguage</code>.</td></tr>
+        <tr><td><b>The Export button</b> / <b>myExportHere</b>, Options tab</td><td><i>Language</i></td>
+            <td><i>English</i> or <i>Español</i> outright, or <i>Use the application setting</i> to follow
+                the global. Defaults to English, so a button on its own needs nothing.</td></tr>
+      </table>
+      <div class="callout note"><b>The button stays self-contained</b>
+        Only <i>Use the application setting</i> reads <code>myExportLanguage</code>, and that is the one choice
+        that needs the global extension on the application. Pick a language outright and the button carries no
+        dependency at all — which is why myExport does <b class="i">not</b> put <code>REQ()</code> on its
+        control template the way myCalendar does.</div>
+      <h3>From code</h3>
+<pre><code>Exporter1.Language = Exp:Spanish        ! Exp:English (1) or Exp:Spanish (2)
+Exporter1.Run()</code></pre>
+      <p>Set it any time before <code>Ask()</code>. It changes nothing about the <i>file</i> that gets
+        written — only what the user reads on screen. Your column headings, your data and your pictures are
+        untouched.</p>
+      <h3>Adding a third language</h3>
+      <p>Every string comes from one virtual method, <code>Txt(id)</code>, so a new language is one override
+        and no changes to this class:</p>
+<pre><code>MyExporter   CLASS(ExportClass)
+Txt            PROCEDURE(LONG pId),STRING,DERIVED
+             END
+
+MyExporter.Txt PROCEDURE(LONG pId)
+  CODE
+  IF SELF.Language = 3                              ! your own equate
+    CASE pId
+    OF Txt:ExportBtn ; RETURN '&amp;Exporter'
+    OF Txt:Cancel    ; RETURN 'Annuler'
+    END
+  END
+  RETURN PARENT.Txt(pId)                            ! everything you did not translate</code></pre>
+      <p>The <code>Txt:</code> equates and the count, <code>Txt:Strings</code>, are in
+        <code>ExportClass.inc</code>. Anything you leave out falls through to English, so a partial
+        translation is perfectly usable.</p>
+      <div class="callout tip"><b>Two details that keep this honest</b>
+        The window structures in <code>ExportClass.clw</code> still hold the English text, but that is only
+        what the <i>designer</i> sees — at run time every caption is assigned from <code>Txt()</code>, so the
+        two languages cannot drift apart. And <b class="i">the button row measures itself</b>: “Defaults” is 8
+        characters and “Predeterminados” is 15, so the five column buttons are sized from their own captions
+        and packed left to right instead of trusting fixed widths. A longer language grows into the empty
+        space on the right rather than being clipped.</div>
+      <div class="callout warn"><b>Accented text is written as escapes, on purpose</b>
+        The Spanish strings use Clarion <code>&lt;nnn&gt;</code> escapes — <code>'D&lt;243&gt;nde'</code> is
+        <i>Dónde</i> — so <code>ExportClass.clw</code> stays pure 7-bit ASCII. A file full of raw CP1252
+        accents gets silently mangled the first time it passes through a UTF-8 editor, and the damage only
+        shows up on screen. Follow the same rule if you add a language.</div>
+      </div>
+      <div class="es">
+      <p class="lead">Todo el lado de ejecución habla cualquiera de los dos idiomas: el diálogo, la ventana de
+        columna, los encabezados de la lista de columnas, los tool tips, los tipos de archivo del Guardar como
+        y todos los mensajes. Un solo prompt lo elige.</p>
+      <table>
+        <tr><th>Dónde</th><th>Prompt</th><th>Efecto</th></tr>
+        <tr><td><b>myExport - Global</b>, pestaña General</td><td><i>Export language</i></td>
+            <td>El valor por defecto de toda la aplicación. Genera la global
+                <code>myExportLanguage</code>.</td></tr>
+        <tr><td><b>El botón Exportar</b> / <b>myExportHere</b>, pestaña Options</td><td><i>Language</i></td>
+            <td><i>English</i> o <i>Español</i> directamente, o <i>Use the application setting</i> para
+                seguir a la global. Por defecto inglés, así que un botón por sí solo no necesita nada.</td></tr>
+      </table>
+      <div class="callout note"><b>El botón sigue siendo autónomo</b>
+        Sólo <i>Use the application setting</i> lee <code>myExportLanguage</code>, y ésa es la única opción
+        que necesita la extensión global en la aplicación. Si eliges un idioma directamente, el botón no
+        arrastra ninguna dependencia; por eso myExport <b class="i">no</b> pone <code>REQ()</code> en su
+        plantilla de control como sí hace myCalendar.</div>
+      <h3>Desde código</h3>
+<pre><code>Exporter1.Language = Exp:Spanish        ! Exp:English (1) o Exp:Spanish (2)
+Exporter1.Run()</code></pre>
+      <p>Ponlo en cualquier momento antes de <code>Ask()</code>. No cambia nada del <i>archivo</i> que se
+        escribe: sólo lo que el usuario lee en pantalla. Tus encabezados, tus datos y tus pictures quedan
+        intactos.</p>
+      <h3>Añadir un tercer idioma</h3>
+      <p>Todas las cadenas salen de un único método virtual, <code>Txt(id)</code>, así que un idioma nuevo es
+        un override y ningún cambio en esta clase:</p>
+<pre><code>MyExporter   CLASS(ExportClass)
+Txt            PROCEDURE(LONG pId),STRING,DERIVED
+             END
+
+MyExporter.Txt PROCEDURE(LONG pId)
+  CODE
+  IF SELF.Language = 3                              ! tu propio equate
+    CASE pId
+    OF Txt:ExportBtn ; RETURN '&amp;Exporter'
+    OF Txt:Cancel    ; RETURN 'Annuler'
+    END
+  END
+  RETURN PARENT.Txt(pId)                            ! todo lo que no tradujiste</code></pre>
+      <p>Los equates <code>Txt:</code> y el total, <code>Txt:Strings</code>, están en
+        <code>ExportClass.inc</code>. Lo que dejes fuera cae en inglés, así que una traducción parcial es
+        perfectamente usable.</p>
+      <div class="callout tip"><b>Dos detalles que mantienen esto honesto</b>
+        Las estructuras WINDOW de <code>ExportClass.clw</code> siguen con el texto en inglés, pero eso es sólo
+        lo que ve el <i>diseñador</i>: en ejecución cada caption se asigna desde <code>Txt()</code>, así que
+        los dos idiomas no pueden separarse. Y <b class="i">la fila de botones se mide a sí misma</b>:
+        “Defaults” tiene 8 caracteres y “Predeterminados” 15, así que los cinco botones de columna se
+        dimensionan según su propio texto y se colocan de izquierda a derecha en vez de confiar en anchos
+        fijos. Un idioma más largo crece hacia el espacio libre de la derecha en lugar de recortarse.</div>
+      <div class="callout warn"><b>El texto acentuado va como escapes, a propósito</b>
+        Las cadenas en español usan escapes <code>&lt;nnn&gt;</code> de Clarion — <code>'D&lt;243&gt;nde'</code>
+        es <i>Dónde</i> — para que <code>ExportClass.clw</code> siga siendo ASCII de 7 bits puro. Un archivo
+        lleno de acentos CP1252 crudos se corrompe en silencio la primera vez que pasa por un editor UTF-8, y
+        el daño sólo se ve en pantalla. Sigue la misma regla si añades un idioma.</div>
       </div>
     </section>
 
