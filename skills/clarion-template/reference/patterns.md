@@ -87,6 +87,7 @@ them: they would collide with the pragma defines the templates generate.
 1. `.inc` line 1 → `!ABCIncludeFile(MYTHING)`. The **argument is the category** that files this class in the
    IDE's class registry. Bare `!ABCIncludeFile` = category `ABC`; `svgraph.inc` uses `(GRAPH)`; CapeSoft's
    `MessageBox.inc` uses `(ABC)` to deliberately piggyback on the ABC chain's own location.
+   **Tag EVERY class you ship, even one with no multi-DLL ambitions** — see the box below.
 2. Prompts — the shipped Override box (`Override defaults` + LINK / DLL / LIB / None + library name):
    `#INSERT(%AbcLibraryPrompts(ABC))`  (defined `ABOOP.tpw:131`).
 3. In the **`APPLICATION`-scope** extension:
@@ -127,6 +128,27 @@ Traps, all three hit for real:
   they do until someone uses the Override box.
 - A DLL can only export symbols it **defines**, so only a link-mode app may export the class. That is exactly
   what `ABBLDEXP`'s `#IF (%Category AND %CategoryLinkMode)` guard is for — don't try to force exports on.
+
+> ### Never ship a class with a bare `!ABCIncludeFile` — it breaks other people's data DLLs
+> This is the one to remember even if you never do multi-DLL. `ABBLDEXP` exports every registered class whose
+> category is link-mode and **never checks whether the application uses the class**. A bare tag means category
+> `ABC`, which *is* link-mode in a data DLL — so **every** bare-tagged `.inc` on the redirection path gets
+> exported from that DLL, whether the app touches it or not. Any whose `.clw` was never compiled in (nothing
+> included its `.inc`, so its `LINK` never fired) fails the build with a wall of:
+> ```
+> ADDMONTHS@F13CALENDARCLASSll is unresolved for export - data.exp:396,3
+> ```
+> Measured: re-tagging one class took it from 35 lines in a data DLL's `.EXP` to **0**. So give every shipped
+> class its own category — one per template, classes shipped together sharing it. A category nobody registers
+> is simply never auto-exported, and the class still links per-app exactly as before; there is no downside and
+> nothing else to change. Only add the registration (step 3) when you actually want the class shared.
+>
+> Two corollaries that cost real debugging time:
+> - **The registry reads the `.inc` on the redirection path**, not your project's copy. Tell developers to
+>   replace *that* one on upgrade, or the old tag keeps the old behaviour.
+> - **A renamed or superseded class left on the redirection path still breaks a data DLL**, because the
+>   registry finds it even though no template references it any more. `CalendarClass.inc`, superseded by
+>   `MyCalendarClass`, sat there for three days and produced exactly the error above.
 
 ### CapeSoft route — only if the `cape0*.tpw` chain is registered
 ```
@@ -470,8 +492,10 @@ actually compiles (corpus: CapeSoft `StringTheory`/`Reflection`, ABC `ABFILE`):
 - [ ] Every `#AT` honors the disable prompt via `WHERE()`.
 - [ ] Globals are `EXTERNAL,DLL(dll_mode)` in the non-owning apps, and exported from the owner (P2). Prefer
       ABC's `%DefaultExternal = 'None External'` to author-declared `%MultiDLL`/`%RootDLL` prompts.
-- [ ] A shipped CLASS has `LINK(...,_xLinkMode_),DLL(_xDllMode_)` + a registered category, so a suite shares
-      one copy instead of compiling it into every DLL (P2b). Category registration is `APPLICATION`-scope only.
+- [ ] Every shipped class `.inc` has its **own** `!ABCIncludeFile(CATEGORY)` — a bare tag makes any data DLL
+      export the class whether it uses it or not, and unresolved-for-export errors follow (P2b).
+- [ ] To *share* a class across a suite it also needs `LINK(...,_xLinkMode_),DLL(_xDllMode_)` and the category
+      registered, which is `APPLICATION`-scope only (P2b).
 - [ ] `INCLUDE(...),ONCE` on every class header.
 - [ ] Output-line indentation matches required Clarion columns (labels col 1).
 - [ ] Multi-instance symbols carry `%ActiveTemplateInstance`.

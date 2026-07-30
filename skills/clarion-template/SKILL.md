@@ -128,6 +128,10 @@ per-procedure, project files, export lists, custom embeds).
    - the **class's code** → `LINK('X.CLW',_xLinkMode_),DLL(_xDllMode_)` plus an `!ABCIncludeFile(CATEGORY)`
      tag and `%AddCategory`/`%SetCategoryLocationFromPrompts` in an `APPLICATION` extension. The chain then
      writes both the pragmas and the whole mangled export list. Never hand-write a mangled symbol.
+   - **Non-negotiable even for a single-EXE template:** give every class you ship its **own**
+     `!ABCIncludeFile(CATEGORY)` tag. A bare `!ABCIncludeFile` means category `ABC`, and a data DLL exports
+     every link-mode registered class *whether the app uses it or not* — so a bare-tagged class sitting on
+     someone's redirection path breaks their DLL with `… is unresolved for export`. See patterns.md P2b.
 6. **Guard re-declares** with `#IF(VAREXISTS(%x)=0)` / `#DECLARE` in groups that may run more than once.
 7. **Verify — and you *can* do this yourself, headlessly.** `ClarionCL` drives AppGen from the command line
    (use dash switches; MSYS mangles `/tr` into a path):
