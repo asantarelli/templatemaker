@@ -127,6 +127,13 @@ INCLUDE('MyTools.INC'),ONCE
 The accompanying `MyTools.INC`/`MyTools.CLW` (a normal Clarion `CLASS`) is hand-written and shipped with
 the template; the template's job is only to declare the instance and wire the lifecycle.
 
+> **Two caveats on the multi-DLL lines above**, both covered properly in `patterns.md` P2/P2b. `%MultiDLL`
+> and `%RootDLL` are **prompts this template would have to declare** (the CapeSoft convention) — they are not
+> built-in; ABC's own `%DefaultExternal = 'None External'` needs no prompt at all. And `%ExportClassesPR` is
+> CapeSoft's group (`cape02.tpw:394`), so it only resolves if that chain is registered — with the ABC chain
+> you tag the `.inc` `!ABCIncludeFile(CATEGORY)`, register the category, and the export list is generated
+> for you.
+
 ---
 
 ## Example C — A value-returning `#GROUP` and its use

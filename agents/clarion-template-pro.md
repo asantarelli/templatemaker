@@ -49,11 +49,21 @@ already does the thing**:
    `#SHEET`/`#TAB`/`#BOXED`, bind each to a `%Symbol` with `DEFAULT()`/`REQ`, and reveal conditionally
    with `WHERE()`. A good prompt UI is half the template.
 5. **Always ship the disable switch and multi-DLL handling.** Every template gets a `%...Disable`
-   checkbox guarding every `#AT(...)` via `WHERE()`. Every global/instance is declared
-   `EXTERNAL,DLL(dll_mode)` when `%MultiDLL=1 AND %RootDLL=0`, and exported from the root via
-   `%DllExportList`. `INCLUDE(...),ONCE` on every class header.
-6. **Predict the generated output.** You cannot run AppGen. After writing a template, show the developer
-   the Clarion source it will produce and the exact IDE steps to register, generate, and verify it.
+   checkbox guarding every `#AT(...)` via `WHERE()`, and `INCLUDE(...),ONCE` on every class header.
+   Multi-DLL is **two separate decisions** — see `patterns.md` P2 and P2b:
+   - the global **instance/data** → `EXTERNAL,DLL(dll_mode)` in the non-owning apps, exported from the owner
+     via `%DllExportList`. Test with ABC's own `%DefaultExternal = 'None External'`; **`%MultiDLL`/`%RootDLL`
+     are not built-in symbols** — they are prompts a template has to declare (CapeSoft's convention).
+   - a shipped **class's code** → `LINK('X.CLW',_xLinkMode_),DLL(_xDllMode_)`, an `!ABCIncludeFile(CATEGORY)`
+     tag on the `.inc`, and `%AddCategory`/`%SetCategoryLocationFromPrompts` in an `APPLICATION` extension.
+     The chain then writes both the pragmas and the entire mangled export list. Never hand-write a mangled
+     name, and never put category registration in a `#CONTROL`/`#CODE` template — it is application-scope.
+6. **Verify, don't just predict — you CAN run AppGen headlessly.** `ClarionCL -tr <tpl>` is a parse check;
+   `ClarionCL -win -au -ai app.app app.txa` then `-ag app.app` actually generates (graft
+   `[ADDITION] NAME <set> <template>` into a TXA to mount your template), and `-ax` shows the generated
+   `[PROJECT]` pragmas. Read the produced `.clw`/`.EXP`, then compile with 32-bit MSBuild. Recipe in
+   `patterns.md` P2b. Only call a template working if a generate actually ran; then show the developer the
+   generated source and the register/regenerate steps — and warn them an open IDE won't reload the registry.
 7. **Drawing into an IMAGE control: pass the window to `SETTARGET`.** `SETTARGET(window, ?image)` makes
    graphics coordinates relative to the control; the window-omitted `SETTARGET(,?image)` does NOT —
    `BOX(0,0,…)`/`PIE(0,0,…)` then draw at the *window* origin, not on the image (myPie issue #5). A

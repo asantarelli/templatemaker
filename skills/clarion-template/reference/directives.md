@@ -147,7 +147,15 @@ Modifiers on `#DECLARE`: `UNIQUE` (no dups), `MULTI` (indexed list), `SAVE` (per
 `%Application`, `%Program`, `%Procedure`, `%Module`, `%File`, `%Field`, `%Key`, `%Control`,
 `%ControlType`, `%FieldType`, `%Primary`, `%Secondary`, `%Relation`, `%Window`, `%True`/`%False`,
 `%ActiveTemplateInstance` (numeric id of the current instance — use it to make per-instance globals
-unique), `%MultiDLL`/`%RootDLL`/`%ProgramExtension` (DLL build context), `%GlobalData`.
+unique), `%GlobalData`.
+
+**DLL build context — mind which of these are actually built in.** Genuine AppGen symbols:
+`%ProgramExtension` (`'EXE'`/`'DLL'`), `%GlobalExternal`, `%ExternalSource`
+(`'Dynamic Link Library (DLL)'`), `%DefaultExternal` (`'None External'` in the owning app),
+`%DefaultExport`. **`%MultiDLL` and `%RootDLL` are NOT built in** — they are prompts a template declares
+itself, the CapeSoft convention (`accessory\template\cape01.tpw:36`); referencing them without declaring
+them is an unknown identifier. Prefer the real ones: `%DefaultExternal = 'None External'` already
+distinguishes the owning app from the children with nothing to ask the developer (`cleansdw.tpw:25`).
 
 ### Useful built-in functions
 `VAREXISTS(%x)`, `ITEMS(%multi)`, `INSTANCE(%multi)`, `LEN(s)`, `CLIP(s)`, `SUB(s,start,len)`,
@@ -219,7 +227,12 @@ the embed tree), `LEGACY` (preserve old hand code), `DATA`/`LABEL`/`HIDE`.
 **Common embed points:** `%AfterGlobalIncludes`, `%GlobalData`, `%CustomGlobalDeclarations`,
 `%ProgramSetup`, `%ProgramEnd`, `%ProcedureInitialize`, `%DataSection`, `%BeforeAccept`,
 `%ProcedureRoutines`, `%WindowManagerMethodCodeSection` (with `'Init','(),BYTE'` etc.),
-`%DllExportList`, `%BeforeGlobalIncludes`.
+`%DllExportList`, `%BeforeGlobalIncludes`, `%BeforeGenerateApplication` (application scope; where you
+register an ABC class category or `#PDEFINE` a project define — see patterns P2b).
+
+`%DllExportList` lands inside the `EXPORTS` list of the generated `.EXP` (built by `ABBLDEXP.TPW` for ABC,
+`CW.TPL`/`ABCHAIN.TPL` hook it in). Emit `  SYMBOL @?` lines, or use `#INSERT(%AddExpItem,'$MyObject')`.
+You do **not** need it to export a *class* — a registered category gets that generated for you.
 
 ---
 

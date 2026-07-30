@@ -90,7 +90,7 @@ INCLUDE('MyTool.INC'),ONCE
 #ENDAT
 #!
 #AT(%GlobalData),WHERE(%MyToolDisable=0)
-  #IF(%MultiDLL=0 OR %RootDLL=1)
+  #IF(%DefaultExternal = 'None External')
 %MyToolObject  MyToolClass
   #ELSE
 %MyToolObject  MyToolClass,EXTERNAL,DLL(dll_mode)
@@ -121,11 +121,28 @@ per-procedure, project files, export lists, custom embeds).
 4. **Pick embed points** for your `#AT` blocks. Common ones: `%AfterGlobalIncludes`, `%GlobalData`,
    `%ProgramSetup`, `%ProgramEnd`, `%ProcedureInitialize`, `%BeforeAccept`, `%ProcedureRoutines`,
    `%WindowManagerMethodCodeSection`, `%DataSection`, `%CustomGlobalDeclarations`, `%DllExportList`.
-5. **Handle multi-DLL** from the start (`#IF(%MultiDLL=0 OR %RootDLL=1)`) — retrofitting is painful.
+5. **Handle multi-DLL** from the start — retrofitting is painful. There are **two** halves, and they are
+   separate decisions (patterns P2 and P2b):
+   - the **global instance/data** → `EXTERNAL,DLL(dll_mode)` in the non-owning apps, exported from the owner.
+     Use ABC's own `%DefaultExternal = 'None External'`; `%MultiDLL`/`%RootDLL` are *not* built-in symbols.
+   - the **class's code** → `LINK('X.CLW',_xLinkMode_),DLL(_xDllMode_)` plus an `!ABCIncludeFile(CATEGORY)`
+     tag and `%AddCategory`/`%SetCategoryLocationFromPrompts` in an `APPLICATION` extension. The chain then
+     writes both the pragmas and the whole mangled export list. Never hand-write a mangled symbol.
 6. **Guard re-declares** with `#IF(VAREXISTS(%x)=0)` / `#DECLARE` in groups that may run more than once.
-7. **Verify**: register the `.tpl` in the IDE (Setup ▸ Template Registry), regenerate an app, and check
-   the produced source compiles. You cannot run AppGen yourself — tell the developer the exact register/
-   regenerate steps and what the generated code should look like.
+7. **Verify — and you *can* do this yourself, headlessly.** `ClarionCL` drives AppGen from the command line
+   (use dash switches; MSYS mangles `/tr` into a path):
+   ```
+   ClarionCL -tr <full path to .tpl>          # register = parse check (silent output = OK)
+   ClarionCL -win -au -ai app.app app.txa     # import a TXA (creates the .app if absent)
+   ClarionCL -win -au -ag app.app             # GENERATE - then read the produced .clw / .EXP
+   ClarionCL -win -au -ax app.app out.txa     # export back out: shows the generated [PROJECT] pragmas
+   ```
+   Registering only parses; a generate is what catches `#CALL` typos, bad group args and wrong embed names.
+   To test an extension, graft `[ADDITION] NAME <set> <template>` into a TXA (`[PROGRAM]` section for an
+   application extension) and `-ag` it. Then compile the result with 32-bit MSBuild — see
+   `patterns.md` P2b for the full recipe. Only report a template as working if a generate actually ran.
+   Caveat: **an already-open IDE never reloads the registry**, so tell the developer to restart it after you
+   re-register, or they will keep seeing the old prompts.
 
 ## Hard-won correctness rules
 

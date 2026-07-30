@@ -19,10 +19,11 @@ INCLUDE('MyTool.INC'),ONCE
 
 ---
 
-## P2 — Multi-DLL aware global declarations
+## P2 — Multi-DLL aware global declarations (the *instance* / global data)
 
 A class instance or global variable must be declared `EXTERNAL,DLL(dll_mode)` in every DLL except the
 one that actually owns it (the root). This is mandatory for any template used in multi-DLL apps.
+(For where the class's **methods** live — one shared copy vs a copy per DLL — see **P2b**.)
 
 ```
 #AT(%GlobalData),WHERE(%MyToolDisable=0)
@@ -36,6 +37,19 @@ MyGlo:Caption        CSTRING(40),EXTERNAL,DLL(dll_mode)
 #ENDAT
 ```
 
+> **`%MultiDLL` and `%RootDLL` are NOT built-in symbols** — verified: they appear nowhere in
+> `template\win\*.tp?`. They are prompts *your template declares*, the CapeSoft convention
+> (`accessory\template\cape01.tpw:36`):
+> ```
+> #PROMPT('This is part of a Multi-DLL program',CHECK),%MultiDLL,DEFAULT(%ProgramExtension='DLL'),AT(10)
+> #ENABLE(%MultiDLL=1)
+>   #PROMPT('This is the root/data DLL',CHECK),%RootDLL,AT(10)
+> #ENDENABLE
+> ```
+> Use them and you are asking the developer to answer a question the app already knows. **The ABC-native
+> alternative needs no prompt**: `%DefaultExternal = 'None External'` is true in the owning app and false in
+> the children (corpus: `cleansdw.tpw:25`), with `%ProgramExtension` and `%DefaultExport` alongside. Prefer it.
+
 And export the owned symbols from the root DLL:
 ```
 #AT(%DllExportList),WHERE(%ProgramExtension='DLL' AND %RootDLL=1 AND %MultiDLL=1)
@@ -44,6 +58,115 @@ And export the owned symbols from the root DLL:
  $%MyToolObject     @?
 #ENDAT
 ```
+`$Label` is the export spelling for a data item. **`%ExportClassesPR` is CapeSoft's**, defined in
+`accessory\template\cape02.tpw:394` — it only exists if that chain is registered. `%AddExpItem` is ABC's
+(`ABBLDEXP.TPW`). Don't mix the two families' helpers by accident.
+
+---
+
+## P2b — Where a CLASS's *code* lives in a multi-DLL suite
+
+P2 places the *instance*. This places the *methods*: in a suite you normally want **one** app to compile the
+class and the rest to import it, not every DLL carrying a private copy. Two project defines decide it, exactly
+as every ABC class does it:
+
+```
+MyClass  CLASS,TYPE,MODULE('MyClass.CLW'),LINK('MyClass.CLW',_myThingLinkMode_),DLL(_myThingDllMode_)
+```
+| define | 1 means |
+|---|---|
+| `_myThingLinkMode_` | compile `MyClass.clw` into **this** app (and, if it is a DLL, export the class) |
+| `_myThingDllMode_`  | **import** the class from another DLL; compile no copy |
+
+**Undefined is safe and is the single-EXE behaviour** — with neither define set (a hand-coded project, a demo)
+`LINK` behaves as 1 and `DLL` as 0, so the class is simply linked in. Do **not** add `EQUATE` defaults for
+them: they would collide with the pragma defines the templates generate.
+
+### Best route — register an ABC *category*: nothing to maintain, no mangled names
+
+1. `.inc` line 1 → `!ABCIncludeFile(MYTHING)`. The **argument is the category** that files this class in the
+   IDE's class registry. Bare `!ABCIncludeFile` = category `ABC`; `svgraph.inc` uses `(GRAPH)`; CapeSoft's
+   `MessageBox.inc` uses `(ABC)` to deliberately piggyback on the ABC chain's own location.
+2. Prompts — the shipped Override box (`Override defaults` + LINK / DLL / LIB / None + library name):
+   `#INSERT(%AbcLibraryPrompts(ABC))`  (defined `ABOOP.tpw:131`).
+3. In the **`APPLICATION`-scope** extension:
+```
+#AT(%BeforeGenerateApplication),WHERE(%MyThingDisable=0)
+  #CALL(%AddCategory(ABC),'MYTHING')
+  #CALL(%SetCategoryLocationFromPrompts(ABC),'MYTHING','myThing','')
+#ENDAT
+```
+Args are *(category, DllMode-prefix, library base name)*. The prefix builds the define names, so `'myThing'`
+→ `_myThingLinkMode_` / `_myThingDllMode_`. Corpus: `svgraph.tpl:38`, `qcenter.tpw:98`, `abmail.tpl:310`.
+
+That is all. The shipped chain then does **both** halves:
+- `ABPROGRM.TPW:88` — `#CALL(%DefineCategoryPragmas)` at `%CustomGlobalDeclarations` emits
+  `#pragma define(_myThingLinkMode_=>n)` / `_myThingDllMode_` into the project (and `#PROJECT`s the `.LIB`
+  if the developer chose LIB/DLL and named one).
+- `ABBLDEXP.TPW` — the ABC `.EXP` builder walks the class registry and writes `VMT$`, `TYPE$` and every
+  non-private, non-inherited method of every **link-mode** category class, name-mangled by the built-in
+  `LINKNAME()`. **You never write a mangled symbol down**, and adding a method to the class later needs no
+  template change. `%DLLExportList` is a real embed, but you do not need it for a class.
+
+**The default needs no prompt and is already right.** `%SetCategoryLocation`'s `'?'` defaults are
+LinkMode = `~%GlobalExternal`, DllMode = `%GlobalExternal AND %ExternalSource='Dynamic Link Library (DLL)'`:
+
+| App's Global Properties → External | Link | Dll | Effect |
+|---|---|---|---|
+| *None external* — the data DLL, or a single EXE | 1 | 0 | compiles the class in; if a DLL, exports it |
+| *All external → Dynamic Link Library* — the children | 0 | 1 | imports the class; none of its code |
+
+Traps, all three hit for real:
+- **Placing a class is a per-APPLICATION decision**, so only an `APPLICATION`-scope extension can make it — a
+  `#CONTROL` or `#CODE` template cannot (it has no `%BeforeGenerateApplication`). So the global extension must
+  be added to *every* app in the suite; miss one and it silently compiles a private copy again. Say so in the
+  prompts, because "the control template is self-contained" stops being true in a suite.
+- **The class registry reads the `.inc` that is on the redirection path**, not the one in your repo or project
+  folder. A stale copy there carrying the old tag files the class under a *different* category, so the export
+  list follows that category's location instead of yours — and it stays invisible while the two agree, which
+  they do until someone uses the Override box.
+- A DLL can only export symbols it **defines**, so only a link-mode app may export the class. That is exactly
+  what `ABBLDEXP`'s `#IF (%Category AND %CategoryLinkMode)` guard is for — don't try to force exports on.
+
+### CapeSoft route — only if the `cape0*.tpw` chain is registered
+```
+#AT(%DllExportList),WHERE(%ProgramExtension='DLL' AND %RootDLL=1 AND %MultiDLL=1 AND %MyThingDisable=0)
+  #INSERT(%ExportClassesPR,'MyClass.Inc')
+#ENDAT
+#AT(%CustomGlobalDeclarations),WHERE(%MyThingDisable=0)
+  #INSERT(%Defines,1,'LinkMode','DllMode',%MultiDLL,%RootDll)
+#ENDAT
+```
+Same idea, its own registry: `%ExportClassesPR` (`cape02.tpw:394`) loops CapeSoft's parsed class list
+(`%dClasses8Bx`/`%dMethods8Cx`) and emits `VMT$`/`TYPE$`/`LINKNAME(...)` just like ABC's does.
+
+### Last resort — a hand-written export list
+Only when nothing generates an `.EXP` (a hand-coded, non-AppGen multi-DLL build). Precedent for shipping one:
+`accessory\libsrc\win\MO.EXP`. Format is `  SYMBOL<spaces>@?` under an `EXPORTS` line, `;` comments allowed.
+To read the true names: **Clarion `.obj` files are OMF, not COFF** — walk records `type(1) len(2,LE) payload`
+and pull `PUBDEF` (0x90/0x91). Names look like `ADDROW@F11EXPORTCLASS` and `CRC32@F11EXPORTCLASSRsbl` — method
+name, `@F`, the length-prefixed class name, then param type codes — plus `VMT$`, `VMTP$`, `TYPE$`. Export the
+methods + `VMT$` + `TYPE$`; **do not** export `TYPE$<someQueue>` for a `QUEUE,TYPE` in the same `.inc`, because
+every module that includes the header defines those itself. A hand-written list goes stale the moment a
+prototype changes, which is the whole reason to prefer the category route.
+
+### Verifying any of this without the IDE
+- **Template side, headlessly:** graft `[ADDITION] NAME <set> <template>` (+ `[INSTANCE] INSTANCE 1` +
+  `[PROMPTS]`) into the **`[PROGRAM]`** section of a TXA, then `ClarionCL -win -au -ai app.app app.txa` and
+  `-ag app.app`. The generated pragmas show up in the app's `[PROJECT]` section when you `-ax` it back out,
+  and the `.EXP` is written to disk — read both. Flip `%GlobalExternal LONG (0/1)` and the `#link "x.DLL"`
+  line to switch the app between owner and child.
+- **Compile side:** a `.cwproj` pair — DLL = `<OutputType>Library</OutputType>` + `<Model>Dll</Model>` +
+  `<DefineConstants>_myThingDllMode_=&gt;0%3b_myThingLinkMode_=&gt;1</DefineConstants>` + an `.EXP`; EXE = the
+  reverse defines + `<ProjectReference>`. Model: `C:\clarion12\examples\IMDD\Multi_DLL\data.cwproj`.
+  Prove the split really happened by checking the EXE does **not** contain the class's code.
+
+**Working reference implementation:** `templates/myExport/` in this repo — `ExportClass.inc` (the tag, the two
+mode arguments, the `_ExportClassPresent_` include guard) and `myExport.tpl` (the Multi-DLL tab and the
+category registration), with the developer-facing explanation in `docs/myExport-template.html`. Everything in
+this pattern was verified there: a generated ABC DLL app emitted the 73 export lines, the same app set to
+*External → DLL* emitted none, and an EXE built with `DllMode=>1` imported the class from a DLL and ran.
+Copy that shape rather than re-deriving it.
 
 ---
 
@@ -310,8 +433,15 @@ actually compiles (corpus: CapeSoft `StringTheory`/`Reflection`, ABC `ABFILE`):
   `NEW`/`DISPOSE` them. A class of only simple/array members doesn't need them; `Construct` is still a handy
   place to do one-time setup (e.g. build lookup tables at instance startup).
 - **Self-contained link:** declare the class `MyClass CLASS,TYPE,MODULE('MyClass.CLW'),LINK('MyClass.CLW')`.
-  The `LINK` adds the `.clw` to the project automatically — no manual project edit. Keep methods **non-VIRTUAL**
-  so calls dispatch statically (each target links its own copy of the code; no method export list to maintain).
+  The `LINK` adds the `.clw` to the project automatically — no manual project edit. This is the simplest thing
+  that works and is *correct* when the class holds no shared state: every target just links its own copy.
+  Its cost is real though — in a multi-DLL suite **every DLL and the EXE carry a full copy of the code**, and
+  there is no way for the developer to opt out. Add the two mode arguments
+  (`LINK('MyClass.CLW',_myThingLinkMode_),DLL(_myThingDllMode_)`) and register a category as in **P2b** and
+  one copy serves the suite, at no cost to single-EXE apps (undefined defines = linked in, as before).
+  VIRTUAL methods are **fine** across a DLL boundary — verified — as long as `VMT$`/`TYPE$` are exported,
+  which the category route does for you. (Keeping methods non-VIRTUAL only matters if you are hand-maintaining
+  an export list and want to keep it short.)
 - **The instance is GLOBAL DATA → make it multi-DLL aware** (else a multi-DLL build fails: procedures in other
   DLLs reference an instance that was never declared `EXTERNAL` there). Use ABC's built-in symbols, no extra
   prompts (corpus: `cleansdw.tpw`):
@@ -338,7 +468,10 @@ actually compiles (corpus: CapeSoft `StringTheory`/`Reflection`, ABC `ABFILE`):
 ## Gotchas checklist
 
 - [ ] Every `#AT` honors the disable prompt via `WHERE()`.
-- [ ] Globals are `EXTERNAL,DLL(dll_mode)` when `%MultiDLL=1 AND %RootDLL=0`; exported from root.
+- [ ] Globals are `EXTERNAL,DLL(dll_mode)` in the non-owning apps, and exported from the owner (P2). Prefer
+      ABC's `%DefaultExternal = 'None External'` to author-declared `%MultiDLL`/`%RootDLL` prompts.
+- [ ] A shipped CLASS has `LINK(...,_xLinkMode_),DLL(_xDllMode_)` + a registered category, so a suite shares
+      one copy instead of compiling it into every DLL (P2b). Category registration is `APPLICATION`-scope only.
 - [ ] `INCLUDE(...),ONCE` on every class header.
 - [ ] Output-line indentation matches required Clarion columns (labels col 1).
 - [ ] Multi-instance symbols carry `%ActiveTemplateInstance`.
