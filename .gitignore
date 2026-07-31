@@ -99,6 +99,14 @@ docs/xReportPview*
 **/CFC*.inc
 **/preview.trn*
 
+# xReportPreview5 - the v5 revamp, same deal, local only
+templates/xReportPreview5/
+templates/xreportpreview5/
+examples/xReportPreview5/
+examples/xreportpreview5/
+docs/xReportPreview5*
+docs/xreportpreview5*
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
