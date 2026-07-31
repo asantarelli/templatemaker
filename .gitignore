@@ -90,6 +90,6 @@ examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
 examples/graficaBarra/ReportClear.log
 
-# weatherWidget demo runtime leftovers
-examples/weatherWidget/WeatherDemo.INI
+# demo runtime leftovers (saved views, modes, build logs - regenerated on every run)
+examples/**/*Demo.INI
 examples/**/build.log
