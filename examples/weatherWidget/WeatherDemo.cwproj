@@ -1,0 +1,29 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{5E1C7B90-2A44-4D18-9F63-7C2A85D31B40}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">Win32</Platform>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>WeatherDemo</RootNamespace>
+    <AssemblyName>WeatherDemo</AssemblyName>
+    <OutputName>WeatherDemo</OutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>True</DebugSymbols>
+    <DebugType>Full</DebugType>
+    <vid>full</vid>
+    <check_stack>True</check_stack>
+    <check_index>True</check_index>
+    <!-- MyWeatherClass is declared LINK('...',_myWeatherLinkMode_),DLL(_myWeatherDllMode_)
+         so an application can decide where its code lives. A GENERATED app gets these two
+         defines written for it (ABPROGRM.TPW calls %DefineCategoryPragmas); a hand-coded
+         project has to state them itself. Leave them out and DLL() is not read as 0 - the
+         class links as an IMPORT, and the first call through it (the constructor, at
+         start-up) jumps into nothing: "Exception ... Access Violation". -->
+    <DefineConstants>_myWeatherDllMode_=&gt;0%3b_myWeatherLinkMode_=&gt;1</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="WeatherDemo.clw" />
+  </ItemGroup>
+  <Import Project="$(ClarionBinPath)\SoftVelocity.Build.Clarion.targets" />
+</Project>

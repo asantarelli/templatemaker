@@ -1,0 +1,14 @@
+# For  WeatherDemo.exe /shots  - three cards, one after another, each up for
+# twelve seconds and then closing itself. Every shot waits for its window to
+# appear (and settle) rather than for a stopwatch, so a slow fetch cannot
+# leave a half-drawn card in the documentation.
+waitfor El tiempo
+shot weatherWidget-es El tiempo
+waitgone El tiempo
+
+waitfor El tiempo
+shot weatherWidget-night El tiempo
+waitgone El tiempo
+
+waitfor Weather
+shot weatherWidget-nodata Weather

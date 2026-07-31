@@ -1,0 +1,11 @@
+# The documentation images. Two runs, both capture-only - nothing here has to
+# drive a window, so the shots come out the same every time.
+#
+#   1. WeatherDemo.exe          the start-up card, then the demo window
+#      powershell -File shoot.ps1 -Steps steps.txt      -OutDir ..\..\docs
+#   2. WeatherDemo.exe /shots   the Spanish, night and no-reading cards
+#      powershell -File shoot.ps1 -Steps steps-gallery.txt -OutDir ..\..\docs
+wait 4000
+shot weatherWidget-card Weather
+wait 6000
+shot weatherWidget-demo demo

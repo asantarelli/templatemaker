@@ -107,6 +107,11 @@ templates/                      # ready-to-register Clarion templates
     MsgHookClass.clw            #     the implementation (hook thunks + append-only logger)
     myHook.tpl                  #     global extension + per-procedure pause + code template
     myHook.zip                  #     the three files above, zipped for easy distribution
+  weatherWidget/                #   a weather card when your program starts (see below)
+    MyWeatherClass.inc          #     the widget (settings, the reading, EN/ES strings)
+    MyWeatherClass.clw          #     the implementation (curl + JSON + the drawn card)
+    weatherWidget.tpl           #     global extension + code template
+    weatherWidget.zip           #     the three files above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 installer/                      # builds the installer + a portable single-file exe
 README.md
@@ -911,6 +916,59 @@ quote-doubling, and the roll-over to `.bak`.
 
 Full programmer's documentation, English and Spanish in one page with a language toggle:
 [`docs/myHook-template.html`](docs/myHook-template.html).
+
+### `templates/weatherWidget/` — the weather, on a card at start-up
+Add **weatherWidget - The weather at start-up** to the application (once, not per procedure), generate, and
+your program opens with the weather: where the user is, the temperature now, what it feels like, humidity,
+wind with its compass point, rain, sunrise and sunset, and up to seven days ahead. It closes itself after a
+countdown you choose, or waits for the user.
+
+![The card, at start-up](docs/weatherWidget-card.png)
+
+**Free data, no API key, no registration.** The forecast is `api.open-meteo.com`; the place is either looked
+up from the machine's public address (`ipwho.is`) or geocoded from a city name (Open-Meteo's own geocoder),
+and both answers are kept for a day so a normal start-up costs **one** request. The download is `curl.exe`,
+which ships with Windows 10 and 11, launched **hidden and synchronously** — the same proven launcher myQR
+uses. There is no JSON library: the answers are flat and machine-written, so a bounded `INSTRING` reader and
+a hand-rolled number scanner are enough, and the class carries no dependency at all.
+
+**Every pixel is drawn.** The sky gradient, the sun and its rays, the crescent moon (a disc with the sky
+colour punched out of it), the clouds, the raindrops, the snow and the lightning bolt are native `BOX`,
+`LINE`, `ELLIPSE` and `POLYGON` into one `IMAGE` — no icons, no PNGs, nothing to ship but your executable.
+Day or night is whatever the service says it is where the weather is, not what your clock says.
+
+![Spanish, Fahrenheit, a named city](docs/weatherWidget-es.png)
+
+![Night: a crescent, and a darker sky](docs/weatherWidget-night.png)
+
+Two registrations: **weatherWidget** (`APPLICATION` — declares the object, writes the settings, shows the
+card) and **weatherWidgetHere** (a code template to show it from a menu item, a button or a hot key). English
+or Spanish throughout — labels, conditions, day names, compass points, buttons — and metric or imperial asked
+for **at the source**, so the numbers are the service's, not a conversion. Copy `MyWeatherClass.inc` and
+`MyWeatherClass.clw` (**ANSI, CRLF** — they are pure ASCII, with the Spanish accents as `<nnn>` escapes) to
+the redirection path.
+
+**It is honest about the network.** The fetch is synchronous, so *Give up after* (6 s) bounds what a dead
+connection can cost your start-up, a reading younger than *Re-use a reading younger than* (30 min) is served
+from the INI with no request at all, and a failed fetch can show nothing, show the last reading kept, or show
+the fault — the default for an offline laptop is a program that starts exactly as it always did. The card
+carries Open-Meteo's attribution, and the documentation spells out which third party sees what.
+
+Verified end to end, not just registered: `ClarionCL -tr` registers it, a grafted TXA generates a real ABC
+application, and that generated application **compiles and runs** — the card in the screenshots above is a
+generated program's, with the template's own prompts in it. The class was also driven headlessly through both
+location modes, both unit systems and both languages against the live services.
+
+![The demo](docs/weatherWidget-demo.png)
+
+Full programmer's documentation, English and Spanish in one page with a language toggle:
+[`docs/weatherWidget-template.html`](docs/weatherWidget-template.html) — including a *Clarion notes* chapter
+on the two things that made this template hard: **a dialog unit is a fraction of the current font**, so
+mixing font sizes moves the drawing grid (measured, and solved by scaling through `GETPOSITION`), and a
+hand-coded project that omits the `_myWeatherLinkMode_` / `_myWeatherDllMode_` pragmas links the class as an
+import and faults in the constructor. A runnable demo is
+[`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
+`shoot.ps1` regenerate every image above.
 
 ## Install
 

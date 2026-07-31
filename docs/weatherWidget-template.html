@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>weatherWidget — Programmer's Documentation / Documentación del programador</title>
+<style>
+  :root{
+    --blue:#0A66C2; --blue-d:#084d93; --navy:#0E1A2B; --navy-2:#16263c;
+    --ink:#22303f; --muted:#6b7785; --line:#e3e8ef; --bg:#f5f7fa;
+    --card:#ffffff; --green:#1e7c5a; --amber:#9a6a12; --amber-bg:#fff7e8;
+    --green-bg:#eef8f3; --blue-bg:#eef4fc; --red-bg:#fcecec; --red:#b23a2e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:15px/1.65 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{display:flex;min-height:100vh}
+  nav{width:280px;flex:0 0 280px;background:linear-gradient(180deg,var(--navy),var(--navy-2));
+    color:#cdd8e6;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 0}
+  nav .brand{padding:0 22px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:10px}
+  nav .brand h1{font-size:16px;margin:0;color:#fff} nav .brand span{font-size:12px;color:#8aa0bb}
+  nav a{display:block;color:#b9c7d8;padding:6px 22px;font-size:13.5px;border-left:3px solid transparent}
+  nav a:hover{background:rgba(255,255,255,.05);color:#fff;text-decoration:none}
+  nav a.h2{padding-left:34px;font-size:13px;color:#9fb2c8}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#6e85a1;
+    padding:14px 22px 4px;font-weight:700}
+  main{flex:1;min-width:0}
+  header.hero{background:linear-gradient(120deg,#0c2a4d,var(--blue));color:#fff;padding:46px 52px 38px}
+  header.hero h1{margin:0 0 6px;font-size:30px;letter-spacing:-.3px}
+  header.hero p{margin:0;font-size:15.5px;color:#dbe8f8;max-width:780px}
+  header.hero .pill{display:inline-block;margin-top:16px;background:rgba(255,255,255,.16);
+    padding:4px 12px;border-radius:20px;font-size:12.5px}
+  .body{padding:14px 52px 80px;max-width:940px}
+  section{padding:22px 0;border-bottom:1px solid var(--line);scroll-margin-top:50px} section:last-child{border-bottom:none}
+  h2{font-size:21px;margin:14px 0 10px;color:var(--navy);scroll-margin-top:50px}
+  h3{font-size:16px;margin:20px 0 6px;color:var(--blue-d)}
+  p{margin:9px 0} ul,ol{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  code,kbd,pre{font-family:"Cascadia Code",Consolas,monospace}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:13px;color:#1d3b5e}
+  kbd{background:#fff;border:1px solid #c9d3e0;border-bottom-width:2px;border-radius:5px;
+    padding:1px 7px;font-size:12.5px;color:#33455c}
+  pre{background:#0f1d2e;color:#dbe6f2;padding:16px 18px;border-radius:10px;overflow:auto;
+    font-size:13px;line-height:1.55;margin:12px 0}
+  pre .c{color:#7fa6c9} pre .k{color:#79c0ff} pre .s{color:#7ee0b8} pre .t{color:#ffd591}
+  .callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid}
+  .tip{background:var(--green-bg);border-color:#bfe3d3;color:#155}
+  .note{background:var(--blue-bg);border-color:#c5dcf6;color:#13456f}
+  .warn{background:var(--amber-bg);border-color:#ecd9a6;color:#6f5210}
+  .danger{background:var(--red-bg);border-color:#e6b8b2;color:#7c241b}
+  .callout b{display:block;margin-bottom:2px}
+  .callout b.i{display:inline;margin:0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f4f9;color:var(--navy);font-weight:600}
+  tr:hover td{background:#fafcff}
+  .lead{font-size:16px;color:#3a4756}
+  footer{padding:24px 52px;color:var(--muted);font-size:13px}
+  .top{font-size:12px;color:var(--muted);float:right}
+  .langbar{display:flex;gap:8px;padding:14px 52px 0;background:var(--bg);position:sticky;top:0;z-index:20;
+    border-bottom:1px solid var(--line)}
+  .langbar button{cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:7px 16px;border-radius:8px 8px 0 0;font:600 13.5px/1 inherit;border-bottom:none}
+  .langbar button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  /* language toggle */
+  html[data-lang="en"] .es{display:none}
+  html[data-lang="es"] .en{display:none}
+  .filetree{font-family:"Cascadia Code",Consolas,monospace;font-size:13px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.7;color:#37485a}
+  .shot{max-width:100%;border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 2px 10px rgba(14,26,43,.14)}
+  .shots{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin:16px 0}
+  .shots figure{margin:0;flex:1 1 300px;min-width:0}
+  .shots figcaption{font-size:12.5px;color:var(--muted);padding-top:6px;text-align:center}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #00000022;
+    vertical-align:-1px;margin-right:6px}
+</style>
+</head><body>
+<div class="wrap">
+  <nav>
+    <div class="brand"><h1>weatherWidget</h1><span class="en">Programmer's Documentation · v1.0</span><span class="es">Documentación del programador · v1.0</span></div>
+    <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
+    <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
+    <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
+    <a href="#extension" class="h2"><span class="en">The extension</span><span class="es">La extensión</span></a>
+    <a href="#place" class="h2"><span class="en">Where the place comes from</span><span class="es">De dónde sale el lugar</span></a>
+    <a href="#code" class="h2"><span class="en">From a menu or a button</span><span class="es">Desde un menú o un botón</span></a>
+    <a href="#units" class="h2"><span class="en">Units &amp; language</span><span class="es">Unidades e idioma</span></a>
+    <a href="#cache" class="h2"><span class="en">Caching &amp; being offline</span><span class="es">Caché y estar sin conexión</span></a>
+    <a href="#privacy" class="h2"><span class="en">Privacy &amp; the internet</span><span class="es">Privacidad e internet</span></a>
+    <div class="grp"><span class="en">The card</span><span class="es">La tarjeta</span></div>
+    <a href="#card" class="h2"><span class="en">What is on it</span><span class="es">Qué lleva</span></a>
+    <a href="#icons" class="h2"><span class="en">The drawn weather</span><span class="es">El tiempo dibujado</span></a>
+    <a href="#autoclose" class="h2"><span class="en">Closing itself</span><span class="es">Cerrarse sola</span></a>
+    <a href="#nodata" class="h2"><span class="en">When there is no reading</span><span class="es">Cuando no hay lectura</span></a>
+    <div class="grp"><span class="en">Reference</span><span class="es">Referencia</span></div>
+    <a href="#classref" class="h2"><span class="en">Class reference</span><span class="es">Referencia de la clase</span></a>
+    <a href="#json" class="h2"><span class="en">Reading the answer</span><span class="es">Leer la respuesta</span></a>
+    <a href="#codes" class="h2"><span class="en">WMO weather codes</span><span class="es">Códigos WMO</span></a>
+    <a href="#colours" class="h2"><span class="en">Colours</span><span class="es">Colores</span></a>
+    <a href="#hand" class="h2"><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span></a>
+    <a href="#multidll" class="h2"><span class="en">Multi-DLL</span><span class="es">Multi-DLL</span></a>
+    <a href="#traps" class="h2"><span class="en">Clarion notes</span><span class="es">Notas de Clarion</span></a>
+    <a href="#trouble" class="h2"><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span></a>
+  </nav>
+  <main>
+    <header class="hero">
+      <h1>weatherWidget</h1>
+      <p class="en">A <b>weather card at start-up</b>: where the user is, what it is doing outside, what it
+         feels like, and the days ahead. Free data, <b>no API key</b>, and every pixel — sky, sun, moon,
+         cloud, rain, lightning — <b>drawn in Clarion</b>. Nothing to ship but your executable.</p>
+      <p class="es">Una <b>tarjeta del tiempo al arrancar</b>: dónde está el usuario, qué tiempo hace, qué
+         sensación da y los próximos días. Datos gratuitos, <b>sin clave de API</b>, y cada píxel —cielo,
+         sol, luna, nubes, lluvia, rayos— <b>dibujado en Clarion</b>. No hay nada que distribuir aparte de
+         tu ejecutable.</p>
+      <span class="pill en">Open-Meteo · no key · EN / ES · metric or imperial · 7-day forecast · self-closing</span>
+      <span class="pill es">Open-Meteo · sin clave · EN / ES · métrico o imperial · pronóstico de 7 días · se cierra sola</span>
+    </header>
+
+    <div class="langbar">
+      <button id="btn-en" onclick="setLang('en')">English</button>
+      <button id="btn-es" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="body">
+
+    <section id="over">
+      <h2><span class="en">Overview</span><span class="es">Resumen</span> <a href="#over" class="top">#</a></h2>
+      <div class="en">
+      <p class="lead">Add one application extension, generate, and your program opens with the weather.</p>
+      <p>The card shows the place, the temperature now, what it feels like, humidity, wind with its compass
+         point, rain, sunrise and sunset, and up to seven days ahead. It closes itself after a number of
+         seconds you choose, or waits for the user.</p>
+      <div class="shots">
+        <figure><img class="shot" src="weatherWidget-card.png" alt="The start-up card">
+          <figcaption>The card, at start-up</figcaption></figure>
+      </div>
+      <p>Everything on it is drawn with native Clarion graphics — <code>BOX</code>, <code>LINE</code>,
+         <code>ELLIPSE</code>, <code>POLYGON</code>, <code>SHOW</code> — into a single
+         <code>IMAGE</code> control. There are no icons, no PNGs and no image library: the sun, the
+         crescent moon, the clouds, the raindrops and the lightning bolt are all geometry.</p>
+      <table>
+        <tr><th>What</th><th>Where it comes from</th></tr>
+        <tr><td>The weather and the forecast</td><td><code>api.open-meteo.com</code> — free, no key, no registration</td></tr>
+        <tr><td>The city, from the machine's address</td><td><code>ipwho.is</code> — free, no key</td></tr>
+        <tr><td>The city, from a name you typed</td><td><code>geocoding-api.open-meteo.com</code> — free, no key</td></tr>
+        <tr><td>The download itself</td><td><code>curl.exe</code>, which ships with Windows 10 and 11</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <p class="lead">Añade una extensión de aplicación, genera, y tu programa abre con el tiempo.</p>
+      <p>La tarjeta muestra el lugar, la temperatura actual, la sensación térmica, la humedad, el viento con
+         su punto cardinal, la lluvia, el amanecer y el atardecer, y hasta siete días por delante. Se cierra
+         sola tras los segundos que elijas, o espera al usuario.</p>
+      <div class="shots">
+        <figure><img class="shot" src="weatherWidget-card.png" alt="La tarjeta al arrancar">
+          <figcaption>La tarjeta, al arrancar</figcaption></figure>
+      </div>
+      <p>Todo lo que ves está dibujado con gráficos nativos de Clarion —<code>BOX</code>, <code>LINE</code>,
+         <code>ELLIPSE</code>, <code>POLYGON</code>, <code>SHOW</code>— dentro de un único control
+         <code>IMAGE</code>. No hay iconos, ni PNG, ni librería de imágenes: el sol, la luna en cuarto, las
+         nubes, las gotas y el rayo son pura geometría.</p>
+      <table>
+        <tr><th>Qué</th><th>De dónde viene</th></tr>
+        <tr><td>El tiempo y el pronóstico</td><td><code>api.open-meteo.com</code> — gratis, sin clave, sin registro</td></tr>
+        <tr><td>La ciudad, según la dirección de la máquina</td><td><code>ipwho.is</code> — gratis, sin clave</td></tr>
+        <tr><td>La ciudad, según un nombre que escribiste</td><td><code>geocoding-api.open-meteo.com</code> — gratis, sin clave</td></tr>
+        <tr><td>La descarga en sí</td><td><code>curl.exe</code>, que viene con Windows 10 y 11</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <section id="install">
+      <h2><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span> <a href="#install" class="top">#</a></h2>
+      <div class="filetree">
+weatherWidget.tpl      <span style="color:#8a97a6">→ your Clarion <b>accessory\template\win</b></span><br>
+MyWeatherClass.inc     <span style="color:#8a97a6">→ your Clarion <b>accessory\libsrc\win</b></span><br>
+MyWeatherClass.clw     <span style="color:#8a97a6">→ your Clarion <b>accessory\libsrc\win</b></span>
+      </div>
+      <div class="en">
+      <ol>
+        <li>Copy the three files as above. Both class files must be saved <b>ANSI</b> with <b>CRLF</b> line
+            endings — a UTF-8 or LF copy gives a misleading <code>Illegal data type</code> at the point of
+            use, not in the include.</li>
+        <li>Register <code>weatherWidget.tpl</code> in the IDE (Tools · Template Registry · Register), or from
+            a command line: <code>ClarionCL -tr &lt;full path&gt;\weatherWidget.tpl</code>.</li>
+        <li><b>Restart the IDE.</b> An IDE that is already open never re-reads the registry, so you would
+            keep seeing the old prompts.</li>
+        <li>In your application: <b>Global Properties · Extensions · Insert</b> and pick
+            <b>weatherWidget — The weather at start-up</b>.</li>
+        <li>Generate and build. <code>MyWeatherClass.clw</code> pulls itself into the project through its
+            <code>LINK</code> attribute — there is nothing to add to the project by hand.</li>
+      </ol>
+      <div class="callout note"><b>Nothing to deploy</b>
+        The class is compiled into your executable and draws with the Clarion runtime you already ship.
+        The only outside part is <code>curl.exe</code>, which is part of Windows 10 and 11.</div>
+      </div>
+      <div class="es">
+      <ol>
+        <li>Copia los tres archivos como se indica arriba. Los dos archivos de la clase deben guardarse en
+            <b>ANSI</b> y con saltos de línea <b>CRLF</b> — una copia en UTF-8 o con LF da un engañoso
+            <code>Illegal data type</code> en el punto de uso, no en el include.</li>
+        <li>Registra <code>weatherWidget.tpl</code> en el IDE (Tools · Template Registry · Register), o desde
+            la línea de comandos: <code>ClarionCL -tr &lt;ruta completa&gt;\weatherWidget.tpl</code>.</li>
+        <li><b>Reinicia el IDE.</b> Un IDE ya abierto nunca vuelve a leer el registro, así que seguirías
+            viendo los prompts antiguos.</li>
+        <li>En tu aplicación: <b>Global Properties · Extensions · Insert</b> y elige
+            <b>weatherWidget — The weather at start-up</b>.</li>
+        <li>Genera y compila. <code>MyWeatherClass.clw</code> se añade sola al proyecto por su atributo
+            <code>LINK</code> — no hay que añadir nada a mano.</li>
+      </ol>
+      <div class="callout note"><b>Nada que distribuir</b>
+        La clase se compila dentro de tu ejecutable y dibuja con el runtime de Clarion que ya distribuyes.
+        Lo único externo es <code>curl.exe</code>, que forma parte de Windows 10 y 11.</div>
+      </div>
+    </section>
+
+    <section id="extension">
+      <h2><span class="en">The extension</span><span class="es">La extensión</span> <a href="#extension" class="top">#</a></h2>
+      <div class="en">
+      <p>There is one template to add and it is an <b>APPLICATION</b> extension — add it once, to the
+         application, not to each procedure. It does four things:</p>
+      <table>
+        <tr><th>Embed</th><th>What it writes</th></tr>
+        <tr><td><code>%AfterGlobalIncludes</code></td><td><code>INCLUDE('MyWeatherClass.INC'),ONCE</code></td></tr>
+        <tr><td><code>%GlobalData</code></td><td>the object — <code>WeatherWidget&nbsp;&nbsp;MyWeatherClass</code>, or an <code>EXTERNAL</code> reference in a child DLL</td></tr>
+        <tr><td><code>%ProgramSetup</code>, priority 7000</td><td>every setting you chose, then <code>WeatherWidget.Ask()</code></td></tr>
+        <tr><td><code>%BeforeGenerateApplication</code></td><td>registers class category <code>MYWEATHER</code> so the ABC chain writes the pragmas and the export list</td></tr>
+      </table>
+      <p>This is what a generated program ends up with:</p>
+<pre><span class="c">! %AfterGlobalIncludes</span>
+<span class="k">INCLUDE</span>(<span class="s">'MyWeatherClass.INC'</span>),<span class="k">ONCE</span>
+
+<span class="c">! %GlobalData</span>
+WeatherWidget            MyWeatherClass
+
+<span class="c">! %ProgramSetup</span>
+  WeatherWidget.Locate       = <span class="t">1</span>
+  WeatherWidget.City         = <span class="s">'Monterrey'</span>
+  WeatherWidget.Units        = <span class="t">1</span>
+  WeatherWidget.Language     = <span class="t">2</span>
+  WeatherWidget.Days         = <span class="t">5</span>
+  WeatherWidget.AutoClose    = <span class="t">10</span>
+  WeatherWidget.Timeout      = <span class="t">6</span>
+  WeatherWidget.CacheMinutes = <span class="t">30</span>
+  WeatherWidget.Ask()                <span class="c">! the card - the program waits for it</span></pre>
+      <div class="callout warn"><b>The fetch is synchronous</b>
+        <code>Ask()</code> blocks: your program starts when the card closes. Worst case is two downloads, so
+        keep <b class="i">Give up after</b> short — six seconds is the default — and leave the cache on. A
+        machine with no connection at all fails fast and, by default, shows nothing.</div>
+      <p>Turn <b>Show the card when the program starts</b> off and the settings are still written; you then
+         call <code>WeatherWidget.Ask()</code> yourself, whenever suits.</p>
+      </div>
+      <div class="es">
+      <p>Hay una sola plantilla que añadir y es una extensión de <b>APLICACIÓN</b>: se añade una vez, a la
+         aplicación, no a cada procedimiento. Hace cuatro cosas:</p>
+      <table>
+        <tr><th>Embed</th><th>Qué escribe</th></tr>
+        <tr><td><code>%AfterGlobalIncludes</code></td><td><code>INCLUDE('MyWeatherClass.INC'),ONCE</code></td></tr>
+        <tr><td><code>%GlobalData</code></td><td>el objeto — <code>WeatherWidget&nbsp;&nbsp;MyWeatherClass</code>, o una referencia <code>EXTERNAL</code> en una DLL hija</td></tr>
+        <tr><td><code>%ProgramSetup</code>, prioridad 7000</td><td>cada ajuste que elegiste, y luego <code>WeatherWidget.Ask()</code></td></tr>
+        <tr><td><code>%BeforeGenerateApplication</code></td><td>registra la categoría de clase <code>MYWEATHER</code> para que la cadena ABC escriba los pragmas y la lista de exportación</td></tr>
+      </table>
+      <p>Esto es lo que acaba teniendo un programa generado:</p>
+<pre><span class="c">! %AfterGlobalIncludes</span>
+<span class="k">INCLUDE</span>(<span class="s">'MyWeatherClass.INC'</span>),<span class="k">ONCE</span>
+
+<span class="c">! %GlobalData</span>
+WeatherWidget            MyWeatherClass
+
+<span class="c">! %ProgramSetup</span>
+  WeatherWidget.Locate       = <span class="t">1</span>
+  WeatherWidget.City         = <span class="s">'Monterrey'</span>
+  WeatherWidget.Units        = <span class="t">1</span>
+  WeatherWidget.Language     = <span class="t">2</span>
+  WeatherWidget.Days         = <span class="t">5</span>
+  WeatherWidget.AutoClose    = <span class="t">10</span>
+  WeatherWidget.Timeout      = <span class="t">6</span>
+  WeatherWidget.CacheMinutes = <span class="t">30</span>
+  WeatherWidget.Ask()                <span class="c">! la tarjeta - el programa la espera</span></pre>
+      <div class="callout warn"><b>La descarga es síncrona</b>
+        <code>Ask()</code> bloquea: tu programa arranca cuando la tarjeta se cierra. En el peor caso son dos
+        descargas, así que deja <b class="i">Rendirse tras</b> en un valor bajo —seis segundos por
+        defecto— y deja la caché activada. Una máquina sin conexión falla rápido y, por defecto, no muestra
+        nada.</div>
+      <p>Si desactivas <b>Mostrar la tarjeta al arrancar</b>, los ajustes se escriben igualmente; entonces
+         llamas tú a <code>WeatherWidget.Ask()</code> cuando te convenga.</p>
+      </div>
+    </section>
+
+    <section id="place">
+      <h2><span class="en">Where the place comes from</span><span class="es">De dónde sale el lugar</span> <a href="#place" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>Setting</th><th>What happens</th><th>Requests</th></tr>
+        <tr><td><b>The machine's internet address</b><br><span style="color:#6b7785">the default</span></td>
+            <td><code>ipwho.is</code> is asked which city this machine appears to be in. A rough answer — the
+                right city, usually not the right suburb — which is exactly right for weather.</td>
+            <td>one, then none for a day</td></tr>
+        <tr><td><b>A city name</b></td>
+            <td>Open-Meteo's geocoder turns <code>Monterrey</code> into coordinates. Add a country if the
+                name is ambiguous: <code>Cambridge, UK</code>.</td>
+            <td>one, then none for a day</td></tr>
+        <tr><td><b>Latitude and longitude</b></td>
+            <td>Nothing is looked up at all. Either box may be a <b>variable</b> instead of a number — it is
+                emitted into the generated code exactly as you typed it — so the coordinates can come from
+                your own data.</td>
+            <td>none</td></tr>
+      </table>
+      <div class="callout tip"><b>A place is worth keeping</b>
+        The resolved coordinates are kept in the INI for <b>24 hours</b>, so the second start-up of the day
+        makes one request, not two. Changing the city (or the units) invalidates the entry immediately: the
+        cache is keyed by a signature of both.</div>
+      <p>For a site that does not allow outbound connections at start-up, use <b>Latitude and longitude</b>
+         — that removes the lookup, but not the weather request itself. To remove all of it, tick
+         <b>Disable this template</b>.</p>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Ajuste</th><th>Qué pasa</th><th>Peticiones</th></tr>
+        <tr><td><b>La dirección de internet de la máquina</b><br><span style="color:#6b7785">el valor por defecto</span></td>
+            <td>Se le pregunta a <code>ipwho.is</code> en qué ciudad parece estar esta máquina. Una respuesta
+                aproximada —la ciudad correcta, casi nunca la colonia correcta— que para el tiempo es
+                justo lo que hace falta.</td>
+            <td>una, y ninguna durante un día</td></tr>
+        <tr><td><b>Un nombre de ciudad</b></td>
+            <td>El geocodificador de Open-Meteo convierte <code>Monterrey</code> en coordenadas. Añade el
+                país si el nombre es ambiguo: <code>Cambridge, UK</code>.</td>
+            <td>una, y ninguna durante un día</td></tr>
+        <tr><td><b>Latitud y longitud</b></td>
+            <td>No se consulta nada. Cualquiera de las dos casillas puede ser una <b>variable</b> en vez de
+                un número —se emite en el código generado tal como la escribiste— así que las coordenadas
+                pueden salir de tus propios datos.</td>
+            <td>ninguna</td></tr>
+      </table>
+      <div class="callout tip"><b>Un lugar vale la pena guardarlo</b>
+        Las coordenadas resueltas se guardan en el INI durante <b>24 horas</b>, así que el segundo arranque
+        del día hace una petición, no dos. Cambiar la ciudad (o las unidades) invalida la entrada al
+        instante: la caché se indexa por una firma de ambas cosas.</div>
+      <p>Para una instalación que no permite conexiones salientes al arrancar, usa <b>Latitud y longitud</b>
+         —eso elimina la búsqueda del lugar, pero no la petición del tiempo. Para quitarlo todo, marca
+         <b>Desactivar esta plantilla</b>.</p>
+      </div>
+    </section>
+
+    <section id="code">
+      <h2><span class="en">From a menu or a button</span><span class="es">Desde un menú o un botón</span> <a href="#code" class="top">#</a></h2>
+      <div class="en">
+      <p>The second template in the set is a <b>code</b> template — <b>weatherWidget — Show the weather
+         now</b>. Drop it into any embed: a menu item's <code>Accepted</code>, a button, a hot key.</p>
+      <table>
+        <tr><th>Prompt</th><th>Effect</th></tr>
+        <tr><td>Object name</td><td>The same object the application extension declared. Leave it as <code>WeatherWidget</code> unless you renamed it there.</td></tr>
+        <tr><td>Get a fresh reading first</td><td>Ticked, it always goes to the network — which is what a <b class="i">Refresh</b> menu item should do. Unticked, a reading younger than the cache setting is reused and no request is made.</td></tr>
+      </table>
+      <p>It generates one or two lines:</p>
+<pre>  WeatherWidget.Refresh()      <span class="c">! only when "fresh reading" is ticked</span>
+  WeatherWidget.Ask()</pre>
+      <div class="callout note"><b>It needs the extension</b>
+        The code template does not declare anything — it uses the object and the settings the application
+        extension set up. Add the application extension first.</div>
+      </div>
+      <div class="es">
+      <p>La segunda plantilla del juego es una plantilla de <b>código</b>: <b>weatherWidget — Show the
+         weather now</b>. Ponla en cualquier embed: el <code>Accepted</code> de un menú, un botón, una tecla
+         rápida.</p>
+      <table>
+        <tr><th>Prompt</th><th>Efecto</th></tr>
+        <tr><td>Nombre del objeto</td><td>El mismo objeto que declaró la extensión de aplicación. Déjalo en <code>WeatherWidget</code> salvo que allí lo hayas renombrado.</td></tr>
+        <tr><td>Traer una lectura nueva primero</td><td>Marcado, siempre va a la red —que es lo que debe hacer un menú <b class="i">Actualizar</b>. Sin marcar, se reutiliza una lectura más joven que el ajuste de caché y no se hace ninguna petición.</td></tr>
+      </table>
+      <p>Genera una o dos líneas:</p>
+<pre>  WeatherWidget.Refresh()      <span class="c">! solo si "lectura nueva" está marcado</span>
+  WeatherWidget.Ask()</pre>
+      <div class="callout note"><b>Necesita la extensión</b>
+        La plantilla de código no declara nada: usa el objeto y los ajustes que preparó la extensión de
+        aplicación. Añade primero la extensión.</div>
+      </div>
+    </section>
+
+    <section id="units">
+      <h2><span class="en">Units &amp; language</span><span class="es">Unidades e idioma</span> <a href="#units" class="top">#</a></h2>
+      <div class="shots">
+        <figure><img class="shot" src="weatherWidget-es.png" alt="Spanish, Fahrenheit">
+          <figcaption><span class="en">Spanish, Fahrenheit, a named city</span><span class="es">Español, Fahrenheit, una ciudad por nombre</span></figcaption></figure>
+      </div>
+      <div class="en">
+      <p>Units are asked for at the source, not converted afterwards: <b>Imperial</b> adds
+         <code>temperature_unit=fahrenheit</code>, <code>wind_speed_unit=mph</code> and
+         <code>precipitation_unit=inch</code> to the request, so what the card shows is what the service
+         computed.</p>
+      <table>
+        <tr><th></th><th>Metric</th><th>Imperial</th></tr>
+        <tr><td>Temperature</td><td>°C</td><td>°F</td></tr>
+        <tr><td>Wind</td><td>km/h</td><td>mph</td></tr>
+        <tr><td>Rain</td><td>mm</td><td>in</td></tr>
+      </table>
+      <p><b>Language</b> is English or Spanish and covers every word on the card: the labels, the conditions
+         (<i>Clear sky</i> / <i>Despejado</i>), the short day names, the compass points (<i>WSW</i> /
+         <i>OSO</i>), the buttons and the countdown. It is also passed to the geocoder, which is why the
+         Spanish card above says <b>Monterrey, México</b> and the Tokyo one says <b>Tokio, Japón</b>.</p>
+      <div class="callout note"><b>Accents survive the trip</b>
+        These services answer in UTF-8 and Clarion draws in the Windows ANSI code page, so
+        <code>México</code> arrives as two bytes where one belongs. The class folds UTF-8 back to ANSI for
+        everything in the Latin-1 range; anything above it (Cyrillic, CJK) has no ANSI equivalent and
+        becomes a question mark rather than mojibake.</div>
+      </div>
+      <div class="es">
+      <p>Las unidades se piden en origen, no se convierten después: <b>Imperial</b> añade
+         <code>temperature_unit=fahrenheit</code>, <code>wind_speed_unit=mph</code> y
+         <code>precipitation_unit=inch</code> a la petición, así que lo que muestra la tarjeta es lo que
+         calculó el servicio.</p>
+      <table>
+        <tr><th></th><th>Métrico</th><th>Imperial</th></tr>
+        <tr><td>Temperatura</td><td>°C</td><td>°F</td></tr>
+        <tr><td>Viento</td><td>km/h</td><td>mph</td></tr>
+        <tr><td>Lluvia</td><td>mm</td><td>in</td></tr>
+      </table>
+      <p>El <b>idioma</b> es inglés o español y cubre cada palabra de la tarjeta: las etiquetas, las
+         condiciones (<i>Clear sky</i> / <i>Despejado</i>), los días abreviados, los puntos cardinales
+         (<i>WSW</i> / <i>OSO</i>), los botones y la cuenta atrás. También se le pasa al geocodificador,
+         que es por lo que la tarjeta de arriba dice <b>Monterrey, México</b> y la de Tokio dice
+         <b>Tokio, Japón</b>.</p>
+      <div class="callout note"><b>Los acentos sobreviven al viaje</b>
+        Estos servicios responden en UTF-8 y Clarion dibuja en la página de códigos ANSI de Windows, así que
+        <code>México</code> llega con dos bytes donde va uno. La clase reconvierte UTF-8 a ANSI para todo el
+        rango Latin-1; lo que queda por encima (cirílico, CJK) no tiene equivalente ANSI y se convierte en
+        un signo de interrogación en vez de en galimatías.</div>
+      </div>
+    </section>
+
+    <section id="cache">
+      <h2><span class="en">Caching &amp; being offline</span><span class="es">Caché y estar sin conexión</span> <a href="#cache" class="top">#</a></h2>
+      <div class="en">
+      <p>Two settings decide how often your program actually talks to the internet.</p>
+      <table>
+        <tr><th>Setting</th><th>Default</th><th>What it does</th></tr>
+        <tr><td>Re-use a reading younger than</td><td>30 minutes</td>
+            <td>A reading younger than this is taken from the INI and <b>no request is made at all</b>.
+                Restarting the program five times in an hour does not mean five round trips. Set it to 0 to
+                always fetch.</td></tr>
+        <tr><td>Remember the last reading between runs</td><td>on</td>
+            <td>Writes the reading to <code>&lt;yourexe&gt;.INI</code>, section <code>[myWeather]</code>.
+                This is also what makes an offline start-up able to show anything.</td></tr>
+      </table>
+      <p>When the fetch fails, the card can behave three ways:</p>
+      <table>
+        <tr><th>If the weather cannot be fetched</th><th>Result</th></tr>
+        <tr><td>Show nothing at all</td><td>No card, no message. A laptop with no connection starts your program exactly as it always did.</td></tr>
+        <tr><td>Show the last reading kept <span style="color:#6b7785">(default)</span></td><td>The card, marked <i>last known reading</i> in place of the timestamp. If there is no cache, no card.</td></tr>
+        <tr><td>Show the card, with the fault on it</td><td>Always a card — the reading if there is one, otherwise the headline and the reason.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <p>Dos ajustes deciden con qué frecuencia tu programa habla de verdad con internet.</p>
+      <table>
+        <tr><th>Ajuste</th><th>Por defecto</th><th>Qué hace</th></tr>
+        <tr><td>Reutilizar una lectura más joven que</td><td>30 minutos</td>
+            <td>Una lectura más joven que esto se toma del INI y <b>no se hace ninguna petición</b>.
+                Reiniciar el programa cinco veces en una hora no son cinco viajes a la red. Ponlo en 0 para
+                consultar siempre.</td></tr>
+        <tr><td>Recordar la última lectura entre ejecuciones</td><td>activado</td>
+            <td>Escribe la lectura en <code>&lt;tuexe&gt;.INI</code>, sección <code>[myWeather]</code>.
+                Es también lo que permite mostrar algo en un arranque sin conexión.</td></tr>
+      </table>
+      <p>Cuando la consulta falla, la tarjeta puede comportarse de tres maneras:</p>
+      <table>
+        <tr><th>Si no se puede obtener el tiempo</th><th>Resultado</th></tr>
+        <tr><td>No mostrar nada</td><td>Ni tarjeta ni mensaje. Un portátil sin conexión arranca tu programa igual que siempre.</td></tr>
+        <tr><td>Mostrar la última lectura guardada <span style="color:#6b7785">(por defecto)</span></td><td>La tarjeta, marcada <i>última lectura conocida</i> en lugar de la hora. Si no hay caché, no hay tarjeta.</td></tr>
+        <tr><td>Mostrar la tarjeta, con el fallo escrito</td><td>Siempre una tarjeta: la lectura si la hay, y si no el titular y el motivo.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <h2><span class="en">Privacy &amp; the internet</span><span class="es">Privacidad e internet</span> <a href="#privacy" class="top">#</a></h2>
+      <div class="en">
+      <div class="callout danger"><b>Tell your users, and read this before you ship</b>
+        This template makes outbound connections from your program at start-up. Nothing personal is sent and
+        no account exists anywhere, but three third parties may see a request:
+        <ul>
+          <li><b>ipwho.is</b> — only when locating by address. It sees the machine's <b>public IP</b>, which
+              is how it answers with a city. Not sent when you use a city name or coordinates.</li>
+          <li><b>geocoding-api.open-meteo.com</b> — only when locating by name. It sees the city name.</li>
+          <li><b>api.open-meteo.com</b> — always. It sees the coordinates, rounded to whatever the lookup
+              returned.</li>
+        </ul>
+        No user name, no machine name, no file data. All three are HTTPS.</div>
+      <p>Open-Meteo is free for non-commercial use and asks for attribution — the card carries
+         <i>Data: Open-Meteo</i> at the bottom, and you should leave it there. For commercial volume, see
+         their site for the paid tier; the class only needs its URL changed.</p>
+      <p>If outbound traffic at start-up is not acceptable at your site: pick <b>Latitude and longitude</b>
+         to remove the lookup, or tick <b>Disable this template</b> to remove all of it. Neither needs any
+         other change to your application.</p>
+      </div>
+      <div class="es">
+      <div class="callout danger"><b>Díselo a tus usuarios, y lee esto antes de distribuir</b>
+        Esta plantilla hace conexiones salientes desde tu programa al arrancar. No se envía nada personal ni
+        existe ninguna cuenta en ningún sitio, pero tres terceros pueden ver una petición:
+        <ul>
+          <li><b>ipwho.is</b> — solo al localizar por dirección. Ve la <b>IP pública</b> de la máquina, que
+              es como responde con una ciudad. No se usa si eliges ciudad o coordenadas.</li>
+          <li><b>geocoding-api.open-meteo.com</b> — solo al localizar por nombre. Ve el nombre de la
+              ciudad.</li>
+          <li><b>api.open-meteo.com</b> — siempre. Ve las coordenadas, con la precisión que devolviera la
+              búsqueda.</li>
+        </ul>
+        Ni usuario, ni nombre de máquina, ni datos de archivos. Las tres son HTTPS.</div>
+      <p>Open-Meteo es gratuito para uso no comercial y pide atribución: la tarjeta lleva
+         <i>Datos: Open-Meteo</i> abajo, y conviene dejarlo. Para volumen comercial, mira su web y el plan de
+         pago; a la clase solo hay que cambiarle la URL.</p>
+      <p>Si el tráfico saliente al arrancar no es aceptable en tu instalación: elige <b>Latitud y
+         longitud</b> para quitar la búsqueda del lugar, o marca <b>Desactivar esta plantilla</b> para
+         quitarlo todo. Ninguna de las dos cosas exige otro cambio en tu aplicación.</p>
+      </div>
+    </section>
+
+    <section id="card">
+      <h2><span class="en">What is on the card</span><span class="es">Qué lleva la tarjeta</span> <a href="#card" class="top">#</a></h2>
+      <div class="en">
+      <p>Three bands, and the card is only as tall as what you leave on it.</p>
+      <table>
+        <tr><th>Band</th><th>Shows</th><th>Turned off by</th></tr>
+        <tr><td><b>The sky</b><br>96 units</td>
+            <td>The weather drawn large, the place, the observation time and time zone, the temperature and
+                the conditions in words. A blue gradient by day, navy by night — the service tells us
+                which.</td>
+            <td>always there</td></tr>
+        <tr><td><b>The readings</b><br>40 units</td>
+            <td>Up to six cells: feels like, humidity, wind with its compass point, rain, sunrise, sunset.
+                They divide the width evenly, so five cells are wider than six.</td>
+            <td>untick all six</td></tr>
+        <tr><td><b>The days ahead</b><br>88 units</td>
+            <td>One column per day: short day name (today reads <i>Today</i>), the weather drawn small, and
+                the high and low as a centred pair.</td>
+            <td>forecast days = 0</td></tr>
+      </table>
+      <div class="callout note"><b>The time on the card is the reading's time, not yours</b>
+        It comes from the service, already in the <b>place's</b> time zone — which is why the Tokyo card
+        below says <i>a las 01:45 · Asia/Tokyo</i> while the machine that fetched it was in the middle of a
+        Mexican morning.</div>
+      </div>
+      <div class="es">
+      <p>Tres franjas, y la tarjeta mide solo lo que le dejes dentro.</p>
+      <table>
+        <tr><th>Franja</th><th>Muestra</th><th>Se quita con</th></tr>
+        <tr><td><b>El cielo</b><br>96 unidades</td>
+            <td>El tiempo dibujado en grande, el lugar, la hora de la lectura y su zona horaria, la
+                temperatura y las condiciones en palabras. Degradado azul de día, azul marino de noche —lo
+                dice el servicio.</td>
+            <td>siempre está</td></tr>
+        <tr><td><b>Las lecturas</b><br>40 unidades</td>
+            <td>Hasta seis celdas: sensación, humedad, viento con su punto cardinal, lluvia, amanecer,
+                atardecer. Se reparten el ancho a partes iguales, así que cinco celdas son más anchas que
+                seis.</td>
+            <td>desmarcar las seis</td></tr>
+        <tr><td><b>Los días</b><br>88 unidades</td>
+            <td>Una columna por día: día abreviado (hoy se lee <i>Hoy</i>), el tiempo dibujado en pequeño, y
+                la máxima y la mínima como pareja centrada.</td>
+            <td>días de pronóstico = 0</td></tr>
+      </table>
+      <div class="callout note"><b>La hora de la tarjeta es la de la lectura, no la tuya</b>
+        Viene del servicio, ya en la zona horaria <b>del lugar</b> —por eso la tarjeta de Tokio de abajo dice
+        <i>a las 01:45 · Asia/Tokyo</i> mientras la máquina que la pidió estaba en plena mañana
+        mexicana.</div>
+      </div>
+    </section>
+
+    <section id="icons">
+      <h2><span class="en">The drawn weather</span><span class="es">El tiempo dibujado</span> <a href="#icons" class="top">#</a></h2>
+      <div class="shots">
+        <figure><img class="shot" src="weatherWidget-night.png" alt="Night card">
+          <figcaption><span class="en">Night: a crescent, and a darker sky</span><span class="es">Noche: un cuarto de luna y un cielo más oscuro</span></figcaption></figure>
+      </div>
+      <div class="en">
+      <p>There are no image files. The WMO code the service returns picks one of eight pictures, and each is
+         assembled from primitives:</p>
+      <table>
+        <tr><th>Codes</th><th>Picture</th><th>How it is drawn</th></tr>
+        <tr><td>0</td><td>sun / moon</td><td>An <code>ELLIPSE</code>, plus eight <code>LINE</code> rays by day. By night, a disc with a second disc <b>of the sky colour</b> punched out of it, offset up and right — that is the crescent.</td></tr>
+        <tr><td>1, 2</td><td>sun or moon behind cloud</td><td>The orb, smaller and up-left, then the cloud over it.</td></tr>
+        <tr><td>3</td><td>cloud</td><td>Three overlapping <code>ELLIPSE</code> puffs over a flat <code>BOX</code> base.</td></tr>
+        <tr><td>45, 48</td><td>fog</td><td>Cloud, plus three staggered horizontal lines under it.</td></tr>
+        <tr><td>51–57</td><td>drizzle</td><td>A darker cloud and two short slanted strokes.</td></tr>
+        <tr><td>61–67, 80–82</td><td>rain / showers</td><td>The same with three strokes; showers add the sun behind.</td></tr>
+        <tr><td>71–77, 85, 86</td><td>snow</td><td>Small filled discs instead of strokes — snow does not slant.</td></tr>
+        <tr><td>95–99</td><td>thunderstorm</td><td>A six-point <code>POLYGON</code> bolt in amber.</td></tr>
+      </table>
+      <div class="callout tip"><b>Why the crescent needs the background</b>
+        <code>Glyph()</code> takes the colour behind it as a parameter, and the night sky is a gradient — so
+        the card asks <code>Sky()</code> for the colour <b>at that row</b> and passes that. Punch the moon
+        with the wrong colour and the crescent shows up as a grey bite.</div>
+      </div>
+      <div class="es">
+      <p>No hay archivos de imagen. El código WMO que devuelve el servicio elige uno de ocho dibujos, y cada
+         uno se arma con primitivas:</p>
+      <table>
+        <tr><th>Códigos</th><th>Dibujo</th><th>Cómo se dibuja</th></tr>
+        <tr><td>0</td><td>sol / luna</td><td>Un <code>ELLIPSE</code>, más ocho rayos <code>LINE</code> de día. De noche, un disco con un segundo disco <b>del color del cielo</b> recortado encima, desplazado arriba y a la derecha: eso es el cuarto.</td></tr>
+        <tr><td>1, 2</td><td>sol o luna tras la nube</td><td>El astro, más pequeño y arriba a la izquierda, y la nube encima.</td></tr>
+        <tr><td>3</td><td>nube</td><td>Tres <code>ELLIPSE</code> superpuestos sobre una base plana <code>BOX</code>.</td></tr>
+        <tr><td>45, 48</td><td>niebla</td><td>Nube y tres líneas horizontales escalonadas debajo.</td></tr>
+        <tr><td>51–57</td><td>llovizna</td><td>Una nube más oscura y dos trazos cortos inclinados.</td></tr>
+        <tr><td>61–67, 80–82</td><td>lluvia / chubascos</td><td>Lo mismo con tres trazos; los chubascos añaden el sol detrás.</td></tr>
+        <tr><td>71–77, 85, 86</td><td>nieve</td><td>Discos pequeños en vez de trazos: la nieve no cae inclinada.</td></tr>
+        <tr><td>95–99</td><td>tormenta</td><td>Un rayo <code>POLYGON</code> de seis puntos en ámbar.</td></tr>
+      </table>
+      <div class="callout tip"><b>Por qué el cuarto de luna necesita el fondo</b>
+        <code>Glyph()</code> recibe el color que tiene detrás como parámetro, y el cielo nocturno es un
+        degradado —así que la tarjeta le pregunta a <code>Sky()</code> el color <b>de esa fila</b> y se lo
+        pasa. Recorta la luna con el color equivocado y el cuarto aparece como un mordisco gris.</div>
+      </div>
+    </section>
+
+    <section id="autoclose">
+      <h2><span class="en">Closing itself</span><span class="es">Cerrarse sola</span> <a href="#autoclose" class="top">#</a></h2>
+      <div class="en">
+      <p><b>Close it automatically after</b> is in seconds; 0 means wait for the user. With a countdown
+         running the card writes <i>closing in 8 s</i> beside the Refresh button and takes itself away.</p>
+      <p>Pressing <b>Refresh</b> stops the countdown for good — the user is clearly reading it — and fetches
+         a new reading, ignoring the cache. <kbd>Esc</kbd> and the Close button both close it.</p>
+      <div class="callout note"><b>A start-up splash wants a countdown</b>
+        The card is modal: your program does not continue until it closes. For an unattended machine (a till,
+        a kiosk, a scheduled run) set the countdown, or the program waits for a person who is not there.</div>
+      </div>
+      <div class="es">
+      <p><b>Cerrarla automáticamente tras</b> va en segundos; 0 significa esperar al usuario. Con la cuenta
+         atrás en marcha la tarjeta escribe <i>se cierra en 8 s</i> junto al botón Actualizar y se retira
+         sola.</p>
+      <p>Pulsar <b>Actualizar</b> detiene la cuenta atrás definitivamente —está claro que alguien la está
+         mirando— y trae una lectura nueva, sin usar la caché. <kbd>Esc</kbd> y el botón Cerrar la cierran.</p>
+      <div class="callout note"><b>Una pantalla de arranque quiere cuenta atrás</b>
+        La tarjeta es modal: tu programa no sigue hasta que se cierre. En una máquina desatendida (una caja,
+        un kiosco, una ejecución programada) pon la cuenta atrás, o el programa esperará a una persona que
+        no está.</div>
+      </div>
+    </section>
+
+    <section id="nodata">
+      <h2><span class="en">When there is no reading</span><span class="es">Cuando no hay lectura</span> <a href="#nodata" class="top">#</a></h2>
+      <div class="shots">
+        <figure><img class="shot" src="weatherWidget-nodata.png" alt="No reading">
+          <figcaption><span class="en">Nothing to show, and it says why</span><span class="es">Nada que mostrar, y dice por qué</span></figcaption></figure>
+      </div>
+      <div class="en">
+      <p>The fault card is a headline and a reason, and it is short — the readings strip and the forecast are
+         dropped, so it does not leave an empty frame where a forecast should be.</p>
+      <table>
+        <tr><th>Reason on the card</th><th>What actually happened</th></tr>
+        <tr><td>No internet connection</td><td>curl ran but wrote nothing: no route, DNS failed, a proxy refused, or the timeout expired.</td></tr>
+        <tr><td>curl.exe was not found</td><td><code>CreateProcessA</code> could not start it. Windows 8 and earlier, or a locked-down PATH.</td></tr>
+        <tr><td>The place could not be worked out</td><td>The lookup answered, but with no coordinates — an unknown city name, or an IP the service cannot place.</td></tr>
+        <tr><td>No weather to show</td><td>The weather request answered with something that has no <code>current</code> section in it.</td></tr>
+      </table>
+      <p>All four leave <code>Weather.Ok</code> at 0 and put the text in <code>Weather.Err</code>, in the
+         chosen language, so your own code can react instead of showing the card.</p>
+      </div>
+      <div class="es">
+      <p>La tarjeta de fallo es un titular y un motivo, y es baja: se quitan la franja de lecturas y el
+         pronóstico, para no dejar un marco vacío donde debería haber días.</p>
+      <table>
+        <tr><th>Motivo en la tarjeta</th><th>Qué pasó en realidad</th></tr>
+        <tr><td>Sin conexión a internet</td><td>curl se ejecutó pero no escribió nada: sin ruta, DNS caído, un proxy que rechaza, o venció el tiempo límite.</td></tr>
+        <tr><td>No se encontró curl.exe</td><td><code>CreateProcessA</code> no pudo lanzarlo. Windows 8 o anterior, o un PATH restringido.</td></tr>
+        <tr><td>No se pudo determinar el lugar</td><td>La búsqueda respondió, pero sin coordenadas: una ciudad desconocida, o una IP que el servicio no sabe situar.</td></tr>
+        <tr><td>Sin datos del tiempo</td><td>La petición del tiempo respondió con algo que no tiene sección <code>current</code>.</td></tr>
+      </table>
+      <p>Los cuatro dejan <code>Weather.Ok</code> en 0 y el texto en <code>Weather.Err</code>, en el idioma
+         elegido, para que tu propio código pueda reaccionar en vez de mostrar la tarjeta.</p>
+      </div>
+    </section>
+
+    <section id="classref">
+      <h2><span class="en">Class reference</span><span class="es">Referencia de la clase</span> <a href="#classref" class="top">#</a></h2>
+      <div class="en">
+      <h3>What you set</h3>
+      <table>
+        <tr><th>Property</th><th>Type</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>Locate</code></td><td>BYTE</td><td><code>Wx:ByIP</code></td><td><code>Wx:ByIP</code> / <code>Wx:ByCity</code> / <code>Wx:ByLatLon</code></td></tr>
+        <tr><td><code>City</code></td><td>CSTRING(65)</td><td>''</td><td>Used when <code>Locate = Wx:ByCity</code></td></tr>
+        <tr><td><code>Lat</code>, <code>Lon</code></td><td>REAL</td><td>0</td><td>Used when <code>Locate = Wx:ByLatLon</code>; also filled in by a lookup</td></tr>
+        <tr><td><code>Units</code></td><td>BYTE</td><td><code>Wx:Metric</code></td><td><code>Wx:Metric</code> / <code>Wx:Imperial</code></td></tr>
+        <tr><td><code>Language</code></td><td>BYTE</td><td><code>Wx:English</code></td><td><code>Wx:English</code> / <code>Wx:Spanish</code></td></tr>
+        <tr><td><code>Days</code></td><td>BYTE</td><td>5</td><td>Forecast days on the card, 0 to 7</td></tr>
+        <tr><td><code>Title</code></td><td>CSTRING(65)</td><td>''</td><td>Window caption; blank uses the localised name</td></tr>
+        <tr><td><code>AutoClose</code></td><td>LONG</td><td>0</td><td>Seconds before it closes itself; 0 waits</td></tr>
+        <tr><td><code>ShowFeels</code>, <code>ShowHumidity</code>, <code>ShowWind</code>, <code>ShowPrecip</code>, <code>ShowSun</code></td><td>BYTE</td><td>1</td><td>Which cells are in the readings strip</td></tr>
+        <tr><td><code>Timeout</code></td><td>LONG</td><td>6</td><td>Seconds any one download may take</td></tr>
+        <tr><td><code>CacheMinutes</code></td><td>LONG</td><td>30</td><td>Re-use a reading younger than this; 0 always fetches</td></tr>
+        <tr><td><code>OnFail</code></td><td>BYTE</td><td><code>Wx:FailCached</code></td><td><code>Wx:FailSilent</code> / <code>Wx:FailCached</code> / <code>Wx:FailShow</code></td></tr>
+        <tr><td><code>Persist</code></td><td>BYTE</td><td>1</td><td>Keep the reading in the INI</td></tr>
+        <tr><td><code>IniFile</code></td><td>CSTRING(261)</td><td>''</td><td>Blank means <code>&lt;exename&gt;.INI</code></td></tr>
+        <tr><td><code>Profile</code></td><td>CSTRING(65)</td><td>''</td><td>Suffixes the INI section, for two independent cards</td></tr>
+      </table>
+      <h3>What you get back</h3>
+      <table>
+        <tr><th>Property</th><th>Type</th><th>Meaning</th></tr>
+        <tr><td><code>Ok</code></td><td>BYTE</td><td>1 when there is a reading to show</td></tr>
+        <tr><td><code>Stale</code></td><td>BYTE</td><td>1 when it came from the INI, not the network</td></tr>
+        <tr><td><code>Err</code></td><td>CSTRING(129)</td><td>Why not, in the chosen language</td></tr>
+        <tr><td><code>Place</code></td><td>CSTRING(97)</td><td><code>'Monterrey, México'</code></td></tr>
+        <tr><td><code>Zone</code></td><td>CSTRING(65)</td><td><code>'America/Monterrey'</code></td></tr>
+        <tr><td><code>Taken</code></td><td>CSTRING(9)</td><td><code>'HH:MM'</code>, in the place's own time zone</td></tr>
+        <tr><td><code>Temp</code>, <code>Feels</code></td><td>REAL</td><td>Degrees, in the chosen units</td></tr>
+        <tr><td><code>Humidity</code></td><td>LONG</td><td>Per cent</td></tr>
+        <tr><td><code>Precip</code></td><td>REAL</td><td>mm or in</td></tr>
+        <tr><td><code>Wind</code>, <code>WindDir</code></td><td>REAL, LONG</td><td>Speed, and the bearing it comes <b>from</b></td></tr>
+        <tr><td><code>WCode</code></td><td>LONG</td><td>The WMO code — feed it to <code>Describe()</code></td></tr>
+        <tr><td><code>IsDay</code></td><td>BYTE</td><td>1 when the sun is up there now</td></tr>
+        <tr><td><code>Sunrise</code>, <code>Sunset</code></td><td>CSTRING(9)</td><td><code>'HH:MM'</code>, local to the place</td></tr>
+        <tr><td><code>NDays</code></td><td>BYTE</td><td>Forecast days actually parsed</td></tr>
+        <tr><td><code>DDate[]</code>, <code>DCode[]</code>, <code>DHi[]</code>, <code>DLo[]</code></td><td>arrays, DIM(7)</td><td>One entry per forecast day</td></tr>
+      </table>
+      <h3>Methods</h3>
+      <table>
+        <tr><th>Method</th><th>Returns</th><th>What it does</th></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>The whole job: a reading (fresh, cached or none) and the card. 1 if a card was shown.</td></tr>
+        <tr><td><code>Fetch()</code></td><td>BYTE</td><td>Just a reading. Uses the cache when it is young enough.</td></tr>
+        <tr><td><code>Refresh()</code></td><td>BYTE</td><td>A reading, ignoring the cache. Always hits the network.</td></tr>
+        <tr><td><code>Draw(win, image)</code></td><td>—</td><td>Paint the card into an <code>IMAGE</code> on a window of your own.</td></tr>
+        <tr><td><code>CardH()</code></td><td>LONG</td><td>How tall the card comes out, in dialog units.</td></tr>
+        <tr><td><code>Describe(code)</code></td><td>STRING</td><td>A WMO code in words, in the chosen language.</td></tr>
+        <tr><td><code>DayName(date)</code></td><td>STRING</td><td>Short day name; today reads <i>Today</i> / <i>Hoy</i>.</td></tr>
+        <tr><td><code>Compass(deg)</code></td><td>STRING</td><td>250 → <code>WSW</code> / <code>OSO</code>.</td></tr>
+        <tr><td><code>TempText(v)</code></td><td>STRING</td><td>Rounded, with the degree sign.</td></tr>
+        <tr><td><code>UnitTemp()</code>, <code>UnitWind()</code>, <code>UnitRain()</code></td><td>STRING</td><td><code>C</code>/<code>F</code>, <code>km/h</code>/<code>mph</code>, <code>mm</code>/<code>in</code>.</td></tr>
+        <tr><td><code>Txt(id)</code></td><td>STRING</td><td>Any label on the card, in the chosen language.</td></tr>
+        <tr><td><code>LoadCache()</code>, <code>SaveCache()</code>, <code>ForgetCache()</code></td><td>BYTE / —</td><td>The INI side, if you want to drive it yourself.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <h3>Lo que tú pones</h3>
+      <table>
+        <tr><th>Propiedad</th><th>Tipo</th><th>Por defecto</th><th>Significado</th></tr>
+        <tr><td><code>Locate</code></td><td>BYTE</td><td><code>Wx:ByIP</code></td><td><code>Wx:ByIP</code> / <code>Wx:ByCity</code> / <code>Wx:ByLatLon</code></td></tr>
+        <tr><td><code>City</code></td><td>CSTRING(65)</td><td>''</td><td>Se usa cuando <code>Locate = Wx:ByCity</code></td></tr>
+        <tr><td><code>Lat</code>, <code>Lon</code></td><td>REAL</td><td>0</td><td>Se usan cuando <code>Locate = Wx:ByLatLon</code>; también las rellena una búsqueda</td></tr>
+        <tr><td><code>Units</code></td><td>BYTE</td><td><code>Wx:Metric</code></td><td><code>Wx:Metric</code> / <code>Wx:Imperial</code></td></tr>
+        <tr><td><code>Language</code></td><td>BYTE</td><td><code>Wx:English</code></td><td><code>Wx:English</code> / <code>Wx:Spanish</code></td></tr>
+        <tr><td><code>Days</code></td><td>BYTE</td><td>5</td><td>Días de pronóstico en la tarjeta, de 0 a 7</td></tr>
+        <tr><td><code>Title</code></td><td>CSTRING(65)</td><td>''</td><td>Título de la ventana; en blanco usa el nombre traducido</td></tr>
+        <tr><td><code>AutoClose</code></td><td>LONG</td><td>0</td><td>Segundos hasta cerrarse sola; 0 espera</td></tr>
+        <tr><td><code>ShowFeels</code>, <code>ShowHumidity</code>, <code>ShowWind</code>, <code>ShowPrecip</code>, <code>ShowSun</code></td><td>BYTE</td><td>1</td><td>Qué celdas van en la franja de lecturas</td></tr>
+        <tr><td><code>Timeout</code></td><td>LONG</td><td>6</td><td>Segundos que puede durar cada descarga</td></tr>
+        <tr><td><code>CacheMinutes</code></td><td>LONG</td><td>30</td><td>Reutilizar una lectura más joven que esto; 0 consulta siempre</td></tr>
+        <tr><td><code>OnFail</code></td><td>BYTE</td><td><code>Wx:FailCached</code></td><td><code>Wx:FailSilent</code> / <code>Wx:FailCached</code> / <code>Wx:FailShow</code></td></tr>
+        <tr><td><code>Persist</code></td><td>BYTE</td><td>1</td><td>Guardar la lectura en el INI</td></tr>
+        <tr><td><code>IniFile</code></td><td>CSTRING(261)</td><td>''</td><td>En blanco significa <code>&lt;nombreexe&gt;.INI</code></td></tr>
+        <tr><td><code>Profile</code></td><td>CSTRING(65)</td><td>''</td><td>Sufijo de la sección del INI, para dos tarjetas independientes</td></tr>
+      </table>
+      <h3>Lo que te devuelve</h3>
+      <table>
+        <tr><th>Propiedad</th><th>Tipo</th><th>Significado</th></tr>
+        <tr><td><code>Ok</code></td><td>BYTE</td><td>1 cuando hay una lectura que mostrar</td></tr>
+        <tr><td><code>Stale</code></td><td>BYTE</td><td>1 cuando vino del INI, no de la red</td></tr>
+        <tr><td><code>Err</code></td><td>CSTRING(129)</td><td>Por qué no, en el idioma elegido</td></tr>
+        <tr><td><code>Place</code></td><td>CSTRING(97)</td><td><code>'Monterrey, México'</code></td></tr>
+        <tr><td><code>Zone</code></td><td>CSTRING(65)</td><td><code>'America/Monterrey'</code></td></tr>
+        <tr><td><code>Taken</code></td><td>CSTRING(9)</td><td><code>'HH:MM'</code>, en la zona horaria del lugar</td></tr>
+        <tr><td><code>Temp</code>, <code>Feels</code></td><td>REAL</td><td>Grados, en las unidades elegidas</td></tr>
+        <tr><td><code>Humidity</code></td><td>LONG</td><td>Por ciento</td></tr>
+        <tr><td><code>Precip</code></td><td>REAL</td><td>mm o in</td></tr>
+        <tr><td><code>Wind</code>, <code>WindDir</code></td><td>REAL, LONG</td><td>Velocidad, y el rumbo <b>del que</b> viene</td></tr>
+        <tr><td><code>WCode</code></td><td>LONG</td><td>El código WMO — pásalo a <code>Describe()</code></td></tr>
+        <tr><td><code>IsDay</code></td><td>BYTE</td><td>1 si allí es de día ahora</td></tr>
+        <tr><td><code>Sunrise</code>, <code>Sunset</code></td><td>CSTRING(9)</td><td><code>'HH:MM'</code>, hora del lugar</td></tr>
+        <tr><td><code>NDays</code></td><td>BYTE</td><td>Días de pronóstico realmente leídos</td></tr>
+        <tr><td><code>DDate[]</code>, <code>DCode[]</code>, <code>DHi[]</code>, <code>DLo[]</code></td><td>arreglos, DIM(7)</td><td>Una entrada por día de pronóstico</td></tr>
+      </table>
+      <h3>Métodos</h3>
+      <table>
+        <tr><th>Método</th><th>Devuelve</th><th>Qué hace</th></tr>
+        <tr><td><code>Ask()</code></td><td>BYTE</td><td>El trabajo completo: una lectura (nueva, en caché o ninguna) y la tarjeta. 1 si se mostró tarjeta.</td></tr>
+        <tr><td><code>Fetch()</code></td><td>BYTE</td><td>Solo una lectura. Usa la caché si es lo bastante joven.</td></tr>
+        <tr><td><code>Refresh()</code></td><td>BYTE</td><td>Una lectura, ignorando la caché. Siempre va a la red.</td></tr>
+        <tr><td><code>Draw(win, image)</code></td><td>—</td><td>Pinta la tarjeta en un <code>IMAGE</code> de una ventana tuya.</td></tr>
+        <tr><td><code>CardH()</code></td><td>LONG</td><td>Cuánto mide de alto la tarjeta, en unidades de diálogo.</td></tr>
+        <tr><td><code>Describe(code)</code></td><td>STRING</td><td>Un código WMO en palabras, en el idioma elegido.</td></tr>
+        <tr><td><code>DayName(date)</code></td><td>STRING</td><td>Día abreviado; hoy se lee <i>Today</i> / <i>Hoy</i>.</td></tr>
+        <tr><td><code>Compass(deg)</code></td><td>STRING</td><td>250 → <code>WSW</code> / <code>OSO</code>.</td></tr>
+        <tr><td><code>TempText(v)</code></td><td>STRING</td><td>Redondeado, con el signo de grado.</td></tr>
+        <tr><td><code>UnitTemp()</code>, <code>UnitWind()</code>, <code>UnitRain()</code></td><td>STRING</td><td><code>C</code>/<code>F</code>, <code>km/h</code>/<code>mph</code>, <code>mm</code>/<code>in</code>.</td></tr>
+        <tr><td><code>Txt(id)</code></td><td>STRING</td><td>Cualquier etiqueta de la tarjeta, en el idioma elegido.</td></tr>
+        <tr><td><code>LoadCache()</code>, <code>SaveCache()</code>, <code>ForgetCache()</code></td><td>BYTE / —</td><td>La parte del INI, por si quieres manejarla tú.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    <section id="json">
+      <h2><span class="en">Reading the answer</span><span class="es">Leer la respuesta</span> <a href="#json" class="top">#</a></h2>
+      <div class="en">
+      <p>There is no JSON parser and no dependency. Open-Meteo's answers are flat, machine-written and
+         predictable — no key appears twice inside the same object, and the only nesting is one level of
+         named sections — which is small enough to read with <code>INSTRING</code> and a hand-rolled number
+         scanner.</p>
+      <table>
+        <tr><th>Method</th><th>What it does</th></tr>
+        <tr><td><code>Sect(tag, *from, *to)</code></td><td>Finds a named section and hands back the character range it spans.</td></tr>
+        <tr><td><code>Num(tag, from, to)</code></td><td>The number under that key, searched only inside that range.</td></tr>
+        <tr><td><code>Str(tag, from, to)</code></td><td>The quoted string. Returns '' when the value is not a string.</td></tr>
+        <tr><td><code>ArrNum</code> / <code>ArrStr(tag, index, from, to)</code></td><td>The <i>n</i>th element of an array, stopping at the closing bracket.</td></tr>
+        <tr><td><code>Skip(pos)</code></td><td>Past any white space.</td></tr>
+      </table>
+      <div class="callout warn"><b>Two things that bite, and are handled</b>
+        <b class="i">1.</b> <code>current_units</code> sits in front of <code>current</code> in the body and
+        repeats every key with the unit as its value — an unbounded search for
+        <code>temperature_2m</code> finds the string <code>"°C"</code>. That is why every read is bounded to
+        its section.<br>
+        <b class="i">2.</b> Open-Meteo answers compact but <b>ipwho.is pretty-prints</b>, so
+        <code>"city": "Monterrey"</code> never matches a search for <code>"city":"</code>. Every read skips
+        white space after the colon. Getting this wrong is silent — you get an empty place name and
+        everything else works.</div>
+      </div>
+      <div class="es">
+      <p>No hay analizador JSON ni dependencia alguna. Las respuestas de Open-Meteo son planas, escritas por
+         una máquina y predecibles —ninguna clave aparece dos veces dentro del mismo objeto, y el único
+         anidamiento es un nivel de secciones con nombre—, lo bastante simples para leerlas con
+         <code>INSTRING</code> y un lector de números hecho a mano.</p>
+      <table>
+        <tr><th>Método</th><th>Qué hace</th></tr>
+        <tr><td><code>Sect(tag, *from, *to)</code></td><td>Encuentra una sección con nombre y devuelve el rango de caracteres que ocupa.</td></tr>
+        <tr><td><code>Num(tag, from, to)</code></td><td>El número de esa clave, buscado solo dentro de ese rango.</td></tr>
+        <tr><td><code>Str(tag, from, to)</code></td><td>La cadena entrecomillada. Devuelve '' si el valor no es una cadena.</td></tr>
+        <tr><td><code>ArrNum</code> / <code>ArrStr(tag, index, from, to)</code></td><td>El elemento <i>n</i> de un arreglo, parando en el corchete de cierre.</td></tr>
+        <tr><td><code>Skip(pos)</code></td><td>Salta los espacios en blanco.</td></tr>
+      </table>
+      <div class="callout warn"><b>Dos cosas que muerden, y están resueltas</b>
+        <b class="i">1.</b> <code>current_units</code> va antes que <code>current</code> en el cuerpo y
+        repite cada clave con la unidad como valor: una búsqueda sin límites de
+        <code>temperature_2m</code> encuentra la cadena <code>"°C"</code>. Por eso cada lectura se limita a
+        su sección.<br>
+        <b class="i">2.</b> Open-Meteo responde compacto pero <b>ipwho.is formatea con espacios</b>, así que
+        <code>"city": "Monterrey"</code> nunca coincide con una búsqueda de <code>"city":"</code>. Cada
+        lectura salta los espacios tras los dos puntos. Equivocarse aquí es silencioso: te quedas sin nombre
+        de lugar y todo lo demás funciona.</div>
+      </div>
+    </section>
+
+    <section id="codes">
+      <h2><span class="en">WMO weather codes</span><span class="es">Códigos WMO</span> <a href="#codes" class="top">#</a></h2>
+      <p><span class="en">Every code Open-Meteo can send has a line in <code>Describe()</code>, in both
+         languages.</span><span class="es">Cada código que Open-Meteo puede enviar tiene su línea en
+         <code>Describe()</code>, en los dos idiomas.</span></p>
+      <table>
+        <tr><th>Code</th><th>English</th><th>Español</th></tr>
+        <tr><td>0</td><td>Clear sky</td><td>Despejado</td></tr>
+        <tr><td>1</td><td>Mainly clear</td><td>Poco nuboso</td></tr>
+        <tr><td>2</td><td>Partly cloudy</td><td>Parcialmente nublado</td></tr>
+        <tr><td>3</td><td>Overcast</td><td>Nublado</td></tr>
+        <tr><td>45 / 48</td><td>Fog / Freezing fog</td><td>Niebla / Niebla helada</td></tr>
+        <tr><td>51 / 53 / 55</td><td>Light drizzle / Drizzle / Heavy drizzle</td><td>Llovizna ligera / Llovizna / Llovizna intensa</td></tr>
+        <tr><td>56 / 57</td><td>Freezing drizzle</td><td>Llovizna helada</td></tr>
+        <tr><td>61 / 63 / 65</td><td>Light rain / Rain / Heavy rain</td><td>Lluvia ligera / Lluvia / Lluvia intensa</td></tr>
+        <tr><td>66 / 67</td><td>Freezing rain</td><td>Lluvia helada</td></tr>
+        <tr><td>71 / 73 / 75</td><td>Light snow / Snow / Heavy snow</td><td>Nieve ligera / Nieve / Nieve intensa</td></tr>
+        <tr><td>77</td><td>Snow grains</td><td>Granos de nieve</td></tr>
+        <tr><td>80 / 81 / 82</td><td>Light showers / Showers / Violent showers</td><td>Chubascos ligeros / Chubascos / Chubascos fuertes</td></tr>
+        <tr><td>85 / 86</td><td>Snow showers / Heavy snow showers</td><td>Chubascos de nieve / Nevadas fuertes</td></tr>
+        <tr><td>95</td><td>Thunderstorm</td><td>Tormenta</td></tr>
+        <tr><td>96 / 99</td><td>Thunderstorm with hail</td><td>Tormenta con granizo</td></tr>
+      </table>
+    </section>
+
+    <section id="colours">
+      <h2><span class="en">Colours</span><span class="es">Colores</span> <a href="#colours" class="top">#</a></h2>
+      <p><span class="en">All of them are equates at the top of <code>MyWeatherClass.inc</code>. Clarion
+         holds a colour as <code>0BBGGRRh</code>, so the hex reads backwards from HTML.</span>
+         <span class="es">Todos son equates al principio de <code>MyWeatherClass.inc</code>. Clarion guarda
+         un color como <code>0BBGGRRh</code>, así que el hexadecimal se lee al revés que en HTML.</span></p>
+      <table>
+        <tr><th>Equate</th><th>Clarion</th><th>RGB</th><th><span class="en">Where</span><span class="es">Dónde</span></th></tr>
+        <tr><td><code>Wx:DaySky1</code></td><td><code>0603A1FH</code></td><td><span class="swatch" style="background:#1F3A60"></span>31, 58, 96</td><td><span class="en">day sky, top</span><span class="es">cielo de día, arriba</span></td></tr>
+        <tr><td><code>Wx:DaySky2</code></td><td><code>0B87A4AH</code></td><td><span class="swatch" style="background:#4A7AB8"></span>74, 122, 184</td><td><span class="en">day sky, bottom</span><span class="es">cielo de día, abajo</span></td></tr>
+        <tr><td><code>Wx:NightSky1</code></td><td><code>02C1810H</code></td><td><span class="swatch" style="background:#10182C"></span>16, 24, 44</td><td><span class="en">night sky, top</span><span class="es">cielo nocturno, arriba</span></td></tr>
+        <tr><td><code>Wx:NightSky2</code></td><td><code>06B4A32H</code></td><td><span class="swatch" style="background:#324A6B"></span>50, 74, 107</td><td><span class="en">night sky, bottom</span><span class="es">cielo nocturno, abajo</span></td></tr>
+        <tr><td><code>Wx:Paper</code></td><td><code>0FBF9F8H</code></td><td><span class="swatch" style="background:#F8F9FB"></span>248, 249, 251</td><td><span class="en">the card body</span><span class="es">cuerpo de la tarjeta</span></td></tr>
+        <tr><td><code>Wx:Panel</code></td><td><code>0F2EDE9H</code></td><td><span class="swatch" style="background:#E9EDF2"></span>233, 237, 242</td><td><span class="en">readings strip</span><span class="es">franja de lecturas</span></td></tr>
+        <tr><td><code>Wx:Ink</code></td><td><code>037291FH</code></td><td><span class="swatch" style="background:#1F2937"></span>31, 41, 55</td><td><span class="en">headings</span><span class="es">titulares</span></td></tr>
+        <tr><td><code>Wx:Muted</code></td><td><code>080726BH</code></td><td><span class="swatch" style="background:#6B7280"></span>107, 114, 128</td><td><span class="en">labels</span><span class="es">etiquetas</span></td></tr>
+        <tr><td><code>Wx:Sun</code></td><td><code>03CB5F5H</code></td><td><span class="swatch" style="background:#F5B53C"></span>245, 181, 60</td><td><span class="en">the sun</span><span class="es">el sol</span></td></tr>
+        <tr><td><code>Wx:Moon</code></td><td><code>0DCE6F0H</code></td><td><span class="swatch" style="background:#F0E6DC"></span>240, 230, 220</td><td><span class="en">the moon</span><span class="es">la luna</span></td></tr>
+        <tr><td><code>Wx:Water</code></td><td><code>0FAA560H</code></td><td><span class="swatch" style="background:#60A5FA"></span>96, 165, 250</td><td><span class="en">rain</span><span class="es">lluvia</span></td></tr>
+        <tr><td><code>Wx:Bolt</code></td><td><code>030C0F0H</code></td><td><span class="swatch" style="background:#F0C030"></span>240, 192, 48</td><td><span class="en">lightning</span><span class="es">rayo</span></td></tr>
+        <tr><td><code>Wx:Warm</code></td><td><code>04A5AE0H</code></td><td><span class="swatch" style="background:#E05A4A"></span>224, 90, 74</td><td><span class="en">the day's high</span><span class="es">la máxima del día</span></td></tr>
+        <tr><td><code>Wx:Cool</code></td><td><code>0D08A4AH</code></td><td><span class="swatch" style="background:#4A8AD0"></span>74, 138, 208</td><td><span class="en">the day's low</span><span class="es">la mínima del día</span></td></tr>
+      </table>
+    </section>
+
+    <section id="hand">
+      <h2><span class="en">Driving it from code</span><span class="es">Desde tu propio código</span> <a href="#hand" class="top">#</a></h2>
+      <div class="shots">
+        <figure><img class="shot" src="weatherWidget-demo.png" alt="The demo">
+          <figcaption><span class="en">examples\weatherWidget — the hand-coded equivalent</span><span class="es">examples\weatherWidget — el equivalente escrito a mano</span></figcaption></figure>
+      </div>
+      <div class="en">
+      <p>The class does not need the template. This is a whole program:</p>
+<pre>  <span class="k">PROGRAM</span>
+  <span class="k">INCLUDE</span>(<span class="s">'MyWeatherClass.INC'</span>),<span class="k">ONCE</span>
+  <span class="k">MAP</span>
+  <span class="k">END</span>
+Weather   MyWeatherClass
+  <span class="k">CODE</span>
+  Weather.Locate    = Wx:ByCity
+  Weather.City      = <span class="s">'Monterrey'</span>
+  Weather.Language  = Wx:Spanish
+  Weather.AutoClose = <span class="t">8</span>
+  Weather.Ask()</pre>
+      <p>Or use the reading without ever showing the card — a status bar, a report header, a browse column:</p>
+<pre>  <span class="k">IF</span> Weather.Fetch()
+    ?Status{PROP:Text} = <span class="k">CLIP</span>(Weather.Place) &amp; <span class="s">' - '</span>              |
+                       &amp; <span class="k">CLIP</span>(Weather.Describe(Weather.WCode)) &amp; <span class="s">' - '</span> |
+                       &amp; <span class="k">CLIP</span>(Weather.TempText(Weather.Temp))            |
+                       &amp; <span class="k">CLIP</span>(Weather.UnitTemp())
+  <span class="k">ELSE</span>
+    ?Status{PROP:Text} = <span class="k">CLIP</span>(Weather.Err)
+  <span class="k">END</span></pre>
+      <p>Or paint the card into an <code>IMAGE</code> on a window of your own — a dashboard, say — instead of
+         letting the class own a window:</p>
+<pre>  Weather.Fetch()
+  Weather.Draw(MyWindow, ?MyImage)     <span class="c">! Weather.CardH() is how tall it needs</span></pre>
+      <div class="callout warn"><b>Hand-coded projects need two defines</b>
+        The class is declared <code>LINK('MyWeatherClass.CLW',_myWeatherLinkMode_),DLL(_myWeatherDllMode_)</code>
+        so an application can decide where its code lives. A <b>generated</b> app gets those two pragmas
+        written for it. A hand-written <code>.cwproj</code> must state them itself:
+<pre>&lt;DefineConstants&gt;_myWeatherDllMode_=&amp;gt;0%3b_myWeatherLinkMode_=&amp;gt;1&lt;/DefineConstants&gt;</pre>
+        Leave them out and <code>DLL()</code> is <b>not</b> read as 0 — the class links as an import and the
+        constructor jumps into nothing at start-up: <i>Exception … Access Violation</i>, with a call stack
+        that is all runtime and no code of yours. The demo in <code>examples\weatherWidget</code> carries the
+        line, with the explanation, in its project file.</div>
+      </div>
+      <div class="es">
+      <p>La clase no necesita la plantilla. Esto es un programa entero:</p>
+<pre>  <span class="k">PROGRAM</span>
+  <span class="k">INCLUDE</span>(<span class="s">'MyWeatherClass.INC'</span>),<span class="k">ONCE</span>
+  <span class="k">MAP</span>
+  <span class="k">END</span>
+Weather   MyWeatherClass
+  <span class="k">CODE</span>
+  Weather.Locate    = Wx:ByCity
+  Weather.City      = <span class="s">'Monterrey'</span>
+  Weather.Language  = Wx:Spanish
+  Weather.AutoClose = <span class="t">8</span>
+  Weather.Ask()</pre>
+      <p>O usa la lectura sin mostrar nunca la tarjeta: una barra de estado, la cabecera de un informe, una
+         columna de un browse:</p>
+<pre>  <span class="k">IF</span> Weather.Fetch()
+    ?Status{PROP:Text} = <span class="k">CLIP</span>(Weather.Place) &amp; <span class="s">' - '</span>              |
+                       &amp; <span class="k">CLIP</span>(Weather.Describe(Weather.WCode)) &amp; <span class="s">' - '</span> |
+                       &amp; <span class="k">CLIP</span>(Weather.TempText(Weather.Temp))            |
+                       &amp; <span class="k">CLIP</span>(Weather.UnitTemp())
+  <span class="k">ELSE</span>
+    ?Status{PROP:Text} = <span class="k">CLIP</span>(Weather.Err)
+  <span class="k">END</span></pre>
+      <p>O pinta la tarjeta en un <code>IMAGE</code> de una ventana tuya —un tablero, por ejemplo— en vez de
+         dejar que la clase tenga su propia ventana:</p>
+<pre>  Weather.Fetch()
+  Weather.Draw(MiVentana, ?MiImagen)   <span class="c">! Weather.CardH() dice cuánto necesita de alto</span></pre>
+      <div class="callout warn"><b>Los proyectos escritos a mano necesitan dos defines</b>
+        La clase se declara <code>LINK('MyWeatherClass.CLW',_myWeatherLinkMode_),DLL(_myWeatherDllMode_)</code>
+        para que una aplicación pueda decidir dónde vive su código. Una app <b>generada</b> recibe esos dos
+        pragmas ya escritos. Un <code>.cwproj</code> hecho a mano tiene que ponerlos él:
+<pre>&lt;DefineConstants&gt;_myWeatherDllMode_=&amp;gt;0%3b_myWeatherLinkMode_=&amp;gt;1&lt;/DefineConstants&gt;</pre>
+        Si faltan, <code>DLL()</code> <b>no</b> se lee como 0: la clase enlaza como importación y el
+        constructor salta a la nada al arrancar —<i>Exception … Access Violation</i>, con una pila de
+        llamadas que es todo runtime y nada tuyo. La demo de <code>examples\weatherWidget</code> lleva esa
+        línea, con la explicación, en su archivo de proyecto.</div>
+      </div>
+    </section>
+
+    <section id="multidll">
+      <h2><span class="en">Multi-DLL</span><span class="es">Multi-DLL</span> <a href="#multidll" class="top">#</a></h2>
+      <div class="en">
+      <p><code>MyWeatherClass.inc</code> carries <code>!ABCIncludeFile(MYWEATHER)</code> on line 1, so the
+         IDE's class registry files it under its own category — not under <code>ABC</code>. The extension
+         registers that category at <code>%BeforeGenerateApplication</code>, and from there the shipped ABC
+         machinery does everything:</p>
+      <table>
+        <tr><th>Who</th><th>What</th></tr>
+        <tr><td><code>ABPROGRM.TPW</code></td><td>writes <code>#pragma define(_myWeatherDllMode_=&gt;0)</code> and <code>_myWeatherLinkMode_</code> into the project</td></tr>
+        <tr><td><code>ABBLDEXP.TPW</code></td><td>while building a DLL's <code>.EXP</code>, walks the registry and emits <code>VMT$</code>, <code>TYPE$</code> and every non-private method, name-mangled for you</td></tr>
+      </table>
+      <p>Which is why nothing in the template lists a mangled symbol: add a method to the class and the
+         export list follows on the next generate. The <b>Class</b> tab carries the standard ABC
+         Override box if you need to place it by hand.</p>
+      <div class="callout tip"><b>Its own category matters</b>
+        A class tagged with a bare <code>!ABCIncludeFile</code> lands in category <code>ABC</code>, and a data
+        DLL then exports <b>every</b> link-mode class whether the app uses it or not — which breaks the DLL
+        with <i>… is unresolved for export</i> for any class whose <code>.clw</code> is not compiled in.
+        <code>MYWEATHER</code> keeps this class out of everyone else's export list.</div>
+      </div>
+      <div class="es">
+      <p><code>MyWeatherClass.inc</code> lleva <code>!ABCIncludeFile(MYWEATHER)</code> en la línea 1, así que
+         el registro de clases del IDE la archiva bajo su propia categoría, no bajo <code>ABC</code>. La
+         extensión registra esa categoría en <code>%BeforeGenerateApplication</code>, y a partir de ahí la
+         maquinaria ABC que ya viene con Clarion hace todo:</p>
+      <table>
+        <tr><th>Quién</th><th>Qué</th></tr>
+        <tr><td><code>ABPROGRM.TPW</code></td><td>escribe <code>#pragma define(_myWeatherDllMode_=&gt;0)</code> y <code>_myWeatherLinkMode_</code> en el proyecto</td></tr>
+        <tr><td><code>ABBLDEXP.TPW</code></td><td>al construir el <code>.EXP</code> de una DLL, recorre el registro y emite <code>VMT$</code>, <code>TYPE$</code> y cada método no privado, con el nombre ya decorado</td></tr>
+      </table>
+      <p>Por eso la plantilla no lista ningún símbolo decorado: añade un método a la clase y la lista de
+         exportación se actualiza en la siguiente generación. La pestaña <b>Class</b> lleva la caja estándar
+         de ABC por si necesitas colocarla a mano.</p>
+      <div class="callout tip"><b>Tener categoría propia importa</b>
+        Una clase con un <code>!ABCIncludeFile</code> pelado cae en la categoría <code>ABC</code>, y entonces
+        una DLL de datos exporta <b>todas</b> las clases en modo enlace, las use la aplicación o no —lo que
+        rompe la DLL con <i>… is unresolved for export</i> en cualquier clase cuyo <code>.clw</code> no esté
+        compilado. <code>MYWEATHER</code> mantiene esta clase fuera de la lista de exportación de los
+        demás.</div>
+      </div>
+    </section>
+
+    <section id="traps">
+      <h2><span class="en">Clarion notes</span><span class="es">Notas de Clarion</span> <a href="#traps" class="top">#</a></h2>
+      <div class="en">
+      <p>Things this class had to solve, written down because they are not obvious and they bite silently.</p>
+
+      <h3>A dialog unit is a fraction of the <i>current font</i></h3>
+      <p>It is a quarter of the average character width and an eighth of the character height — <b>of
+         whatever font the target is set to</b>. So the moment <code>SETFONT</code> changes size, every
+         coordinate handed to <code>SHOW</code>, <code>BOX</code> or <code>LINE</code> means something
+         different, and a 26pt heading drawn at <code>y=40</code> lands three times further down the card
+         than the 9pt line above it. Measured on this machine with a 400 × 300 canvas:</p>
+      <table>
+        <tr><th>Font on the target</th><th><code>GETPOSITION</code> reports the canvas as</th></tr>
+        <tr><td>Segoe UI 9 (the base)</td><td>400 × 300</td></tr>
+        <tr><td>Segoe UI 20</td><td>187 × 122</td></tr>
+        <tr><td>Segoe UI 26 bold</td><td>133 × 96</td></tr>
+        <tr><td>Segoe UI 8</td><td>467 × 346</td></tr>
+        <tr><td>back to Segoe UI 9</td><td>400 × 300 — exactly</td></tr>
+      </table>
+      <p>That table <i>is</i> the fix. <code>Ink()</code> picks the font the next string wants and measures
+         the canvas under it; <code>Say()</code> scales one base-grid coordinate into that font's grid,
+         draws, and puts the base font back. Geometry is therefore always drawn on one stable grid, and
+         <code>Wide()</code> can measure a string in base units for centring.</p>
+
+      <h3><code>SHOW</code> takes its colour from the font, not the pen</h3>
+      <p><code>SETPENCOLOR</code> only reaches <code>LINE</code>, <code>BOX</code>, <code>POLYGON</code> and
+         <code>ELLIPSE</code>. Text is coloured by <code>SETFONT(0, …)</code> — <code>0</code> meaning
+         "the current target". <code>SETFONT(?ImageFeq, …)</code> does <b>not</b> work.</p>
+
+      <h3><code>BOX</code> outlines in whatever pen was left behind</h3>
+      <p>It fills with the colour you pass but outlines with the <i>current</i> pen. The sky gradient sets
+         the pen for every one of its 96 one-unit boxes; inherit it and each band picks up an edge in
+         whatever ran before.</p>
+
+      <h3>Do not call a parameter <code>pKey</code></h3>
+      <p><code>KEYCODES.CLW</code> already defines <code>PKey</code> (the P key, <code>EQUATE(0050h)</code>),
+         Clarion labels are case-insensitive, and a parameter that shadows it warns <i>Label duplicated,
+         second used: PKEY</i> on every method that has one. The JSON readers take <code>pTag</code>.</p>
+
+      <h3>Every <code>@N</code> picture groups with commas</h3>
+      <p><code>FORMAT(25.6866,@n-9.4)</code> is fine, but a value over a thousand comes back with a comma in
+         it — and <code>latitude=25,692.35</code> is not a latitude. Numbers that go into a URL or an INI are
+         written by plain assignment to a <code>CSTRING</code>, which never groups.</p>
+
+      <h3>A <code>FILE</code>'s <code>NAME()</code> variable has to be global</h3>
+      <p>Declaring a <code>FILE,DRIVER('DOS')</code> inside a method with <code>NAME(loc:File)</code> fails
+         with <i>Attribute variable must be global</i> unless the variable is <code>STATIC</code>. In the end
+         the class reads its downloads with <code>CreateFileA</code> / <code>ReadFile</code> instead — not to
+         dodge that, but so your application is not obliged to carry the DOS driver just to show the
+         weather.</p>
+      </div>
+      <div class="es">
+      <p>Cosas que esta clase tuvo que resolver, anotadas porque no son obvias y fallan en silencio.</p>
+
+      <h3>Una unidad de diálogo es una fracción de la <i>fuente actual</i></h3>
+      <p>Es un cuarto del ancho medio de carácter y un octavo de su alto —<b>de la fuente que tenga puesta el
+         destino</b>. Así que en cuanto <code>SETFONT</code> cambia el tamaño, cada coordenada que le pasas a
+         <code>SHOW</code>, <code>BOX</code> o <code>LINE</code> significa otra cosa, y un titular de 26pt
+         dibujado en <code>y=40</code> cae tres veces más abajo que la línea de 9pt de encima. Medido en esta
+         máquina con un lienzo de 400 × 300:</p>
+      <table>
+        <tr><th>Fuente del destino</th><th><code>GETPOSITION</code> informa el lienzo como</th></tr>
+        <tr><td>Segoe UI 9 (la base)</td><td>400 × 300</td></tr>
+        <tr><td>Segoe UI 20</td><td>187 × 122</td></tr>
+        <tr><td>Segoe UI 26 negrita</td><td>133 × 96</td></tr>
+        <tr><td>Segoe UI 8</td><td>467 × 346</td></tr>
+        <tr><td>de vuelta a Segoe UI 9</td><td>400 × 300 — exacto</td></tr>
+      </table>
+      <p>Esa tabla <i>es</i> la solución. <code>Ink()</code> elige la fuente que quiere la próxima cadena y
+         mide el lienzo con ella; <code>Say()</code> convierte una coordenada de la rejilla base a la rejilla
+         de esa fuente, dibuja, y devuelve la fuente base. La geometría se dibuja siempre sobre una rejilla
+         estable, y <code>Wide()</code> puede medir una cadena en unidades base para centrarla.</p>
+
+      <h3><code>SHOW</code> toma su color de la fuente, no del lápiz</h3>
+      <p><code>SETPENCOLOR</code> solo llega a <code>LINE</code>, <code>BOX</code>, <code>POLYGON</code> y
+         <code>ELLIPSE</code>. El texto se colorea con <code>SETFONT(0, …)</code> —el <code>0</code> es "el
+         destino actual". <code>SETFONT(?ImageFeq, …)</code> <b>no</b> funciona.</p>
+
+      <h3><code>BOX</code> perfila con el lápiz que quedara puesto</h3>
+      <p>Rellena con el color que le pasas pero perfila con el lápiz <i>actual</i>. El degradado del cielo
+         pone el lápiz en cada una de sus 96 cajas de una unidad; si lo heredas, cada banda se lleva un borde
+         del color de lo anterior.</p>
+
+      <h3>No llames <code>pKey</code> a un parámetro</h3>
+      <p><code>KEYCODES.CLW</code> ya define <code>PKey</code> (la tecla P, <code>EQUATE(0050h)</code>), las
+         etiquetas de Clarion no distinguen mayúsculas, y un parámetro que la tape avisa <i>Label duplicated,
+         second used: PKEY</i> en cada método que lo tenga. Los lectores JSON reciben <code>pTag</code>.</p>
+
+      <h3>Toda imagen <code>@N</code> agrupa con comas</h3>
+      <p><code>FORMAT(25.6866,@n-9.4)</code> va bien, pero un valor por encima de mil vuelve con una coma
+         dentro —y <code>latitude=25,692.35</code> no es una latitud. Los números que van a una URL o a un
+         INI se escriben por asignación directa a un <code>CSTRING</code>, que nunca agrupa.</p>
+
+      <h3>La variable <code>NAME()</code> de un <code>FILE</code> tiene que ser global</h3>
+      <p>Declarar un <code>FILE,DRIVER('DOS')</code> dentro de un método con <code>NAME(loc:File)</code> falla
+         con <i>Attribute variable must be global</i> salvo que la variable sea <code>STATIC</code>. Al final
+         la clase lee sus descargas con <code>CreateFileA</code> / <code>ReadFile</code> —no por esquivar eso,
+         sino para que tu aplicación no tenga que cargar con el driver DOS solo para mostrar el tiempo.</p>
+      </div>
+    </section>
+
+    <section id="trouble">
+      <h2><span class="en">Troubleshooting</span><span class="es">Solución de problemas</span> <a href="#trouble" class="top">#</a></h2>
+      <div class="en">
+      <table>
+        <tr><th>Symptom</th><th>Cause and cure</th></tr>
+        <tr><td>No card at all</td><td>Either the fetch failed and <b class="i">If the weather cannot be fetched</b> is <i>Show nothing</i> (the quiet default behaviour for an offline machine), or <b class="i">Disable this template</b> is ticked, or <b class="i">Show the card when the program starts</b> is not.</td></tr>
+        <tr><td><i>curl.exe was not found</i></td><td>Windows 8 or earlier, or a restricted PATH. Install curl, or point the <code>Download</code> method at another downloader.</td></tr>
+        <tr><td>The city is wrong</td><td>Locating by address gives the city your <b>ISP</b> appears to be in, which for a mobile connection can be a long way off. Use a city name or coordinates.</td></tr>
+        <tr><td>Start-up got slow</td><td>The fetch is synchronous. Lower <b class="i">Give up after</b>, raise <b class="i">Re-use a reading younger than</b>, and prefer coordinates so no lookup is needed.</td></tr>
+        <tr><td>Always the same reading</td><td>The cache is doing its job. Lower <b class="i">Re-use a reading younger than</b>, or call <code>Refresh()</code>, or press the Refresh button on the card.</td></tr>
+        <tr><td>Accents come out as <code>?</code></td><td>Expected above Latin-1 — there is no Windows ANSI character for it. Everything in the Latin-1 range converts exactly.</td></tr>
+        <tr><td><i>Exception … Access Violation</i> at start-up</td><td>A hand-coded project without the two pragma defines — see <a href="#hand">Driving it from code</a>. A generated application cannot hit this.</td></tr>
+        <tr><td><i>Illegal data type: MyWeatherClass</i></td><td>The <code>.inc</code> on the redirection path is UTF-8 or LF-only. Save it ANSI with CRLF.</td></tr>
+        <tr><td>The prompts look old after re-registering</td><td>An IDE that was already open never re-reads the registry. Restart it.</td></tr>
+      </table>
+      </div>
+      <div class="es">
+      <table>
+        <tr><th>Síntoma</th><th>Causa y solución</th></tr>
+        <tr><td>No sale ninguna tarjeta</td><td>O falló la consulta y <b class="i">Si no se puede obtener el tiempo</b> está en <i>No mostrar nada</i> (el comportamiento discreto por defecto para una máquina sin conexión), o está marcado <b class="i">Desactivar esta plantilla</b>, o no está marcado <b class="i">Mostrar la tarjeta al arrancar</b>.</td></tr>
+        <tr><td><i>No se encontró curl.exe</i></td><td>Windows 8 o anterior, o un PATH restringido. Instala curl, o apunta el método <code>Download</code> a otro descargador.</td></tr>
+        <tr><td>La ciudad es incorrecta</td><td>Localizar por dirección da la ciudad donde parece estar tu <b>proveedor</b>, que en una conexión móvil puede quedar muy lejos. Usa nombre de ciudad o coordenadas.</td></tr>
+        <tr><td>El arranque se volvió lento</td><td>La consulta es síncrona. Baja <b class="i">Rendirse tras</b>, sube <b class="i">Reutilizar una lectura más joven que</b>, y prefiere coordenadas para no necesitar búsqueda.</td></tr>
+        <tr><td>Siempre la misma lectura</td><td>La caché está haciendo su trabajo. Baja <b class="i">Reutilizar una lectura más joven que</b>, o llama a <code>Refresh()</code>, o pulsa el botón Actualizar de la tarjeta.</td></tr>
+        <tr><td>Los acentos salen como <code>?</code></td><td>Es lo esperado por encima de Latin-1: no existe ese carácter en ANSI de Windows. Todo el rango Latin-1 se convierte exacto.</td></tr>
+        <tr><td><i>Exception … Access Violation</i> al arrancar</td><td>Un proyecto hecho a mano sin los dos defines de pragma —mira <a href="#hand">Desde tu propio código</a>. Una aplicación generada no puede caer en esto.</td></tr>
+        <tr><td><i>Illegal data type: MyWeatherClass</i></td><td>El <code>.inc</code> de la ruta de redirección está en UTF-8 o solo con LF. Guárdalo en ANSI con CRLF.</td></tr>
+        <tr><td>Los prompts se ven antiguos tras registrar</td><td>Un IDE que ya estaba abierto nunca relee el registro. Reinícialo.</td></tr>
+      </table>
+      </div>
+    </section>
+
+    </div>
+    <footer>
+      <span class="en">weatherWidget · Programmer's Documentation · part of the templatemaker template set ·
+        pure Clarion, no external dependencies. Weather data by Open-Meteo.</span>
+      <span class="es">weatherWidget · Documentación del programador · parte de la colección templatemaker ·
+        Clarion puro, sin dependencias externas. Datos meteorológicos de Open-Meteo.</span>
+    </footer>
+  </main>
+</div>
+<script>
+  function setLang(l){
+    document.documentElement.setAttribute('data-lang', l);
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-es').classList.toggle('on', l==='es');
+    try{ localStorage.setItem('ww-lang', l); }catch(e){}
+  }
+  var saved='en';
+  try{ saved = localStorage.getItem('ww-lang') || (navigator.language||'en').slice(0,2); }catch(e){}
+  setLang(saved==='es' ? 'es' : 'en');
+</script>
+</body>
+</html>
