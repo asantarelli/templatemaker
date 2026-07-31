@@ -85,6 +85,20 @@ examples/xDBPro5/
 docs/xdbpro5*
 docs/xDBPro5*
 
+# xReportPreview (the CFC report previewer) - local-only, never push the
+# template, its classes, its demo or its docs
+templates/xReportPreview/
+templates/xreportpreview/
+examples/xReportPreview/
+examples/xreportpreview/
+docs/xReportPreview*
+docs/xreportpreview*
+docs/xReportPview*
+**/xReportPview.*
+**/CFC*.clw
+**/CFC*.inc
+**/preview.trn*
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
