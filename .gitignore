@@ -111,9 +111,13 @@ docs/xreportpreview5*
 # template, its class, its demo or its docs
 templates/xsearch4/
 templates/xSearch4/
+templates/xsearch5/
+templates/xSearch5/
 templates/xsearch/
 examples/xsearch4/
 examples/xSearch4/
+examples/xsearch5/
+examples/xSearch5/
 examples/xsearch/
 examples/xSearch/
 docs/xsearch*
