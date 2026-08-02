@@ -107,6 +107,20 @@ examples/xreportpreview5/
 docs/xReportPreview5*
 docs/xreportpreview5*
 
+# xsearch4 (the xSearch search-and-tag template) - local-only, never push the
+# template, its class, its demo or its docs
+templates/xsearch4/
+templates/xSearch4/
+templates/xsearch/
+examples/xsearch4/
+examples/xSearch4/
+docs/xsearch*
+docs/xSearch*
+**/xsearch.tpl
+**/xsearch.clw
+**/xsearch.inc
+**/xsearch.trn*
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
