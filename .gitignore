@@ -114,6 +114,8 @@ templates/xSearch4/
 templates/xsearch/
 examples/xsearch4/
 examples/xSearch4/
+examples/xsearch/
+examples/xSearch/
 docs/xsearch*
 docs/xSearch*
 **/xsearch.tpl
