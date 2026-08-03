@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Eleven small programs. They are not demos of what the template *looks* like; they are how the
+Fourteen small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,
@@ -183,6 +183,31 @@ position out for you, the window procedure has to. The screenshot in `docs/allIm
 answers the other half: they really are drawn, as the thin Windows 11 thumbs on the right edge and along
 the bottom.
 
+## `unittest` / `barround` / `wheelvsbar` - why panning wandered
+
+Panning went wrong the moment it started working, and these three found out why by ruling things out
+rather than by staring at the code.
+
+- **`barround`** - write a pan into a scrollbar, read it straight back, over 2843 combinations of zoom
+  and position: `mismatched=0 ROUND-TRIPS`. So Windows was not quietly clamping the position somewhere
+  else. Not that.
+- **`wheelvsbar`** - a control carrying `WS_VSCROLL` might turn a wheel into a scroll message, which
+  would make zooming pan as well. Post real wheels at it: `hits=0`. Not that either.
+- **`unittest`** - the one that mattered. Read a control's size in the window's own units and again in
+  pixels:
+
+  ```
+  units=300x140  pixels=600x280  xscale=2 yscale=2 DIFFERENT-UNITS
+  ```
+
+  **A window unit is not a pixel.** `MOUSEX()` and `MOUSEY()` answer in window units - half a pixel each
+  way on a default window - while the pan is kept in pixels. Every drag moved the picture at half speed,
+  so it slid out from under the pointer, and the scrollbar thumb (driven from the pan, correctly in
+  pixels) disagreed with it. The drag now reads the pointer with `PROP:Pixels` switched on.
+
+  This was never a scrollbar bug. The bar simply gave the drag a second opinion, and that is what made
+  it obvious.
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**
@@ -226,6 +251,7 @@ own procedure leaves everything else working.
 | frames step, and the last one loads | `frametest`, 100-frame GIF, pixel hash per frame |
 | crop-first is the same picture, ~167x faster | `cputime`, old against new at three pan positions |
 | a REGION can carry working scrollbars | `bartest`, styles added at run time, messages posted at it |
+| a window unit is not a pixel | `unittest` - scale 2, which is why dragging wandered |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
 | zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 

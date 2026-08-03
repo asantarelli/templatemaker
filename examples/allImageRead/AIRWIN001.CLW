@@ -51,6 +51,9 @@ PicA:Bmp            CSTRING(261)                            ! what was handed to
 PicA:Hooked         BYTE                                    ! this canvas took the window procedure
 PicA:Barred         BYTE                                    ! and its control's, for the scrollbars
 PicA:Drag           BYTE
+PicA:MX             SIGNED                                  ! the pointer, in PIXELS
+PicA:MY             SIGNED
+PicA:SavePx         LONG                                    ! the window's units, while we borrow them
 PicA:DragX          SIGNED
 PicA:DragY          SIGNED
 Air:Redraw:PicA     EQUATE(EVENT:User + 260 + 2)
@@ -77,6 +80,9 @@ PicB:Bmp            CSTRING(261)                            ! what was handed to
 PicB:Hooked         BYTE                                    ! this canvas took the window procedure
 PicB:Barred         BYTE                                    ! and its control's, for the scrollbars
 PicB:Drag           BYTE
+PicB:MX             SIGNED                                  ! the pointer, in PIXELS
+PicB:MY             SIGNED
+PicB:SavePx         LONG                                    ! the window's units, while we borrow them
 PicB:DragX          SIGNED
 PicB:DragY          SIGNED
 Air:Redraw:PicB     EQUATE(EVENT:User + 220 + 1)
@@ -1442,21 +1448,33 @@ Looped BYTE
       CASE EVENT()
       OF EVENT:MouseDown
         IF KEYCODE() = MouseLeft AND PicA:Zoom
+  !  MOUSEX and MOUSEY answer in the WINDOW's units, and a window unit is not a
+  !  pixel - it is half of one across and half of one down on a default window.
+  !  The pan is in pixels, so read the pointer with the units switched to pixels
+  !  or the picture drags at half speed and slides out from under the pointer.
+          PicA:SavePx = 0{PROP:Pixels}
+          0{PROP:Pixels} = 1
           PicA:Drag  = 1
           PicA:DragX = MOUSEX()
           PicA:DragY = MOUSEY()
+          0{PROP:Pixels} = PicA:SavePx
         END
       OF EVENT:MouseMove
         IF PicA:Drag
+          PicA:SavePx = 0{PROP:Pixels}
+          0{PROP:Pixels} = 1
+          PicA:MX = MOUSEX()
+          PicA:MY = MOUSEY()
+          0{PROP:Pixels} = PicA:SavePx
           IF PicA:Gpu AND PicA:Zoom                           ! the GPU pans in IMAGE pixels
-            PicA:PanX += (PicA:DragX - MOUSEX()) * 100 / PicA:Zoom
-            PicA:PanY += (PicA:DragY - MOUSEY()) * 100 / PicA:Zoom
+            PicA:PanX += (PicA:DragX - PicA:MX) * 100 / PicA:Zoom
+            PicA:PanY += (PicA:DragY - PicA:MY) * 100 / PicA:Zoom
           ELSE
-            PicA:PanX += PicA:DragX - MOUSEX()
-            PicA:PanY += PicA:DragY - MOUSEY()
+            PicA:PanX += PicA:DragX - PicA:MX
+            PicA:PanY += PicA:DragY - PicA:MY
           END
-          PicA:DragX = MOUSEX()
-          PicA:DragY = MOUSEY()
+          PicA:DragX = PicA:MX
+          PicA:DragY = PicA:MY
           DO Air:Show:PicA
         END
       OF EVENT:MouseUp
@@ -1506,21 +1524,33 @@ Looped BYTE
       CASE EVENT()
       OF EVENT:MouseDown
         IF KEYCODE() = MouseLeft AND PicB:Zoom
+  !  MOUSEX and MOUSEY answer in the WINDOW's units, and a window unit is not a
+  !  pixel - it is half of one across and half of one down on a default window.
+  !  The pan is in pixels, so read the pointer with the units switched to pixels
+  !  or the picture drags at half speed and slides out from under the pointer.
+          PicB:SavePx = 0{PROP:Pixels}
+          0{PROP:Pixels} = 1
           PicB:Drag  = 1
           PicB:DragX = MOUSEX()
           PicB:DragY = MOUSEY()
+          0{PROP:Pixels} = PicB:SavePx
         END
       OF EVENT:MouseMove
         IF PicB:Drag
+          PicB:SavePx = 0{PROP:Pixels}
+          0{PROP:Pixels} = 1
+          PicB:MX = MOUSEX()
+          PicB:MY = MOUSEY()
+          0{PROP:Pixels} = PicB:SavePx
           IF PicB:Gpu AND PicB:Zoom                           ! the GPU pans in IMAGE pixels
-            PicB:PanX += (PicB:DragX - MOUSEX()) * 100 / PicB:Zoom
-            PicB:PanY += (PicB:DragY - MOUSEY()) * 100 / PicB:Zoom
+            PicB:PanX += (PicB:DragX - PicB:MX) * 100 / PicB:Zoom
+            PicB:PanY += (PicB:DragY - PicB:MY) * 100 / PicB:Zoom
           ELSE
-            PicB:PanX += PicB:DragX - MOUSEX()
-            PicB:PanY += PicB:DragY - MOUSEY()
+            PicB:PanX += PicB:DragX - PicB:MX
+            PicB:PanY += PicB:DragY - PicB:MY
           END
-          PicB:DragX = MOUSEX()
-          PicB:DragY = MOUSEY()
+          PicB:DragX = PicB:MX
+          PicB:DragY = PicB:MY
           DO Air:Show:PicB
         END
       OF EVENT:MouseUp

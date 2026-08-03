@@ -1358,6 +1358,9 @@ fname CSTRING(261)
 %pObj:Hooked         BYTE                                    ! this canvas took the window procedure
 %pObj:Barred         BYTE                                    ! and its control's, for the scrollbars
 %pObj:Drag           BYTE
+%pObj:MX             SIGNED                                  ! the pointer, in PIXELS
+%pObj:MY             SIGNED
+%pObj:SavePx         LONG                                    ! the window's units, while we borrow them
 %pObj:DragX          SIGNED
 %pObj:DragY          SIGNED
 Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
@@ -1552,21 +1555,33 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #IF(%pPan)
     OF EVENT:MouseDown
       IF KEYCODE() = MouseLeft AND %pObj:Zoom
+!  MOUSEX and MOUSEY answer in the WINDOW's units, and a window unit is not a
+!  pixel - it is half of one across and half of one down on a default window.
+!  The pan is in pixels, so read the pointer with the units switched to pixels
+!  or the picture drags at half speed and slides out from under the pointer.
+        %pObj:SavePx = 0{PROP:Pixels}
+        0{PROP:Pixels} = 1
         %pObj:Drag  = 1
         %pObj:DragX = MOUSEX()
         %pObj:DragY = MOUSEY()
+        0{PROP:Pixels} = %pObj:SavePx
       END
     OF EVENT:MouseMove
       IF %pObj:Drag
+        %pObj:SavePx = 0{PROP:Pixels}
+        0{PROP:Pixels} = 1
+        %pObj:MX = MOUSEX()
+        %pObj:MY = MOUSEY()
+        0{PROP:Pixels} = %pObj:SavePx
         IF %pObj:Gpu AND %pObj:Zoom                           ! the GPU pans in IMAGE pixels
-          %pObj:PanX += (%pObj:DragX - MOUSEX()) * 100 / %pObj:Zoom
-          %pObj:PanY += (%pObj:DragY - MOUSEY()) * 100 / %pObj:Zoom
+          %pObj:PanX += (%pObj:DragX - %pObj:MX) * 100 / %pObj:Zoom
+          %pObj:PanY += (%pObj:DragY - %pObj:MY) * 100 / %pObj:Zoom
         ELSE
-          %pObj:PanX += %pObj:DragX - MOUSEX()
-          %pObj:PanY += %pObj:DragY - MOUSEY()
+          %pObj:PanX += %pObj:DragX - %pObj:MX
+          %pObj:PanY += %pObj:DragY - %pObj:MY
         END
-        %pObj:DragX = MOUSEX()
-        %pObj:DragY = MOUSEY()
+        %pObj:DragX = %pObj:MX
+        %pObj:DragY = %pObj:MY
         DO Air:Show:%pObj
       END
     OF EVENT:MouseUp
