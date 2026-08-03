@@ -45,6 +45,9 @@ PicA:Drag           BYTE
 PicA:DragX          SIGNED
 PicA:DragY          SIGNED
 Air:Redraw:PicA     EQUATE(EVENT:User + 260 + 2)
+myQR:Last            CSTRING(256)                          ! last value actually rendered
+myQR:Cur             CSTRING(256)                          ! value read this pass
+myQR:Ecc             STRING(1)                             ! 1-letter ECC (set at gen time)
 PicB                ImageClass                              ! the picture, exactly as it was read
 PicB:Ref            &STRING                                 ! a BLOB, while it is being handed over
 PicB:Sz             LONG                                    ! how many bytes that was
@@ -515,6 +518,11 @@ Air:Menu:PicA ROUTINE
       MESSAGE('There is no picture on this canvas.','Picture',ICON:Asterisk)
     END
   END
+myQRRefresh ROUTINE
+  myQR:Ecc = 'M'                              ! error-correction level
+  myQR:Cur = 'https://example.com'                                  ! a literal - auto-quoted (use variable mode, or double any internal <39>, for a value with a quote)
+  myQRLoad(?Pic1, myQR:Cur, 200, myQR:Ecc, 1)
+  myQR:Last = myQR:Cur                                     ! remember what we just rendered
 Air:Setup:PicB ROUTINE
 !  The IMAGE control is only the paint surface. A REGION created over it takes
 !  the mouse - the way Clarion's own ActiveImage class does it
@@ -1127,6 +1135,10 @@ Looped BYTE
       DO Air:WheelIn:PicA
     OF AirImg:CtrlDown
       DO Air:WheelOut:PicA
+    END
+    CASE EVENT()
+    OF EVENT:OpenWindow
+      DO myQRRefresh                                         ! first render
     END
     CASE EVENT()
     OF EVENT:OpenWindow

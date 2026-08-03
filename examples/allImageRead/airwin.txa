@@ -57,6 +57,20 @@ INSTANCE 2
 %airWGrey LONG  (0)
 %airWMax LONG  (0)
 [ADDITION]
+NAME myQR myQR
+[INSTANCE]
+INSTANCE 3
+[PROMPTS]
+%myQRDisable LONG  (0)
+%myQRImage DEFAULT  ('?Pic1')
+%myQRValue DEFAULT  ('https://example.com')
+%myQRValueIsVar LONG  (0)
+%myQRSize LONG  (200)
+%myQREcc DEFAULT  ('Medium (M)')
+%myQRMargin LONG  (1)
+%myQRAuto LONG  (0)
+%myQRTimer LONG  (50)
+[ADDITION]
 NAME allImageRead allImageReadCanvas
 [INSTANCE]
 INSTANCE 1

@@ -106,6 +106,22 @@
 INCLUDE('ImageClass.INC'),ONCE
   PRAGMA('compile(d2dcanvas.c)')                              ! the GPU canvas, built by Clarion's own C compiler
 AirImg:Secs          EQUATE(%airGUrlSecs)                     ! how long a download may take
+!  The Windows constants the readers need. They live HERE, once and prefixed,
+!  because a plain GENERIC_WRITE or SW_HIDE in a procedure's data collides with
+!  every other template that declares the same thing in the same module - and
+!  with the next procedure of ours that needs it. "Label duplicated" is the
+!  compiler saying two of us picked the same word.
+AirImg:GenericWrite  EQUATE(40000000h)
+AirImg:CreateAlways  EQUATE(2)
+AirImg:AttrNormal    EQUATE(00000080h)
+AirImg:BadHandle     EQUATE(-1)
+AirImg:UseShowWindow EQUATE(00000001h)
+AirImg:SwHide        EQUATE(0)
+AirImg:NoWindow      EQUATE(08000000h)
+AirImg:Forever       EQUATE(0FFFFFFFFh)
+AirImg:GwlWndProc    EQUATE(-4)
+AirImg:MouseWheel    EQUATE(020Ah)
+AirImg:MkControl     EQUATE(0008h)
 AirImg:WheelUp       EQUATE(EVENT:User + 216)                 ! the wheel, carried in from the
 AirImg:WheelDown     EQUATE(EVENT:User + 217)                 !   window procedure
 AirImg:CtrlUp        EQUATE(EVENT:User + 218)                 ! ... with Ctrl held down
@@ -175,7 +191,7 @@ d2c_Clear(LONG h),NAME('_d2c_Clear')
 !  A working file in the Windows TEMP folder. The key makes the name unique
 !  per canvas, and it is FIXED - the same canvas reuses the same name for ever,
 !  so the folder never fills up.
-AirImg_Temp PROCEDURE(STRING pKey,STRING pExt)
+AirImg_Temp PROCEDURE(STRING pTag,STRING pExt)
 tdir CSTRING(261)
 n    ULONG,AUTO
   CODE
@@ -183,14 +199,10 @@ n    ULONG,AUTO
   n = airApi_TempPath(255,tdir)
   IF ~n OR n > 254 THEN tdir = '.\' .
   IF tdir[LEN(tdir) : LEN(tdir)] <> '\' THEN tdir = CLIP(tdir) & '\' .
-  RETURN CLIP(tdir) & 'air_' & CLIP(pKey) & CLIP(pExt)
+  RETURN CLIP(tdir) & 'air_' & CLIP(pTag) & CLIP(pExt)
 
 !  Bytes onto disk. Returns 1 when every byte arrived.
 AirImg_PutBytes PROCEDURE(*STRING pData,LONG pLen,STRING pPath)
-GENERIC_WRITE    EQUATE(40000000h)
-CREATE_ALWAYS    EQUATE(2)
-FILE_ATTR_NORMAL EQUATE(00000080h)
-INVALID_HANDLE   EQUATE(-1)
 fname CSTRING(261)
 h     LONG,AUTO
 wrote ULONG,AUTO
@@ -199,8 +211,9 @@ ok    LONG,AUTO
   IF pLen < 1 THEN RETURN 0.
   fname = CLIP(pPath)
   wrote = 0
-  h = airApi_CreateFile(ADDRESS(fname),GENERIC_WRITE,0,0,CREATE_ALWAYS,FILE_ATTR_NORMAL,0)
-  IF h = INVALID_HANDLE OR ~h THEN RETURN 0.
+  h = airApi_CreateFile(ADDRESS(fname),AirImg:GenericWrite,0,0,                |
+                        AirImg:CreateAlways,AirImg:AttrNormal,0)
+  IF h = AirImg:BadHandle OR ~h THEN RETURN 0.
   ok = airApi_WriteFile(h,ADDRESS(pData),pLen,ADDRESS(wrote),0)
   airApi_CloseHandle(h)
   IF ok AND wrote = pLen THEN RETURN 1.
@@ -222,14 +235,14 @@ AirImg_LoadPath PROCEDURE(ImageClass pImg,STRING pPath)
 
 !  A picture that is bytes - a BLOB the caller has sliced, or a string in
 !  memory. It goes to the working file and is read back from there.
-AirImg_LoadBytes PROCEDURE(ImageClass pImg,*STRING pData,LONG pLen,STRING pKey)
+AirImg_LoadBytes PROCEDURE(ImageClass pImg,*STRING pData,LONG pLen,STRING pTag)
 fname CSTRING(261)
   CODE
   IF pLen < 1
     pImg.Kill()
     RETURN 0
   END
-  fname = AirImg_Temp(pKey,'.tmp')
+  fname = AirImg_Temp(pTag,'.tmp')
   IF ~AirImg_PutBytes(pData,pLen,fname)
     pImg.Kill()
     RETURN 0
@@ -238,7 +251,7 @@ fname CSTRING(261)
 
 !  A picture that arrived as text. Standard and URL-safe alphabets, any amount
 !  of white space, and a leading data: URI is stepped over.
-AirImg_LoadB64 PROCEDURE(ImageClass pImg,STRING pB64,STRING pKey)
+AirImg_LoadB64 PROCEDURE(ImageClass pImg,STRING pB64,STRING pTag)
 alpha STRING('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/')
 tab   STRING(256),STATIC
 built BYTE,STATIC
@@ -293,18 +306,14 @@ ok    BYTE,AUTO
     pImg.Kill()
     RETURN 0
   END
-  ok = AirImg_LoadBytes(pImg,out,o,pKey)
+  ok = AirImg_LoadBytes(pImg,out,o,pTag)
   DISPOSE(out)
   RETURN ok
 
 !  A picture on the internet. curl.exe is run HIDDEN and SYNCHRONOUSLY -
 !  CreateProcessA with CREATE_NO_WINDOW plus STARTF_USESHOWWINDOW / SW_HIDE,
 !  then WaitForSingleObject. curl ships with Windows 10 and 11 in System32.
-AirImg_LoadUrl PROCEDURE(ImageClass pImg,STRING pUrl,STRING pKey,LONG pSeconds)
-STARTF_USESHOWWINDOW EQUATE(00000001h)
-SW_HIDE              EQUATE(0)
-CREATE_NO_WINDOW     EQUATE(08000000h)
-INFINITE             EQUATE(0FFFFFFFFh)
+AirImg_LoadUrl PROCEDURE(ImageClass pImg,STRING pUrl,STRING pTag,LONG pSeconds)
 cmd   CSTRING(2048)                                           ! CreateProcessA writes back into this
 fname CSTRING(261)
 secs  LONG,AUTO
@@ -341,7 +350,7 @@ dwTid   ULONG
   END
   secs = pSeconds
   IF secs < 1 THEN secs = 20.
-  fname = AirImg_Temp(pKey,'.dl')
+  fname = AirImg_Temp(pTag,'.dl')
   REMOVE(fname)
 !  -s silent, -L follow redirects, --max-time so a hung server cannot hold the
 !  program up for ever, -o writes the body. <34> is a double quote: Windows
@@ -349,13 +358,13 @@ dwTid   ULONG
   cmd = 'curl -s -L --max-time ' & secs & |
         ' -o <34>' & CLIP(fname) & '<34> <34>' & CLIP(pUrl) & '<34>'
   si.cb      = SIZE(si)
-  si.dwFlags = STARTF_USESHOWWINDOW
-  si.wShow   = SW_HIDE
-  IF ~airApi_CreateProcess(0,ADDRESS(cmd),0,0,0,CREATE_NO_WINDOW,0,0,ADDRESS(si),ADDRESS(pi))
+  si.dwFlags = AirImg:UseShowWindow
+  si.wShow   = AirImg:SwHide
+  IF ~airApi_CreateProcess(0,ADDRESS(cmd),0,0,0,AirImg:NoWindow,0,0,ADDRESS(si),ADDRESS(pi))
     pImg.Kill()                                               ! curl.exe is not there
     RETURN 0
   END
-  airApi_WaitObject(pi.hProc,INFINITE)
+  airApi_WaitObject(pi.hProc,AirImg:Forever)
   airApi_CloseHandle(pi.hThr)
   airApi_CloseHandle(pi.hProc)
   IF ~EXISTS(fname)
@@ -368,14 +377,14 @@ dwTid   ULONG
 !  original is never touched. Used for report bands, where the print engine
 !  wants a file it can open. Returns the path, or blank when there is nothing
 !  to show.
-AirImg_Render PROCEDURE(ImageClass pImg,LONG pW,LONG pH,LONG pMode,ULONG pBack,STRING pKey)
+AirImg_Render PROCEDURE(ImageClass pImg,LONG pW,LONG pH,LONG pMode,ULONG pBack,STRING pTag)
 cv   ImageClass
 fname CSTRING(261)
   CODE
   IF ~pImg.Ok() OR pW < 4 OR pH < 4 THEN RETURN ''.
   IF ~pImg.CloneInto(cv) THEN RETURN ''.
   IF pMode >= 0 THEN cv.Fit(pW,pH,pMode,pBack).
-  fname = AirImg_Temp(pKey,'.png')
+  fname = AirImg_Temp(pTag,'.png')
   IF ~cv.SaveFile(fname,Img:Png) THEN RETURN ''.
   RETURN CLIP(fname)
 
@@ -406,27 +415,25 @@ b LONG,AUTO
 !  Returns 1 to the FIRST caller only: a second canvas on the same window must
 !  not hook it twice.
 AirImg_HookWheel PROCEDURE(LONG pHwnd)
-GWL_WNDPROC EQUATE(-4)
 prop CSTRING('AirImgOldWndProc')
 old  LONG,AUTO
   CODE
   IF ~pHwnd THEN RETURN 0.
   IF airApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.       ! already hooked by another canvas
-  old = airApi_SetWindowLong(pHwnd,GWL_WNDPROC,ADDRESS(AirImg_WheelProc))
+  old = airApi_SetWindowLong(pHwnd,AirImg:GwlWndProc,ADDRESS(AirImg_WheelProc))
   IF ~old THEN RETURN 0.
   airApi_SetProp(pHwnd,ADDRESS(prop),old)
   RETURN 1
 
 !  Give the window its own procedure back and forget it.
 AirImg_DropWheel PROCEDURE(LONG pHwnd)
-GWL_WNDPROC EQUATE(-4)
 prop CSTRING('AirImgOldWndProc')
 old  LONG,AUTO
   CODE
   IF ~pHwnd THEN RETURN 0.
   old = airApi_GetProp(pHwnd,ADDRESS(prop))
   IF old
-    airApi_SetWindowLong(pHwnd,GWL_WNDPROC,old)
+    airApi_SetWindowLong(pHwnd,AirImg:GwlWndProc,old)
   END
   airApi_RemoveProp(pHwnd,ADDRESS(prop))
   RETURN old
@@ -438,17 +445,15 @@ old  LONG,AUTO
 !  and then hand the message on to the window's own procedure so nothing else
 !  changes.
 AirImg_WheelProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
-WM_MOUSEWHEEL EQUATE(020Ah)
-MK_CONTROL    EQUATE(0008h)
 prop CSTRING('AirImgOldWndProc')
 old  LONG,AUTO
 dz   LONG,AUTO
   CODE
   old = airApi_GetProp(hWnd,ADDRESS(prop))
-  IF wMsg = WM_MOUSEWHEEL
+  IF wMsg = AirImg:MouseWheel
     dz = BSHIFT(BAND(wParam,0FFFF0000h),-16)                  ! the high word is the distance
     IF dz > 32767 THEN dz -= 65536.                           ! and it is signed
-    IF BAND(wParam,MK_CONTROL)
+    IF BAND(wParam,AirImg:MkControl)
       IF dz > 0
         POST(AirImg:CtrlUp)
       ELSIF dz < 0
@@ -951,7 +956,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #!  the object or empties it, so a canvas never shows the previous record's
 #!  photograph when this record has none.
 #!-----------------------------------------------------------------------------
-#GROUP(%airLoadStmt,%pObj,%pKind,%pFile,%pVar,%pLen,%pBlob,%pKey,%pSecs)
+#GROUP(%airLoadStmt,%pObj,%pKind,%pFile,%pVar,%pLen,%pBlob,%pTag,%pSecs)
 #IF(VAREXISTS(%airSecs) = 0)
   #DECLARE(%airSecs)
   #DECLARE(%airHave)
@@ -987,7 +992,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
   IF %pObj:Sz > 0
     %pObj:Ref &= NEW(STRING(%pObj:Sz))
     %pObj:Ref = %pBlob[1 : %pObj:Sz]
-    AirImg_LoadBytes(%pObj,%pObj:Ref,%pObj:Sz,'%pKey')
+    AirImg_LoadBytes(%pObj,%pObj:Ref,%pObj:Sz,'%pTag')
     DISPOSE(%pObj:Ref)
   ELSE
     %pObj.Kill()
@@ -999,14 +1004,14 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #ELSE
   %pObj:Sz = SIZE(%pVar)
 #ENDIF
-  AirImg_LoadBytes(%pObj,%pVar,%pObj:Sz,'%pKey')
+  AirImg_LoadBytes(%pObj,%pVar,%pObj:Sz,'%pTag')
   %pObj:Path = ''
 #OF('B64')
-  AirImg_LoadB64(%pObj,%pVar,'%pKey')
+  AirImg_LoadB64(%pObj,%pVar,'%pTag')
   %pObj:Path = ''
 #OF('URL')
   %pObj:Path = CLIP(%pVar)
-  AirImg_LoadUrl(%pObj,%pObj:Path,'%pKey',%airSecs)
+  AirImg_LoadUrl(%pObj,%pObj:Path,'%pTag',%airSecs)
 #ENDCASE
 #ENDIF
 #!-----------------------------------------------------------------------------
