@@ -719,6 +719,12 @@ by the class itself:
 ![myYuru presets](docs/myYuru-presets.png)
 
 ### `templates/myCalc/` — a pop-up calculator beside any numeric field
+> **Renamed in this version:** the class's string equates are now `CalcTxt:Cancel`, `CalcTxt:Accept` …
+> rather than `Txt:Cancel`, `Txt:Accept` …. `Txt:Cancel` was declared by **both** CalcClass (12) and
+> ExportClass (26), so an application carrying myCalc *and* myExport compiled with `Label duplicated,
+> second used: TXT:CANCEL` — and one of the two classes then indexed its string table with the other's
+> number, showing the wrong caption. The prefix follows the one xsExport already uses (`xsTxt:`). If you
+> have embed code calling `Calc1.Txt(Txt:Something)`, add the `Calc` prefix.
 Drag **myCalc - Calculator button** next to a numeric entry and point it at that entry. A small calculator
 icon appears; pressing it opens a modal calculator already holding whatever the field contains, and **Accept
 puts the answer back into the field**.
