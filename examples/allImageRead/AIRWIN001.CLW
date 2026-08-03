@@ -23,6 +23,12 @@ Loc:File             CSTRING(261)
 QuickWindow          WINDOW('allImageRead test'),AT(,,340,300),RESIZE,GRAY,MAX,STATUS(-1),SYSTEM,IMM
                        IMAGE,AT(8,8,320,130),USE(?Pic1)
                        IMAGE,AT(8,150,320,130),USE(?AirCanvas)
+                       BUTTON('|<<'),AT(8,284,14,12),USE(?AirFrmFirst)
+                       BUTTON('<<'),AT(24,284,14,12),USE(?AirFrmPrev)
+                       STRING('- / -'),AT(40,285,46,10),USE(?AirFrmText),CENTER
+                       BUTTON('>'),AT(88,284,14,12),USE(?AirFrmNext)
+                       BUTTON('>|'),AT(104,284,14,12),USE(?AirFrmLast)
+                       BUTTON('Play'),AT(120,284,26,12),USE(?AirFrmPlay)
                      END
 
 PicA                ImageClass                              ! the picture, exactly as it was read
@@ -72,6 +78,8 @@ PicB:Drag           BYTE
 PicB:DragX          SIGNED
 PicB:DragY          SIGNED
 Air:Redraw:PicB     EQUATE(EVENT:User + 220 + 1)
+AirFrm4:Playing     BYTE                                    ! is the animation running?
+AirFrm4:WasTimer    LONG                                    ! what PROP:Timer held before we borrowed it
 ThisWindow           CLASS(WindowManager)
 Init                   PROCEDURE(),BYTE,PROC,DERIVED
 Kill                   PROCEDURE(),BYTE,PROC,DERIVED
@@ -158,13 +166,10 @@ Air:Size:PicA ROUTINE
     d2c_Resize(PicA:Gpu)
   END
 
-Air:Fresh:PicA ROUTINE
-!  A NEW picture has just landed in the object.
-!  Give the graphics card the pixels - ONCE, here, not on every zoom. It goes
-!  over as a 32-bit BMP because ImageClass has already done the decoding, so
-!  all twelve formats arrive the same way. A copy is flattened onto the
-!  background first, so a picture with transparency does not show rubbish
-!  where its alpha used to be; the original keeps its alpha for Save a copy.
+Air:Upload:PicA ROUTINE
+!  Hand the graphics card the pixels the object is holding NOW. Called when a
+!  new picture arrives and again whenever the frame changes - a zoom does not
+!  need it, which is the whole point of the GPU path.
   IF PicA:Gpu
     IF ~PicA.Ok()
       d2c_Clear(PicA:Gpu)
@@ -177,6 +182,21 @@ Air:Fresh:PicA ROUTINE
       END
     END
   END
+
+Air:Frame:PicA ROUTINE
+!  Show whatever frame number is in <object>:Frame - a page of a TIFF, a frame
+!  of an animated GIF, one size out of an .ico. The zoom and the pan are left
+!  alone, so stepping through pages does not throw the view away.
+  IF ~PicA.Ok() THEN EXIT.
+  IF PicA:Frame < 1 THEN PicA:Frame = 1.
+  IF PicA:Frame > PicA.Frames() THEN PicA:Frame = PicA.Frames().
+  IF ~PicA.LoadFrame(PicA:Frame - 1) THEN EXIT.       ! the engine counts from zero
+  DO Air:Upload:PicA
+  DO Air:Show:PicA
+
+Air:Fresh:PicA ROUTINE
+!  A NEW picture has just landed in the object.
+  DO Air:Upload:PicA
   PicA:Zoom = 0                                           ! back to fitting the frame
   PicA:PanX = 0
   PicA:PanY = 0
@@ -545,15 +565,13 @@ Air:Menu:PicA ROUTINE
     IF PicA.Frames() > 1
       PicA:Frame += 1
       IF PicA:Frame > PicA.Frames() THEN PicA:Frame = 1.
-      PicA.LoadFrame(PicA:Frame)
-      DO Air:Show:PicA
+      DO Air:Frame:PicA
     END
   OF 9
     IF PicA.Frames() > 1
       PicA:Frame -= 1
       IF PicA:Frame < 1 THEN PicA:Frame = PicA.Frames().
-      PicA.LoadFrame(PicA:Frame)
-      DO Air:Show:PicA
+      DO Air:Frame:PicA
     END
   OF 10
     DO Air:Save:PicA
@@ -636,21 +654,10 @@ Air:Size:PicB ROUTINE
     d2c_Resize(PicB:Gpu)
   END
 
-Air:Fresh:PicB ROUTINE
-!  A NEW picture has just landed in the object.
-  IF PicB.Frames() >= 2
-    PicB:Frame = 2
-    PicB.LoadFrame(PicB:Frame)
-  END
-  PicB.RotateRight()
-  IF PicB.Wide() > 2000 OR PicB.High() > 2000
-    PicB.Fit(2000,2000,Img:Contain,0)                      ! cap the longest side
-  END
-!  Give the graphics card the pixels - ONCE, here, not on every zoom. It goes
-!  over as a 32-bit BMP because ImageClass has already done the decoding, so
-!  all twelve formats arrive the same way. A copy is flattened onto the
-!  background first, so a picture with transparency does not show rubbish
-!  where its alpha used to be; the original keeps its alpha for Save a copy.
+Air:Upload:PicB ROUTINE
+!  Hand the graphics card the pixels the object is holding NOW. Called when a
+!  new picture arrives and again whenever the frame changes - a zoom does not
+!  need it, which is the whole point of the GPU path.
   IF PicB:Gpu
     IF ~PicB.Ok()
       d2c_Clear(PicB:Gpu)
@@ -663,6 +670,35 @@ Air:Fresh:PicB ROUTINE
       END
     END
   END
+
+Air:Frame:PicB ROUTINE
+!  Show whatever frame number is in <object>:Frame - a page of a TIFF, a frame
+!  of an animated GIF, one size out of an .ico. The zoom and the pan are left
+!  alone, so stepping through pages does not throw the view away.
+  IF ~PicB.Ok() THEN EXIT.
+  IF PicB:Frame < 1 THEN PicB:Frame = 1.
+  IF PicB:Frame > PicB.Frames() THEN PicB:Frame = PicB.Frames().
+  IF ~PicB.LoadFrame(PicB:Frame - 1) THEN EXIT.       ! the engine counts from zero
+  PicB.RotateRight()
+  IF PicB.Wide() > 2000 OR PicB.High() > 2000
+    PicB.Fit(2000,2000,Img:Contain,0)                      ! cap the longest side
+  END
+  DO Air:Upload:PicB
+  DO Air:Show:PicB
+
+Air:Fresh:PicB ROUTINE
+!  A NEW picture has just landed in the object.
+!  LoadFrame counts from ZERO - imgcore's img_select_frame rejects anything
+!  from Frames() up - while everything a person sees counts from one.
+  IF PicB.Frames() >= 2
+    PicB:Frame = 2
+    PicB.LoadFrame(PicB:Frame - 1)
+  END
+  PicB.RotateRight()
+  IF PicB.Wide() > 2000 OR PicB.High() > 2000
+    PicB.Fit(2000,2000,Img:Contain,0)                      ! cap the longest side
+  END
+  DO Air:Upload:PicB
   PicB:Zoom = 0                                           ! back to fitting the frame
   PicB:PanX = 0
   PicB:PanY = 0
@@ -1031,15 +1067,13 @@ Air:Menu:PicB ROUTINE
     IF PicB.Frames() > 1
       PicB:Frame += 1
       IF PicB:Frame > PicB.Frames() THEN PicB:Frame = 1.
-      PicB.LoadFrame(PicB:Frame)
-      DO Air:Show:PicB
+      DO Air:Frame:PicB
     END
   OF 9
     IF PicB.Frames() > 1
       PicB:Frame -= 1
       IF PicB:Frame < 1 THEN PicB:Frame = PicB.Frames().
-      PicB.LoadFrame(PicB:Frame)
-      DO Air:Show:PicB
+      DO Air:Frame:PicB
     END
   OF 10
     DO Air:Save:PicB
@@ -1050,6 +1084,63 @@ Air:Menu:PicB ROUTINE
       MESSAGE('There is no picture on this canvas.','Picture',ICON:Asterisk)
     END
   END
+AirFrm:Go:AirFrm4 ROUTINE
+!  Move the canvas to the frame number now in its object, then bring the bar
+!  into line with it.
+  DO Air:Frame:PicB
+  DO AirFrm:Sync:AirFrm4
+
+AirFrm:Step:AirFrm4 ROUTINE
+!  One frame on - what Play calls on every tick, and what Next does.
+  IF PicB.Frames() < 2 THEN EXIT.
+  PicB:Frame += 1
+  IF PicB:Frame > PicB.Frames()
+    PicB:Frame = 1
+  END
+  DO AirFrm:Go:AirFrm4
+
+AirFrm:Play:AirFrm4 ROUTINE
+  IF PicB.Frames() < 2 THEN EXIT.
+  AirFrm4:WasTimer = 0{PROP:Timer}                           ! borrow the window timer
+  AirFrm4:Playing  = 1
+  0{PROP:Timer} = 10
+  ?AirFrmPlay{PROP:Text} = 'Stop'
+
+AirFrm:Stop:AirFrm4 ROUTINE
+  AirFrm4:Playing = 0
+  0{PROP:Timer} = AirFrm4:WasTimer                           ! and put it back
+  ?AirFrmPlay{PROP:Text} = 'Play'
+
+AirFrm:Sync:AirFrm4 ROUTINE
+!  Make the bar tell the truth: the counter, the buttons that cannot go
+!  anywhere, and the whole bar when there is only one frame to look at.
+  DATA
+n LONG,AUTO
+f LONG,AUTO
+  CODE
+  n = 0
+  f = 0
+  IF PicB.Ok()
+    n = PicB.Frames()
+    f = PicB:Frame
+    IF f < 1 THEN f = 1.
+  END
+  ?AirFrmText{PROP:Text} = CHOOSE(n < 1, '', 'Frame ' & CLIP(LEFT(f)) & ' of ' & CLIP(LEFT(n)))
+  IF n < 2                                                    ! nothing to step through
+    HIDE(?AirFrmFirst)
+    HIDE(?AirFrmPrev)
+    HIDE(?AirFrmNext)
+    HIDE(?AirFrmLast)
+    HIDE(?AirFrmText)
+    HIDE(?AirFrmPlay)
+    EXIT
+  END
+  UNHIDE(?AirFrmFirst)
+  UNHIDE(?AirFrmPrev)
+  UNHIDE(?AirFrmNext)
+  UNHIDE(?AirFrmLast)
+  UNHIDE(?AirFrmText)
+  UNHIDE(?AirFrmPlay)
 
 ThisWindow.Init PROCEDURE
 
@@ -1093,6 +1184,9 @@ ReturnValue          BYTE,AUTO
     IF PicB:Gpu
       d2c_Detach(PicB:Gpu)                                     ! gives the control its own window back
       PicB:Gpu = 0
+    END
+    IF AirFrm4:Playing
+      DO AirFrm:Stop:AirFrm4                                   ! give the timer back
     END
   ReturnValue = PARENT.Kill()
   IF ReturnValue THEN RETURN ReturnValue.
@@ -1237,6 +1331,30 @@ Looped BYTE
         END
       END
     END
+    IF EVENT() = EVENT:Accepted
+      CASE FIELD()
+      OF ?AirFrmFirst
+        PicB:Frame = 1
+        DO AirFrm:Go:AirFrm4
+      OF ?AirFrmPrev
+        PicB:Frame -= 1
+        IF PicB:Frame < 1
+          PicB:Frame = PicB.Frames()
+        END
+        DO AirFrm:Go:AirFrm4
+      OF ?AirFrmNext
+        DO AirFrm:Step:AirFrm4
+      OF ?AirFrmLast
+        PicB:Frame = PicB.Frames()
+        DO AirFrm:Go:AirFrm4
+      OF ?AirFrmPlay
+        IF AirFrm4:Playing
+          DO AirFrm:Stop:AirFrm4
+        ELSE
+          DO AirFrm:Play:AirFrm4
+        END
+      END
+    END
   LOOP                                                     ! This method receives all field specific events
     IF Looped
       RETURN Level:Notify
@@ -1328,6 +1446,14 @@ Looped BYTE
         DO Air:PanBy:PicB
       OF CtrlHome
         DO Air:Fit:PicB
+      END
+    END
+    CASE EVENT()
+    OF EVENT:OpenWindow
+      DO AirFrm:Sync:AirFrm4
+    OF EVENT:Timer
+      IF AirFrm4:Playing
+        DO AirFrm:Step:AirFrm4
       END
     END
   LOOP                                                     ! This method receives all window specific events

@@ -417,8 +417,11 @@ registrations: **allImageReadCanvas** (the drag-on canvas, window *or* report ba
 (the shared readers — add it once per application, and to **every** app of a multi-DLL set that carries a
 canvas), **allImageRead** and **allImageReadRpt** for an `IMAGE` control you already have on a window or in
 a band, and the **allImageReadLoad** code template for one statement at any embed. Per-picture touch-up
-(rotate/mirror/flip/greyscale/cap the longest side) and frame selection for **animated GIFs, multi-page
-TIFFs and .ico** are prompts, not embeds. Requires the myImage files on the redirection path
+(rotate/mirror/flip/greyscale/cap the longest side) is a prompt, not an embed. **Pictures that hold more
+than one frame** — a multi-page TIFF, an animated GIF — get the **allImageReadFrames** control template:
+drag the bar onto the window, tell it which canvas object it drives, and it gives First / Prev / Next /
+Last, a *Page 3 of 12* counter, and a **Play** button that animates on the window timer and puts the
+timer back when it stops. It hides itself when the picture has only one frame. Requires the myImage files on the redirection path
 (`ImageClass.inc`, `ImageClass.clw`, `imgcore.c`, ANSI) — myImage itself need not be registered.
 **The wheel is not a Clarion event.** `EVENT:ScrollUp`/`ScrollDown` are LIST events ("the user pressed the
 up arrow", `IMM` only) and never reach a window or an `IMAGE`, so the canvas takes the wheel off the

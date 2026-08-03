@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Eight small programs. They are not demos of what the template *looks* like; they are how the
+Nine small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,

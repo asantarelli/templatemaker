@@ -108,6 +108,19 @@ INSTANCE 1
 %airCFlip LONG  (0)
 %airCGrey LONG  (0)
 %airCMax LONG  (2000)
+[ADDITION]
+NAME allImageRead allImageReadFrames
+[INSTANCE]
+INSTANCE 4
+[PROMPTS]
+%airFDisable LONG  (0)
+%airFCanvas DEFAULT  ('PicB')
+%airFWrap LONG  (1)
+%airFHide LONG  (1)
+%airFText DEFAULT  ('FRAME')
+%airFPlay LONG  (1)
+%airFSpeed LONG  (10)
+%airFAuto LONG  (0)
 [EMBED]
 EMBED %DataSection
 [DEFINITION]
@@ -124,6 +137,12 @@ Loc:File             CSTRING(261)
 QuickWindow WINDOW('allImageRead test'),AT(,,340,300),GRAY,SYSTEM,MAX,RESIZE,STATUS(-1)
           IMAGE,AT(8,8,320,130),USE(?Pic1),#ORDINAL(1)
           IMAGE,AT(8,150,320,130),USE(?AirCanvas),#ORIG(?AirCanvas),#SEQ(1),#ORDINAL(2)
+          BUTTON('|<'),AT(8,284,14,12),USE(?AirFrmFirst),#ORIG(?AirFrmFirst),#SEQ(4),#ORDINAL(3)
+          BUTTON('<'),AT(24,284,14,12),USE(?AirFrmPrev),#ORIG(?AirFrmPrev),#SEQ(4),#ORDINAL(4)
+          STRING('- / -'),AT(40,285,46,10),USE(?AirFrmText),#ORIG(?AirFrmText),#SEQ(4),CENTER,#ORDINAL(5)
+          BUTTON('>'),AT(88,284,14,12),USE(?AirFrmNext),#ORIG(?AirFrmNext),#SEQ(4),#ORDINAL(6)
+          BUTTON('>|'),AT(104,284,14,12),USE(?AirFrmLast),#ORIG(?AirFrmLast),#SEQ(4),#ORDINAL(7)
+          BUTTON('Play'),AT(120,284,26,12),USE(?AirFrmPlay),#ORIG(?AirFrmPlay),#SEQ(4),#ORDINAL(8)
         END
 
 [END]

@@ -605,7 +605,10 @@ AirImg_Filter PROCEDURE()
     #SET(%airCOnReport,1)
   #ENDFOR
   #IF(%airCFeq = '')
-    #FOR(%Control),WHERE(%ControlInstance=%ActiveTemplateInstance)
+    #!  match on the ORIGINAL name as well as the instance: taking merely "the
+    #!  last control of this instance" picks up somebody else's button the
+    #!  moment another control template shares the instance number.
+    #FOR(%Control),WHERE(%ControlOriginal='?AirCanvas' AND %ControlInstance=%ActiveTemplateInstance)
       #SET(%airCFeq,%Control)
     #ENDFOR
   #ENDIF
@@ -687,6 +690,234 @@ fname CSTRING(261)
   SETTARGET(%Report)
   %airCFeq{PROP:Text} = fname                                  ! blank clears the frame
   SETTARGET()
+#ENDAT
+#!#############################################################################
+#!  CONTROL TEMPLATE - allImageReadFrames
+#!  A frame bar for the pictures that hold more than one: a multi-page TIFF, an
+#!  animated GIF, an .ico carrying several sizes. Drag it onto the window beside
+#!  a canvas and tell it which canvas object it drives - it calls that canvas's
+#!  own Air:Frame routine, so the zoom and the pan stay where the canvas has
+#!  them while the pages turn.
+#!#############################################################################
+#CONTROL(allImageReadFrames,'allImageRead - Frame bar (multi-page TIFF, animated GIF)'),WINDOW,MULTI,REQ(allImageReadGlobal),DESCRIPTION('[Frames] ' & %airFCanvas),HLP('~allImageRead.htm')
+  CONTROLS
+    BUTTON('|<'),AT(,,14,12),USE(?AirFrmFirst),#ORIG(?AirFrmFirst),TIP('First')
+    BUTTON('<'),AT(,,14,12),USE(?AirFrmPrev),#ORIG(?AirFrmPrev),TIP('Previous')
+    STRING('- / -'),AT(,,46,10),USE(?AirFrmText),#ORIG(?AirFrmText),CENTER
+    BUTTON('>'),AT(,,14,12),USE(?AirFrmNext),#ORIG(?AirFrmNext),TIP('Next')
+    BUTTON('>|'),AT(,,14,12),USE(?AirFrmLast),#ORIG(?AirFrmLast),TIP('Last')
+    BUTTON('Play'),AT(,,26,12),USE(?AirFrmPlay),#ORIG(?AirFrmPlay),TIP('Play the animation')
+  END
+#SHEET
+  #TAB('&Frames')
+    #BOXED('Which canvas')
+      #PROMPT('&Disable this frame bar',CHECK),%airFDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Canvas object name:',@s64),%airFCanvas,REQ,DEFAULT('Pic1')
+      #DISPLAY('The Object name off the canvas this bar drives - the same word')
+      #DISPLAY('typed on its Picture tab. A canvas in a REPORT band has no frame')
+      #DISPLAY('bar: there is nobody there to press the buttons.')
+    #ENDBOXED
+    #BOXED('Behaviour')
+      #PROMPT('&Wrap round at the ends',CHECK),%airFWrap,DEFAULT(1),AT(10)
+      #PROMPT('&Hide the bar when the picture has only one frame',CHECK),%airFHide,DEFAULT(1),AT(10)
+      #PROMPT('Frame &counter:',DROP('3 / 12[N/T]|Frame 3 of 12[FRAME]|Page 3 of 12[PAGE]|no counter[NONE]')),%airFText,DEFAULT('N/T')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Playing')
+    #BOXED('The Play button')
+      #PROMPT('Show the &Play button',CHECK),%airFPlay,DEFAULT(1),AT(10)
+      #PROMPT('Frame &interval (1/100 sec):',SPIN(@n4,1,1000,5)),%airFSpeed,DEFAULT(10)
+      #DISPLAY('ImageClass does not hand back the delay a GIF asks for, so this')
+      #DISPLAY('is a fixed rate. 10 is about ten frames a second.')
+      #PROMPT('Start playing when the window &opens',CHECK),%airFAuto,DEFAULT(0),AT(10)
+    #ENDBOXED
+    #BOXED('The window timer')
+      #DISPLAY('Playing borrows the window timer and puts back whatever was in')
+      #DISPLAY('it when it stops. If something else on this window already uses')
+      #DISPLAY('PROP:Timer, run them at one interval or leave Play off.')
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!-----------------------------------------------------------------------------
+#!  Each dropped button keeps the feq AppGen gave it, found through #ORIG.
+#ATSTART
+  #IF(VAREXISTS(%airFFirst) = 0)
+    #DECLARE(%airFFirst)
+    #DECLARE(%airFPrev)
+    #DECLARE(%airFNext)
+    #DECLARE(%airFLast)
+    #DECLARE(%airFBtn)
+    #DECLARE(%airFStr)
+    #DECLARE(%airFObj)
+  #ENDIF
+  #FOR(%Control),WHERE(%ControlInstance=%ActiveTemplateInstance)
+    #CASE(%ControlOriginal)
+    #OF('?AirFrmFirst')
+      #SET(%airFFirst,%Control)
+    #OF('?AirFrmPrev')
+      #SET(%airFPrev,%Control)
+    #OF('?AirFrmNext')
+      #SET(%airFNext,%Control)
+    #OF('?AirFrmLast')
+      #SET(%airFLast,%Control)
+    #OF('?AirFrmPlay')
+      #SET(%airFBtn,%Control)
+    #OF('?AirFrmText')
+      #SET(%airFStr,%Control)
+    #ENDCASE
+  #ENDFOR
+  #SET(%airFObj,'AirFrm' & %ActiveTemplateInstance)
+#ENDAT
+#!
+#AT(%DataSection),WHERE(%airFDisable=0)
+%airFObj:Playing     BYTE                                    ! is the animation running?
+%airFObj:WasTimer    LONG                                    ! what PROP:Timer held before we borrowed it
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%airFDisable=0)
+  CASE EVENT()
+  OF EVENT:OpenWindow
+    DO AirFrm:Sync:%airFObj
+#IF(%airFPlay AND %airFAuto)
+    DO AirFrm:Play:%airFObj
+#ENDIF
+#IF(%airFPlay)
+  OF EVENT:Timer
+    IF %airFObj:Playing
+      DO AirFrm:Step:%airFObj
+    END
+#ENDIF
+  END
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%airFDisable=0)
+  IF EVENT() = EVENT:Accepted
+    CASE FIELD()
+    OF %airFFirst
+      %airFCanvas:Frame = 1
+      DO AirFrm:Go:%airFObj
+    OF %airFPrev
+      %airFCanvas:Frame -= 1
+      IF %airFCanvas:Frame < 1
+#IF(%airFWrap)
+        %airFCanvas:Frame = %airFCanvas.Frames()
+#ELSE
+        %airFCanvas:Frame = 1
+#ENDIF
+      END
+      DO AirFrm:Go:%airFObj
+    OF %airFNext
+      DO AirFrm:Step:%airFObj
+    OF %airFLast
+      %airFCanvas:Frame = %airFCanvas.Frames()
+      DO AirFrm:Go:%airFObj
+#IF(%airFPlay)
+    OF %airFBtn
+      IF %airFObj:Playing
+        DO AirFrm:Stop:%airFObj
+      ELSE
+        DO AirFrm:Play:%airFObj
+      END
+#ENDIF
+    END
+  END
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%airFDisable=0 AND %airFPlay=1)
+  IF %airFObj:Playing
+    DO AirFrm:Stop:%airFObj                                   ! give the timer back
+  END
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%airFDisable=0)
+AirFrm:Go:%airFObj ROUTINE
+!  Move the canvas to the frame number now in its object, then bring the bar
+!  into line with it.
+  DO Air:Frame:%airFCanvas
+  DO AirFrm:Sync:%airFObj
+
+AirFrm:Step:%airFObj ROUTINE
+!  One frame on - what Play calls on every tick, and what Next does.
+  IF %airFCanvas.Frames() < 2 THEN EXIT.
+  %airFCanvas:Frame += 1
+  IF %airFCanvas:Frame > %airFCanvas.Frames()
+#IF(%airFWrap)
+    %airFCanvas:Frame = 1
+#ELSE
+    %airFCanvas:Frame = %airFCanvas.Frames()
+#IF(%airFPlay)
+    DO AirFrm:Stop:%airFObj                                   ! ran off the end
+#ENDIF
+    EXIT
+#ENDIF
+  END
+  DO AirFrm:Go:%airFObj
+#IF(%airFPlay)
+
+AirFrm:Play:%airFObj ROUTINE
+  IF %airFCanvas.Frames() < 2 THEN EXIT.
+  %airFObj:WasTimer = 0{PROP:Timer}                           ! borrow the window timer
+  %airFObj:Playing  = 1
+  0{PROP:Timer} = %airFSpeed
+  %airFBtn{PROP:Text} = 'Stop'
+
+AirFrm:Stop:%airFObj ROUTINE
+  %airFObj:Playing = 0
+  0{PROP:Timer} = %airFObj:WasTimer                           ! and put it back
+  %airFBtn{PROP:Text} = 'Play'
+#ENDIF
+
+AirFrm:Sync:%airFObj ROUTINE
+!  Make the bar tell the truth: the counter, the buttons that cannot go
+!  anywhere, and the whole bar when there is only one frame to look at.
+  DATA
+n LONG,AUTO
+f LONG,AUTO
+  CODE
+  n = 0
+  f = 0
+  IF %airFCanvas.Ok()
+    n = %airFCanvas.Frames()
+    f = %airFCanvas:Frame
+    IF f < 1 THEN f = 1.
+  END
+#CASE(%airFText)
+#OF('N/T')
+  %airFStr{PROP:Text} = CHOOSE(n < 1, '', CLIP(LEFT(f)) & ' / ' & CLIP(LEFT(n)))
+#OF('FRAME')
+  %airFStr{PROP:Text} = CHOOSE(n < 1, '', 'Frame ' & CLIP(LEFT(f)) & ' of ' & CLIP(LEFT(n)))
+#OF('PAGE')
+  %airFStr{PROP:Text} = CHOOSE(n < 1, '', 'Page ' & CLIP(LEFT(f)) & ' of ' & CLIP(LEFT(n)))
+#OF('NONE')
+  %airFStr{PROP:Text} = ''
+#ENDCASE
+#IF(%airFHide)
+  IF n < 2                                                    ! nothing to step through
+    HIDE(%airFFirst)
+    HIDE(%airFPrev)
+    HIDE(%airFNext)
+    HIDE(%airFLast)
+    HIDE(%airFStr)
+#IF(%airFPlay)
+    HIDE(%airFBtn)
+#ENDIF
+    EXIT
+  END
+  UNHIDE(%airFFirst)
+  UNHIDE(%airFPrev)
+  UNHIDE(%airFNext)
+  UNHIDE(%airFLast)
+  UNHIDE(%airFStr)
+#IF(%airFPlay)
+  UNHIDE(%airFBtn)
+#ENDIF
+#ENDIF
+#IF(%airFWrap = 0)
+  %airFFirst{PROP:Disable} = CHOOSE(f <= 1, 1, 0)
+  %airFPrev{PROP:Disable}  = CHOOSE(f <= 1, 1, 0)
+  %airFNext{PROP:Disable}  = CHOOSE(f >= n, 1, 0)
+  %airFLast{PROP:Disable}  = CHOOSE(f >= n, 1, 0)
+#ENDIF
 #ENDAT
 #!#############################################################################
 #!  PROCEDURE EXTENSION - allImageRead
@@ -1046,9 +1277,11 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #!-----------------------------------------------------------------------------
 #GROUP(%airFrameStmt,%pObj,%pFrame)
 #IF(%pFrame > 1)
+!  LoadFrame counts from ZERO - imgcore's img_select_frame rejects anything
+!  from Frames() up - while everything a person sees counts from one.
   IF %pObj.Frames() >= %pFrame
     %pObj:Frame = %pFrame
-    %pObj.LoadFrame(%pObj:Frame)
+    %pObj.LoadFrame(%pObj:Frame - 1)
   END
 #ENDIF
 #!-----------------------------------------------------------------------------
@@ -1466,16 +1699,11 @@ Air:Size:%airXObj ROUTINE
   EXIT                                                        ! nothing to resize on the processor path
 #ENDIF
 
-Air:Fresh:%airXObj ROUTINE
-!  A NEW picture has just landed in the object.
-#INSERT(%airFrameStmt,%airXObj,%airXFrame)
-#INSERT(%airTouchUp,%airXObj,%airXRot,%airXMirror,%airXFlip,%airXGrey,%airXMax)
+Air:Upload:%airXObj ROUTINE
+!  Hand the graphics card the pixels the object is holding NOW. Called when a
+!  new picture arrives and again whenever the frame changes - a zoom does not
+!  need it, which is the whole point of the GPU path.
 #IF(%airXEngine = 'AUTO')
-!  Give the graphics card the pixels - ONCE, here, not on every zoom. It goes
-!  over as a 32-bit BMP because ImageClass has already done the decoding, so
-!  all twelve formats arrive the same way. A copy is flattened onto the
-!  background first, so a picture with transparency does not show rubbish
-!  where its alpha used to be; the original keeps its alpha for Save a copy.
   IF %airXObj:Gpu
     IF ~%airXObj.Ok()
       d2c_Clear(%airXObj:Gpu)
@@ -1488,7 +1716,27 @@ Air:Fresh:%airXObj ROUTINE
       END
     END
   END
+#ELSE
+  EXIT                                                        ! nothing to upload on the processor path
 #ENDIF
+
+Air:Frame:%airXObj ROUTINE
+!  Show whatever frame number is in <object>:Frame - a page of a TIFF, a frame
+!  of an animated GIF, one size out of an .ico. The zoom and the pan are left
+!  alone, so stepping through pages does not throw the view away.
+  IF ~%airXObj.Ok() THEN EXIT.
+  IF %airXObj:Frame < 1 THEN %airXObj:Frame = 1.
+  IF %airXObj:Frame > %airXObj.Frames() THEN %airXObj:Frame = %airXObj.Frames().
+  IF ~%airXObj.LoadFrame(%airXObj:Frame - 1) THEN EXIT.       ! the engine counts from zero
+#INSERT(%airTouchUp,%airXObj,%airXRot,%airXMirror,%airXFlip,%airXGrey,%airXMax)
+  DO Air:Upload:%airXObj
+  DO Air:Show:%airXObj
+
+Air:Fresh:%airXObj ROUTINE
+!  A NEW picture has just landed in the object.
+#INSERT(%airFrameStmt,%airXObj,%airXFrame)
+#INSERT(%airTouchUp,%airXObj,%airXRot,%airXMirror,%airXFlip,%airXGrey,%airXMax)
+  DO Air:Upload:%airXObj
   %airXObj:Zoom = 0                                           ! back to fitting the frame
   %airXObj:PanX = 0
   %airXObj:PanY = 0
@@ -1887,15 +2135,13 @@ Air:Menu:%airXObj ROUTINE
     IF %airXObj.Frames() > 1
       %airXObj:Frame += 1
       IF %airXObj:Frame > %airXObj.Frames() THEN %airXObj:Frame = 1.
-      %airXObj.LoadFrame(%airXObj:Frame)
-      DO Air:Show:%airXObj
+      DO Air:Frame:%airXObj
     END
   OF %airItemPrev
     IF %airXObj.Frames() > 1
       %airXObj:Frame -= 1
       IF %airXObj:Frame < 1 THEN %airXObj:Frame = %airXObj.Frames().
-      %airXObj.LoadFrame(%airXObj:Frame)
-      DO Air:Show:%airXObj
+      DO Air:Frame:%airXObj
     END
 #ENDIF
 #IF(%airItemSave)
