@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Seven small programs. They are not demos of what the template *looks* like; they are how the
+Eight small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,
@@ -109,6 +109,22 @@ prompts, regenerates, rebuilds and reports "CLEAN" or "THREW", which is how to b
 thing quickly). Give it a real dictionary if you want it to run; as it stands it proves that the
 generated source compiles and links, which is what it was built for.
 
+## `immtest` — why dragging did nothing
+
+Two REGIONs made at run time over two IMAGEs, one with `PROP:IMM` set and one without, each counting
+the mouse events it receives. A driver posts real `WM_LBUTTONDOWN` / `WM_MOUSEMOVE` / `WM_LBUTTONUP`
+at both and reads the counts back out of the title:
+
+```
+IMM[d1m12u1]   PLAIN[d1m0u0]
+```
+
+The plain region gets **MouseDown and nothing else** — which is exactly what a broken drag looks like:
+it begins and never moves. The Language Reference is explicit and I had not read it closely enough:
+EVENT:MouseMove and EVENT:MouseUp arrive *"on a REGION with the IMM attribute"*, and MouseDown arrives
+regardless because it is a synonym for EVENT:Accepted. A region built with `CREATE(0,CREATE:Region,...)`
+has no attribute list to carry IMM, so the canvas sets it as a property.
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**
@@ -148,6 +164,7 @@ own procedure leaves everything else working.
 | the wheel arrives, `POST` reaches ACCEPT, chaining survives | `wheeltest` + `drivewheel.ps1`, `hooktest` |
 | `ADDRESS()` differs between program and MEMBER modules | `addrtest` |
 | Direct2D draws the picture, right colours, right way up | `d2dtest`, screenshot in `docs/` |
+| a dragged pan gets MouseMove/MouseUp | `immtest`, IMM against plain, driven by posted mouse messages |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
 | zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 

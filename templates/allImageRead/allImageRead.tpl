@@ -1389,6 +1389,12 @@ Air:Setup:%airXObj ROUTINE
 !  so the picture underneath shows through untouched.
   IF ~%airXObj:Rgn
     %airXObj:Rgn = CREATE(0,CREATE:Region,%airXFeq{PROP:Parent})
+!  IMM, or the mouse never speaks. EVENT:MouseMove and EVENT:MouseUp are
+!  documented as arriving "on a REGION with the IMM attribute" - without it a
+!  region still gets MouseDown (it is a synonym for EVENT:Accepted) and then
+!  nothing at all, so a drag begins and never moves. A region built at run time
+!  has no attribute list to carry IMM, so it is set as a property here.
+    %airXObj:Rgn{PROP:IMM} = 1
   END
   DO Air:Place:%airXObj
   UNHIDE(%airXObj:Rgn)
