@@ -8,6 +8,7 @@
    INCLUDE('KEYCODES.CLW'),ONCE
    INCLUDE('ABFUZZY.INC'),ONCE
 INCLUDE('ImageClass.INC'),ONCE
+  PRAGMA('compile(d2dcanvas.c)')                              ! the GPU canvas, built by Clarion's own C compiler
 AirImg:Secs          EQUATE(20)                     ! how long a download may take
 AirImg:WheelUp       EQUATE(EVENT:User + 216)                 ! the wheel, carried in from the
 AirImg:WheelDown     EQUATE(EVENT:User + 217)                 !   window procedure
@@ -45,6 +46,20 @@ DctKill     PROCEDURE                                      ! Kills the dictionar
      AirImg_WheelProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
      AirImg_HookWheel(LONG),BYTE,PROC
      AirImg_DropWheel(LONG),LONG,PROC
+         MODULE('d2dcanvas.c')
+     d2c_Available(),LONG,NAME('_d2c_Available')
+     d2c_Attach(LONG hwnd),LONG,NAME('_d2c_Attach')
+     d2c_Detach(LONG h),NAME('_d2c_Detach')
+     d2c_LoadBmp(LONG h,*CSTRING path),LONG,RAW,PROC,NAME('_d2c_LoadBmp')
+     d2c_SetView(LONG h,REAL zoom,REAL panX,REAL panY,ULONG bg,LONG smooth),NAME('_d2c_SetView')
+     d2c_Resize(LONG h),LONG,PROC,NAME('_d2c_Resize')
+     d2c_ImageW(LONG h),LONG,NAME('_d2c_ImageW')
+     d2c_ImageH(LONG h),LONG,NAME('_d2c_ImageH')
+     d2c_HasImage(LONG h),LONG,NAME('_d2c_HasImage')
+     d2c_ViewW(LONG h),LONG,NAME('_d2c_ViewW')
+     d2c_ViewH(LONG h),LONG,NAME('_d2c_ViewH')
+     d2c_Clear(LONG h),NAME('_d2c_Clear')
+         END
    END
 
 SilentRunning        BYTE(0)                               ! Set true when application is running in 'silent mode'

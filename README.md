@@ -55,7 +55,8 @@ templates/                      # ready-to-register Clarion templates
     myQR.tpl
   myImage/                     #   12 image formats in, 9 out, every colour format (see below)
   allImageRead/                 #   any picture, from anywhere, on a window or a report (see below)
-    allImageRead.tpl            #     one .tpl, no new class - it rides on myImage's ImageClass
+    allImageRead.tpl            #     global + drag-on canvas + window/report extensions + code template
+    d2dcanvas.c                 #     the GPU canvas: Direct2D, bound at run time, no import library
   myGauge/                      #   analog gauge/dial on windows and reports (see below)
     GaugeClass.inc              #     the gauge class (config + method prototypes)
     GaugeClass.clw              #     the implementation (geometry + native drawing)
@@ -424,10 +425,22 @@ up arrow", `IMM` only) and never reach a window or an `IMAGE`, so the canvas tak
 `smartzoom.clw` does. The window's original procedure is parked **on the window** with `SetProp`, so one
 callback serves every window in the program with no bookkeeping; the first canvas on a window hooks it, the
 last one puts it back, and each canvas zooms only when the pointer is over *it*.
+**Zooming runs on the graphics card.** Resampling a whole picture for every wheel notch is what makes a
+CPU viewer crawl — at 400% on a 12-megapixel photo that is 768 MB of work to fill a 600x400 frame, plus a
+PNG round trip through disk. `d2dcanvas.c` hands the picture to **Direct2D** once; every zoom and pan after
+that is a 3x2 matrix. Measured on a 2400x1800 photograph: **8.4 ms a frame against 675 ms a step, about
+80x** — and the GPU figure does not move when the picture gets bigger. It works because a REGION created at
+run time owns a **real HWND**, so Direct2D renders into the canvas control itself and never fights Clarion
+for the window's `WM_PAINT`. `d2d1.dll` is bound with `LoadLibrary`, so there is no import library to link
+and nothing to redistribute; a canvas that cannot get Direct2D falls back to the processor on its own, and
+each canvas can be pinned to either engine on its Canvas tab. Report bands always use the processor — a
+printer is not a window. Requires `d2dcanvas.c` on the redirection path beside the myImage files.
 Verified end to end: registers, generates for all four placements, the generated source **compiles and
-links** (a window app and a report, 32-bit MSBuild), and the wheel path is **proved at run time** by a
-harness that sends real `WM_MOUSEWHEEL` messages and reads the counters back out of the window title —
-see [`examples/allImageRead/`](examples/allImageRead/).
+links** (a window app and a report, 32-bit MSBuild), and three things are **proved at run time** rather
+than argued — the wheel (a harness sends real `WM_MOUSEWHEEL` messages and reads the counters back out of
+the window title), the GPU canvas (it draws the test card into a run-time REGION, screenshot in
+[`docs/allImageRead-d2dcanvas.png`](docs/allImageRead-d2dcanvas.png)), and the 80x figure above. See
+[`examples/allImageRead/`](examples/allImageRead/).
 
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,

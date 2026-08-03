@@ -30,10 +30,15 @@ Main PROCEDURE
 
 Main PROCEDURE
 Win     WINDOW('D2DTest'),AT(,,320,240),SYSTEM,GRAY,TIMER(100)
-          REGION,AT(4,4,312,232),USE(?Canvas)
+          IMAGE,AT(4,4,312,232),USE(?Pic)
         END
 Pic     ImageClass
 Work    ImageClass
+rgn     SIGNED
+x       SIGNED
+y       SIGNED
+w       SIGNED
+h       SIGNED
 cv      LONG
 gpu     LONG
 cpu     LONG
@@ -62,7 +67,13 @@ note    CSTRING(200)
         Win{PROP:Text} = 'D2DTest NO-BMP'
       ELSE
 ! ---- attach to the REGION's own window and upload ----------------------
-        cv = d2c_Attach(?Canvas{PROP:Handle})
+!  the canvas the template builds: a REGION made at run time over the IMAGE
+        rgn = CREATE(0,CREATE:Region,?Pic{PROP:Parent})
+        GETPOSITION(?Pic,x,y,w,h)
+        SETPOSITION(rgn,x,y,w,h)
+        UNHIDE(rgn)
+        HIDE(?Pic)
+        cv = d2c_Attach(rgn{PROP:Handle})
         IF ~cv
           Win{PROP:Text} = 'D2DTest NO-ATTACH'
         ELSIF ~d2c_LoadBmp(cv, bmp)

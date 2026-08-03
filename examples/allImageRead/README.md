@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Three small programs. They are not demos of what the template *looks* like; they are how the
+Seven small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,
@@ -55,6 +55,9 @@ times the two ways of zooming. Both numbers go in the window title.
 ```
 MSBuild d2dtest.cwproj /p:ClarionBinPath=C:\clarion12\bin /p:Configuration=Debug
 ```
+
+It attaches to a **REGION created at run time** — the same construct the canvas builds over its IMAGE
+control — so what it proves is what the template actually does.
 
 Measured on this machine:
 
@@ -131,3 +134,22 @@ title now: AirWheelTest U=1 D=1 CU=2 CD=1
 That is the proof behind three claims the template makes: a subclassed window procedure sees the
 wheel, `POST` from inside that callback reaches the `ACCEPT` loop, and chaining on to the window's
 own procedure leaves everything else working.
+
+---
+
+## What is proved, and what is not
+
+| claim | how |
+|---|---|
+| the template registers and generates for all four placements | `ClarionCL -tr` / `-ag` |
+| the generated source compiles and links | `airwin` (window) and `rpttest` (report band), 32-bit MSBuild |
+| a Clarion control owns a real HWND | `hwndtest`, including a run-time REGION |
+| `PROP:WndProc` is a genuine subclass | `proctest`, against `GetWindowLongA` |
+| the wheel arrives, `POST` reaches ACCEPT, chaining survives | `wheeltest` + `drivewheel.ps1`, `hooktest` |
+| `ADDRESS()` differs between program and MEMBER modules | `addrtest` |
+| Direct2D draws the picture, right colours, right way up | `d2dtest`, screenshot in `docs/` |
+| the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
+
+**Not proved:** a *generated* application running the GPU canvas end to end. `airwin` compiles but cannot
+run (no dictionary), so the GPU path has been exercised through `d2dtest`, which calls the same engine in
+the same order the generated code does. The first real run is a live application.

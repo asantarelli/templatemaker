@@ -13,6 +13,7 @@ INSTANCE 1
 [PROMPTS]
 %airGDisable LONG  (0)
 %airGUrlSecs LONG  (20)
+%airGGpu LONG  (1)
 [MODULE]
 NAME 'AIRWIN001.CLW'
 [COMMON]
@@ -30,6 +31,7 @@ INSTANCE 2
 [PROMPTS]
 %airWDisable LONG  (0)
 %airWObject DEFAULT  ('PicA')
+%airWEngine DEFAULT  ('AUTO')
 %airWImage DEFAULT  ('?Pic1')
 %airWKind DEFAULT  ('B64')
 %airWVar DEFAULT  ('Loc:B64')
@@ -61,6 +63,7 @@ INSTANCE 1
 [PROMPTS]
 %airCDisable LONG  (0)
 %airCObject DEFAULT  ('PicB')
+%airCEngine DEFAULT  ('AUTO')
 %airCKind DEFAULT  ('URL')
 %airCVar DEFAULT  ('Loc:Url')
 %airCSecs LONG  (0)

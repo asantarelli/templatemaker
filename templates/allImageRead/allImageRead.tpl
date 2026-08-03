@@ -80,6 +80,22 @@
       #PROMPT('Download &timeout (seconds):',SPIN(@n3,1,300,1)),%airGUrlSecs,DEFAULT(20)
     #ENDBOXED
   #ENDTAB
+  #TAB('&Zooming')
+    #BOXED('The GPU canvas')
+      #DISPLAY('Zooming on the processor means resampling the whole picture for')
+      #DISPLAY('every wheel notch. Direct2D hands the picture to the graphics')
+      #DISPLAY('card once; after that a zoom is a matrix, and costs the same')
+      #DISPLAY('whether the picture is 300 pixels wide or 30,000. Measured on a')
+      #DISPLAY('2400x1800 photograph: 8 ms a frame against 675 ms a step.')
+      #DISPLAY('')
+      #DISPLAY('Direct2D ships with Windows 7 and later and is bound at run')
+      #DISPLAY('time, so nothing is linked and nothing is shipped. A canvas')
+      #DISPLAY('that cannot get it falls back to the processor on its own.')
+      #DISPLAY('d2dcanvas.c must be on the redirection path beside the myImage')
+      #DISPLAY('files. Each canvas chooses its own engine on its Canvas tab;')
+      #DISPLAY('set them all to "the processor" if you would rather not use it.')
+    #ENDBOXED
+  #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
 #!  The timeout lives here as an EQUATE rather than being read out of these
@@ -88,6 +104,7 @@
 #!  earns an "Unknown Variable" from the generator.
 #AT(%AfterGlobalIncludes),WHERE(%airGDisable=0)
 INCLUDE('ImageClass.INC'),ONCE
+  PRAGMA('compile(d2dcanvas.c)')                              ! the GPU canvas, built by Clarion's own C compiler
 AirImg:Secs          EQUATE(%airGUrlSecs)                     ! how long a download may take
 AirImg:WheelUp       EQUATE(EVENT:User + 216)                 ! the wheel, carried in from the
 AirImg:WheelDown     EQUATE(EVENT:User + 217)                 !   window procedure
@@ -132,6 +149,22 @@ AirImg_Filter(),STRING
 AirImg_WheelProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
 AirImg_HookWheel(LONG),BYTE,PROC
 AirImg_DropWheel(LONG),LONG,PROC
+#!  the GPU canvas. cdecl exports from C, so the Clarion name carries a
+#!  leading underscore; every canvas is a small handle, 0 meaning "no GPU".
+    MODULE('d2dcanvas.c')
+d2c_Available(),LONG,NAME('_d2c_Available')
+d2c_Attach(LONG hwnd),LONG,NAME('_d2c_Attach')
+d2c_Detach(LONG h),NAME('_d2c_Detach')
+d2c_LoadBmp(LONG h,*CSTRING path),LONG,RAW,PROC,NAME('_d2c_LoadBmp')
+d2c_SetView(LONG h,REAL zoom,REAL panX,REAL panY,ULONG bg,LONG smooth),NAME('_d2c_SetView')
+d2c_Resize(LONG h),LONG,PROC,NAME('_d2c_Resize')
+d2c_ImageW(LONG h),LONG,NAME('_d2c_ImageW')
+d2c_ImageH(LONG h),LONG,NAME('_d2c_ImageH')
+d2c_HasImage(LONG h),LONG,NAME('_d2c_HasImage')
+d2c_ViewW(LONG h),LONG,NAME('_d2c_ViewW')
+d2c_ViewH(LONG h),LONG,NAME('_d2c_ViewH')
+d2c_Clear(LONG h),NAME('_d2c_Clear')
+    END
 #ENDAT
 #!
 #AT(%ProgramProcedures),WHERE(%airGDisable=0)
@@ -494,6 +527,7 @@ AirImg_Filter PROCEDURE()
   #ENDTAB
   #TAB('&On a window')
     #BOXED('Ignored when this canvas is in a report band')
+      #PROMPT('&Engine:',DROP('Graphics card if it is there, else the processor[AUTO]|The processor, always[CPU]')),%airCEngine,DEFAULT('AUTO')
       #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airCFit,DEFAULT('Img:Proportional')
       #PROMPT('&Background:',COLOR),%airCBack,DEFAULT(00FFFFFFH)
       #PROMPT('&Load the picture when the window opens',CHECK),%airCAuto,DEFAULT(1),AT(10)
@@ -592,6 +626,7 @@ INCLUDE('ImageClass.INC'),ONCE
     DO Air:Setup:%airCObject
   OF EVENT:Sized
     DO Air:Place:%airCObject
+    DO Air:Size:%airCObject
     POST(Air:Redraw:%airCObject)
   OF Air:Redraw:%airCObject
     DO Air:Show:%airCObject
@@ -674,6 +709,7 @@ fname CSTRING(261)
   #ENDTAB
   #TAB('&Canvas')
     #BOXED('How it sits in the frame')
+      #PROMPT('&Engine:',DROP('Graphics card if it is there, else the processor[AUTO]|The processor, always[CPU]')),%airWEngine,DEFAULT('AUTO')
       #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airWFit,DEFAULT('Img:Proportional')
       #PROMPT('&Background:',COLOR),%airWBack,DEFAULT(00FFFFFFH)
       #PROMPT('&Load the picture when the window opens',CHECK),%airWAuto,DEFAULT(1),AT(10)
@@ -724,6 +760,7 @@ fname CSTRING(261)
     DO Air:Setup:%airWObject
   OF EVENT:Sized
     DO Air:Place:%airWObject
+    DO Air:Size:%airWObject
     POST(Air:Redraw:%airWObject)
   OF Air:Redraw:%airWObject
     DO Air:Show:%airWObject
@@ -898,6 +935,8 @@ fname CSTRING(261)
 %pObj:PanX           LONG                                    ! the viewport, in picture pixels
 %pObj:PanY           LONG
 %pObj:Rgn            SIGNED                                  ! the region that takes the mouse
+%pObj:Gpu            LONG                                    ! the GPU canvas, 0 = drawing on the processor
+%pObj:Bmp            CSTRING(261)                            ! what was handed to the graphics card
 %pObj:Hooked         BYTE                                    ! this canvas took the window procedure
 %pObj:Drag           BYTE
 %pObj:DragX          SIGNED
@@ -1042,6 +1081,10 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
     AirImg_DropWheel(%Window{PROP:Handle})
     %pObj:Hooked = 0
   END
+  IF %pObj:Gpu
+    d2c_Detach(%pObj:Gpu)                                     ! gives the control its own window back
+    %pObj:Gpu = 0
+  END
 #!-----------------------------------------------------------------------------
 #!  %airFieldEvents - the mouse, for whichever control the canvas paints into.
 #!  The events arrive from the REGION laid over the image; the image's own feq
@@ -1059,8 +1102,13 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
       END
     OF EVENT:MouseMove
       IF %pObj:Drag
-        %pObj:PanX += %pObj:DragX - MOUSEX()
-        %pObj:PanY += %pObj:DragY - MOUSEY()
+        IF %pObj:Gpu AND %pObj:Zoom                           ! the GPU pans in IMAGE pixels
+          %pObj:PanX += (%pObj:DragX - MOUSEX()) * 100 / %pObj:Zoom
+          %pObj:PanY += (%pObj:DragY - MOUSEY()) * 100 / %pObj:Zoom
+        ELSE
+          %pObj:PanX += %pObj:DragX - MOUSEX()
+          %pObj:PanY += %pObj:DragY - MOUSEY()
+        END
         %pObj:DragX = MOUSEX()
         %pObj:DragY = MOUSEY()
         DO Air:Show:%pObj
@@ -1110,6 +1158,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #SET(%airXBlob,%airCBlob)
 #SET(%airXKey,%airCKey)
 #SET(%airXSecs,%airCSecs)
+#SET(%airXEngine,%airCEngine)
 #SET(%airXFit,%airCFit)
 #SET(%airXBack,%airCBack)
 #SET(%airXAuto,%airCAuto)
@@ -1144,6 +1193,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #SET(%airXBlob,%airWBlob)
 #SET(%airXKey,%airWKey)
 #SET(%airXSecs,%airWSecs)
+#SET(%airXEngine,%airWEngine)
 #SET(%airXFit,%airWFit)
 #SET(%airXBack,%airWBack)
 #SET(%airXAuto,%airWAuto)
@@ -1178,6 +1228,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
   #DECLARE(%airXBlob)
   #DECLARE(%airXKey)
   #DECLARE(%airXSecs)
+  #DECLARE(%airXEngine)
   #DECLARE(%airXFit)
   #DECLARE(%airXBack)
   #DECLARE(%airXAuto)
@@ -1284,6 +1335,18 @@ Air:Setup:%airXObj ROUTINE
   END
   DO Air:Place:%airXObj
   UNHIDE(%airXObj:Rgn)
+#IF(%airXEngine = 'AUTO')
+!  Hand the canvas to the graphics card. The REGION laid over the image owns a
+!  real window, so Direct2D renders into THAT and Clarion keeps the rest of the
+!  window to itself. If there is no Direct2D, or it will not attach, the canvas
+!  quietly goes on drawing with the processor.
+  IF ~%airXObj:Gpu AND d2c_Available()
+    %airXObj:Gpu = d2c_Attach(%airXObj:Rgn{PROP:Handle})
+  END
+  IF %airXObj:Gpu
+    HIDE(%airXFeq)                                            ! the IMAGE control is not used now
+  END
+#ENDIF
 #IF(%airXZoom)
 !  Take the mouse wheel off the window procedure. The first canvas on a window
 !  does it; the rest ride along, because the event reaches all of them.
@@ -1319,10 +1382,40 @@ h  SIGNED,AUTO
   GETPOSITION(%airXFeq,x,y,w,h)
   SETPOSITION(%airXObj:Rgn,x,y,w,h)
 
+Air:Size:%airXObj ROUTINE
+!  The canvas control moved or changed size, so the render target has to be
+!  told; Direct2D will not notice on its own.
+#IF(%airXEngine = 'AUTO')
+  IF %airXObj:Gpu
+    d2c_Resize(%airXObj:Gpu)
+  END
+#ELSE
+  EXIT                                                        ! nothing to resize on the processor path
+#ENDIF
+
 Air:Fresh:%airXObj ROUTINE
 !  A NEW picture has just landed in the object.
 #INSERT(%airFrameStmt,%airXObj,%airXFrame)
 #INSERT(%airTouchUp,%airXObj,%airXRot,%airXMirror,%airXFlip,%airXGrey,%airXMax)
+#IF(%airXEngine = 'AUTO')
+!  Give the graphics card the pixels - ONCE, here, not on every zoom. It goes
+!  over as a 32-bit BMP because ImageClass has already done the decoding, so
+!  all twelve formats arrive the same way. A copy is flattened onto the
+!  background first, so a picture with transparency does not show rubbish
+!  where its alpha used to be; the original keeps its alpha for Save a copy.
+  IF %airXObj:Gpu
+    IF ~%airXObj.Ok()
+      d2c_Clear(%airXObj:Gpu)
+    ELSIF %airXObj.CloneInto(%airXObj:Cv)
+      %airXObj:Cv.Flatten(%airXObj.ArgbOf(%airXBack))
+      %airXObj:Cv.BmpBits = 32
+      %airXObj:Bmp = AirImg_Temp('%airXKey','.bmp')
+      IF %airXObj:Cv.SaveFile(%airXObj:Bmp, Img:Bmp)
+        d2c_LoadBmp(%airXObj:Gpu, %airXObj:Bmp)
+      END
+    END
+  END
+#ENDIF
   %airXObj:Zoom = 0                                           ! back to fitting the frame
   %airXObj:PanX = 0
   %airXObj:PanY = 0
@@ -1347,6 +1440,16 @@ cw     LONG,AUTO
 ch     LONG,AUTO
 savePx LONG,AUTO
   CODE
+#IF(%airXEngine = 'AUTO')
+!  On the graphics card a repaint is a zoom factor and an offset. Nothing is
+!  resampled, nothing is written to disk, and the cost does not depend on how
+!  big the picture is. Zoom 0 still means "fit the frame"; the factor for that
+!  is worked out from the canvas and the picture.
+  IF %airXObj:Gpu
+    DO Air:Gpu:%airXObj
+    EXIT
+  END
+#ENDIF
   IF ~%airXObj.Ok()
     %airXFeq{PROP:Text} = ''
     DISPLAY(%airXFeq)
@@ -1375,6 +1478,47 @@ savePx LONG,AUTO
   %airXObj:Cv.Crop(%airXObj:PanX,%airXObj:PanY,cw,ch)
   %airXObj:Cv.Fit(w,h,Img:Centered,%airXObj.ArgbOf(%airXBack))  ! pad out to the frame
   %airXObj:Cv.Draw(%Window,%airXFeq,-1)                       ! -1 = blit it as it is
+#IF(%airXEngine = 'AUTO')
+
+Air:Gpu:%airXObj ROUTINE
+!  Push the current view at the graphics card. Zoom is a factor here (1 = one
+!  image pixel per screen pixel) and the pan is in IMAGE pixels, which is what
+!  Direct2D wants; the canvas keeps its zoom as a percentage, as the processor
+!  path does, so the two stay interchangeable.
+  DATA
+z    REAL,AUTO
+fit  REAL,AUTO
+vw   LONG,AUTO
+vh   LONG,AUTO
+iw   LONG,AUTO
+ih   LONG,AUTO
+  CODE
+  vw = d2c_ViewW(%airXObj:Gpu)
+  vh = d2c_ViewH(%airXObj:Gpu)
+  iw = d2c_ImageW(%airXObj:Gpu)
+  ih = d2c_ImageH(%airXObj:Gpu)
+  IF iw < 1 OR ih < 1 OR vw < 1 OR vh < 1
+    d2c_SetView(%airXObj:Gpu, 1.0, 0, 0, %airXObj.ArgbOf(%airXBack), 1)
+    EXIT
+  END
+  fit = vw / iw
+  IF (vh / ih) < fit THEN fit = vh / ih.
+  IF ~%airXObj:Zoom
+    z = fit                                                   ! 0 means fit the frame
+    %airXObj:PanX = 0
+    %airXObj:PanY = 0
+  ELSE
+    z = %airXObj:Zoom / 100
+  END
+  IF z < 0.001 THEN z = 0.001.
+!  keep the view on the picture
+  IF %airXObj:PanX > iw - (vw / z) THEN %airXObj:PanX = iw - (vw / z).
+  IF %airXObj:PanY > ih - (vh / z) THEN %airXObj:PanY = ih - (vh / z).
+  IF %airXObj:PanX < 0 THEN %airXObj:PanX = 0.
+  IF %airXObj:PanY < 0 THEN %airXObj:PanY = 0.
+  d2c_SetView(%airXObj:Gpu, z, %airXObj:PanX, %airXObj:PanY,                |
+              %airXObj.ArgbOf(%airXBack), 1)
+#ENDIF
 #IF(%airXZoom)
 
 Air:In:%airXObj ROUTINE
@@ -1396,6 +1540,12 @@ rh     SIGNED,AUTO
   GETPOSITION(%airXFeq,rx,ry,rw,rh)
   IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
   IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+#IF(%airXEngine = 'AUTO')
+  IF %airXObj:Gpu
+    DO Air:GpuIn:%airXObj
+    EXIT
+  END
+#ENDIF
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1
   w = %airXFeq{PROP:Width}
@@ -1426,6 +1576,12 @@ rh     SIGNED,AUTO
   GETPOSITION(%airXFeq,rx,ry,rw,rh)
   IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
   IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+#IF(%airXEngine = 'AUTO')
+  IF %airXObj:Gpu
+    DO Air:GpuOut:%airXObj
+    EXIT
+  END
+#ENDIF
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1
   w = %airXFeq{PROP:Width}
@@ -1447,6 +1603,80 @@ Air:Fit:%airXObj ROUTINE
   %airXObj:PanX = 0
   %airXObj:PanY = 0
   DO Air:Show:%airXObj
+#IF(%airXEngine = 'AUTO')
+
+Air:GpuIn:%airXObj ROUTINE
+!  A step in, about the middle of the view. The pan is in image pixels, so the
+!  point that was in the middle before is still in the middle after.
+  DATA
+was  REAL,AUTO
+now  REAL,AUTO
+vw   LONG,AUTO
+vh   LONG,AUTO
+  CODE
+  vw = d2c_ViewW(%airXObj:Gpu)
+  vh = d2c_ViewH(%airXObj:Gpu)
+  DO Air:GpuWas:%airXObj
+  was = %airXObj:Zoom / 100
+  now = was * (1 + %airXStep / 100)
+  IF now > 64 THEN now = 64.
+  %airXObj:PanX += (vw / was - vw / now) / 2
+  %airXObj:PanY += (vh / was - vh / now) / 2
+  %airXObj:Zoom = now * 100
+  DO Air:Gpu:%airXObj
+
+Air:GpuOut:%airXObj ROUTINE
+  DATA
+was  REAL,AUTO
+now  REAL,AUTO
+fit  REAL,AUTO
+vw   LONG,AUTO
+vh   LONG,AUTO
+iw   LONG,AUTO
+ih   LONG,AUTO
+  CODE
+  vw = d2c_ViewW(%airXObj:Gpu)
+  vh = d2c_ViewH(%airXObj:Gpu)
+  iw = d2c_ImageW(%airXObj:Gpu)
+  ih = d2c_ImageH(%airXObj:Gpu)
+  IF iw < 1 OR ih < 1 THEN EXIT.
+  fit = vw / iw
+  IF (vh / ih) < fit THEN fit = vh / ih.
+  DO Air:GpuWas:%airXObj
+  was = %airXObj:Zoom / 100
+  now = was / (1 + %airXStep / 100)
+  IF now <= fit                                               ! all the way out = fit again
+    DO Air:Fit:%airXObj
+    EXIT
+  END
+  %airXObj:PanX += (vw / was - vw / now) / 2
+  %airXObj:PanY += (vh / was - vh / now) / 2
+  %airXObj:Zoom = now * 100
+  DO Air:Gpu:%airXObj
+
+Air:GpuWas:%airXObj ROUTINE
+!  Zoom 0 means "fitted"; turn that into the percentage it is really showing
+!  at, so a step can be taken from it.
+  DATA
+fit  REAL,AUTO
+vw   LONG,AUTO
+vh   LONG,AUTO
+iw   LONG,AUTO
+ih   LONG,AUTO
+  CODE
+  IF %airXObj:Zoom THEN EXIT.
+  vw = d2c_ViewW(%airXObj:Gpu)
+  vh = d2c_ViewH(%airXObj:Gpu)
+  iw = d2c_ImageW(%airXObj:Gpu)
+  ih = d2c_ImageH(%airXObj:Gpu)
+  IF iw < 1 OR ih < 1
+    %airXObj:Zoom = 100
+    EXIT
+  END
+  fit = vw / iw
+  IF (vh / ih) < fit THEN fit = vh / ih.
+  %airXObj:Zoom = fit * 100
+#ENDIF
 #ENDIF
 #IF(%airXOpen)
 
