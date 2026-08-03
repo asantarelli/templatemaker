@@ -125,6 +125,24 @@ EVENT:MouseMove and EVENT:MouseUp arrive *"on a REGION with the IMM attribute"*,
 regardless because it is a synonym for EVENT:Accepted. A region built with `CREATE(0,CREATE:Region,...)`
 has no attribute list to carry IMM, so the canvas sets it as a property.
 
+## `frametest` - do frames step, and from which end?
+
+Walks an animated GIF (`accessory\template\win\NYS_FlowGraph.gif`, 100 frames) the way the frame bar
+does - one-based on the outside - and hashes a grid of 64 pixels per frame:
+
+```
+frames=100  1:872568535  2:1117606317  25:3026226857  50:2470491779  100:1965238500  FRAMES-DIFFER
+```
+
+Different hashes mean `LoadFrame` really is changing the picture, and frame 100 loading at all is the
+point: **the engine counts frames from ZERO**. `imgcore.c`'s `img_select_frame` rejects anything from
+`Frames()` upwards, so a one-based caller fails silently on the last frame and is one out on every other
+one. The template calls `LoadFrame(n - 1)` and keeps the numbering a person sees at one.
+
+Note that `.ico` is **not** a frame source: a 21-image icon reports `frames=1`, because GDI+ hands back
+the single image it thinks best. Frames come from multi-page TIFF (`FrameDimensionPage`) and animated
+GIF (`FrameDimensionTime`).
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**
@@ -165,6 +183,7 @@ own procedure leaves everything else working.
 | `ADDRESS()` differs between program and MEMBER modules | `addrtest` |
 | Direct2D draws the picture, right colours, right way up | `d2dtest`, screenshot in `docs/` |
 | a dragged pan gets MouseMove/MouseUp | `immtest`, IMM against plain, driven by posted mouse messages |
+| frames step, and the last one loads | `frametest`, 100-frame GIF, pixel hash per frame |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
 | zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 
