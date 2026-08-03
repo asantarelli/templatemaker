@@ -400,9 +400,8 @@ run hidden and synchronously. The base64 decoder is pure Clarion, table-driven, 
 **REGION created over the image at run time** takes the mouse — the way Clarion's own `ActiveImage` class
 does it (`libsrc\win\ActiveImage.clw:303`). So zooming does not stretch a control, it **re-renders** the
 picture through the engine; panning moves the **viewport**, not the frame. The user gets **Ctrl + wheel
-zoom** (about the centre of the view, and zooming all the way out lands back on "fit" — Ctrl is a prompt, so
-the wheel can zoom on its own where nothing else wants it; the Ctrl state comes from `GetKeyState`, because
-`KEYSTATE()` answers for the last *keystroke* and a wheel turn is not one), **drag to pan**, a
+zoom** (about the centre of the view, and zooming all the way out lands back on "fit"; Ctrl is a prompt, so
+the wheel can zoom on its own where nothing else wants it), **drag to pan**, a
 **right-click menu** built at generate time out of the boxes you ticked (so its item numbers can never drift),
 **double-click to open another picture**, **drag a file onto it from Explorer** (`DROPID('~FILE')`), and
 **Save a copy** in any of the nine formats the engine writes. Optional status-bar line and tooltip.
@@ -418,8 +417,17 @@ a band, and the **allImageReadLoad** code template for one statement at any embe
 (rotate/mirror/flip/greyscale/cap the longest side) and frame selection for **animated GIFs, multi-page
 TIFFs and .ico** are prompts, not embeds. Requires the myImage files on the redirection path
 (`ImageClass.inc`, `ImageClass.clw`, `imgcore.c`, ANSI) — myImage itself need not be registered.
-Verified end to end: registers, generates for all four placements, and the generated source **compiles and
-links** (a window app and a report both built with 32-bit MSBuild).
+**The wheel is not a Clarion event.** `EVENT:ScrollUp`/`ScrollDown` are LIST events ("the user pressed the
+up arrow", `IMM` only) and never reach a window or an `IMAGE`, so the canvas takes the wheel off the
+**window procedure** (`PROP:WndProc`) and turns `WM_MOUSEWHEEL` into an event the `ACCEPT` loop understands
+— reading the distance and the Ctrl flag straight out of the message, the way Clarion's own
+`smartzoom.clw` does. The window's original procedure is parked **on the window** with `SetProp`, so one
+callback serves every window in the program with no bookkeeping; the first canvas on a window hooks it, the
+last one puts it back, and each canvas zooms only when the pointer is over *it*.
+Verified end to end: registers, generates for all four placements, the generated source **compiles and
+links** (a window app and a report, 32-bit MSBuild), and the wheel path is **proved at run time** by a
+harness that sends real `WM_MOUSEWHEEL` messages and reads the counters back out of the window title —
+see [`examples/allImageRead/`](examples/allImageRead/).
 
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,

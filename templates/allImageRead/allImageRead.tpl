@@ -89,7 +89,10 @@
 #AT(%AfterGlobalIncludes),WHERE(%airGDisable=0)
 INCLUDE('ImageClass.INC'),ONCE
 AirImg:Secs          EQUATE(%airGUrlSecs)                     ! how long a download may take
-AirImg:VkCtrl        EQUATE(17)                               ! VK_CONTROL - the wheel-zoom modifier
+AirImg:WheelUp       EQUATE(EVENT:User + 216)                 ! the wheel, carried in from the
+AirImg:WheelDown     EQUATE(EVENT:User + 217)                 !   window procedure
+AirImg:CtrlUp        EQUATE(EVENT:User + 218)                 ! ... with Ctrl held down
+AirImg:CtrlDown      EQUATE(EVENT:User + 219)
 #ENDAT
 #!
 #!  Everything a picture needs before ImageClass can see it. The Windows file
@@ -106,10 +109,15 @@ airApi_WriteFile(LONG,LONG,ULONG,LONG,LONG),LONG,PASCAL,PROC,NAME('WriteFile')
 airApi_CloseHandle(LONG),LONG,PASCAL,PROC,NAME('CloseHandle')
 airApi_CreateProcess(LONG,LONG,LONG,LONG,LONG,ULONG,LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('CreateProcessA')
 airApi_WaitObject(LONG,ULONG),LONG,PASCAL,PROC,NAME('WaitForSingleObject')
-#!  KEYSTATE() answers for the last KEYCODE, which a mouse wheel does not set -
-#!  so the Ctrl+wheel test asks Windows itself. The return is a SHORT and the
-#!  high bit means "down", which for a signed SHORT is simply "less than zero".
-airApi_KeyState(LONG),SHORT,PASCAL,NAME('GetKeyState')
+#!  The mouse wheel. Clarion's EVENT:ScrollUp/ScrollDown belong to a LIST with
+#!  IMM - "the user pressed the up arrow" - and never reach a window or an
+#!  IMAGE, so the wheel has to be taken off the window procedure. The original
+#!  procedure is parked on the window itself with SetProp, which is how one
+#!  callback serves any number of windows with no bookkeeping of our own.
+airApi_SetProp(ULONG hWnd,LONG lpString,LONG hData),LONG,PASCAL,PROC,NAME('SetPropA')
+airApi_GetProp(ULONG hWnd,LONG lpString),LONG,PASCAL,NAME('GetPropA')
+airApi_RemoveProp(ULONG hWnd,LONG lpString),LONG,PASCAL,PROC,NAME('RemovePropA')
+airApi_CallWndProc(LONG lpPrevWndFunc,ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam),LONG,PASCAL,NAME('CallWindowProcA')
     END
 AirImg_Temp(STRING,STRING),STRING
 AirImg_PutBytes(*STRING,LONG,STRING),BYTE,PROC
@@ -120,6 +128,9 @@ AirImg_LoadUrl(ImageClass,STRING,STRING,LONG),BYTE,PROC
 AirImg_Render(ImageClass,LONG,LONG,LONG,ULONG,STRING),STRING
 AirImg_FitPct(ImageClass,LONG,LONG),LONG
 AirImg_Filter(),STRING
+AirImg_WheelProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
+AirImg_HookWheel(LONG,LONG),BYTE,PROC
+AirImg_DropWheel(LONG),LONG,PROC
 #ENDAT
 #!
 #AT(%ProgramProcedures),WHERE(%airGDisable=0)
@@ -348,6 +359,65 @@ b LONG,AUTO
   IF a > 1600 THEN a = 1600.
   RETURN a
 
+!  ---- the mouse wheel ------------------------------------------------------
+!  Park the window's own procedure ON the window, under a name of our own, and
+!  one callback then serves every window in the program without a scrap of
+!  Clarion-side bookkeeping. Returns 1 to the FIRST caller only: a second
+!  canvas on the same window must not hook it twice.
+AirImg_HookWheel PROCEDURE(LONG pHwnd,LONG pOldProc)
+prop CSTRING('AirImgOldWndProc')
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  IF airApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.       ! already hooked by another canvas
+  airApi_SetProp(pHwnd,ADDRESS(prop),pOldProc)
+  RETURN 1
+
+!  Hand back the window's own procedure and forget it.
+AirImg_DropWheel PROCEDURE(LONG pHwnd)
+prop CSTRING('AirImgOldWndProc')
+old  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  old = airApi_GetProp(pHwnd,ADDRESS(prop))
+  airApi_RemoveProp(pHwnd,ADDRESS(prop))
+  RETURN old
+
+!  The window procedure. WM_MOUSEWHEEL carries the distance in the high word of
+!  wParam - signed, one notch is 120 - and the modifier keys in the low word,
+!  where 0008h is Ctrl (this is how Clarion's own smartzoom.clw reads it). All
+!  it does here is turn the message into an EVENT the ACCEPT loop understands,
+!  and then hand the message on to the window's own procedure so nothing else
+!  changes.
+AirImg_WheelProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
+WM_MOUSEWHEEL EQUATE(020Ah)
+MK_CONTROL    EQUATE(0008h)
+prop CSTRING('AirImgOldWndProc')
+old  LONG,AUTO
+dz   LONG,AUTO
+  CODE
+  old = airApi_GetProp(hWnd,ADDRESS(prop))
+  IF wMsg = WM_MOUSEWHEEL
+    dz = BSHIFT(BAND(wParam,0FFFF0000h),-16)                  ! the high word is the distance
+    IF dz > 32767 THEN dz -= 65536.                           ! and it is signed
+    IF BAND(wParam,MK_CONTROL)
+      IF dz > 0
+        POST(AirImg:CtrlUp)
+      ELSIF dz < 0
+        POST(AirImg:CtrlDown)
+      END
+    ELSE
+      IF dz > 0
+        POST(AirImg:WheelUp)
+      ELSIF dz < 0
+        POST(AirImg:WheelDown)
+      END
+    END
+  END
+  IF old
+    RETURN airApi_CallWndProc(old,hWnd,wMsg,wParam,lParam)
+  END
+  RETURN 0
+
 !  Everything ImageClass can open, for FILEDIALOG.
 AirImg_Filter PROCEDURE()
   CODE
@@ -517,6 +587,10 @@ INCLUDE('ImageClass.INC'),ONCE
 #INSERT(%airFieldEvents,%airCObject,%airCFeq,%airCPan,%airCMenu,%airCOpen,%airCDrop)
 #ENDAT
 #!
+#AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=0 AND %airCZoom=1)
+#INSERT(%airUnhook,%airCObject)
+#ENDAT
+#!
 #AT(%ProcedureRoutines),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=0)
 #INSERT(%airCanvasFromControl)
 #ENDAT
@@ -643,6 +717,10 @@ fname CSTRING(261)
 #!
 #AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%airWDisable=0 AND %airWImage)
 #INSERT(%airFieldEvents,%airWObject,%airWImage,%airWPan,%airWMenu,%airWOpen,%airWDrop)
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%airWDisable=0 AND %airWImage AND %airWZoom=1)
+#INSERT(%airUnhook,%airWObject)
 #ENDAT
 #!
 #AT(%ProcedureRoutines),WHERE(%airWDisable=0 AND %airWImage)
@@ -804,6 +882,7 @@ fname CSTRING(261)
 %pObj:PanX           LONG                                    ! the viewport, in picture pixels
 %pObj:PanY           LONG
 %pObj:Rgn            SIGNED                                  ! the region that takes the mouse
+%pObj:Hooked         BYTE                                    ! this canvas took the window procedure
 %pObj:Drag           BYTE
 %pObj:DragX          SIGNED
 %pObj:DragY          SIGNED
@@ -927,23 +1006,26 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #!-----------------------------------------------------------------------------
 #GROUP(%airWheel,%pObj,%pZoom,%pCtrl)
 #IF(%pZoom)
-  OF EVENT:ScrollUp
-#IF(%pCtrl)
-    IF airApi_KeyState(AirImg:VkCtrl) < 0                     ! Ctrl is down
-      DO Air:In:%pObj
-    END
-#ELSE
+  OF AirImg:CtrlUp
     DO Air:In:%pObj
-#ENDIF
-  OF EVENT:ScrollDown
-#IF(%pCtrl)
-    IF airApi_KeyState(AirImg:VkCtrl) < 0
-      DO Air:Out:%pObj
-    END
-#ELSE
+  OF AirImg:CtrlDown
+    DO Air:Out:%pObj
+#IF(%pCtrl = 0)
+  OF AirImg:WheelUp                                           ! Ctrl not required here
+    DO Air:In:%pObj
+  OF AirImg:WheelDown
     DO Air:Out:%pObj
 #ENDIF
 #ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airUnhook - give the window its own procedure back on the way out. Only
+#!  the canvas that took it puts it back.
+#!-----------------------------------------------------------------------------
+#GROUP(%airUnhook,%pObj)
+  IF %pObj:Hooked
+    %Window{PROP:WndProc} = AirImg_DropWheel(%Window{PROP:Handle})
+    %pObj:Hooked = 0
+  END
 #!-----------------------------------------------------------------------------
 #!  %airFieldEvents - the mouse, for whichever control the canvas paints into.
 #!  The events arrive from the REGION laid over the image; the image's own feq
@@ -1186,6 +1268,14 @@ Air:Setup:%airXObj ROUTINE
   END
   DO Air:Place:%airXObj
   UNHIDE(%airXObj:Rgn)
+#IF(%airXZoom)
+!  Take the mouse wheel off the window procedure. The first canvas on a window
+!  does it; the rest ride along, because the event reaches all of them.
+  IF AirImg_HookWheel(%Window{PROP:Handle},%Window{PROP:WndProc})
+    %airXObj:Hooked = 1
+    %Window{PROP:WndProc} = ADDRESS(AirImg_WheelProc)
+  END
+#ENDIF
 #IF(%airXDrop)
   %airXFeq{PROP:DropID,1}     = '~FILE'                       ! a file dragged out of Explorer
   %airXObj:Rgn{PROP:DropID,1} = '~FILE'
@@ -1274,14 +1364,23 @@ savePx LONG,AUTO
 
 Air:In:%airXObj ROUTINE
 !  Zoom about the middle of the viewport, so the picture does not run away.
+!  The wheel event reaches every canvas on the window, so each one first asks
+!  whether the pointer is actually over it.
   DATA
 was    LONG,AUTO
 now    LONG,AUTO
 w      LONG,AUTO
 h      LONG,AUTO
 savePx LONG,AUTO
+rx     SIGNED,AUTO
+ry     SIGNED,AUTO
+rw     SIGNED,AUTO
+rh     SIGNED,AUTO
   CODE
   IF ~%airXObj.Ok() THEN EXIT.
+  GETPOSITION(%airXFeq,rx,ry,rw,rh)
+  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
+  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1
   w = %airXFeq{PROP:Width}
@@ -1303,8 +1402,15 @@ now    LONG,AUTO
 w      LONG,AUTO
 h      LONG,AUTO
 savePx LONG,AUTO
+rx     SIGNED,AUTO
+ry     SIGNED,AUTO
+rw     SIGNED,AUTO
+rh     SIGNED,AUTO
   CODE
   IF ~%airXObj.Ok() OR ~%airXObj:Zoom THEN EXIT.               ! already fitted
+  GETPOSITION(%airXFeq,rx,ry,rw,rh)
+  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
+  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
   savePx = 0{PROP:Pixels}
   0{PROP:Pixels} = 1
   w = %airXFeq{PROP:Width}
