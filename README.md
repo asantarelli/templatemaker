@@ -54,6 +54,8 @@ templates/                      # ready-to-register Clarion templates
   myQR/                         #   QR code into an image control, auto-refresh (see below)
     myQR.tpl
   myImage/                     #   12 image formats in, 9 out, every colour format (see below)
+  allImageRead/                 #   any picture, from anywhere, on a window or a report (see below)
+    allImageRead.tpl            #     one .tpl, no new class - it rides on myImage's ImageClass
   myGauge/                      #   analog gauge/dial on windows and reports (see below)
     GaugeClass.inc              #     the gauge class (config + method prototypes)
     GaugeClass.clw              #     the implementation (geometry + native drawing)
@@ -383,6 +385,41 @@ together, and troubleshooting — is in
 **ImageDemo** (open anything, push it through every conversion and transform, watch the histogram and
 palette update, save it back out) and **ImgTest**, a headless harness that round-trips all nine writable
 formats and all eleven colour formats and writes the results to an INI.
+
+### `templates/allImageRead/` — **any picture, from anywhere**, on a window or a report
+myImage is the engine; **allImageRead is the piece that puts a picture in front of the user**. One `.tpl`,
+no new class — it sits on top of `ImageClass` and answers the two questions a template cannot: *where does
+the picture come from*, and *what does it get painted on*. **Six sources**: a fixed file, a variable holding
+a path, a **BLOB field**, a **STRING in memory**, a **base64 string** (`data:` URIs and the URL-safe
+alphabet included), or an **http/https URL**. Anything that is not already a file is written to a working
+file in `%TEMP%` — with the Windows file API, so the application is not obliged to carry the DOS driver
+just to show a photograph — and read back from there; the names are fixed per canvas, so they are reused
+rather than piled up. A URL is fetched with **curl.exe**, which ships with Windows 10 and 11 in System32,
+run hidden and synchronously. The base64 decoder is pure Clarion, table-driven, and skips whitespace.
+**The canvas.** On a window the `IMAGE` control is only the paint surface: the object owns the pixels and a
+**REGION created over the image at run time** takes the mouse — the way Clarion's own `ActiveImage` class
+does it (`libsrc\win\ActiveImage.clw:303`). So zooming does not stretch a control, it **re-renders** the
+picture through the engine; panning moves the **viewport**, not the frame. The user gets **Ctrl + wheel
+zoom** (about the centre of the view, and zooming all the way out lands back on "fit" — Ctrl is a prompt, so
+the wheel can zoom on its own where nothing else wants it; the Ctrl state comes from `GetKeyState`, because
+`KEYSTATE()` answers for the last *keystroke* and a wheel turn is not one), **drag to pan**, a
+**right-click menu** built at generate time out of the boxes you ticked (so its item numbers can never drift),
+**double-click to open another picture**, **drag a file onto it from Explorer** (`DROPID('~FILE')`), and
+**Save a copy** in any of the nine formats the engine writes. Optional status-bar line and tooltip.
+**Easiest path: one control template that goes in both places.** Drag **allImageRead - Image canvas** onto a
+**window** *or* into a **report band** — `#ATSTART` works out where it landed (`%ReportControl` first, then
+`%Control`) and emits the right half: the live viewer on a window, or, in a band, a picture per record
+fitted to a PNG and pointed at with `PROP:Text` under `SETTARGET(Report)`. Report working names **rotate**
+(8 by default) so a page still being spooled cannot have its picture overwritten underneath it. Five
+registrations: **allImageReadCanvas** (the drag-on canvas, window *or* report band), **allImageReadGlobal**
+(the shared readers — add it once per application, and to **every** app of a multi-DLL set that carries a
+canvas), **allImageRead** and **allImageReadRpt** for an `IMAGE` control you already have on a window or in
+a band, and the **allImageReadLoad** code template for one statement at any embed. Per-picture touch-up
+(rotate/mirror/flip/greyscale/cap the longest side) and frame selection for **animated GIFs, multi-page
+TIFFs and .ico** are prompts, not embeds. Requires the myImage files on the redirection path
+(`ImageClass.inc`, `ImageClass.clw`, `imgcore.c`, ANSI) — myImage itself need not be registered.
+Verified end to end: registers, generates for all four placements, and the generated source **compiles and
+links** (a window app and a report both built with 32-bit MSBuild).
 
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,

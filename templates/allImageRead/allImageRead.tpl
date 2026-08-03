@@ -1,0 +1,1421 @@
+#TEMPLATE(allImageRead,'allImageRead - any picture, on a window or a report - v1.0'),FAMILY('ABC')
+#!-----------------------------------------------------------------------------
+#!  allImageRead  -  put ANY picture in front of the user.
+#!
+#!  Clarion's IMAGE control reads a short list of formats. ImageClass (the
+#!  myImage template set) reads twelve. allImageRead is the piece in between:
+#!  it takes a picture from wherever it lives - a file, a BLOB, a string in
+#!  memory, a base64 payload, a URL - hands it to ImageClass, and paints the
+#!  result on a window or into a report band.
+#!
+#!  WHAT IS IN HERE
+#!    allImageReadGlobal (APPLICATION) - INCLUDEs ImageClass and writes the
+#!                shared readers. Add it once per application - and to EVERY
+#!                app of a multi-DLL set that carries a canvas.
+#!    allImageReadCanvas (CONTROL)     - THE EASY PATH. Drag it onto a window
+#!                OR into a report band; it drops the canvas and wires it up.
+#!                On a window it is a live viewer: wheel zoom, drag to pan,
+#!                right-click menu, drop a file on it from Explorer. In a
+#!                report band it renders one picture per record.
+#!    allImageRead    (PROCEDURE)      - the same viewer, into an IMAGE control
+#!                you already have on a window.
+#!    allImageReadRpt (PROCEDURE)      - the same, into an IMAGE control you
+#!                already have in a report band.
+#!    allImageReadLoad (CODE)          - one statement at any embed: read a
+#!                picture from any source into an object you already declared.
+#!
+#!  REQUIRES the myImage template set. ImageClass.inc, ImageClass.clw and
+#!  imgcore.c must sit on the redirection path (the app folder or
+#!  \clarion12\libsrc\win), stored ANSI with CRLF line ends. myImage itself
+#!  does NOT have to be registered - only its three files have to be findable.
+#!
+#!  READS  bmp gif jpg png tif ico emf wmf tga pcx pnm/ppm/pgm/pbm qoi
+#!  FROM   a file - a variable holding a path - a BLOB field - a STRING in
+#!         memory - a base64 string (data: URIs too) - an http/https URL.
+#!
+#!  THE CANVAS. On a window the IMAGE control is only the paint surface: the
+#!  object owns the pixels, and a REGION created over the image at run time
+#!  takes the mouse - which is how Clarion's own ActiveImage class does it
+#!  (libsrc\win\ActiveImage.clw:303). So zooming does not stretch a control,
+#!  it re-renders the picture; panning moves the viewport, not the frame.
+#!
+#!  API (the object is in the procedure's data - call it from any embed):
+#!    Pic1.LoadFile('holiday.jpg')       ! then POST(Air:Redraw:Pic1)
+#!    Pic1.Frames() / Pic1.LoadFrame(n)  ! animated GIF, multi-page TIFF
+#!    Pic1.Describe()                    ! one line for a status bar
+#!    DO Air:Show:Pic1                   ! repaint now
+#!-----------------------------------------------------------------------------
+#!#############################################################################
+#!  GLOBAL EXTENSION - allImageReadGlobal
+#!#############################################################################
+#EXTENSION(allImageReadGlobal,'allImageRead - Global (add once per application)'),APPLICATION,HLP('~allImageRead.htm')
+#SHEET
+  #TAB('&General')
+    #BOXED('allImageRead')
+      #DISPLAY('allImageRead - Version 1.0')
+      #DISPLAY('Shows any picture ImageClass can read on a window or in a')
+      #DISPLAY('report band, from a file, a BLOB, memory, base64 or a URL.')
+      #DISPLAY('')
+      #DISPLAY('REQUIRES the myImage files on the redirection path:')
+      #DISPLAY('   ImageClass.inc    ImageClass.clw    imgcore.c')
+      #DISPLAY('stored ANSI (not UTF-8), CRLF line ends.')
+      #DISPLAY('')
+      #DISPLAY('Add this extension ONCE per application - and to EVERY app of')
+      #DISPLAY('a multi-DLL set that carries a canvas.')
+    #ENDBOXED
+    #BOXED('Options')
+      #PROMPT('&Disable this template',CHECK),%airGDisable,DEFAULT(0),AT(10)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Sources')
+    #BOXED('Pictures that are not already files')
+      #DISPLAY('A BLOB, a string in memory, a base64 payload or a download is')
+      #DISPLAY('written to the Windows TEMP folder and read back from there.')
+      #DISPLAY('Every canvas owns a fixed set of names, so the working files')
+      #DISPLAY('are reused rather than piled up.')
+    #ENDBOXED
+    #BOXED('The internet')
+      #DISPLAY('A URL is fetched with curl.exe, which ships with Windows 10 and')
+      #DISPLAY('11 in System32. Nothing is installed and nothing is shipped.')
+      #PROMPT('Download &timeout (seconds):',SPIN(@n3,1,300,1)),%airGUrlSecs,DEFAULT(20)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!-----------------------------------------------------------------------------
+#!  The timeout lives here as an EQUATE rather than being read out of these
+#!  prompts by the canvas templates: an APPLICATION extension's prompts are not
+#!  in scope while a PROCEDURE template generates, and reaching for them there
+#!  earns an "Unknown Variable" from the generator.
+#AT(%AfterGlobalIncludes),WHERE(%airGDisable=0)
+INCLUDE('ImageClass.INC'),ONCE
+AirImg:Secs          EQUATE(%airGUrlSecs)                     ! how long a download may take
+AirImg:VkCtrl        EQUATE(17)                               ! VK_CONTROL - the wheel-zoom modifier
+#ENDAT
+#!
+#!  Everything a picture needs before ImageClass can see it. The Windows file
+#!  API is used rather than a Clarion FILE, so the application is not obliged
+#!  to carry the DOS driver just to show a photograph. Every parameter is a
+#!  LONG and everything that is really a pointer is passed as ADDRESS(x) - the
+#!  portable mapping that never puts a string descriptor where the API wants
+#!  an address.
+#AT(%GlobalMap),WHERE(%airGDisable=0)
+    MODULE('win32')
+airApi_TempPath(ULONG,*CSTRING),ULONG,RAW,PASCAL,PROC,NAME('GetTempPathA')
+airApi_CreateFile(LONG,ULONG,ULONG,LONG,ULONG,ULONG,LONG),LONG,PASCAL,NAME('CreateFileA')
+airApi_WriteFile(LONG,LONG,ULONG,LONG,LONG),LONG,PASCAL,PROC,NAME('WriteFile')
+airApi_CloseHandle(LONG),LONG,PASCAL,PROC,NAME('CloseHandle')
+airApi_CreateProcess(LONG,LONG,LONG,LONG,LONG,ULONG,LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('CreateProcessA')
+airApi_WaitObject(LONG,ULONG),LONG,PASCAL,PROC,NAME('WaitForSingleObject')
+#!  KEYSTATE() answers for the last KEYCODE, which a mouse wheel does not set -
+#!  so the Ctrl+wheel test asks Windows itself. The return is a SHORT and the
+#!  high bit means "down", which for a signed SHORT is simply "less than zero".
+airApi_KeyState(LONG),SHORT,PASCAL,NAME('GetKeyState')
+    END
+AirImg_Temp(STRING,STRING),STRING
+AirImg_PutBytes(*STRING,LONG,STRING),BYTE,PROC
+AirImg_LoadPath(ImageClass,STRING),BYTE,PROC
+AirImg_LoadBytes(ImageClass,*STRING,LONG,STRING),BYTE,PROC
+AirImg_LoadB64(ImageClass,STRING,STRING),BYTE,PROC
+AirImg_LoadUrl(ImageClass,STRING,STRING,LONG),BYTE,PROC
+AirImg_Render(ImageClass,LONG,LONG,LONG,ULONG,STRING),STRING
+AirImg_FitPct(ImageClass,LONG,LONG),LONG
+AirImg_Filter(),STRING
+#ENDAT
+#!
+#AT(%ProgramProcedures),WHERE(%airGDisable=0)
+!-----------------------------------------------------------------------------
+!  allImageRead - the shared readers, written once per application by the
+!  allImageReadGlobal extension.
+!-----------------------------------------------------------------------------
+!  A working file in the Windows TEMP folder. The key makes the name unique
+!  per canvas, and it is FIXED - the same canvas reuses the same name for ever,
+!  so the folder never fills up.
+AirImg_Temp PROCEDURE(STRING pKey,STRING pExt)
+tdir CSTRING(261)
+n    ULONG,AUTO
+  CODE
+  tdir = ''
+  n = airApi_TempPath(255,tdir)
+  IF ~n OR n > 254 THEN tdir = '.\' .
+  IF tdir[LEN(tdir) : LEN(tdir)] <> '\' THEN tdir = CLIP(tdir) & '\' .
+  RETURN CLIP(tdir) & 'air_' & CLIP(pKey) & CLIP(pExt)
+
+!  Bytes onto disk. Returns 1 when every byte arrived.
+AirImg_PutBytes PROCEDURE(*STRING pData,LONG pLen,STRING pPath)
+GENERIC_WRITE    EQUATE(40000000h)
+CREATE_ALWAYS    EQUATE(2)
+FILE_ATTR_NORMAL EQUATE(00000080h)
+INVALID_HANDLE   EQUATE(-1)
+fname CSTRING(261)
+h     LONG,AUTO
+wrote ULONG,AUTO
+ok    LONG,AUTO
+  CODE
+  IF pLen < 1 THEN RETURN 0.
+  fname = CLIP(pPath)
+  wrote = 0
+  h = airApi_CreateFile(ADDRESS(fname),GENERIC_WRITE,0,0,CREATE_ALWAYS,FILE_ATTR_NORMAL,0)
+  IF h = INVALID_HANDLE OR ~h THEN RETURN 0.
+  ok = airApi_WriteFile(h,ADDRESS(pData),pLen,ADDRESS(wrote),0)
+  airApi_CloseHandle(h)
+  IF ok AND wrote = pLen THEN RETURN 1.
+  RETURN 0
+
+!  A picture that is already a file. ImageClass sniffs the signature, so the
+!  extension is never trusted - a .jpg that is really a PNG still opens.
+AirImg_LoadPath PROCEDURE(ImageClass pImg,STRING pPath)
+  CODE
+  IF ~LEN(CLIP(pPath))
+    pImg.Kill()
+    RETURN 0
+  END
+  IF ~EXISTS(CLIP(pPath))
+    pImg.Kill()
+    RETURN 0
+  END
+  RETURN pImg.LoadFile(CLIP(pPath))
+
+!  A picture that is bytes - a BLOB the caller has sliced, or a string in
+!  memory. It goes to the working file and is read back from there.
+AirImg_LoadBytes PROCEDURE(ImageClass pImg,*STRING pData,LONG pLen,STRING pKey)
+fname CSTRING(261)
+  CODE
+  IF pLen < 1
+    pImg.Kill()
+    RETURN 0
+  END
+  fname = AirImg_Temp(pKey,'.tmp')
+  IF ~AirImg_PutBytes(pData,pLen,fname)
+    pImg.Kill()
+    RETURN 0
+  END
+  RETURN pImg.LoadFile(fname)
+
+!  A picture that arrived as text. Standard and URL-safe alphabets, any amount
+!  of white space, and a leading data: URI is stepped over.
+AirImg_LoadB64 PROCEDURE(ImageClass pImg,STRING pB64,STRING pKey)
+alpha STRING('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/')
+tab   STRING(256),STATIC
+built BYTE,STATIC
+out   &STRING
+i     LONG,AUTO
+n     LONG,AUTO
+p     LONG,AUTO
+c     LONG,AUTO
+v     LONG,AUTO
+acc   LONG,AUTO
+bits  LONG,AUTO
+o     LONG,AUTO
+ok    BYTE,AUTO
+  CODE
+  IF ~built                                                   ! 255 marks "not a base64 character"
+    tab = ALL(CHR(255))
+    LOOP i = 1 TO 64
+      c = VAL(alpha[i : i]) + 1
+      tab[c : c] = CHR(i - 1)
+    END
+    c = VAL('-') + 1 ; tab[c : c] = CHR(62)                   ! the URL-safe pair
+    c = VAL('_') + 1 ; tab[c : c] = CHR(63)
+    built = 1
+  END
+  n = LEN(CLIP(pB64))
+  IF n < 4
+    pImg.Kill()
+    RETURN 0
+  END
+  p = INSTRING('base64,',pB64,1,1)                            ! data:image/png;base64,....
+  IF p THEN p += 7 ELSE p = 1.
+  out &= NEW(STRING(INT((n - p + 1) * 3 / 4) + 8))
+  acc = 0
+  bits = 0
+  o = 0
+  LOOP i = p TO n
+    c = VAL(pB64[i : i])
+    IF c = VAL('=') THEN BREAK.
+    v = VAL(tab[c + 1 : c + 1])
+    IF v = 255 THEN CYCLE.                                    ! CR, LF, space, quote - skip it
+    acc = BOR(BSHIFT(acc,6),v)
+    bits += 6
+    IF bits >= 8
+      bits -= 8
+      o += 1
+      out[o : o] = CHR(BAND(BSHIFT(acc,-bits),0FFh))
+      acc = BAND(acc,BSHIFT(1,bits) - 1)                      ! keep only the bits still owed
+    END
+  END
+  IF o < 1
+    DISPOSE(out)
+    pImg.Kill()
+    RETURN 0
+  END
+  ok = AirImg_LoadBytes(pImg,out,o,pKey)
+  DISPOSE(out)
+  RETURN ok
+
+!  A picture on the internet. curl.exe is run HIDDEN and SYNCHRONOUSLY -
+!  CreateProcessA with CREATE_NO_WINDOW plus STARTF_USESHOWWINDOW / SW_HIDE,
+!  then WaitForSingleObject. curl ships with Windows 10 and 11 in System32.
+AirImg_LoadUrl PROCEDURE(ImageClass pImg,STRING pUrl,STRING pKey,LONG pSeconds)
+STARTF_USESHOWWINDOW EQUATE(00000001h)
+SW_HIDE              EQUATE(0)
+CREATE_NO_WINDOW     EQUATE(08000000h)
+INFINITE             EQUATE(0FFFFFFFFh)
+cmd   CSTRING(2048)                                           ! CreateProcessA writes back into this
+fname CSTRING(261)
+secs  LONG,AUTO
+si    GROUP                                                   ! STARTUPINFOA
+cb      ULONG
+lpRes   LONG(0)
+lpDesk  LONG(0)
+lpTitle LONG(0)
+dwX     ULONG
+dwY     ULONG
+dwXS    ULONG
+dwYS    ULONG
+dwXC    ULONG
+dwYC    ULONG
+dwFill  ULONG
+dwFlags ULONG
+wShow   SHORT(0)
+cbRes2  SHORT(0)
+lpRes2  LONG(0)
+hIn     LONG
+hOut    LONG
+hErr    LONG
+      END
+pi    GROUP                                                   ! PROCESS_INFORMATION
+hProc   LONG
+hThr    LONG
+dwPid   ULONG
+dwTid   ULONG
+      END
+  CODE
+  IF ~LEN(CLIP(pUrl))
+    pImg.Kill()
+    RETURN 0
+  END
+  secs = pSeconds
+  IF secs < 1 THEN secs = 20.
+  fname = AirImg_Temp(pKey,'.dl')
+  REMOVE(fname)
+!  -s silent, -L follow redirects, --max-time so a hung server cannot hold the
+!  program up for ever, -o writes the body. <34> is a double quote: Windows
+!  argument quoting wants double quotes, not apostrophes.
+  cmd = 'curl -s -L --max-time ' & secs & |
+        ' -o <34>' & CLIP(fname) & '<34> <34>' & CLIP(pUrl) & '<34>'
+  si.cb      = SIZE(si)
+  si.dwFlags = STARTF_USESHOWWINDOW
+  si.wShow   = SW_HIDE
+  IF ~airApi_CreateProcess(0,ADDRESS(cmd),0,0,0,CREATE_NO_WINDOW,0,0,ADDRESS(si),ADDRESS(pi))
+    pImg.Kill()                                               ! curl.exe is not there
+    RETURN 0
+  END
+  airApi_WaitObject(pi.hProc,INFINITE)
+  airApi_CloseHandle(pi.hThr)
+  airApi_CloseHandle(pi.hProc)
+  IF ~EXISTS(fname)
+    pImg.Kill()
+    RETURN 0
+  END
+  RETURN pImg.LoadFile(fname)
+
+!  Fit a COPY of the picture to a box and leave it on disk as a PNG. The
+!  original is never touched. Used for report bands, where the print engine
+!  wants a file it can open. Returns the path, or blank when there is nothing
+!  to show.
+AirImg_Render PROCEDURE(ImageClass pImg,LONG pW,LONG pH,LONG pMode,ULONG pBack,STRING pKey)
+cv   ImageClass
+fname CSTRING(261)
+  CODE
+  IF ~pImg.Ok() OR pW < 4 OR pH < 4 THEN RETURN ''.
+  IF ~pImg.CloneInto(cv) THEN RETURN ''.
+  IF pMode >= 0 THEN cv.Fit(pW,pH,pMode,pBack).
+  fname = AirImg_Temp(pKey,'.png')
+  IF ~cv.SaveFile(fname,Img:Png) THEN RETURN ''.
+  RETURN CLIP(fname)
+
+!  At what per cent is the picture showing when it is fitted to a box? The
+!  answer is where a zoom step starts from.
+AirImg_FitPct PROCEDURE(ImageClass pImg,LONG pW,LONG pH)
+a LONG,AUTO
+b LONG,AUTO
+  CODE
+  IF ~pImg.Ok() OR pImg.Wide() < 1 OR pImg.High() < 1 THEN RETURN 100.
+  a = INT(100 * pW / pImg.Wide())
+  b = INT(100 * pH / pImg.High())
+  IF b < a THEN a = b.
+  IF a < 5 THEN a = 5.
+  IF a > 1600 THEN a = 1600.
+  RETURN a
+
+!  Everything ImageClass can open, for FILEDIALOG.
+AirImg_Filter PROCEDURE()
+  CODE
+  RETURN 'All pictures|*.bmp;*.dib;*.gif;*.jpg;*.jpeg;*.jpe;*.png;*.tif;*.tiff;' & |
+         '*.ico;*.emf;*.wmf;*.tga;*.pcx;*.pnm;*.ppm;*.pgm;*.pbm;*.qoi' & |
+         '|Windows bitmap|*.bmp;*.dib' & |
+         '|GIF|*.gif' & |
+         '|JPEG|*.jpg;*.jpeg;*.jpe' & |
+         '|PNG|*.png' & |
+         '|TIFF|*.tif;*.tiff' & |
+         '|Icon|*.ico' & |
+         '|Metafile|*.emf;*.wmf' & |
+         '|Targa|*.tga' & |
+         '|PCX|*.pcx' & |
+         '|Portable any-map|*.pnm;*.ppm;*.pgm;*.pbm' & |
+         '|QOI|*.qoi' & |
+         '|All files|*.*'
+#ENDAT
+#!#############################################################################
+#!  CONTROL TEMPLATE - allImageReadCanvas
+#!  Drag it onto a WINDOW or into a REPORT band. One IMAGE is dropped - the
+#!  only control a report band will take - and the wiring differs by where it
+#!  landed, which #ATSTART works out below.
+#!#############################################################################
+#CONTROL(allImageReadCanvas,'allImageRead - Image canvas (window or report band)'),WINDOW,REPORT,MULTI,REQ(allImageReadGlobal),DESCRIPTION('[Canvas] ' & %airCObject),HLP('~allImageRead.htm')
+  CONTROLS
+    IMAGE,AT(,,160,120),USE(?AirCanvas),#ORIG(?AirCanvas)
+  END
+#SHEET
+  #TAB('&Picture')
+    #BOXED('Object')
+      #PROMPT('&Disable this canvas',CHECK),%airCDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Object name:',@s64),%airCObject,REQ,DEFAULT('Pic' & %ActiveTemplateInstance)
+    #ENDBOXED
+    #BOXED('Where the picture comes from')
+      #PROMPT('&Source:',DROP('A file on disk (fixed path)[FILE]|A variable holding a file path[PATH]|A BLOB field[BLOB]|A STRING variable in memory[MEM]|A base64 string[B64]|A URL (http/https)[URL]|Nothing - I set it in code[NONE]')),%airCKind,DEFAULT('FILE')
+      #ENABLE(%airCKind='FILE')
+        #PROMPT('File &name:',@s255),%airCFile,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airCKind='PATH' OR %airCKind='MEM' OR %airCKind='B64' OR %airCKind='URL')
+        #PROMPT('&Variable / expression:',@s255),%airCVar,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airCKind='MEM')
+        #PROMPT('&Bytes to use (blank = SIZE of the variable):',@s255),%airCLen,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airCKind='BLOB')
+        #PROMPT('&BLOB field:',FIELD),%airCBlob
+      #ENDENABLE
+      #ENABLE(%airCKind='URL')
+        #PROMPT('Download &timeout (seconds, 0 = the global default):',SPIN(@n3,0,300,1)),%airCSecs,DEFAULT(0)
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('Frames')
+      #DISPLAY('An animated GIF, a multi-page TIFF and an .ico all hold more')
+      #DISPLAY('than one picture. Frame 1 is the first.')
+      #PROMPT('Show &frame:',SPIN(@n4,1,9999,1)),%airCFrame,DEFAULT(1)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&On a window')
+    #BOXED('Ignored when this canvas is in a report band')
+      #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airCFit,DEFAULT('Img:Proportional')
+      #PROMPT('&Background:',COLOR),%airCBack,DEFAULT(00FFFFFFH)
+      #PROMPT('&Load the picture when the window opens',CHECK),%airCAuto,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('What the user may do')
+      #PROMPT('&Zoom with the mouse wheel',CHECK),%airCZoom,DEFAULT(1),AT(10)
+      #PROMPT('Hold &Ctrl to zoom (wheel alone does nothing)',CHECK),%airCZoomCtrl,DEFAULT(1),AT(20)
+      #PROMPT('Zoom &step (per cent):',SPIN(@n3,5,100,5)),%airCZoomStep,DEFAULT(25)
+      #PROMPT('&Pan (drag the picture)',CHECK),%airCPan,DEFAULT(1),AT(10)
+      #PROMPT('&Right-click menu',CHECK),%airCMenu,DEFAULT(1),AT(10)
+      #PROMPT('&Open another picture (menu, and double-click)',CHECK),%airCOpen,DEFAULT(1),AT(10)
+      #PROMPT('&Accept a file dropped from Explorer',CHECK),%airCDrop,DEFAULT(1),AT(10)
+      #PROMPT('&Save a copy (menu)',CHECK),%airCSave,DEFAULT(1),AT(10)
+      #PROMPT('Rotate and &mirror (menu)',CHECK),%airCRotate,DEFAULT(1),AT(10)
+      #PROMPT('Step through &frames (menu)',CHECK),%airCFrames,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('Telling the user what it is')
+      #PROMPT('Put the details in the &status bar',CHECK),%airCStatus,DEFAULT(0),AT(10)
+      #PROMPT('Status bar &zone:',SPIN(@n1,1,4,1)),%airCStatusZone,DEFAULT(1)
+      #PROMPT('Show a &tooltip with the file name',CHECK),%airCTip,DEFAULT(1),AT(10)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&In a report band')
+    #BOXED('Ignored when this canvas is on a window')
+      #PROMPT('Load the picture for &every record',CHECK),%airCRptEach,DEFAULT(1),AT(10)
+      #DISPLAY('Off = the picture is loaded once, when the report opens.')
+    #ENDBOXED
+    #BOXED('How big to render it')
+      #DISPLAY('The band control is a frame on paper; the picture behind it is')
+      #DISPLAY('pixels. Render it at least as big as it will print, or it will')
+      #DISPLAY('look soft. 600 x 450 suits a photograph in a 2-inch frame.')
+      #PROMPT('&Width (pixels):',SPIN(@n5,16,8000,10)),%airCRptW,DEFAULT(600)
+      #PROMPT('&Height (pixels):',SPIN(@n5,16,8000,10)),%airCRptH,DEFAULT(450)
+      #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airCRptFit,DEFAULT('Img:Proportional')
+      #PROMPT('&Background:',COLOR),%airCRptBack,DEFAULT(00FFFFFFH)
+    #ENDBOXED
+    #BOXED('Working files')
+      #DISPLAY('Each rendered page picture is written to the TEMP folder. The')
+      #DISPLAY('names rotate, so a page still being spooled cannot have its')
+      #DISPLAY('picture overwritten underneath it.')
+      #PROMPT('How many names to &rotate:',SPIN(@n2,1,32,1)),%airCRptPool,DEFAULT(8)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Touch-up')
+    #BOXED('Applied once, right after the picture is read')
+      #PROMPT('&Rotate:',DROP('Leave it[0]|90 degrees right[90]|180 degrees[180]|90 degrees left[270]')),%airCRot,DEFAULT('0')
+      #PROMPT('&Mirror (left to right)',CHECK),%airCMirror,DEFAULT(0),AT(10)
+      #PROMPT('&Flip (top to bottom)',CHECK),%airCFlip,DEFAULT(0),AT(10)
+      #PROMPT('&Greyscale',CHECK),%airCGrey,DEFAULT(0),AT(10)
+      #PROMPT('Cap the &longest side at (pixels, 0 = leave it):',SPIN(@n5,0,8000,50)),%airCMax,DEFAULT(0)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!-----------------------------------------------------------------------------
+#!  Which control is mine, and did it land in a report band or on a window?
+#!  A report band knows its controls through %ReportControl, a window through
+#!  %Control. Whichever list owns this instance answers both questions.
+#ATSTART
+  #IF(VAREXISTS(%airCFeq) = 0)
+    #DECLARE(%airCFeq)
+    #DECLARE(%airCOnReport)
+    #DECLARE(%airCKey)
+  #ENDIF
+  #SET(%airCFeq,'')
+  #SET(%airCOnReport,0)
+  #FOR(%ReportControl),WHERE(%ReportControlOriginal='?AirCanvas' AND %ReportControlInstance=%ActiveTemplateInstance)
+    #SET(%airCFeq,%ReportControl)
+    #SET(%airCOnReport,1)
+  #ENDFOR
+  #IF(%airCFeq = '')
+    #FOR(%Control),WHERE(%ControlInstance=%ActiveTemplateInstance)
+      #SET(%airCFeq,%Control)
+    #ENDFOR
+  #ENDIF
+  #SET(%airCKey,%Procedure & '_c' & %ActiveTemplateInstance)
+#ENDAT
+#!
+#!  A canvas carries the class itself, so allImageReadGlobal is not strictly
+#!  needed for the INCLUDE - but it IS needed for the readers, which is why
+#!  REQ() names it. ONCE keys on the file name across the whole compile, so the
+#!  class is pulled in exactly once even with both present.
+#AT(%CustomGlobalDeclarations),WHERE(%airCDisable=0)
+INCLUDE('ImageClass.INC'),ONCE
+#ENDAT
+#!
+#AT(%DataSection),WHERE(%airCDisable=0 AND %airCFeq)
+#INSERT(%airDeclare,%airCObject,%airCOnReport,220)
+#ENDAT
+#!===== the canvas on a WINDOW ================================================
+#!  PRIORITY(2000) puts this self-contained CASE EVENT() ABOVE the framework's
+#!  own LOOP/CASE scaffolding, which is registered at 2500 (ABWINDOW.TPW:563).
+#!  Using 2500 collides with it and duplicates CASE EVENT().
+#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=0)
+  CASE EVENT()
+  OF EVENT:OpenWindow
+    DO Air:Setup:%airCObject
+  OF EVENT:Sized
+    DO Air:Place:%airCObject
+    POST(Air:Redraw:%airCObject)
+  OF Air:Redraw:%airCObject
+    DO Air:Show:%airCObject
+#INSERT(%airWheel,%airCObject,%airCZoom,%airCZoomCtrl)
+  END
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=0)
+#INSERT(%airFieldEvents,%airCObject,%airCFeq,%airCPan,%airCMenu,%airCOpen,%airCDrop)
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=0)
+#INSERT(%airCanvasFromControl)
+#ENDAT
+#!===== the canvas in a REPORT BAND ===========================================
+#!  Nothing is drawn here. The picture is fitted to a PNG in the TEMP folder
+#!  and the band control is pointed at it - which is all a report band needs,
+#!  and the only thing that works on paper as well as in the preview.
+#AT(%BeforePrint),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=1 AND %airCRptEach=1)
+  DO Air:Band:%airCObject
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'OpenReport','(),BYTE'),PRIORITY(7500),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=1 AND %airCRptEach=0)
+  IF ReturnValue = Level:Benign
+    DO Air:Band:%airCObject
+  END
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=1)
+Air:Band:%airCObject ROUTINE
+  DATA
+fname CSTRING(261)
+  CODE
+#INSERT(%airLoadStmt,%airCObject,%airCKind,%airCFile,%airCVar,%airCLen,%airCBlob,%airCKey,%airCSecs)
+#INSERT(%airFrameStmt,%airCObject,%airCFrame)
+#INSERT(%airTouchUp,%airCObject,%airCRot,%airCMirror,%airCFlip,%airCGrey,%airCMax)
+  %airCObject:Pool += 1
+  IF %airCObject:Pool > %airCRptPool THEN %airCObject:Pool = 1.
+  fname = AirImg_Render(%airCObject,%airCRptW,%airCRptH,%airCRptFit, |
+                       %airCObject.ArgbOf(%airCRptBack),'%airCKey' & '_' & %airCObject:Pool)
+  SETTARGET(%Report)
+  %airCFeq{PROP:Text} = fname                                  ! blank clears the frame
+  SETTARGET()
+#ENDAT
+#!#############################################################################
+#!  PROCEDURE EXTENSION - allImageRead
+#!  The same viewer, into an IMAGE control that is already on the window.
+#!#############################################################################
+#EXTENSION(allImageRead,'allImageRead - Show a picture in an IMAGE control on this window'),PROCEDURE,MULTI,REQ(allImageReadGlobal),DESCRIPTION('[Picture] ' & %airWObject),HLP('~allImageRead.htm')
+#SHEET
+  #TAB('&Picture')
+    #BOXED('Object &&  control')
+      #PROMPT('&Disable this picture',CHECK),%airWDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Object name:',@s64),%airWObject,REQ,DEFAULT('Pic' & %ActiveTemplateInstance)
+      #PROMPT('&IMAGE control to paint into:',CONTROL),%airWImage,REQ
+    #ENDBOXED
+    #BOXED('Where the picture comes from')
+      #PROMPT('&Source:',DROP('A file on disk (fixed path)[FILE]|A variable holding a file path[PATH]|A BLOB field[BLOB]|A STRING variable in memory[MEM]|A base64 string[B64]|A URL (http/https)[URL]|Nothing - I set it in code[NONE]')),%airWKind,DEFAULT('FILE')
+      #ENABLE(%airWKind='FILE')
+        #PROMPT('File &name:',@s255),%airWFile,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airWKind='PATH' OR %airWKind='MEM' OR %airWKind='B64' OR %airWKind='URL')
+        #PROMPT('&Variable / expression:',@s255),%airWVar,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airWKind='MEM')
+        #PROMPT('&Bytes to use (blank = SIZE of the variable):',@s255),%airWLen,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airWKind='BLOB')
+        #PROMPT('&BLOB field:',FIELD),%airWBlob
+      #ENDENABLE
+      #ENABLE(%airWKind='URL')
+        #PROMPT('Download &timeout (seconds, 0 = the global default):',SPIN(@n3,0,300,1)),%airWSecs,DEFAULT(0)
+      #ENDENABLE
+      #PROMPT('Show &frame:',SPIN(@n4,1,9999,1)),%airWFrame,DEFAULT(1)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Canvas')
+    #BOXED('How it sits in the frame')
+      #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airWFit,DEFAULT('Img:Proportional')
+      #PROMPT('&Background:',COLOR),%airWBack,DEFAULT(00FFFFFFH)
+      #PROMPT('&Load the picture when the window opens',CHECK),%airWAuto,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('What the user may do')
+      #PROMPT('&Zoom with the mouse wheel',CHECK),%airWZoom,DEFAULT(1),AT(10)
+      #PROMPT('Hold &Ctrl to zoom (wheel alone does nothing)',CHECK),%airWZoomCtrl,DEFAULT(1),AT(20)
+      #PROMPT('Zoom &step (per cent):',SPIN(@n3,5,100,5)),%airWZoomStep,DEFAULT(25)
+      #PROMPT('&Pan (drag the picture)',CHECK),%airWPan,DEFAULT(1),AT(10)
+      #PROMPT('&Right-click menu',CHECK),%airWMenu,DEFAULT(1),AT(10)
+      #PROMPT('&Open another picture (menu, and double-click)',CHECK),%airWOpen,DEFAULT(1),AT(10)
+      #PROMPT('&Accept a file dropped from Explorer',CHECK),%airWDrop,DEFAULT(1),AT(10)
+      #PROMPT('&Save a copy (menu)',CHECK),%airWSave,DEFAULT(1),AT(10)
+      #PROMPT('Rotate and &mirror (menu)',CHECK),%airWRotate,DEFAULT(1),AT(10)
+      #PROMPT('Step through &frames (menu)',CHECK),%airWFrames,DEFAULT(1),AT(10)
+    #ENDBOXED
+    #BOXED('Telling the user what it is')
+      #PROMPT('Put the details in the &status bar',CHECK),%airWStatus,DEFAULT(0),AT(10)
+      #PROMPT('Status bar &zone:',SPIN(@n1,1,4,1)),%airWStatusZone,DEFAULT(1)
+      #PROMPT('Show a &tooltip with the file name',CHECK),%airWTip,DEFAULT(1),AT(10)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Touch-up')
+    #BOXED('Applied once, right after the picture is read')
+      #PROMPT('&Rotate:',DROP('Leave it[0]|90 degrees right[90]|180 degrees[180]|90 degrees left[270]')),%airWRot,DEFAULT('0')
+      #PROMPT('&Mirror (left to right)',CHECK),%airWMirror,DEFAULT(0),AT(10)
+      #PROMPT('&Flip (top to bottom)',CHECK),%airWFlip,DEFAULT(0),AT(10)
+      #PROMPT('&Greyscale',CHECK),%airWGrey,DEFAULT(0),AT(10)
+      #PROMPT('Cap the &longest side at (pixels, 0 = leave it):',SPIN(@n5,0,8000,50)),%airWMax,DEFAULT(0)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!-----------------------------------------------------------------------------
+#ATSTART
+  #IF(VAREXISTS(%airWKey) = 0)
+    #DECLARE(%airWKey)
+  #ENDIF
+  #SET(%airWKey,%Procedure & '_w' & %ActiveTemplateInstance)
+#ENDAT
+#!
+#AT(%DataSection),WHERE(%airWDisable=0 AND %airWImage)
+#INSERT(%airDeclare,%airWObject,0,260)
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%airWDisable=0 AND %airWImage)
+  CASE EVENT()
+  OF EVENT:OpenWindow
+    DO Air:Setup:%airWObject
+  OF EVENT:Sized
+    DO Air:Place:%airWObject
+    POST(Air:Redraw:%airWObject)
+  OF Air:Redraw:%airWObject
+    DO Air:Show:%airWObject
+#INSERT(%airWheel,%airWObject,%airWZoom,%airWZoomCtrl)
+  END
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%airWDisable=0 AND %airWImage)
+#INSERT(%airFieldEvents,%airWObject,%airWImage,%airWPan,%airWMenu,%airWOpen,%airWDrop)
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%airWDisable=0 AND %airWImage)
+#INSERT(%airCanvasFromExtension)
+#ENDAT
+#!#############################################################################
+#!  PROCEDURE EXTENSION - allImageReadRpt
+#!  Into an IMAGE control that is already in a report band.
+#!#############################################################################
+#EXTENSION(allImageReadRpt,'allImageRead - Show a picture in an IMAGE control on this REPORT'),PROCEDURE,MULTI,REQ(allImageReadGlobal),DESCRIPTION('[Picture] ' & %airRObject),HLP('~allImageRead.htm')
+#SHEET
+  #TAB('&Picture')
+    #BOXED('Object &&  control')
+      #PROMPT('&Disable this picture',CHECK),%airRDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Object name:',@s64),%airRObject,REQ,DEFAULT('RptPic' & %ActiveTemplateInstance)
+      #! a report needs FROM(%ReportControl,...) - a window CONTROL prompt cannot see a band
+      #PROMPT('&IMAGE control (in a report band):',FROM(%ReportControl,%ReportControlType = 'IMAGE')),%airRImage,REQ,DEFAULT('')
+    #ENDBOXED
+    #BOXED('Where the picture comes from')
+      #PROMPT('&Source:',DROP('A file on disk (fixed path)[FILE]|A variable holding a file path[PATH]|A BLOB field[BLOB]|A STRING variable in memory[MEM]|A base64 string[B64]|A URL (http/https)[URL]')),%airRKind,DEFAULT('PATH')
+      #ENABLE(%airRKind='FILE')
+        #PROMPT('File &name:',@s255),%airRFile,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airRKind='PATH' OR %airRKind='MEM' OR %airRKind='B64' OR %airRKind='URL')
+        #PROMPT('&Variable / expression (per record):',@s255),%airRVar,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airRKind='MEM')
+        #PROMPT('&Bytes to use (blank = SIZE of the variable):',@s255),%airRLen,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airRKind='BLOB')
+        #PROMPT('&BLOB field:',FIELD),%airRBlob
+      #ENDENABLE
+      #ENABLE(%airRKind='URL')
+        #PROMPT('Download &timeout (seconds, 0 = the global default):',SPIN(@n3,0,300,1)),%airRSecs,DEFAULT(0)
+      #ENDENABLE
+      #PROMPT('Show &frame:',SPIN(@n4,1,9999,1)),%airRFrame,DEFAULT(1)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Rendering')
+    #BOXED('When to fill it')
+      #PROMPT('Load the picture for &every record',CHECK),%airREach,DEFAULT(1),AT(10)
+      #DISPLAY('Off = the picture is loaded once, when the report opens.')
+    #ENDBOXED
+    #BOXED('How big to render it')
+      #DISPLAY('Render it at least as big as it will print, or it will look soft.')
+      #PROMPT('&Width (pixels):',SPIN(@n5,16,8000,10)),%airRW,DEFAULT(600)
+      #PROMPT('&Height (pixels):',SPIN(@n5,16,8000,10)),%airRH,DEFAULT(450)
+      #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airRFit,DEFAULT('Img:Proportional')
+      #PROMPT('&Background:',COLOR),%airRBack,DEFAULT(00FFFFFFH)
+      #PROMPT('How many working names to &rotate:',SPIN(@n2,1,32,1)),%airRPool,DEFAULT(8)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Touch-up')
+    #BOXED('Applied once, right after the picture is read')
+      #PROMPT('&Rotate:',DROP('Leave it[0]|90 degrees right[90]|180 degrees[180]|90 degrees left[270]')),%airRRot,DEFAULT('0')
+      #PROMPT('&Mirror (left to right)',CHECK),%airRMirror,DEFAULT(0),AT(10)
+      #PROMPT('&Flip (top to bottom)',CHECK),%airRFlip,DEFAULT(0),AT(10)
+      #PROMPT('&Greyscale',CHECK),%airRGrey,DEFAULT(0),AT(10)
+      #PROMPT('Cap the &longest side at (pixels, 0 = leave it):',SPIN(@n5,0,8000,50)),%airRMax,DEFAULT(0)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!-----------------------------------------------------------------------------
+#ATSTART
+  #IF(VAREXISTS(%airRKey) = 0)
+    #DECLARE(%airRKey)
+  #ENDIF
+  #SET(%airRKey,%Procedure & '_r' & %ActiveTemplateInstance)
+#ENDAT
+#!
+#AT(%DataSection),WHERE(%airRDisable=0 AND %airRImage)
+#INSERT(%airDeclare,%airRObject,1,300)
+#ENDAT
+#!
+#AT(%BeforePrint),WHERE(%airRDisable=0 AND %airRImage AND %airREach=1)
+  DO Air:Band:%airRObject
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'OpenReport','(),BYTE'),PRIORITY(7500),WHERE(%airRDisable=0 AND %airRImage AND %airREach=0)
+  IF ReturnValue = Level:Benign
+    DO Air:Band:%airRObject
+  END
+#ENDAT
+#!
+#AT(%ProcedureRoutines),WHERE(%airRDisable=0 AND %airRImage)
+Air:Band:%airRObject ROUTINE
+  DATA
+fname CSTRING(261)
+  CODE
+#INSERT(%airLoadStmt,%airRObject,%airRKind,%airRFile,%airRVar,%airRLen,%airRBlob,%airRKey,%airRSecs)
+#INSERT(%airFrameStmt,%airRObject,%airRFrame)
+#INSERT(%airTouchUp,%airRObject,%airRRot,%airRMirror,%airRFlip,%airRGrey,%airRMax)
+  %airRObject:Pool += 1
+  IF %airRObject:Pool > %airRPool THEN %airRObject:Pool = 1.
+  fname = AirImg_Render(%airRObject,%airRW,%airRH,%airRFit, |
+                       %airRObject.ArgbOf(%airRBack),'%airRKey' & '_' & %airRObject:Pool)
+  SETTARGET(%Report)
+  %airRImage{PROP:Text} = fname                                ! blank clears the frame
+  SETTARGET()
+#ENDAT
+#!#############################################################################
+#!  CODE TEMPLATE - allImageReadLoad
+#!  One statement, at any embed: read a picture from any source into an object
+#!  that already exists.
+#!#############################################################################
+#CODE(allImageReadLoad,'allImageRead - Load a picture from any source'),HLP('~allImageRead.htm')
+#SHEET
+  #TAB('&Load')
+    #BOXED('Into')
+      #PROMPT('&Object name (an ImageClass already declared):',@s64),%airKObject,REQ,DEFAULT('Pic1')
+    #ENDBOXED
+    #BOXED('From')
+      #PROMPT('&Source:',DROP('A file on disk (fixed path)[FILE]|A variable holding a file path[PATH]|A BLOB field[BLOB]|A STRING variable in memory[MEM]|A base64 string[B64]|A URL (http/https)[URL]')),%airKKind,DEFAULT('PATH')
+      #ENABLE(%airKKind='FILE')
+        #PROMPT('File &name:',@s255),%airKFile,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airKKind='PATH' OR %airKKind='MEM' OR %airKKind='B64' OR %airKKind='URL')
+        #PROMPT('&Variable / expression:',@s255),%airKVar,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airKKind='MEM')
+        #PROMPT('&Bytes to use (blank = SIZE of the variable):',@s255),%airKLen,DEFAULT('')
+      #ENDENABLE
+      #ENABLE(%airKKind='BLOB')
+        #PROMPT('&BLOB field:',FIELD),%airKBlob
+      #ENDENABLE
+      #ENABLE(%airKKind='URL')
+        #PROMPT('Download &timeout (seconds, 0 = the global default):',SPIN(@n3,0,300,1)),%airKSecs,DEFAULT(0)
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('Then')
+      #PROMPT('&Paint it into this IMAGE control:',CONTROL),%airKImage
+      #PROMPT('&Fit:',DROP('Fit inside, keep the ratio, pad[Img:Proportional]|Fit inside, keep the ratio, no padding[Img:Contain]|Fill the frame, keep the ratio, crop[Img:Cover]|Fill the frame, ignore the ratio[Img:Stretch]|No scaling, centred[Img:Centered]')),%airKFit,DEFAULT('Img:Proportional')
+      #PROMPT('&Background:',COLOR),%airKBack,DEFAULT(00FFFFFFH)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#INSERT(%airLoadStmtK)
+#!#############################################################################
+#!  GROUPS - the shared emitters.
+#!  A #GROUP has no end marker: it runs to the next section directive. They all
+#!  live down here, after every #AT in the file, which is where they belong.
+#!#############################################################################
+#!-----------------------------------------------------------------------------
+#!  %airDeclare - one canvas worth of data. Labels are built from the object
+#!  name, so several canvases on one window never collide. The event base keeps
+#!  a canvas control and a canvas extension on the same window apart.
+#!-----------------------------------------------------------------------------
+#GROUP(%airDeclare,%pObj,%pOnReport,%pBase)
+%pObj                ImageClass                              ! the picture, exactly as it was read
+%pObj:Ref            &STRING                                 ! a BLOB, while it is being handed over
+%pObj:Sz             LONG                                    ! how many bytes that was
+%pObj:Path           CSTRING(261)                            ! what is on the canvas now
+%pObj:Frame          LONG(1)                                 ! which frame of a multi-frame picture
+#IF(%pOnReport)
+%pObj:Pool           LONG                                    ! which working name this record used
+#ELSE
+%pObj:Cv             ImageClass                              ! the canvas: what the control is showing
+%pObj:Zoom           LONG                                    ! 0 = fit the frame, else per cent
+%pObj:PanX           LONG                                    ! the viewport, in picture pixels
+%pObj:PanY           LONG
+%pObj:Rgn            SIGNED                                  ! the region that takes the mouse
+%pObj:Drag           BYTE
+%pObj:DragX          SIGNED
+%pObj:DragY          SIGNED
+Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airLoadStmt - read the picture into the object. Every branch either fills
+#!  the object or empties it, so a canvas never shows the previous record's
+#!  photograph when this record has none.
+#!-----------------------------------------------------------------------------
+#GROUP(%airLoadStmt,%pObj,%pKind,%pFile,%pVar,%pLen,%pBlob,%pKey,%pSecs)
+#IF(VAREXISTS(%airSecs) = 0)
+  #DECLARE(%airSecs)
+  #DECLARE(%airHave)
+#ENDIF
+#!  a per-instance timeout of 0 means "whatever the global extension says"
+#IF(%pSecs > 0)
+  #SET(%airSecs,%pSecs)
+#ELSE
+  #SET(%airSecs,'AirImg:Secs')
+#ENDIF
+#!  nothing to read from? then empty the object rather than emit half a
+#!  statement around a prompt the developer left blank
+#SET(%airHave,1)
+#IF(%pKind = 'BLOB' AND %pBlob = '')
+  #SET(%airHave,0)
+#ENDIF
+#IF((%pKind = 'PATH' OR %pKind = 'MEM' OR %pKind = 'B64' OR %pKind = 'URL') AND %pVar = '')
+  #SET(%airHave,0)
+#ENDIF
+#IF(%airHave = 0)
+  %pObj.Kill()                                                ! no source was named
+  %pObj:Path = ''
+#ELSE
+#CASE(%pKind)
+#OF('FILE')
+  %pObj:Path = '%pFile'
+  AirImg_LoadPath(%pObj,%pObj:Path)
+#OF('PATH')
+  %pObj:Path = CLIP(%pVar)
+  AirImg_LoadPath(%pObj,%pObj:Path)
+#OF('BLOB')
+  %pObj:Sz = %pBlob{PROP:Size}
+  IF %pObj:Sz > 0
+    %pObj:Ref &= NEW(STRING(%pObj:Sz))
+    %pObj:Ref = %pBlob[1 : %pObj:Sz]
+    AirImg_LoadBytes(%pObj,%pObj:Ref,%pObj:Sz,'%pKey')
+    DISPOSE(%pObj:Ref)
+  ELSE
+    %pObj.Kill()
+  END
+  %pObj:Path = ''
+#OF('MEM')
+#IF(%pLen)
+  %pObj:Sz = %pLen
+#ELSE
+  %pObj:Sz = SIZE(%pVar)
+#ENDIF
+  AirImg_LoadBytes(%pObj,%pVar,%pObj:Sz,'%pKey')
+  %pObj:Path = ''
+#OF('B64')
+  AirImg_LoadB64(%pObj,%pVar,'%pKey')
+  %pObj:Path = ''
+#OF('URL')
+  %pObj:Path = CLIP(%pVar)
+  AirImg_LoadUrl(%pObj,%pObj:Path,'%pKey',%airSecs)
+#ENDCASE
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airLoadStmtK - the code template's own emitter (its prompts, its embed).
+#!-----------------------------------------------------------------------------
+#GROUP(%airLoadStmtK)
+#INSERT(%airLoadStmt,%airKObject,%airKKind,%airKFile,%airKVar,%airKLen,%airKBlob,%Procedure & '_k',%airKSecs)
+#IF(%airKImage)
+%airKObject.Draw(%Window,%airKImage,%airKFit,%airKObject.ArgbOf(%airKBack))
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airFrameStmt - pick a frame out of an animated GIF, a multi-page TIFF or
+#!  an .ico. Frame 1 is what LoadFile already gave us.
+#!-----------------------------------------------------------------------------
+#GROUP(%airFrameStmt,%pObj,%pFrame)
+#IF(%pFrame > 1)
+  IF %pObj.Frames() >= %pFrame
+    %pObj:Frame = %pFrame
+    %pObj.LoadFrame(%pObj:Frame)
+  END
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airTouchUp - the once-only corrections, straight after reading.
+#!-----------------------------------------------------------------------------
+#GROUP(%airTouchUp,%pObj,%pRot,%pMirror,%pFlip,%pGrey,%pMax)
+#IF(%pRot = '90')
+  %pObj.RotateRight()
+#ENDIF
+#IF(%pRot = '180')
+  %pObj.Rotate180()
+#ENDIF
+#IF(%pRot = '270')
+  %pObj.RotateLeft()
+#ENDIF
+#IF(%pMirror)
+  %pObj.Mirror()
+#ENDIF
+#IF(%pFlip)
+  %pObj.FlipVert()
+#ENDIF
+#IF(%pGrey)
+  %pObj.Greyscale(Img:Luma)
+#ENDIF
+#IF(%pMax > 0)
+  IF %pObj.Wide() > %pMax OR %pObj.High() > %pMax
+    %pObj.Fit(%pMax,%pMax,Img:Contain,0)                      ! cap the longest side
+  END
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airWheel - the mouse wheel, inside the window's CASE EVENT().
+#!  Ctrl+wheel is the usual bargain in a picture viewer: the wheel on its own
+#!  belongs to whatever the window wants to scroll, and only Ctrl means "zoom".
+#!  Windows is asked for the Ctrl state directly - see the prototype above for
+#!  why KEYSTATE() is no good during a wheel event.
+#!-----------------------------------------------------------------------------
+#GROUP(%airWheel,%pObj,%pZoom,%pCtrl)
+#IF(%pZoom)
+  OF EVENT:ScrollUp
+#IF(%pCtrl)
+    IF airApi_KeyState(AirImg:VkCtrl) < 0                     ! Ctrl is down
+      DO Air:In:%pObj
+    END
+#ELSE
+    DO Air:In:%pObj
+#ENDIF
+  OF EVENT:ScrollDown
+#IF(%pCtrl)
+    IF airApi_KeyState(AirImg:VkCtrl) < 0
+      DO Air:Out:%pObj
+    END
+#ELSE
+    DO Air:Out:%pObj
+#ENDIF
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airFieldEvents - the mouse, for whichever control the canvas paints into.
+#!  The events arrive from the REGION laid over the image; the image's own feq
+#!  is accepted too, so a drop that lands on the picture still counts.
+#!-----------------------------------------------------------------------------
+#GROUP(%airFieldEvents,%pObj,%pFeq,%pPan,%pMenu,%pOpen,%pDrop)
+  IF FIELD() = %pObj:Rgn OR FIELD() = %pFeq
+    CASE EVENT()
+#IF(%pPan)
+    OF EVENT:MouseDown
+      IF KEYCODE() = MouseLeft AND %pObj:Zoom
+        %pObj:Drag  = 1
+        %pObj:DragX = MOUSEX()
+        %pObj:DragY = MOUSEY()
+      END
+    OF EVENT:MouseMove
+      IF %pObj:Drag
+        %pObj:PanX += %pObj:DragX - MOUSEX()
+        %pObj:PanY += %pObj:DragY - MOUSEY()
+        %pObj:DragX = MOUSEX()
+        %pObj:DragY = MOUSEY()
+        DO Air:Show:%pObj
+      END
+    OF EVENT:MouseUp
+      %pObj:Drag = 0
+#ENDIF
+#IF(%pDrop)
+    OF EVENT:Drop
+      %pObj:Path = CLIP(DROPID())                             ! several files? take the first
+      IF INSTRING(',',%pObj:Path,1,1)
+        %pObj:Path = SUB(%pObj:Path,1,INSTRING(',',%pObj:Path,1,1) - 1)
+      END
+      IF AirImg_LoadPath(%pObj,%pObj:Path)
+        DO Air:Fresh:%pObj
+      END
+      DO Air:Show:%pObj
+#ENDIF
+#IF(%pMenu OR %pOpen)
+    OF EVENT:AlertKey
+      CASE KEYCODE()
+#IF(%pMenu)
+      OF MouseRight
+        DO Air:Menu:%pObj
+#ENDIF
+#IF(%pOpen)
+      OF MouseLeft2
+        DO Air:Open:%pObj
+#ENDIF
+      END
+#ENDIF
+    END
+  END
+#!-----------------------------------------------------------------------------
+#!  %airCanvasFromControl / %airCanvasFromExtension - the two front doors to
+#!  the canvas routines. Each copies its own prompts into the %airX symbols the
+#!  body reads, so one body serves both templates and no argument can slip.
+#!-----------------------------------------------------------------------------
+#GROUP(%airCanvasFromControl)
+#CALL(%airPrep)
+#SET(%airXObj,%airCObject)
+#SET(%airXFeq,%airCFeq)
+#SET(%airXKind,%airCKind)
+#SET(%airXFile,%airCFile)
+#SET(%airXVar,%airCVar)
+#SET(%airXLen,%airCLen)
+#SET(%airXBlob,%airCBlob)
+#SET(%airXKey,%airCKey)
+#SET(%airXSecs,%airCSecs)
+#SET(%airXFit,%airCFit)
+#SET(%airXBack,%airCBack)
+#SET(%airXAuto,%airCAuto)
+#SET(%airXZoom,%airCZoom)
+#SET(%airXStep,%airCZoomStep)
+#SET(%airXPan,%airCPan)
+#SET(%airXMenu,%airCMenu)
+#SET(%airXOpen,%airCOpen)
+#SET(%airXDrop,%airCDrop)
+#SET(%airXSave,%airCSave)
+#SET(%airXRotate,%airCRotate)
+#SET(%airXFrames,%airCFrames)
+#SET(%airXFrame,%airCFrame)
+#SET(%airXStatus,%airCStatus)
+#SET(%airXZone,%airCStatusZone)
+#SET(%airXTip,%airCTip)
+#SET(%airXRot,%airCRot)
+#SET(%airXMirror,%airCMirror)
+#SET(%airXFlip,%airCFlip)
+#SET(%airXGrey,%airCGrey)
+#SET(%airXMax,%airCMax)
+#INSERT(%airCanvasBody)
+#!
+#GROUP(%airCanvasFromExtension)
+#CALL(%airPrep)
+#SET(%airXObj,%airWObject)
+#SET(%airXFeq,%airWImage)
+#SET(%airXKind,%airWKind)
+#SET(%airXFile,%airWFile)
+#SET(%airXVar,%airWVar)
+#SET(%airXLen,%airWLen)
+#SET(%airXBlob,%airWBlob)
+#SET(%airXKey,%airWKey)
+#SET(%airXSecs,%airWSecs)
+#SET(%airXFit,%airWFit)
+#SET(%airXBack,%airWBack)
+#SET(%airXAuto,%airWAuto)
+#SET(%airXZoom,%airWZoom)
+#SET(%airXStep,%airWZoomStep)
+#SET(%airXPan,%airWPan)
+#SET(%airXMenu,%airWMenu)
+#SET(%airXOpen,%airWOpen)
+#SET(%airXDrop,%airWDrop)
+#SET(%airXSave,%airWSave)
+#SET(%airXRotate,%airWRotate)
+#SET(%airXFrames,%airWFrames)
+#SET(%airXFrame,%airWFrame)
+#SET(%airXStatus,%airWStatus)
+#SET(%airXZone,%airWStatusZone)
+#SET(%airXTip,%airWTip)
+#SET(%airXRot,%airWRot)
+#SET(%airXMirror,%airWMirror)
+#SET(%airXFlip,%airWFlip)
+#SET(%airXGrey,%airWGrey)
+#SET(%airXMax,%airWMax)
+#INSERT(%airCanvasBody)
+#!
+#GROUP(%airPrep)
+#IF(VAREXISTS(%airXObj) = 0)
+  #DECLARE(%airXObj)
+  #DECLARE(%airXFeq)
+  #DECLARE(%airXKind)
+  #DECLARE(%airXFile)
+  #DECLARE(%airXVar)
+  #DECLARE(%airXLen)
+  #DECLARE(%airXBlob)
+  #DECLARE(%airXKey)
+  #DECLARE(%airXSecs)
+  #DECLARE(%airXFit)
+  #DECLARE(%airXBack)
+  #DECLARE(%airXAuto)
+  #DECLARE(%airXZoom)
+  #DECLARE(%airXStep)
+  #DECLARE(%airXPan)
+  #DECLARE(%airXMenu)
+  #DECLARE(%airXOpen)
+  #DECLARE(%airXDrop)
+  #DECLARE(%airXSave)
+  #DECLARE(%airXRotate)
+  #DECLARE(%airXFrames)
+  #DECLARE(%airXFrame)
+  #DECLARE(%airXStatus)
+  #DECLARE(%airXZone)
+  #DECLARE(%airXTip)
+  #DECLARE(%airXRot)
+  #DECLARE(%airXMirror)
+  #DECLARE(%airXFlip)
+  #DECLARE(%airXGrey)
+  #DECLARE(%airXMax)
+  #DECLARE(%airMenuN)
+  #DECLARE(%airMenuTxt)
+  #DECLARE(%airItemOpen)
+  #DECLARE(%airItemIn)
+  #DECLARE(%airItemOut)
+  #DECLARE(%airItem100)
+  #DECLARE(%airItemFit)
+  #DECLARE(%airItemLeft)
+  #DECLARE(%airItemRight)
+  #DECLARE(%airItemNext)
+  #DECLARE(%airItemPrev)
+  #DECLARE(%airItemSave)
+  #DECLARE(%airItemInfo)
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  %airMenuAdd - one more line on the right-click menu, and the number it will
+#!  answer with. No separators: a separator takes a number of its own and makes
+#!  the CASE below lie about which line was clicked.
+#!-----------------------------------------------------------------------------
+#GROUP(%airMenuAdd,%pText)
+#IF(%airMenuTxt <> '')
+  #SET(%airMenuTxt,%airMenuTxt & '|')
+#ENDIF
+#SET(%airMenuTxt,%airMenuTxt & %pText)
+#SET(%airMenuN,%airMenuN + 1)
+#RETURN(%airMenuN)
+#!-----------------------------------------------------------------------------
+#!  %airCanvasBody - everything the canvas does on a window.
+#!
+#!    Air:Setup  once, when the window opens: make the region, read the picture
+#!    Air:Place  put the region exactly over the image, again after a resize
+#!    Air:Fresh  a NEW picture is in the object: touch it up, reset the view
+#!    Air:Show   paint what the object holds, at the current zoom and pan
+#!    Air:In     zoom a step in, about the middle of the viewport
+#!    Air:Out    zoom a step out; past the fit, it goes back to fitting
+#!    Air:Fit    fit the frame again
+#!    Air:Open   let the user choose another picture
+#!    Air:Save   write a copy, in whatever format the name asks for
+#!    Air:Menu   the right-click menu
+#!-----------------------------------------------------------------------------
+#GROUP(%airCanvasBody)
+#SET(%airMenuN,0)
+#SET(%airMenuTxt,'')
+#SET(%airItemOpen,0)
+#SET(%airItemIn,0)
+#SET(%airItemOut,0)
+#SET(%airItem100,0)
+#SET(%airItemFit,0)
+#SET(%airItemLeft,0)
+#SET(%airItemRight,0)
+#SET(%airItemNext,0)
+#SET(%airItemPrev,0)
+#SET(%airItemSave,0)
+#SET(%airItemInfo,0)
+#IF(%airXOpen)
+  #SET(%airItemOpen,%airMenuAdd('Open a picture...'))
+#ENDIF
+#IF(%airXZoom)
+  #SET(%airItemIn,%airMenuAdd('Zoom in'))
+  #SET(%airItemOut,%airMenuAdd('Zoom out'))
+  #SET(%airItem100,%airMenuAdd('Actual size'))
+  #SET(%airItemFit,%airMenuAdd('Fit the frame'))
+#ENDIF
+#IF(%airXRotate)
+  #SET(%airItemLeft,%airMenuAdd('Rotate left'))
+  #SET(%airItemRight,%airMenuAdd('Rotate right'))
+#ENDIF
+#IF(%airXFrames)
+  #SET(%airItemNext,%airMenuAdd('Next frame'))
+  #SET(%airItemPrev,%airMenuAdd('Previous frame'))
+#ENDIF
+#IF(%airXSave)
+  #SET(%airItemSave,%airMenuAdd('Save a copy...'))
+#ENDIF
+#SET(%airItemInfo,%airMenuAdd('What is this picture?'))
+Air:Setup:%airXObj ROUTINE
+!  The IMAGE control is only the paint surface. A REGION created over it takes
+!  the mouse - the way Clarion's own ActiveImage class does it
+!  (libsrc\win\ActiveImage.clw:303). A REGION has nothing of its own to draw,
+!  so the picture underneath shows through untouched.
+  IF ~%airXObj:Rgn
+    %airXObj:Rgn = CREATE(0,CREATE:Region,%airXFeq{PROP:Parent})
+  END
+  DO Air:Place:%airXObj
+  UNHIDE(%airXObj:Rgn)
+#IF(%airXDrop)
+  %airXFeq{PROP:DropID,1}     = '~FILE'                       ! a file dragged out of Explorer
+  %airXObj:Rgn{PROP:DropID,1} = '~FILE'
+#ENDIF
+#IF(%airXMenu)
+  %airXObj:Rgn{PROP:Alrt,255} = MouseRight
+#ENDIF
+#IF(%airXOpen)
+  %airXObj:Rgn{PROP:Alrt,254} = MouseLeft2
+#ENDIF
+#IF(%airXAuto AND %airXKind <> 'NONE')
+#INSERT(%airLoadStmt,%airXObj,%airXKind,%airXFile,%airXVar,%airXLen,%airXBlob,%airXKey,%airXSecs)
+  DO Air:Fresh:%airXObj
+#ENDIF
+  POST(Air:Redraw:%airXObj)                                   ! first paint, once the window is up
+
+Air:Place:%airXObj ROUTINE
+!  Keep the region exactly over the image, however the resizer moves it.
+  DATA
+x  SIGNED,AUTO
+y  SIGNED,AUTO
+w  SIGNED,AUTO
+h  SIGNED,AUTO
+  CODE
+  IF ~%airXObj:Rgn THEN EXIT.
+  GETPOSITION(%airXFeq,x,y,w,h)
+  SETPOSITION(%airXObj:Rgn,x,y,w,h)
+
+Air:Fresh:%airXObj ROUTINE
+!  A NEW picture has just landed in the object.
+#INSERT(%airFrameStmt,%airXObj,%airXFrame)
+#INSERT(%airTouchUp,%airXObj,%airXRot,%airXMirror,%airXFlip,%airXGrey,%airXMax)
+  %airXObj:Zoom = 0                                           ! back to fitting the frame
+  %airXObj:PanX = 0
+  %airXObj:PanY = 0
+#IF(%airXTip)
+  %airXFeq{PROP:Tooltip} = %airXObj:Path
+#ENDIF
+#IF(%airXStatus)
+  IF %airXObj.Ok()
+    0{PROP:StatusText,%airXZone} = %airXObj.Describe()
+  ELSE
+    0{PROP:StatusText,%airXZone} = ''
+  END
+#ENDIF
+
+Air:Show:%airXObj ROUTINE
+!  Paint what the object holds. At zoom 0 the class fits a copy to the control
+!  for us; from there on the viewport is cut out here and blitted as it is.
+  DATA
+w      LONG,AUTO
+h      LONG,AUTO
+cw     LONG,AUTO
+ch     LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~%airXObj.Ok()
+    %airXFeq{PROP:Text} = ''
+    DISPLAY(%airXFeq)
+    EXIT
+  END
+  IF ~%airXObj:Zoom
+    %airXObj.Draw(%Window,%airXFeq,%airXFit,%airXObj.ArgbOf(%airXBack))
+    EXIT
+  END
+  savePx = 0{PROP:Pixels}                                     ! the frame, in real pixels
+  0{PROP:Pixels} = 1
+  w = %airXFeq{PROP:Width}
+  h = %airXFeq{PROP:Height}
+  0{PROP:Pixels} = savePx
+  IF w < 4 OR h < 4 THEN EXIT.
+  IF ~%airXObj.CloneInto(%airXObj:Cv) THEN EXIT.
+  %airXObj:Cv.Zoom(%airXObj:Zoom,Img:Best)
+  cw = w                                                      ! the viewport, never bigger than the picture
+  ch = h
+  IF cw > %airXObj:Cv.Wide() THEN cw = %airXObj:Cv.Wide().
+  IF ch > %airXObj:Cv.High() THEN ch = %airXObj:Cv.High().
+  IF %airXObj:PanX > %airXObj:Cv.Wide() - cw THEN %airXObj:PanX = %airXObj:Cv.Wide() - cw.
+  IF %airXObj:PanY > %airXObj:Cv.High() - ch THEN %airXObj:PanY = %airXObj:Cv.High() - ch.
+  IF %airXObj:PanX < 0 THEN %airXObj:PanX = 0.
+  IF %airXObj:PanY < 0 THEN %airXObj:PanY = 0.
+  %airXObj:Cv.Crop(%airXObj:PanX,%airXObj:PanY,cw,ch)
+  %airXObj:Cv.Fit(w,h,Img:Centered,%airXObj.ArgbOf(%airXBack))  ! pad out to the frame
+  %airXObj:Cv.Draw(%Window,%airXFeq,-1)                       ! -1 = blit it as it is
+#IF(%airXZoom)
+
+Air:In:%airXObj ROUTINE
+!  Zoom about the middle of the viewport, so the picture does not run away.
+  DATA
+was    LONG,AUTO
+now    LONG,AUTO
+w      LONG,AUTO
+h      LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~%airXObj.Ok() THEN EXIT.
+  savePx = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+  w = %airXFeq{PROP:Width}
+  h = %airXFeq{PROP:Height}
+  0{PROP:Pixels} = savePx
+  was = %airXObj:Zoom
+  IF ~was THEN was = AirImg_FitPct(%airXObj,w,h).
+  now = was + %airXStep
+  IF now > 1600 THEN now = 1600.
+  %airXObj:PanX = INT((%airXObj:PanX + w / 2) * now / was - w / 2)
+  %airXObj:PanY = INT((%airXObj:PanY + h / 2) * now / was - h / 2)
+  %airXObj:Zoom = now
+  DO Air:Show:%airXObj
+
+Air:Out:%airXObj ROUTINE
+  DATA
+was    LONG,AUTO
+now    LONG,AUTO
+w      LONG,AUTO
+h      LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~%airXObj.Ok() OR ~%airXObj:Zoom THEN EXIT.               ! already fitted
+  savePx = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+  w = %airXFeq{PROP:Width}
+  h = %airXFeq{PROP:Height}
+  0{PROP:Pixels} = savePx
+  was = %airXObj:Zoom
+  now = was - %airXStep
+  IF now <= AirImg_FitPct(%airXObj,w,h)                        ! all the way out = fit the frame
+    DO Air:Fit:%airXObj
+    EXIT
+  END
+  %airXObj:PanX = INT((%airXObj:PanX + w / 2) * now / was - w / 2)
+  %airXObj:PanY = INT((%airXObj:PanY + h / 2) * now / was - h / 2)
+  %airXObj:Zoom = now
+  DO Air:Show:%airXObj
+
+Air:Fit:%airXObj ROUTINE
+  %airXObj:Zoom = 0
+  %airXObj:PanX = 0
+  %airXObj:PanY = 0
+  DO Air:Show:%airXObj
+#ENDIF
+#IF(%airXOpen)
+
+Air:Open:%airXObj ROUTINE
+!  Whichever picture the user wants.
+  DATA
+pick CSTRING(261)
+  CODE
+  pick = %airXObj:Path
+  IF ~FILEDIALOG('Open a picture',pick,AirImg_Filter(),FILE:KeepDir + FILE:LongName) THEN EXIT.
+  %airXObj:Path = pick
+  IF AirImg_LoadPath(%airXObj,%airXObj:Path)
+    DO Air:Fresh:%airXObj
+  END
+  DO Air:Show:%airXObj
+#ENDIF
+#IF(%airXSave)
+
+Air:Save:%airXObj ROUTINE
+!  The format follows the name the user types: .png .jpg .gif .bmp .tif .tga
+!  .pcx .ppm and .qoi are all written by the class.
+  DATA
+pick CSTRING(261)
+  CODE
+  IF ~%airXObj.Ok() THEN EXIT.
+  pick = %airXObj:Path
+  IF ~FILEDIALOG('Save a copy',pick,AirImg_Filter(),FILE:Save + FILE:KeepDir + FILE:LongName) THEN EXIT.
+  IF ~%airXObj.SaveFile(pick)
+    MESSAGE('That picture could not be written.||' & pick,'Save a copy',ICON:Exclamation)
+  END
+#ENDIF
+#IF(%airXMenu)
+
+Air:Menu:%airXObj ROUTINE
+!  The menu is built at generate time out of the boxes the developer ticked, so
+!  the numbers below always line up with the lines that are actually on it.
+  CASE POPUP('%airMenuTxt')
+#IF(%airItemOpen)
+  OF %airItemOpen
+    DO Air:Open:%airXObj
+#ENDIF
+#IF(%airItemIn)
+  OF %airItemIn
+    DO Air:In:%airXObj
+  OF %airItemOut
+    DO Air:Out:%airXObj
+  OF %airItem100
+    %airXObj:Zoom = 100
+    %airXObj:PanX = 0
+    %airXObj:PanY = 0
+    DO Air:Show:%airXObj
+  OF %airItemFit
+    DO Air:Fit:%airXObj
+#ENDIF
+#IF(%airItemLeft)
+  OF %airItemLeft
+    %airXObj.RotateLeft()
+    DO Air:Show:%airXObj
+  OF %airItemRight
+    %airXObj.RotateRight()
+    DO Air:Show:%airXObj
+#ENDIF
+#IF(%airItemNext)
+  OF %airItemNext
+    IF %airXObj.Frames() > 1
+      %airXObj:Frame += 1
+      IF %airXObj:Frame > %airXObj.Frames() THEN %airXObj:Frame = 1.
+      %airXObj.LoadFrame(%airXObj:Frame)
+      DO Air:Show:%airXObj
+    END
+  OF %airItemPrev
+    IF %airXObj.Frames() > 1
+      %airXObj:Frame -= 1
+      IF %airXObj:Frame < 1 THEN %airXObj:Frame = %airXObj.Frames().
+      %airXObj.LoadFrame(%airXObj:Frame)
+      DO Air:Show:%airXObj
+    END
+#ENDIF
+#IF(%airItemSave)
+  OF %airItemSave
+    DO Air:Save:%airXObj
+#ENDIF
+  OF %airItemInfo
+    IF %airXObj.Ok()
+      MESSAGE(%airXObj.Describe() & '||' & %airXObj:Path,'Picture',ICON:Asterisk)
+    ELSE
+      MESSAGE('There is no picture on this canvas.','Picture',ICON:Asterisk)
+    END
+  END
+#ENDIF
+#!-----------------------------------------------------------------------------
+#!  End of allImageRead template set
+#!-----------------------------------------------------------------------------
