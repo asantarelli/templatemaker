@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Fourteen small programs. They are not demos of what the template *looks* like; they are how the
+Fifteen small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,
@@ -208,6 +208,21 @@ rather than by staring at the code.
   This was never a scrollbar bug. The bar simply gave the drag a second opinion, and that is what made
   it obvious.
 
+- **`dragsim`** - and the half of it the units fix did not cure. A drag does not arrive as one movement,
+  it arrives as a stream of one- and two-pixel deltas, and the canvas was turning each one into image
+  pixels by itself. Simulate that against measuring from where the drag began:
+
+  ```
+  z200/s1[want -30  inc 0    anc -30]     incWrong=8
+  z500/s3[want -11  inc 0    anc -11]     ancWrong=0
+  z200/s3[want -29  inc -19  anc -29]
+  ```
+
+  Adding up the deltas is wrong in eight cases out of nine, and usually gives **zero**: at 500 per cent a
+  one-pixel move is a fifth of an image pixel, which rounds to nothing, and the remainder is thrown away.
+  Sixty of those and the picture has not moved. Anchoring - remembering the pan and the pointer where the
+  drag began, and measuring the whole distance every time - is exact in all nine.
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**
@@ -252,6 +267,7 @@ own procedure leaves everything else working.
 | crop-first is the same picture, ~167x faster | `cputime`, old against new at three pan positions |
 | a REGION can carry working scrollbars | `bartest`, styles added at run time, messages posted at it |
 | a window unit is not a pixel | `unittest` - scale 2, which is why dragging wandered |
+| a drag must be measured from its anchor | `dragsim` - adding up deltas loses the remainder every move |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
 | zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 

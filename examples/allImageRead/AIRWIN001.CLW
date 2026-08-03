@@ -51,6 +51,8 @@ PicA:Bmp            CSTRING(261)                            ! what was handed to
 PicA:Hooked         BYTE                                    ! this canvas took the window procedure
 PicA:Barred         BYTE                                    ! and its control's, for the scrollbars
 PicA:Drag           BYTE
+PicA:PanX0          LONG                                    ! the pan when the drag began
+PicA:PanY0          LONG
 PicA:MX             SIGNED                                  ! the pointer, in PIXELS
 PicA:MY             SIGNED
 PicA:SavePx         LONG                                    ! the window's units, while we borrow them
@@ -80,6 +82,8 @@ PicB:Bmp            CSTRING(261)                            ! what was handed to
 PicB:Hooked         BYTE                                    ! this canvas took the window procedure
 PicB:Barred         BYTE                                    ! and its control's, for the scrollbars
 PicB:Drag           BYTE
+PicB:PanX0          LONG                                    ! the pan when the drag began
+PicB:PanY0          LONG
 PicB:MX             SIGNED                                  ! the pointer, in PIXELS
 PicB:MY             SIGNED
 PicB:SavePx         LONG                                    ! the window's units, while we borrow them
@@ -1458,6 +1462,8 @@ Looped BYTE
           PicA:DragX = MOUSEX()
           PicA:DragY = MOUSEY()
           0{PROP:Pixels} = PicA:SavePx
+          PicA:PanX0 = PicA:PanX                              ! the anchor: where we started
+          PicA:PanY0 = PicA:PanY
         END
       OF EVENT:MouseMove
         IF PicA:Drag
@@ -1466,15 +1472,20 @@ Looped BYTE
           PicA:MX = MOUSEX()
           PicA:MY = MOUSEY()
           0{PROP:Pixels} = PicA:SavePx
+  !  Measure from where the drag STARTED, never from the last move. A drag
+  !  arrives as a stream of one- and two-pixel deltas, and on the graphics card
+  !  each one is divided by the zoom: at 500 per cent a one-pixel move is a fifth
+  !  of an image pixel, which rounds to nothing, and the remainder is gone for
+  !  good. Add up sixty of those and the picture has not moved at all. Taken from
+  !  the anchor there is one rounding, of the whole distance, and the picture
+  !  sits where the pointer put it.
           IF PicA:Gpu AND PicA:Zoom                           ! the GPU pans in IMAGE pixels
-            PicA:PanX += (PicA:DragX - PicA:MX) * 100 / PicA:Zoom
-            PicA:PanY += (PicA:DragY - PicA:MY) * 100 / PicA:Zoom
+            PicA:PanX = PicA:PanX0 + (PicA:DragX - PicA:MX) * 100 / PicA:Zoom
+            PicA:PanY = PicA:PanY0 + (PicA:DragY - PicA:MY) * 100 / PicA:Zoom
           ELSE
-            PicA:PanX += PicA:DragX - PicA:MX
-            PicA:PanY += PicA:DragY - PicA:MY
+            PicA:PanX = PicA:PanX0 + PicA:DragX - PicA:MX
+            PicA:PanY = PicA:PanY0 + PicA:DragY - PicA:MY
           END
-          PicA:DragX = PicA:MX
-          PicA:DragY = PicA:MY
           DO Air:Show:PicA
         END
       OF EVENT:MouseUp
@@ -1534,6 +1545,8 @@ Looped BYTE
           PicB:DragX = MOUSEX()
           PicB:DragY = MOUSEY()
           0{PROP:Pixels} = PicB:SavePx
+          PicB:PanX0 = PicB:PanX                              ! the anchor: where we started
+          PicB:PanY0 = PicB:PanY
         END
       OF EVENT:MouseMove
         IF PicB:Drag
@@ -1542,15 +1555,20 @@ Looped BYTE
           PicB:MX = MOUSEX()
           PicB:MY = MOUSEY()
           0{PROP:Pixels} = PicB:SavePx
+  !  Measure from where the drag STARTED, never from the last move. A drag
+  !  arrives as a stream of one- and two-pixel deltas, and on the graphics card
+  !  each one is divided by the zoom: at 500 per cent a one-pixel move is a fifth
+  !  of an image pixel, which rounds to nothing, and the remainder is gone for
+  !  good. Add up sixty of those and the picture has not moved at all. Taken from
+  !  the anchor there is one rounding, of the whole distance, and the picture
+  !  sits where the pointer put it.
           IF PicB:Gpu AND PicB:Zoom                           ! the GPU pans in IMAGE pixels
-            PicB:PanX += (PicB:DragX - PicB:MX) * 100 / PicB:Zoom
-            PicB:PanY += (PicB:DragY - PicB:MY) * 100 / PicB:Zoom
+            PicB:PanX = PicB:PanX0 + (PicB:DragX - PicB:MX) * 100 / PicB:Zoom
+            PicB:PanY = PicB:PanY0 + (PicB:DragY - PicB:MY) * 100 / PicB:Zoom
           ELSE
-            PicB:PanX += PicB:DragX - PicB:MX
-            PicB:PanY += PicB:DragY - PicB:MY
+            PicB:PanX = PicB:PanX0 + PicB:DragX - PicB:MX
+            PicB:PanY = PicB:PanY0 + PicB:DragY - PicB:MY
           END
-          PicB:DragX = PicB:MX
-          PicB:DragY = PicB:MY
           DO Air:Show:PicB
         END
       OF EVENT:MouseUp

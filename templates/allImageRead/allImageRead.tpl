@@ -1358,6 +1358,8 @@ fname CSTRING(261)
 %pObj:Hooked         BYTE                                    ! this canvas took the window procedure
 %pObj:Barred         BYTE                                    ! and its control's, for the scrollbars
 %pObj:Drag           BYTE
+%pObj:PanX0          LONG                                    ! the pan when the drag began
+%pObj:PanY0          LONG
 %pObj:MX             SIGNED                                  ! the pointer, in PIXELS
 %pObj:MY             SIGNED
 %pObj:SavePx         LONG                                    ! the window's units, while we borrow them
@@ -1565,6 +1567,8 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
         %pObj:DragX = MOUSEX()
         %pObj:DragY = MOUSEY()
         0{PROP:Pixels} = %pObj:SavePx
+        %pObj:PanX0 = %pObj:PanX                              ! the anchor: where we started
+        %pObj:PanY0 = %pObj:PanY
       END
     OF EVENT:MouseMove
       IF %pObj:Drag
@@ -1573,15 +1577,20 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
         %pObj:MX = MOUSEX()
         %pObj:MY = MOUSEY()
         0{PROP:Pixels} = %pObj:SavePx
+!  Measure from where the drag STARTED, never from the last move. A drag
+!  arrives as a stream of one- and two-pixel deltas, and on the graphics card
+!  each one is divided by the zoom: at 500 per cent a one-pixel move is a fifth
+!  of an image pixel, which rounds to nothing, and the remainder is gone for
+!  good. Add up sixty of those and the picture has not moved at all. Taken from
+!  the anchor there is one rounding, of the whole distance, and the picture
+!  sits where the pointer put it.
         IF %pObj:Gpu AND %pObj:Zoom                           ! the GPU pans in IMAGE pixels
-          %pObj:PanX += (%pObj:DragX - %pObj:MX) * 100 / %pObj:Zoom
-          %pObj:PanY += (%pObj:DragY - %pObj:MY) * 100 / %pObj:Zoom
+          %pObj:PanX = %pObj:PanX0 + (%pObj:DragX - %pObj:MX) * 100 / %pObj:Zoom
+          %pObj:PanY = %pObj:PanY0 + (%pObj:DragY - %pObj:MY) * 100 / %pObj:Zoom
         ELSE
-          %pObj:PanX += %pObj:DragX - %pObj:MX
-          %pObj:PanY += %pObj:DragY - %pObj:MY
+          %pObj:PanX = %pObj:PanX0 + %pObj:DragX - %pObj:MX
+          %pObj:PanY = %pObj:PanY0 + %pObj:DragY - %pObj:MY
         END
-        %pObj:DragX = %pObj:MX
-        %pObj:DragY = %pObj:MY
         DO Air:Show:%pObj
       END
     OF EVENT:MouseUp
