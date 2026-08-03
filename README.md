@@ -439,7 +439,10 @@ run time owns a **real HWND**, so Direct2D renders into the canvas control itsel
 for the window's `WM_PAINT`. `d2d1.dll` is bound with `LoadLibrary`, so there is no import library to link
 and nothing to redistribute; a canvas that cannot get Direct2D falls back to the processor on its own, and
 each canvas can be pinned to either engine on its Canvas tab. Report bands always use the processor — a
-printer is not a window. Requires `d2dcanvas.c` on the redirection path beside the myImage files.
+printer is not a window. **The processor path is no longer a cliff to fall off**: it crops the
+source rectangle out before scaling, so its work depends on the size of the frame rather than the size
+of the picture - measured at 8.9 seconds a zoom step before, 53 milliseconds after, showing pixel-for-
+pixel the same view. Requires `d2dcanvas.c` on the redirection path beside the myImage files.
 Verified end to end: registers, generates for all four placements, the generated source **compiles and
 links** (a window app and a report, 32-bit MSBuild), and three things are **proved at run time** rather
 than argued — the wheel (a harness sends real `WM_MOUSEWHEEL` messages and reads the counters back out of

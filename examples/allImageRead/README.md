@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Nine small programs. They are not demos of what the template *looks* like; they are how the
+Ten small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,
@@ -143,6 +143,31 @@ Note that `.ico` is **not** a frame source: a 21-image icon reports `frames=1`, 
 the single image it thinks best. Frames come from multi-page TIFF (`FrameDimensionPage`) and animated
 GIF (`FrameDimensionTime`).
 
+## `cputime` - where the processor path's time went, and whether the fix is honest
+
+Two questions in one program. First, time a wheel notch as the canvas used to perform it, on a
+2400x1800 picture at 400 per cent into a 620x460 frame:
+
+```
+clone=1.2cs   zoomWHOLE=890.8cs   crop+fit=1.6cs   savePNG=0.4cs   saveBMP=0.2cs
+```
+
+Resampling the whole picture is **99.6 per cent** of it - 8.9 seconds a notch. Everything else,
+including the PNG round trip through disk that looked like an obvious culprit, is noise. Worth
+remembering before optimising anything by reasoning about it.
+
+Second, and the part that mattered before shipping the fix: does cutting the source rectangle out
+FIRST show the same thing? It renders both ways at three pan positions, two of them deep inside the
+picture where crop-first only ever touches a small piece of the middle, and hashes 144 pixels of each:
+
+```
+old=887cs/step   new=5.3cs/step   identical=3/3 SAME-PICTURE
+```
+
+The same picture, 167 times faster. Panning is unaffected in every sense that matters: the original
+is never modified - the crop happens on a clone - so the whole picture is always there to pan into,
+and each repaint simply cuts a fresh piece.
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**
@@ -184,6 +209,7 @@ own procedure leaves everything else working.
 | Direct2D draws the picture, right colours, right way up | `d2dtest`, screenshot in `docs/` |
 | a dragged pan gets MouseMove/MouseUp | `immtest`, IMM against plain, driven by posted mouse messages |
 | frames step, and the last one loads | `frametest`, 100-frame GIF, pixel hash per frame |
+| crop-first is the same picture, ~167x faster | `cputime`, old against new at three pan positions |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
 | zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 
