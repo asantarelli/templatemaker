@@ -542,6 +542,8 @@ AirImg_Filter PROCEDURE()
       #PROMPT('Hold &Ctrl to zoom (wheel alone does nothing)',CHECK),%airCZoomCtrl,DEFAULT(1),AT(20)
       #PROMPT('Zoom &step (per cent):',SPIN(@n3,5,100,5)),%airCZoomStep,DEFAULT(25)
       #PROMPT('&Pan (drag the picture)',CHECK),%airCPan,DEFAULT(1),AT(10)
+      #PROMPT('Pan with &Ctrl+arrows too (Ctrl+Home refits)',CHECK),%airCPanKeys,DEFAULT(1),AT(20)
+      #PROMPT('Keyboard pan &step (per cent of the frame):',SPIN(@n3,1,100,5)),%airCPanStep,DEFAULT(15)
       #PROMPT('&Right-click menu',CHECK),%airCMenu,DEFAULT(1),AT(10)
       #PROMPT('&Open another picture (menu, and double-click)',CHECK),%airCOpen,DEFAULT(1),AT(10)
       #PROMPT('&Accept a file dropped from Explorer',CHECK),%airCDrop,DEFAULT(1),AT(10)
@@ -636,10 +638,16 @@ INCLUDE('ImageClass.INC'),ONCE
   OF Air:Redraw:%airCObject
     DO Air:Show:%airCObject
 #INSERT(%airWheel,%airCObject,%airCZoom,%airCZoomCtrl)
+#INSERT(%airKeys,%airCObject,%airCPan,%airCPanKeys)
   END
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%airCDisable=0 AND %airCFeq AND %airCOnReport=0)
+#IF(%airCPan AND %airCPanKeys)
+  CASE EVENT()
+#INSERT(%airKeys,%airCObject,%airCPan,%airCPanKeys)
+  END
+#ENDIF
 #INSERT(%airFieldEvents,%airCObject,%airCFeq,%airCPan,%airCMenu,%airCOpen,%airCDrop)
 #ENDAT
 #!
@@ -724,6 +732,8 @@ fname CSTRING(261)
       #PROMPT('Hold &Ctrl to zoom (wheel alone does nothing)',CHECK),%airWZoomCtrl,DEFAULT(1),AT(20)
       #PROMPT('Zoom &step (per cent):',SPIN(@n3,5,100,5)),%airWZoomStep,DEFAULT(25)
       #PROMPT('&Pan (drag the picture)',CHECK),%airWPan,DEFAULT(1),AT(10)
+      #PROMPT('Pan with &Ctrl+arrows too (Ctrl+Home refits)',CHECK),%airWPanKeys,DEFAULT(1),AT(20)
+      #PROMPT('Keyboard pan &step (per cent of the frame):',SPIN(@n3,1,100,5)),%airWPanStep,DEFAULT(15)
       #PROMPT('&Right-click menu',CHECK),%airWMenu,DEFAULT(1),AT(10)
       #PROMPT('&Open another picture (menu, and double-click)',CHECK),%airWOpen,DEFAULT(1),AT(10)
       #PROMPT('&Accept a file dropped from Explorer',CHECK),%airWDrop,DEFAULT(1),AT(10)
@@ -770,10 +780,16 @@ fname CSTRING(261)
   OF Air:Redraw:%airWObject
     DO Air:Show:%airWObject
 #INSERT(%airWheel,%airWObject,%airWZoom,%airWZoomCtrl)
+#INSERT(%airKeys,%airWObject,%airWPan,%airWPanKeys)
   END
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%airWDisable=0 AND %airWImage)
+#IF(%airWPan AND %airWPanKeys)
+  CASE EVENT()
+#INSERT(%airKeys,%airWObject,%airWPan,%airWPanKeys)
+  END
+#ENDIF
 #INSERT(%airFieldEvents,%airWObject,%airWImage,%airWPan,%airWMenu,%airWOpen,%airWDrop)
 #ENDAT
 #!
@@ -940,6 +956,8 @@ fname CSTRING(261)
 %pObj:PanX           LONG                                    ! the viewport, in picture pixels
 %pObj:PanY           LONG
 %pObj:Rgn            SIGNED                                  ! the region that takes the mouse
+%pObj:StepX          LONG                                    ! one keyboard pan step, -1 0 or 1
+%pObj:StepY          LONG
 %pObj:SpotX          REAL                                    ! where to zoom about, across the canvas
 %pObj:SpotY          REAL                                    !   0 = left/top, 1 = right/bottom
 %pObj:Over           BYTE                                    ! is the pointer on this canvas?
@@ -1067,6 +1085,31 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #!  Windows is asked for the Ctrl state directly - see the prototype above for
 #!  why KEYSTATE() is no good during a wheel event.
 #!-----------------------------------------------------------------------------
+#GROUP(%airKeys,%pObj,%pPan,%pPanKeys)
+#IF(%pPan AND %pPanKeys)
+  OF EVENT:AlertKey
+    CASE KEYCODE()
+    OF CtrlUp
+      %pObj:StepX = 0
+      %pObj:StepY = -1
+      DO Air:PanBy:%pObj
+    OF CtrlDown
+      %pObj:StepX = 0
+      %pObj:StepY = 1
+      DO Air:PanBy:%pObj
+    OF CtrlLeft
+      %pObj:StepX = -1
+      %pObj:StepY = 0
+      DO Air:PanBy:%pObj
+    OF CtrlRight
+      %pObj:StepX = 1
+      %pObj:StepY = 0
+      DO Air:PanBy:%pObj
+    OF CtrlHome
+      DO Air:Fit:%pObj
+    END
+#ENDIF
+#!-----------------------------------------------------------------------------
 #GROUP(%airWheel,%pObj,%pZoom,%pCtrl)
 #IF(%pZoom)
   OF AirImg:CtrlUp
@@ -1173,6 +1216,8 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #SET(%airXZoom,%airCZoom)
 #SET(%airXStep,%airCZoomStep)
 #SET(%airXPan,%airCPan)
+#SET(%airXPanKeys,%airCPanKeys)
+#SET(%airXPanStep,%airCPanStep)
 #SET(%airXMenu,%airCMenu)
 #SET(%airXOpen,%airCOpen)
 #SET(%airXDrop,%airCDrop)
@@ -1208,6 +1253,8 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #SET(%airXZoom,%airWZoom)
 #SET(%airXStep,%airWZoomStep)
 #SET(%airXPan,%airWPan)
+#SET(%airXPanKeys,%airWPanKeys)
+#SET(%airXPanStep,%airWPanStep)
 #SET(%airXMenu,%airWMenu)
 #SET(%airXOpen,%airWOpen)
 #SET(%airXDrop,%airWDrop)
@@ -1243,6 +1290,8 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
   #DECLARE(%airXZoom)
   #DECLARE(%airXStep)
   #DECLARE(%airXPan)
+  #DECLARE(%airXPanKeys)
+  #DECLARE(%airXPanStep)
   #DECLARE(%airXMenu)
   #DECLARE(%airXOpen)
   #DECLARE(%airXDrop)
@@ -1371,6 +1420,16 @@ Air:Setup:%airXObj ROUTINE
 #ENDIF
 #IF(%airXOpen)
   %airXObj:Rgn{PROP:Alrt,254} = MouseLeft2
+#ENDIF
+#IF(%airXPan AND %airXPanKeys)
+!  ALERT() adds to the window's alerted keys rather than claiming a numbered
+!  slot, so it cannot tread on another template's alert. Ctrl+arrows, because
+!  the bare arrows belong to whatever browse the window is carrying.
+  ALERT(CtrlUp)
+  ALERT(CtrlDown)
+  ALERT(CtrlLeft)
+  ALERT(CtrlRight)
+  ALERT(CtrlHome)
 #ENDIF
 #IF(%airXAuto AND %airXKind <> 'NONE')
 #INSERT(%airLoadStmt,%airXObj,%airXKind,%airXFile,%airXVar,%airXLen,%airXBlob,%airXKey,%airXSecs)
@@ -1635,6 +1694,36 @@ savePx LONG,AUTO
   %airXObj:PanX = INT((%airXObj:PanX + mx) * now / was - mx)
   %airXObj:PanY = INT((%airXObj:PanY + my) * now / was - my)
   %airXObj:Zoom = now
+  DO Air:Show:%airXObj
+
+Air:PanBy:%airXObj ROUTINE
+!  One keyboard step. There is nothing to pan when the picture is fitted, so
+!  the keys are quiet then - the same rule the drag follows.
+  DATA
+w      LONG,AUTO
+h      LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~%airXObj.Ok() OR ~%airXObj:Zoom THEN EXIT.
+#IF(%airXEngine = 'AUTO')
+  IF %airXObj:Gpu
+!  The GPU pans in IMAGE pixels. The frame shows ViewW/zoom of them, so a step
+!  of PanStep per cent is ViewW * PanStep / Zoom - the hundreds cancel.
+    %airXObj:PanX += %airXObj:StepX * d2c_ViewW(%airXObj:Gpu) *              |
+                     %airXPanStep / %airXObj:Zoom
+    %airXObj:PanY += %airXObj:StepY * d2c_ViewH(%airXObj:Gpu) *              |
+                     %airXPanStep / %airXObj:Zoom
+    DO Air:Gpu:%airXObj
+    EXIT
+  END
+#ENDIF
+  savePx = 0{PROP:Pixels}                                     ! the processor pans in scaled pixels
+  0{PROP:Pixels} = 1
+  w = %airXFeq{PROP:Width}
+  h = %airXFeq{PROP:Height}
+  0{PROP:Pixels} = savePx
+  %airXObj:PanX += INT(%airXObj:StepX * w * %airXPanStep / 100)
+  %airXObj:PanY += INT(%airXObj:StepY * h * %airXPanStep / 100)
   DO Air:Show:%airXObj
 
 Air:Fit:%airXObj ROUTINE

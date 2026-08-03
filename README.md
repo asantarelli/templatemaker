@@ -405,7 +405,9 @@ zoom** (about the centre of the view, and zooming all the way out lands back on 
 the wheel can zoom on its own where nothing else wants it), **drag to pan**, a
 **right-click menu** built at generate time out of the boxes you ticked (so its item numbers can never drift),
 **double-click to open another picture**, **drag a file onto it from Explorer** (`DROPID('~FILE')`), and
-**Save a copy** in any of the nine formats the engine writes. Optional status-bar line and tooltip.
+**Save a copy** in any of the nine formats the engine writes. **Panning** is a left-button drag, or
+**Ctrl+arrows** (with **Ctrl+Home** to refit) for anyone who would rather not hold the mouse down — both
+are quiet while the picture is fitted, because there is nowhere to pan to. Optional status-bar line and tooltip.
 **Easiest path: one control template that goes in both places.** Drag **allImageRead - Image canvas** onto a
 **window** *or* into a **report band** — `#ATSTART` works out where it landed (`%ReportControl` first, then
 `%Control`) and emits the right half: the live viewer on a window, or, in a band, a picture per record

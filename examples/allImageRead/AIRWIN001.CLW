@@ -35,6 +35,8 @@ PicA:Zoom           LONG                                    ! 0 = fit the frame,
 PicA:PanX           LONG                                    ! the viewport, in picture pixels
 PicA:PanY           LONG
 PicA:Rgn            SIGNED                                  ! the region that takes the mouse
+PicA:StepX          LONG                                    ! one keyboard pan step, -1 0 or 1
+PicA:StepY          LONG
 PicA:SpotX          REAL                                    ! where to zoom about, across the canvas
 PicA:SpotY          REAL                                    !   0 = left/top, 1 = right/bottom
 PicA:Over           BYTE                                    ! is the pointer on this canvas?
@@ -58,6 +60,8 @@ PicB:Zoom           LONG                                    ! 0 = fit the frame,
 PicB:PanX           LONG                                    ! the viewport, in picture pixels
 PicB:PanY           LONG
 PicB:Rgn            SIGNED                                  ! the region that takes the mouse
+PicB:StepX          LONG                                    ! one keyboard pan step, -1 0 or 1
+PicB:StepY          LONG
 PicB:SpotX          REAL                                    ! where to zoom about, across the canvas
 PicB:SpotY          REAL                                    !   0 = left/top, 1 = right/bottom
 PicB:Over           BYTE                                    ! is the pointer on this canvas?
@@ -116,6 +120,14 @@ Air:Setup:PicA ROUTINE
   PicA:Rgn{PROP:DropID,1} = '~FILE'
   PicA:Rgn{PROP:Alrt,255} = MouseRight
   PicA:Rgn{PROP:Alrt,254} = MouseLeft2
+!  ALERT() adds to the window's alerted keys rather than claiming a numbered
+!  slot, so it cannot tread on another template's alert. Ctrl+arrows, because
+!  the bare arrows belong to whatever browse the window is carrying.
+  ALERT(CtrlUp)
+  ALERT(CtrlDown)
+  ALERT(CtrlLeft)
+  ALERT(CtrlRight)
+  ALERT(CtrlHome)
   AirImg_LoadB64(PicA,Loc:B64,'Main_w2')
   PicA:Path = ''
   DO Air:Fresh:PicA
@@ -359,6 +371,34 @@ savePx LONG,AUTO
   PicA:Zoom = now
   DO Air:Show:PicA
 
+Air:PanBy:PicA ROUTINE
+!  One keyboard step. There is nothing to pan when the picture is fitted, so
+!  the keys are quiet then - the same rule the drag follows.
+  DATA
+w      LONG,AUTO
+h      LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~PicA.Ok() OR ~PicA:Zoom THEN EXIT.
+  IF PicA:Gpu
+!  The GPU pans in IMAGE pixels. The frame shows ViewW/zoom of them, so a step
+!  of PanStep per cent is ViewW * PanStep / Zoom - the hundreds cancel.
+    PicA:PanX += PicA:StepX * d2c_ViewW(PicA:Gpu) *              |
+                     15 / PicA:Zoom
+    PicA:PanY += PicA:StepY * d2c_ViewH(PicA:Gpu) *              |
+                     15 / PicA:Zoom
+    DO Air:Gpu:PicA
+    EXIT
+  END
+  savePx = 0{PROP:Pixels}                                     ! the processor pans in scaled pixels
+  0{PROP:Pixels} = 1
+  w = ?Pic1{PROP:Width}
+  h = ?Pic1{PROP:Height}
+  0{PROP:Pixels} = savePx
+  PicA:PanX += INT(PicA:StepX * w * 15 / 100)
+  PicA:PanY += INT(PicA:StepY * h * 15 / 100)
+  DO Air:Show:PicA
+
 Air:Fit:PicA ROUTINE
   PicA:Zoom = 0
   PicA:PanX = 0
@@ -552,6 +592,14 @@ Air:Setup:PicB ROUTINE
   PicB:Rgn{PROP:DropID,1} = '~FILE'
   PicB:Rgn{PROP:Alrt,255} = MouseRight
   PicB:Rgn{PROP:Alrt,254} = MouseLeft2
+!  ALERT() adds to the window's alerted keys rather than claiming a numbered
+!  slot, so it cannot tread on another template's alert. Ctrl+arrows, because
+!  the bare arrows belong to whatever browse the window is carrying.
+  ALERT(CtrlUp)
+  ALERT(CtrlDown)
+  ALERT(CtrlLeft)
+  ALERT(CtrlRight)
+  ALERT(CtrlHome)
   PicB:Path = CLIP(Loc:Url)
   AirImg_LoadUrl(PicB,PicB:Path,'Main_c1',AirImg:Secs)
   DO Air:Fresh:PicB
@@ -803,6 +851,34 @@ savePx LONG,AUTO
   PicB:Zoom = now
   DO Air:Show:PicB
 
+Air:PanBy:PicB ROUTINE
+!  One keyboard step. There is nothing to pan when the picture is fitted, so
+!  the keys are quiet then - the same rule the drag follows.
+  DATA
+w      LONG,AUTO
+h      LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~PicB.Ok() OR ~PicB:Zoom THEN EXIT.
+  IF PicB:Gpu
+!  The GPU pans in IMAGE pixels. The frame shows ViewW/zoom of them, so a step
+!  of PanStep per cent is ViewW * PanStep / Zoom - the hundreds cancel.
+    PicB:PanX += PicB:StepX * d2c_ViewW(PicB:Gpu) *              |
+                     15 / PicB:Zoom
+    PicB:PanY += PicB:StepY * d2c_ViewH(PicB:Gpu) *              |
+                     15 / PicB:Zoom
+    DO Air:Gpu:PicB
+    EXIT
+  END
+  savePx = 0{PROP:Pixels}                                     ! the processor pans in scaled pixels
+  0{PROP:Pixels} = 1
+  w = ?AirCanvas{PROP:Width}
+  h = ?AirCanvas{PROP:Height}
+  0{PROP:Pixels} = savePx
+  PicB:PanX += INT(PicB:StepX * w * 15 / 100)
+  PicB:PanY += INT(PicB:StepY * h * 15 / 100)
+  DO Air:Show:PicB
+
 Air:Fit:PicB ROUTINE
   PicB:Zoom = 0
   PicB:PanX = 0
@@ -1021,6 +1097,29 @@ ReturnValue          BYTE,AUTO
 
 Looped BYTE
   CODE
+    CASE EVENT()
+    OF EVENT:AlertKey
+      CASE KEYCODE()
+      OF CtrlUp
+        PicA:StepX = 0
+        PicA:StepY = -1
+        DO Air:PanBy:PicA
+      OF CtrlDown
+        PicA:StepX = 0
+        PicA:StepY = 1
+        DO Air:PanBy:PicA
+      OF CtrlLeft
+        PicA:StepX = -1
+        PicA:StepY = 0
+        DO Air:PanBy:PicA
+      OF CtrlRight
+        PicA:StepX = 1
+        PicA:StepY = 0
+        DO Air:PanBy:PicA
+      OF CtrlHome
+        DO Air:Fit:PicA
+      END
+    END
     IF FIELD() = PicA:Rgn OR FIELD() = ?Pic1
       CASE EVENT()
       OF EVENT:MouseDown
@@ -1060,6 +1159,29 @@ Looped BYTE
         OF MouseLeft2
           DO Air:Open:PicA
         END
+      END
+    END
+    CASE EVENT()
+    OF EVENT:AlertKey
+      CASE KEYCODE()
+      OF CtrlUp
+        PicB:StepX = 0
+        PicB:StepY = -1
+        DO Air:PanBy:PicB
+      OF CtrlDown
+        PicB:StepX = 0
+        PicB:StepY = 1
+        DO Air:PanBy:PicB
+      OF CtrlLeft
+        PicB:StepX = -1
+        PicB:StepY = 0
+        DO Air:PanBy:PicB
+      OF CtrlRight
+        PicB:StepX = 1
+        PicB:StepY = 0
+        DO Air:PanBy:PicB
+      OF CtrlHome
+        DO Air:Fit:PicB
       END
     END
     IF FIELD() = PicB:Rgn OR FIELD() = ?AirCanvas
@@ -1135,6 +1257,27 @@ Looped BYTE
       DO Air:WheelIn:PicA
     OF AirImg:CtrlDown
       DO Air:WheelOut:PicA
+    OF EVENT:AlertKey
+      CASE KEYCODE()
+      OF CtrlUp
+        PicA:StepX = 0
+        PicA:StepY = -1
+        DO Air:PanBy:PicA
+      OF CtrlDown
+        PicA:StepX = 0
+        PicA:StepY = 1
+        DO Air:PanBy:PicA
+      OF CtrlLeft
+        PicA:StepX = -1
+        PicA:StepY = 0
+        DO Air:PanBy:PicA
+      OF CtrlRight
+        PicA:StepX = 1
+        PicA:StepY = 0
+        DO Air:PanBy:PicA
+      OF CtrlHome
+        DO Air:Fit:PicA
+      END
     END
     CASE EVENT()
     OF EVENT:OpenWindow
@@ -1153,6 +1296,27 @@ Looped BYTE
       DO Air:WheelIn:PicB
     OF AirImg:CtrlDown
       DO Air:WheelOut:PicB
+    OF EVENT:AlertKey
+      CASE KEYCODE()
+      OF CtrlUp
+        PicB:StepX = 0
+        PicB:StepY = -1
+        DO Air:PanBy:PicB
+      OF CtrlDown
+        PicB:StepX = 0
+        PicB:StepY = 1
+        DO Air:PanBy:PicB
+      OF CtrlLeft
+        PicB:StepX = -1
+        PicB:StepY = 0
+        DO Air:PanBy:PicB
+      OF CtrlRight
+        PicB:StepX = 1
+        PicB:StepY = 0
+        DO Air:PanBy:PicB
+      OF CtrlHome
+        DO Air:Fit:PicB
+      END
     END
   LOOP                                                     ! This method receives all window specific events
     IF Looped
