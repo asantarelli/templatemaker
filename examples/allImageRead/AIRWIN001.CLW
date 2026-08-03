@@ -86,9 +86,8 @@ Air:Setup:PicA ROUTINE
   UNHIDE(PicA:Rgn)
 !  Take the mouse wheel off the window procedure. The first canvas on a window
 !  does it; the rest ride along, because the event reaches all of them.
-  IF AirImg_HookWheel(QuickWindow{PROP:Handle},QuickWindow{PROP:WndProc})
-    PicA:Hooked = 1
-    QuickWindow{PROP:WndProc} = ADDRESS(AirImg_WheelProc)
+  IF AirImg_HookWheel(QuickWindow{PROP:Handle})                   ! the helper takes the address,
+    PicA:Hooked = 1                                       !   never this module
   END
   ?Pic1{PROP:DropID,1}     = '~FILE'                       ! a file dragged out of Explorer
   PicA:Rgn{PROP:DropID,1} = '~FILE'
@@ -317,9 +316,8 @@ Air:Setup:PicB ROUTINE
   UNHIDE(PicB:Rgn)
 !  Take the mouse wheel off the window procedure. The first canvas on a window
 !  does it; the rest ride along, because the event reaches all of them.
-  IF AirImg_HookWheel(QuickWindow{PROP:Handle},QuickWindow{PROP:WndProc})
-    PicB:Hooked = 1
-    QuickWindow{PROP:WndProc} = ADDRESS(AirImg_WheelProc)
+  IF AirImg_HookWheel(QuickWindow{PROP:Handle})                   ! the helper takes the address,
+    PicB:Hooked = 1                                       !   never this module
   END
   ?AirCanvas{PROP:DropID,1}     = '~FILE'                       ! a file dragged out of Explorer
   PicB:Rgn{PROP:DropID,1} = '~FILE'
@@ -573,11 +571,11 @@ ReturnValue          BYTE,AUTO
 
   CODE
     IF PicA:Hooked
-      QuickWindow{PROP:WndProc} = AirImg_DropWheel(QuickWindow{PROP:Handle})
+      AirImg_DropWheel(QuickWindow{PROP:Handle})
       PicA:Hooked = 0
     END
     IF PicB:Hooked
-      QuickWindow{PROP:WndProc} = AirImg_DropWheel(QuickWindow{PROP:Handle})
+      AirImg_DropWheel(QuickWindow{PROP:Handle})
       PicB:Hooked = 0
     END
   ReturnValue = PARENT.Kill()

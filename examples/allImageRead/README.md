@@ -47,6 +47,65 @@ instead — which is the part worth proving.
 MSBuild rpttest.cwproj /p:ClarionBinPath=C:\clarion12\bin /p:Configuration=Debug
 ```
 
+## `d2dtest` — the GPU canvas, and what it is worth
+
+Builds `d2dcanvas.c`, makes a 2400x1800 test card with ImageClass, uploads it to the GPU, and then
+times the two ways of zooming. Both numbers go in the window title.
+
+```
+MSBuild d2dtest.cwproj /p:ClarionBinPath=C:\clarion12\bin /p:Configuration=Debug
+```
+
+Measured on this machine:
+
+```
+D2DTest OK img=2400x1800 view=624x464 GPU300=251cs CPU10=675cs
+```
+
+- **GPU: 300 frames actually drawn in 2.51 s = 8.4 ms a frame.**
+- **CPU (what the template does today): 10 zoom steps in 6.75 s = 675 ms a step.**
+
+**About 80x per zoom step** — and the GPU figure does not move when the picture gets bigger, because
+the work is a 3x2 matrix, while the CPU figure grows with every pixel. Note `d2c_PaintNow` exists
+only so this measurement is honest: `d2c_SetView` alone just invalidates, and timing *that* would
+have flattered the GPU by measuring nothing.
+
+## `hwndtest` — does a Clarion control own a window?
+
+The question the whole GPU design rests on. It prints `PROP:Handle` for the window, its client area,
+an IMAGE, a REGION, and a REGION made at run time with `CREATE(0,CREATE:Region,...)`. Every one of
+them is a real HWND, which is why Direct2D can render into the canvas control itself instead of
+fighting Clarion for the window's WM_PAINT.
+
+## `proctest` / `hooktest` / `addrtest` — three questions about callbacks
+
+- **`proctest`** — is `PROP:WndProc` a real window procedure, or a Clarion-managed hook slot? It
+  prints Clarion's answer beside `GetWindowLongA`'s for both a window and a control. They match, so
+  it is a genuine subclass and chaining through it is correct.
+- **`hooktest`** — the wheel hook on its own, with a driver that sends `WM_CLOSE`. If the window
+  shuts down, the callback is chaining; if it sits there, it is swallowing messages.
+- **`addrtest`** — two modules, one procedure, and `ADDRESS()` taken in each:
+
+  ```
+  AddrTest program=12587276 member=12587072 DIFFERENT
+  ```
+
+  `ADDRESS(procedure)` does **not** answer the same thing in a MEMBER module as in the program
+  module. A template writes its callback into the program module but its wiring into a member
+  module, so the template never takes that address any more — it asks a helper in the owning module
+  to install the hook. (What is verified here is that the values differ, not what the member-side
+  value does if you use it; the safe route costs nothing either way.)
+
+## A warning about `airwin` as a *runtime* test
+
+`airwin` is a compile test, not a run test. It is a hand-written ABC application with **no
+dictionary**, so `Dictionary.Construct` calls into a stub and the program throws an access violation
+on start-up — `EIP=000004C8`, inside ClaRUN — before any of this template's code runs. It does it
+with allImageRead switched off entirely, which is how that was established (`try.ps1` flips the
+prompts, regenerates, rebuilds and reports "CLEAN" or "THREW", which is how to bisect this kind of
+thing quickly). Give it a real dictionary if you want it to run; as it stands it proves that the
+generated source compiles and links, which is what it was built for.
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**

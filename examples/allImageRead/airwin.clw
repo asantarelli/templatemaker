@@ -31,6 +31,7 @@ DctKill     PROCEDURE                                      ! Kills the dictionar
      airApi_GetProp(ULONG hWnd,LONG lpString),LONG,PASCAL,NAME('GetPropA')
      airApi_RemoveProp(ULONG hWnd,LONG lpString),LONG,PASCAL,PROC,NAME('RemovePropA')
      airApi_CallWndProc(LONG lpPrevWndFunc,ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam),LONG,PASCAL,NAME('CallWindowProcA')
+     airApi_SetWindowLong(ULONG hWnd,LONG nIndex,LONG dwNewLong),LONG,PASCAL,PROC,NAME('SetWindowLongA')
          END
      AirImg_Temp(STRING,STRING),STRING
      AirImg_PutBytes(*STRING,LONG,STRING),BYTE,PROC
@@ -42,7 +43,7 @@ DctKill     PROCEDURE                                      ! Kills the dictionar
      AirImg_FitPct(ImageClass,LONG,LONG),LONG
      AirImg_Filter(),STRING
      AirImg_WheelProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
-     AirImg_HookWheel(LONG,LONG),BYTE,PROC
+     AirImg_HookWheel(LONG),BYTE,PROC
      AirImg_DropWheel(LONG),LONG,PROC
    END
 
@@ -304,25 +305,40 @@ b LONG,AUTO
   RETURN a
 
 !  ---- the mouse wheel ------------------------------------------------------
-!  Park the window's own procedure ON the window, under a name of our own, and
-!  one callback then serves every window in the program without a scrap of
-!  Clarion-side bookkeeping. Returns 1 to the FIRST caller only: a second
-!  canvas on the same window must not hook it twice.
-AirImg_HookWheel PROCEDURE(LONG pHwnd,LONG pOldProc)
+!  The hooking is done HERE, in the module that also defines the callback, and
+!  that is not a stylistic choice. ADDRESS(procedure) does not answer the same
+!  thing everywhere: taken in a MEMBER module for a procedure defined in the
+!  program module it yields the import thunk, not the procedure, and handing
+!  Windows that thunk as a window procedure crashes the moment a message
+!  arrives. So no canvas ever takes this address - it just asks for a hook.
+!
+!  The window's own procedure is parked ON the window with SetProp, so one
+!  callback serves every window in the program with no bookkeeping of ours.
+!  Returns 1 to the FIRST caller only: a second canvas on the same window must
+!  not hook it twice.
+AirImg_HookWheel PROCEDURE(LONG pHwnd)
+GWL_WNDPROC EQUATE(-4)
 prop CSTRING('AirImgOldWndProc')
+old  LONG,AUTO
   CODE
   IF ~pHwnd THEN RETURN 0.
   IF airApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.       ! already hooked by another canvas
-  airApi_SetProp(pHwnd,ADDRESS(prop),pOldProc)
+  old = airApi_SetWindowLong(pHwnd,GWL_WNDPROC,ADDRESS(AirImg_WheelProc))
+  IF ~old THEN RETURN 0.
+  airApi_SetProp(pHwnd,ADDRESS(prop),old)
   RETURN 1
 
-!  Hand back the window's own procedure and forget it.
+!  Give the window its own procedure back and forget it.
 AirImg_DropWheel PROCEDURE(LONG pHwnd)
+GWL_WNDPROC EQUATE(-4)
 prop CSTRING('AirImgOldWndProc')
 old  LONG,AUTO
   CODE
   IF ~pHwnd THEN RETURN 0.
   old = airApi_GetProp(pHwnd,ADDRESS(prop))
+  IF old
+    airApi_SetWindowLong(pHwnd,GWL_WNDPROC,old)
+  END
   airApi_RemoveProp(pHwnd,ADDRESS(prop))
   RETURN old
 
