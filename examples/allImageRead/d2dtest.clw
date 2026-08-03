@@ -34,6 +34,15 @@ Win     WINDOW('D2DTest'),AT(,,320,240),SYSTEM,GRAY,TIMER(100)
         END
 Pic     ImageClass
 Work    ImageClass
+zwas    REAL
+znow    REAL
+zpanX   REAL
+zmx     REAL
+zbefore REAL
+zafter  REAL
+zworst  REAL
+zn      LONG
+zspot   REAL
 rgn     SIGNED
 x       SIGNED
 y       SIGNED
@@ -104,6 +113,22 @@ note    CSTRING(200)
           END
           t1 = CLOCK()
           cpu = t1 - t0
+! ---- the zoom-about-the-pointer arithmetic, exactly as the template emits
+!      it: the image pixel under the spot must not move when the zoom does.
+          zworst = 0
+          LOOP zn = 1 TO 60
+            zspot = (zn % 11) / 10                            ! spots across the canvas
+            zmx   = zspot * 624
+            zwas  = 0.2 + (zn / 40)
+            zpanX = zn * 3
+            zbefore = zpanX + zmx / zwas                      ! image pixel under the spot
+            znow  = zwas * 1.25                               ! one step in, 25 per cent
+            zpanX += zmx / zwas - zmx / znow                  ! the emitted formula
+            zafter  = zpanX + zmx / znow
+            IF ABS(zafter - zbefore) > zworst
+              zworst = ABS(zafter - zbefore)
+            END
+          END
 ! ---- leave it fitted to the frame, so a screenshot shows the picture --
           z = d2c_ViewW(cv) / d2c_ImageW(cv)
           IF (d2c_ViewH(cv) / d2c_ImageH(cv)) < z
@@ -113,7 +138,9 @@ note    CSTRING(200)
           d2c_PaintNow(cv)
           note = 'D2DTest OK img=' & d2c_ImageW(cv) & 'x' & d2c_ImageH(cv) &|
                  ' view=' & d2c_ViewW(cv) & 'x' & d2c_ViewH(cv) &           |
-                 ' GPU300=' & gpu & 'cs CPU10=' & cpu & 'cs'
+                 ' GPU300=' & gpu & 'cs CPU10=' & cpu & 'cs' &                |
+                 ' spotdrift=' & FORMAT(zworst,@n9.6) &                       |
+                 CHOOSE(zworst < 0.001,' PASS',' FAIL')
           Win{PROP:Text} = note
         END
       END

@@ -35,6 +35,9 @@ PicA:Zoom           LONG                                    ! 0 = fit the frame,
 PicA:PanX           LONG                                    ! the viewport, in picture pixels
 PicA:PanY           LONG
 PicA:Rgn            SIGNED                                  ! the region that takes the mouse
+PicA:SpotX          REAL                                    ! where to zoom about, across the canvas
+PicA:SpotY          REAL                                    !   0 = left/top, 1 = right/bottom
+PicA:Over           BYTE                                    ! is the pointer on this canvas?
 PicA:Gpu            LONG                                    ! the GPU canvas, 0 = drawing on the processor
 PicA:Bmp            CSTRING(261)                            ! what was handed to the graphics card
 PicA:Hooked         BYTE                                    ! this canvas took the window procedure
@@ -52,6 +55,9 @@ PicB:Zoom           LONG                                    ! 0 = fit the frame,
 PicB:PanX           LONG                                    ! the viewport, in picture pixels
 PicB:PanY           LONG
 PicB:Rgn            SIGNED                                  ! the region that takes the mouse
+PicB:SpotX          REAL                                    ! where to zoom about, across the canvas
+PicB:SpotY          REAL                                    !   0 = left/top, 1 = right/bottom
+PicB:Over           BYTE                                    ! is the pointer on this canvas?
 PicB:Gpu            LONG                                    ! the GPU canvas, 0 = drawing on the processor
 PicB:Bmp            CSTRING(261)                            ! what was handed to the graphics card
 PicB:Hooked         BYTE                                    ! this canvas took the window procedure
@@ -246,25 +252,56 @@ ih   LONG,AUTO
   d2c_SetView(PicA:Gpu, z, PicA:PanX, PicA:PanY,                |
               PicA.ArgbOf(16777215), 1)
 
+Air:Spot:PicA ROUTINE
+!  Decide what the zoom turns about. Under the pointer if the pointer is on
+!  this canvas - so the detail you are pointing at stays put - and the middle
+!  if it is anywhere else, which is what the menu and the keyboard want. The
+!  answer is a fraction across the canvas, so it does not matter whether the
+!  window is measured in dialog units or pixels.
+  DATA
+rx SIGNED,AUTO
+ry SIGNED,AUTO
+rw SIGNED,AUTO
+rh SIGNED,AUTO
+  CODE
+  PicA:SpotX = 0.5
+  PicA:SpotY = 0.5
+  PicA:Over  = 0
+  GETPOSITION(?Pic1,rx,ry,rw,rh)
+  IF rw < 1 OR rh < 1 THEN EXIT.
+  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
+  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+  PicA:Over  = 1
+  PicA:SpotX = (MOUSEX() - rx) / rw
+  PicA:SpotY = (MOUSEY() - ry) / rh
+
+Air:WheelIn:PicA ROUTINE
+!  A wheel notch reaches EVERY canvas on the window, so only the one under the
+!  pointer takes it. The menu calls Air:In directly and is not filtered.
+  DO Air:Spot:PicA
+  IF PicA:Over
+    DO Air:In:PicA
+  END
+
+Air:WheelOut:PicA ROUTINE
+  DO Air:Spot:PicA
+  IF PicA:Over
+    DO Air:Out:PicA
+  END
+
 Air:In:PicA ROUTINE
-!  Zoom about the middle of the viewport, so the picture does not run away.
-!  The wheel event reaches every canvas on the window, so each one first asks
-!  whether the pointer is actually over it.
+!  A step in, about whatever Air:Spot picked.
   DATA
 was    LONG,AUTO
 now    LONG,AUTO
 w      LONG,AUTO
 h      LONG,AUTO
+mx     LONG,AUTO
+my     LONG,AUTO
 savePx LONG,AUTO
-rx     SIGNED,AUTO
-ry     SIGNED,AUTO
-rw     SIGNED,AUTO
-rh     SIGNED,AUTO
   CODE
   IF ~PicA.Ok() THEN EXIT.
-  GETPOSITION(?Pic1,rx,ry,rw,rh)
-  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
-  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+  DO Air:Spot:PicA
   IF PicA:Gpu
     DO Air:GpuIn:PicA
     EXIT
@@ -278,8 +315,10 @@ rh     SIGNED,AUTO
   IF ~was THEN was = AirImg_FitPct(PicA,w,h).
   now = was + 25
   IF now > 1600 THEN now = 1600.
-  PicA:PanX = INT((PicA:PanX + w / 2) * now / was - w / 2)
-  PicA:PanY = INT((PicA:PanY + h / 2) * now / was - h / 2)
+  mx = PicA:SpotX * w
+  my = PicA:SpotY * h
+  PicA:PanX = INT((PicA:PanX + mx) * now / was - mx)
+  PicA:PanY = INT((PicA:PanY + my) * now / was - my)
   PicA:Zoom = now
   DO Air:Show:PicA
 
@@ -289,16 +328,12 @@ was    LONG,AUTO
 now    LONG,AUTO
 w      LONG,AUTO
 h      LONG,AUTO
+mx     LONG,AUTO
+my     LONG,AUTO
 savePx LONG,AUTO
-rx     SIGNED,AUTO
-ry     SIGNED,AUTO
-rw     SIGNED,AUTO
-rh     SIGNED,AUTO
   CODE
   IF ~PicA.Ok() OR ~PicA:Zoom THEN EXIT.               ! already fitted
-  GETPOSITION(?Pic1,rx,ry,rw,rh)
-  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
-  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+  DO Air:Spot:PicA
   IF PicA:Gpu
     DO Air:GpuOut:PicA
     EXIT
@@ -314,8 +349,10 @@ rh     SIGNED,AUTO
     DO Air:Fit:PicA
     EXIT
   END
-  PicA:PanX = INT((PicA:PanX + w / 2) * now / was - w / 2)
-  PicA:PanY = INT((PicA:PanY + h / 2) * now / was - h / 2)
+  mx = PicA:SpotX * w
+  my = PicA:SpotY * h
+  PicA:PanX = INT((PicA:PanX + mx) * now / was - mx)
+  PicA:PanY = INT((PicA:PanY + my) * now / was - my)
   PicA:Zoom = now
   DO Air:Show:PicA
 
@@ -326,22 +363,27 @@ Air:Fit:PicA ROUTINE
   DO Air:Show:PicA
 
 Air:GpuIn:PicA ROUTINE
-!  A step in, about the middle of the view. The pan is in image pixels, so the
-!  point that was in the middle before is still in the middle after.
+!  A step in, turning about the spot Air:Spot picked. The pan is in image
+!  pixels, so the pixel under that spot before the step is the pixel under it
+!  after: pan += spot/was - spot/now.
   DATA
 was  REAL,AUTO
 now  REAL,AUTO
+mx   REAL,AUTO
+my   REAL,AUTO
 vw   LONG,AUTO
 vh   LONG,AUTO
   CODE
   vw = d2c_ViewW(PicA:Gpu)
   vh = d2c_ViewH(PicA:Gpu)
+  mx = PicA:SpotX * vw
+  my = PicA:SpotY * vh
   DO Air:GpuWas:PicA
   was = PicA:Zoom / 100
   now = was * (1 + 25 / 100)
   IF now > 64 THEN now = 64.
-  PicA:PanX += (vw / was - vw / now) / 2
-  PicA:PanY += (vh / was - vh / now) / 2
+  PicA:PanX += mx / was - mx / now
+  PicA:PanY += my / was - my / now
   PicA:Zoom = now * 100
   DO Air:Gpu:PicA
 
@@ -350,6 +392,8 @@ Air:GpuOut:PicA ROUTINE
 was  REAL,AUTO
 now  REAL,AUTO
 fit  REAL,AUTO
+mx   REAL,AUTO
+my   REAL,AUTO
 vw   LONG,AUTO
 vh   LONG,AUTO
 iw   LONG,AUTO
@@ -357,6 +401,8 @@ ih   LONG,AUTO
   CODE
   vw = d2c_ViewW(PicA:Gpu)
   vh = d2c_ViewH(PicA:Gpu)
+  mx = PicA:SpotX * vw
+  my = PicA:SpotY * vh
   iw = d2c_ImageW(PicA:Gpu)
   ih = d2c_ImageH(PicA:Gpu)
   IF iw < 1 OR ih < 1 THEN EXIT.
@@ -369,8 +415,8 @@ ih   LONG,AUTO
     DO Air:Fit:PicA
     EXIT
   END
-  PicA:PanX += (vw / was - vw / now) / 2
-  PicA:PanY += (vh / was - vh / now) / 2
+  PicA:PanX += mx / was - mx / now
+  PicA:PanY += my / was - my / now
   PicA:Zoom = now * 100
   DO Air:Gpu:PicA
 
@@ -645,25 +691,56 @@ ih   LONG,AUTO
   d2c_SetView(PicB:Gpu, z, PicB:PanX, PicB:PanY,                |
               PicB.ArgbOf(16777215), 1)
 
+Air:Spot:PicB ROUTINE
+!  Decide what the zoom turns about. Under the pointer if the pointer is on
+!  this canvas - so the detail you are pointing at stays put - and the middle
+!  if it is anywhere else, which is what the menu and the keyboard want. The
+!  answer is a fraction across the canvas, so it does not matter whether the
+!  window is measured in dialog units or pixels.
+  DATA
+rx SIGNED,AUTO
+ry SIGNED,AUTO
+rw SIGNED,AUTO
+rh SIGNED,AUTO
+  CODE
+  PicB:SpotX = 0.5
+  PicB:SpotY = 0.5
+  PicB:Over  = 0
+  GETPOSITION(?AirCanvas,rx,ry,rw,rh)
+  IF rw < 1 OR rh < 1 THEN EXIT.
+  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
+  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+  PicB:Over  = 1
+  PicB:SpotX = (MOUSEX() - rx) / rw
+  PicB:SpotY = (MOUSEY() - ry) / rh
+
+Air:WheelIn:PicB ROUTINE
+!  A wheel notch reaches EVERY canvas on the window, so only the one under the
+!  pointer takes it. The menu calls Air:In directly and is not filtered.
+  DO Air:Spot:PicB
+  IF PicB:Over
+    DO Air:In:PicB
+  END
+
+Air:WheelOut:PicB ROUTINE
+  DO Air:Spot:PicB
+  IF PicB:Over
+    DO Air:Out:PicB
+  END
+
 Air:In:PicB ROUTINE
-!  Zoom about the middle of the viewport, so the picture does not run away.
-!  The wheel event reaches every canvas on the window, so each one first asks
-!  whether the pointer is actually over it.
+!  A step in, about whatever Air:Spot picked.
   DATA
 was    LONG,AUTO
 now    LONG,AUTO
 w      LONG,AUTO
 h      LONG,AUTO
+mx     LONG,AUTO
+my     LONG,AUTO
 savePx LONG,AUTO
-rx     SIGNED,AUTO
-ry     SIGNED,AUTO
-rw     SIGNED,AUTO
-rh     SIGNED,AUTO
   CODE
   IF ~PicB.Ok() THEN EXIT.
-  GETPOSITION(?AirCanvas,rx,ry,rw,rh)
-  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
-  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+  DO Air:Spot:PicB
   IF PicB:Gpu
     DO Air:GpuIn:PicB
     EXIT
@@ -677,8 +754,10 @@ rh     SIGNED,AUTO
   IF ~was THEN was = AirImg_FitPct(PicB,w,h).
   now = was + 25
   IF now > 1600 THEN now = 1600.
-  PicB:PanX = INT((PicB:PanX + w / 2) * now / was - w / 2)
-  PicB:PanY = INT((PicB:PanY + h / 2) * now / was - h / 2)
+  mx = PicB:SpotX * w
+  my = PicB:SpotY * h
+  PicB:PanX = INT((PicB:PanX + mx) * now / was - mx)
+  PicB:PanY = INT((PicB:PanY + my) * now / was - my)
   PicB:Zoom = now
   DO Air:Show:PicB
 
@@ -688,16 +767,12 @@ was    LONG,AUTO
 now    LONG,AUTO
 w      LONG,AUTO
 h      LONG,AUTO
+mx     LONG,AUTO
+my     LONG,AUTO
 savePx LONG,AUTO
-rx     SIGNED,AUTO
-ry     SIGNED,AUTO
-rw     SIGNED,AUTO
-rh     SIGNED,AUTO
   CODE
   IF ~PicB.Ok() OR ~PicB:Zoom THEN EXIT.               ! already fitted
-  GETPOSITION(?AirCanvas,rx,ry,rw,rh)
-  IF MOUSEX() < rx OR MOUSEX() > rx + rw THEN EXIT.
-  IF MOUSEY() < ry OR MOUSEY() > ry + rh THEN EXIT.
+  DO Air:Spot:PicB
   IF PicB:Gpu
     DO Air:GpuOut:PicB
     EXIT
@@ -713,8 +788,10 @@ rh     SIGNED,AUTO
     DO Air:Fit:PicB
     EXIT
   END
-  PicB:PanX = INT((PicB:PanX + w / 2) * now / was - w / 2)
-  PicB:PanY = INT((PicB:PanY + h / 2) * now / was - h / 2)
+  mx = PicB:SpotX * w
+  my = PicB:SpotY * h
+  PicB:PanX = INT((PicB:PanX + mx) * now / was - mx)
+  PicB:PanY = INT((PicB:PanY + my) * now / was - my)
   PicB:Zoom = now
   DO Air:Show:PicB
 
@@ -725,22 +802,27 @@ Air:Fit:PicB ROUTINE
   DO Air:Show:PicB
 
 Air:GpuIn:PicB ROUTINE
-!  A step in, about the middle of the view. The pan is in image pixels, so the
-!  point that was in the middle before is still in the middle after.
+!  A step in, turning about the spot Air:Spot picked. The pan is in image
+!  pixels, so the pixel under that spot before the step is the pixel under it
+!  after: pan += spot/was - spot/now.
   DATA
 was  REAL,AUTO
 now  REAL,AUTO
+mx   REAL,AUTO
+my   REAL,AUTO
 vw   LONG,AUTO
 vh   LONG,AUTO
   CODE
   vw = d2c_ViewW(PicB:Gpu)
   vh = d2c_ViewH(PicB:Gpu)
+  mx = PicB:SpotX * vw
+  my = PicB:SpotY * vh
   DO Air:GpuWas:PicB
   was = PicB:Zoom / 100
   now = was * (1 + 25 / 100)
   IF now > 64 THEN now = 64.
-  PicB:PanX += (vw / was - vw / now) / 2
-  PicB:PanY += (vh / was - vh / now) / 2
+  PicB:PanX += mx / was - mx / now
+  PicB:PanY += my / was - my / now
   PicB:Zoom = now * 100
   DO Air:Gpu:PicB
 
@@ -749,6 +831,8 @@ Air:GpuOut:PicB ROUTINE
 was  REAL,AUTO
 now  REAL,AUTO
 fit  REAL,AUTO
+mx   REAL,AUTO
+my   REAL,AUTO
 vw   LONG,AUTO
 vh   LONG,AUTO
 iw   LONG,AUTO
@@ -756,6 +840,8 @@ ih   LONG,AUTO
   CODE
   vw = d2c_ViewW(PicB:Gpu)
   vh = d2c_ViewH(PicB:Gpu)
+  mx = PicB:SpotX * vw
+  my = PicB:SpotY * vh
   iw = d2c_ImageW(PicB:Gpu)
   ih = d2c_ImageH(PicB:Gpu)
   IF iw < 1 OR ih < 1 THEN EXIT.
@@ -768,8 +854,8 @@ ih   LONG,AUTO
     DO Air:Fit:PicB
     EXIT
   END
-  PicB:PanX += (vw / was - vw / now) / 2
-  PicB:PanY += (vh / was - vh / now) / 2
+  PicB:PanX += mx / was - mx / now
+  PicB:PanY += my / was - my / now
   PicB:Zoom = now * 100
   DO Air:Gpu:PicB
 
@@ -1038,9 +1124,9 @@ Looped BYTE
     OF Air:Redraw:PicA
       DO Air:Show:PicA
     OF AirImg:CtrlUp
-      DO Air:In:PicA
+      DO Air:WheelIn:PicA
     OF AirImg:CtrlDown
-      DO Air:Out:PicA
+      DO Air:WheelOut:PicA
     END
     CASE EVENT()
     OF EVENT:OpenWindow
@@ -1052,9 +1138,9 @@ Looped BYTE
     OF Air:Redraw:PicB
       DO Air:Show:PicB
     OF AirImg:CtrlUp
-      DO Air:In:PicB
+      DO Air:WheelIn:PicB
     OF AirImg:CtrlDown
-      DO Air:Out:PicB
+      DO Air:WheelOut:PicB
     END
   LOOP                                                     ! This method receives all window specific events
     IF Looped

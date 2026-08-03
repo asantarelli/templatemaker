@@ -149,6 +149,7 @@ own procedure leaves everything else working.
 | `ADDRESS()` differs between program and MEMBER modules | `addrtest` |
 | Direct2D draws the picture, right colours, right way up | `d2dtest`, screenshot in `docs/` |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
+| zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 
 **Not proved:** a *generated* application running the GPU canvas end to end. `airwin` compiles but cannot
 run (no dictionary), so the GPU path has been exercised through `d2dtest`, which calls the same engine in
