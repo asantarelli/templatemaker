@@ -93,6 +93,13 @@ note    CSTRING(200)
           END
           t1 = CLOCK()
           cpu = t1 - t0
+! ---- leave it fitted to the frame, so a screenshot shows the picture --
+          z = d2c_ViewW(cv) / d2c_ImageW(cv)
+          IF (d2c_ViewH(cv) / d2c_ImageH(cv)) < z
+            z = d2c_ViewH(cv) / d2c_ImageH(cv)
+          END
+          d2c_SetView(cv, z, 0, 0, 0FFFFFFh, 1)
+          d2c_PaintNow(cv)
           note = 'D2DTest OK img=' & d2c_ImageW(cv) & 'x' & d2c_ImageH(cv) &|
                  ' view=' & d2c_ViewW(cv) & 'x' & d2c_ViewH(cv) &           |
                  ' GPU300=' & gpu & 'cs CPU10=' & cpu & 'cs'
