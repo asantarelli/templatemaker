@@ -1,6 +1,6 @@
 # allImageRead — the verification harnesses
 
-Ten small programs. They are not demos of what the template *looks* like; they are how the
+Eleven small programs. They are not demos of what the template *looks* like; they are how the
 template was proved to be correct, and they can be re-run whenever it changes.
 
 Everything here needs the myImage files on the redirection path — `ImageClass.inc`,
@@ -168,6 +168,21 @@ The same picture, 167 times faster. Panning is unaffected in every sense that ma
 is never modified - the crop happens on a clone - so the whole picture is always there to pan into,
 and each repaint simply cuts a fresh piece.
 
+## `bartest` - can a REGION carry scrollbars, and do they talk back?
+
+A REGION is not born with scrollbars, so this adds `WS_HSCROLL`/`WS_VSCROLL` to one built at run time,
+gives the bars a range, subclasses the control and counts what comes back. The driver posts a real
+`WM_HSCROLL` (line right) and `WM_VSCROLL` (page down):
+
+```
+BarTest hwnd=29886464 hits=2 hpos=16 vpos=20
+```
+
+Both messages arrived, and the positions moved by a line and by a page - Windows does not work the new
+position out for you, the window procedure has to. The screenshot in `docs/allImageRead-scrollbars.png`
+answers the other half: they really are drawn, as the thin Windows 11 thumbs on the right edge and along
+the bottom.
+
 ## `wheeltest` — does the mouse wheel actually arrive?
 
 The one that earned its keep. Clarion's `EVENT:ScrollUp` / `EVENT:ScrollDown` are **LIST events**
@@ -210,6 +225,7 @@ own procedure leaves everything else working.
 | a dragged pan gets MouseMove/MouseUp | `immtest`, IMM against plain, driven by posted mouse messages |
 | frames step, and the last one loads | `frametest`, 100-frame GIF, pixel hash per frame |
 | crop-first is the same picture, ~167x faster | `cputime`, old against new at three pan positions |
+| a REGION can carry working scrollbars | `bartest`, styles added at run time, messages posted at it |
 | the GPU is ~80x faster per zoom step | `d2dtest`, both paths timed in one run |
 | zooming turns about the pointer, not the middle | `d2dtest` prints `spotdrift`: the image pixel under the spot, before and after a step, over 60 combinations of spot, zoom and pan. Anything but `0.000000 PASS` means the pan maths drifts |
 

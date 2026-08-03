@@ -49,6 +49,7 @@ PicA:Over           BYTE                                    ! is the pointer on 
 PicA:Gpu            LONG                                    ! the GPU canvas, 0 = drawing on the processor
 PicA:Bmp            CSTRING(261)                            ! what was handed to the graphics card
 PicA:Hooked         BYTE                                    ! this canvas took the window procedure
+PicA:Barred         BYTE                                    ! and its control's, for the scrollbars
 PicA:Drag           BYTE
 PicA:DragX          SIGNED
 PicA:DragY          SIGNED
@@ -74,6 +75,7 @@ PicB:Over           BYTE                                    ! is the pointer on 
 PicB:Gpu            LONG                                    ! the GPU canvas, 0 = drawing on the processor
 PicB:Bmp            CSTRING(261)                            ! what was handed to the graphics card
 PicB:Hooked         BYTE                                    ! this canvas took the window procedure
+PicB:Barred         BYTE                                    ! and its control's, for the scrollbars
 PicB:Drag           BYTE
 PicB:DragX          SIGNED
 PicB:DragY          SIGNED
@@ -115,6 +117,12 @@ Air:Setup:PicA ROUTINE
   END
   DO Air:Place:PicA
   UNHIDE(PicA:Rgn)
+!  The scrollbars go on BEFORE the graphics card attaches: adding the styles
+!  takes a slice off the client area, and the render target must be built for
+!  what is left of it.
+  IF AirImg_HookBars(PicA:Rgn{PROP:Handle})
+    PicA:Barred = 1
+  END
 !  Hand the canvas to the graphics card. The REGION laid over the image owns a
 !  real window, so Direct2D renders into THAT and Clarion keeps the rest of the
 !  window to itself. If there is no Direct2D, or it will not attach, the canvas
@@ -240,6 +248,7 @@ savePx LONG,AUTO
   END
   IF ~PicA:Zoom
     PicA.Draw(QuickWindow,?Pic1,Img:Cover,PicA.ArgbOf(16777215))
+    DO Air:Bars:PicA
     EXIT
   END
   savePx = 0{PROP:Pixels}                                     ! the frame, in real pixels
@@ -287,6 +296,7 @@ savePx LONG,AUTO
                    PicA:PanY - INT(sy * PicA:Zoom / 100),cw,ch)
   PicA:Cv.Fit(w,h,Img:Centered,PicA.ArgbOf(16777215))  ! pad out to the frame
   PicA:Cv.Draw(QuickWindow,?Pic1,-1)                       ! -1 = blit it as it is
+  DO Air:Bars:PicA
 
 Air:Gpu:PicA ROUTINE
 !  Push the current view at the graphics card. Zoom is a factor here (1 = one
@@ -326,6 +336,7 @@ ih   LONG,AUTO
   IF PicA:PanY < 0 THEN PicA:PanY = 0.
   d2c_SetView(PicA:Gpu, z, PicA:PanX, PicA:PanY,                |
               PicA.ArgbOf(16777215), 1)
+  DO Air:Bars:PicA
 
 Air:Spot:PicA ROUTINE
 !  Decide what the zoom turns about. Under the pointer if the pointer is on
@@ -457,6 +468,64 @@ savePx LONG,AUTO
   0{PROP:Pixels} = savePx
   PicA:PanX += INT(PicA:StepX * w * 15 / 100)
   PicA:PanY += INT(PicA:StepY * h * 15 / 100)
+  DO Air:Show:PicA
+
+Air:Bars:PicA ROUTINE
+!  Tell the scrollbars how much picture there is and how much of it shows, in
+!  whatever units this engine pans in. Windows hides a bar whose page covers
+!  its whole range, so at "fit the frame" they take themselves away.
+  DATA
+tot  LONG,AUTO
+page LONG,AUTO
+w    LONG,AUTO
+h    LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~PicA:Barred THEN EXIT.
+  IF ~PicA.Ok() OR ~PicA:Zoom                         ! fitted: no bars
+    AirImg_SetBar(PicA:Rgn{PROP:Handle},AirImg:SbHorz,0,1,1)
+    AirImg_SetBar(PicA:Rgn{PROP:Handle},AirImg:SbVert,0,1,1)
+    IF PicA:Gpu THEN d2c_Resize(PicA:Gpu).
+    EXIT
+  END
+  IF PicA:Gpu                                             ! the GPU pans in image pixels
+    tot  = d2c_ImageW(PicA:Gpu)
+    page = INT(d2c_ViewW(PicA:Gpu) * 100 / PicA:Zoom)
+    AirImg_SetBar(PicA:Rgn{PROP:Handle},AirImg:SbHorz,PicA:PanX,page,tot)
+    tot  = d2c_ImageH(PicA:Gpu)
+    page = INT(d2c_ViewH(PicA:Gpu) * 100 / PicA:Zoom)
+    AirImg_SetBar(PicA:Rgn{PROP:Handle},AirImg:SbVert,PicA:PanY,page,tot)
+    d2c_Resize(PicA:Gpu)
+    EXIT
+  END
+  savePx = 0{PROP:Pixels}                                     ! the processor pans in scaled pixels
+  0{PROP:Pixels} = 1
+  w = ?Pic1{PROP:Width}
+  h = ?Pic1{PROP:Height}
+  0{PROP:Pixels} = savePx
+  AirImg_SetBar(PicA:Rgn{PROP:Handle},AirImg:SbHorz,PicA:PanX,w,      |
+                INT(PicA.Wide() * PicA:Zoom / 100))
+  AirImg_SetBar(PicA:Rgn{PROP:Handle},AirImg:SbVert,PicA:PanY,h,      |
+                INT(PicA.High() * PicA:Zoom / 100))
+
+Air:Scrolled:PicA ROUTINE
+!  A bar moved - on this canvas or on another one. Read our own two back; if
+!  they have not moved there is nothing to do, which is what makes it safe to
+!  send the one event to every canvas on the window.
+  DATA
+nx LONG,AUTO
+ny LONG,AUTO
+  CODE
+  IF ~PicA:Barred OR ~PicA:Zoom THEN EXIT.
+  nx = AirImg_BarPos(PicA:Rgn{PROP:Handle},AirImg:SbHorz)
+  ny = AirImg_BarPos(PicA:Rgn{PROP:Handle},AirImg:SbVert)
+  IF nx = PicA:PanX AND ny = PicA:PanY THEN EXIT.
+  PicA:PanX = nx
+  PicA:PanY = ny
+  IF PicA:Gpu
+    DO Air:Gpu:PicA
+    EXIT
+  END
   DO Air:Show:PicA
 
 Air:Fit:PicA ROUTINE
@@ -637,6 +706,12 @@ Air:Setup:PicB ROUTINE
   END
   DO Air:Place:PicB
   UNHIDE(PicB:Rgn)
+!  The scrollbars go on BEFORE the graphics card attaches: adding the styles
+!  takes a slice off the client area, and the render target must be built for
+!  what is left of it.
+  IF AirImg_HookBars(PicB:Rgn{PROP:Handle})
+    PicB:Barred = 1
+  END
 !  Hand the canvas to the graphics card. The REGION laid over the image owns a
 !  real window, so Direct2D renders into THAT and Clarion keeps the rest of the
 !  window to itself. If there is no Direct2D, or it will not attach, the canvas
@@ -776,6 +851,7 @@ savePx LONG,AUTO
   END
   IF ~PicB:Zoom
     PicB.Draw(QuickWindow,?AirCanvas,Img:Proportional,PicB.ArgbOf(16777215))
+    DO Air:Bars:PicB
     EXIT
   END
   savePx = 0{PROP:Pixels}                                     ! the frame, in real pixels
@@ -823,6 +899,7 @@ savePx LONG,AUTO
                    PicB:PanY - INT(sy * PicB:Zoom / 100),cw,ch)
   PicB:Cv.Fit(w,h,Img:Centered,PicB.ArgbOf(16777215))  ! pad out to the frame
   PicB:Cv.Draw(QuickWindow,?AirCanvas,-1)                       ! -1 = blit it as it is
+  DO Air:Bars:PicB
 
 Air:Gpu:PicB ROUTINE
 !  Push the current view at the graphics card. Zoom is a factor here (1 = one
@@ -862,6 +939,7 @@ ih   LONG,AUTO
   IF PicB:PanY < 0 THEN PicB:PanY = 0.
   d2c_SetView(PicB:Gpu, z, PicB:PanX, PicB:PanY,                |
               PicB.ArgbOf(16777215), 1)
+  DO Air:Bars:PicB
 
 Air:Spot:PicB ROUTINE
 !  Decide what the zoom turns about. Under the pointer if the pointer is on
@@ -993,6 +1071,64 @@ savePx LONG,AUTO
   0{PROP:Pixels} = savePx
   PicB:PanX += INT(PicB:StepX * w * 15 / 100)
   PicB:PanY += INT(PicB:StepY * h * 15 / 100)
+  DO Air:Show:PicB
+
+Air:Bars:PicB ROUTINE
+!  Tell the scrollbars how much picture there is and how much of it shows, in
+!  whatever units this engine pans in. Windows hides a bar whose page covers
+!  its whole range, so at "fit the frame" they take themselves away.
+  DATA
+tot  LONG,AUTO
+page LONG,AUTO
+w    LONG,AUTO
+h    LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~PicB:Barred THEN EXIT.
+  IF ~PicB.Ok() OR ~PicB:Zoom                         ! fitted: no bars
+    AirImg_SetBar(PicB:Rgn{PROP:Handle},AirImg:SbHorz,0,1,1)
+    AirImg_SetBar(PicB:Rgn{PROP:Handle},AirImg:SbVert,0,1,1)
+    IF PicB:Gpu THEN d2c_Resize(PicB:Gpu).
+    EXIT
+  END
+  IF PicB:Gpu                                             ! the GPU pans in image pixels
+    tot  = d2c_ImageW(PicB:Gpu)
+    page = INT(d2c_ViewW(PicB:Gpu) * 100 / PicB:Zoom)
+    AirImg_SetBar(PicB:Rgn{PROP:Handle},AirImg:SbHorz,PicB:PanX,page,tot)
+    tot  = d2c_ImageH(PicB:Gpu)
+    page = INT(d2c_ViewH(PicB:Gpu) * 100 / PicB:Zoom)
+    AirImg_SetBar(PicB:Rgn{PROP:Handle},AirImg:SbVert,PicB:PanY,page,tot)
+    d2c_Resize(PicB:Gpu)
+    EXIT
+  END
+  savePx = 0{PROP:Pixels}                                     ! the processor pans in scaled pixels
+  0{PROP:Pixels} = 1
+  w = ?AirCanvas{PROP:Width}
+  h = ?AirCanvas{PROP:Height}
+  0{PROP:Pixels} = savePx
+  AirImg_SetBar(PicB:Rgn{PROP:Handle},AirImg:SbHorz,PicB:PanX,w,      |
+                INT(PicB.Wide() * PicB:Zoom / 100))
+  AirImg_SetBar(PicB:Rgn{PROP:Handle},AirImg:SbVert,PicB:PanY,h,      |
+                INT(PicB.High() * PicB:Zoom / 100))
+
+Air:Scrolled:PicB ROUTINE
+!  A bar moved - on this canvas or on another one. Read our own two back; if
+!  they have not moved there is nothing to do, which is what makes it safe to
+!  send the one event to every canvas on the window.
+  DATA
+nx LONG,AUTO
+ny LONG,AUTO
+  CODE
+  IF ~PicB:Barred OR ~PicB:Zoom THEN EXIT.
+  nx = AirImg_BarPos(PicB:Rgn{PROP:Handle},AirImg:SbHorz)
+  ny = AirImg_BarPos(PicB:Rgn{PROP:Handle},AirImg:SbVert)
+  IF nx = PicB:PanX AND ny = PicB:PanY THEN EXIT.
+  PicB:PanX = nx
+  PicB:PanY = ny
+  IF PicB:Gpu
+    DO Air:Gpu:PicB
+    EXIT
+  END
   DO Air:Show:PicB
 
 Air:Fit:PicB ROUTINE
@@ -1241,6 +1377,10 @@ ReturnValue          BYTE,AUTO
       AirImg_DropWheel(QuickWindow{PROP:Handle})
       PicA:Hooked = 0
     END
+    IF PicA:Barred
+      AirImg_DropBars(PicA:Rgn{PROP:Handle})
+      PicA:Barred = 0
+    END
     IF PicA:Gpu
       d2c_Detach(PicA:Gpu)                                     ! gives the control its own window back
       PicA:Gpu = 0
@@ -1248,6 +1388,10 @@ ReturnValue          BYTE,AUTO
     IF PicB:Hooked
       AirImg_DropWheel(QuickWindow{PROP:Handle})
       PicB:Hooked = 0
+    END
+    IF PicB:Barred
+      AirImg_DropBars(PicB:Rgn{PROP:Handle})
+      PicB:Barred = 0
     END
     IF PicB:Gpu
       d2c_Detach(PicB:Gpu)                                     ! gives the control its own window back
@@ -1476,6 +1620,8 @@ Looped BYTE
       OF CtrlHome
         DO Air:Fit:PicA
       END
+    OF AirImg:Scrolled
+      DO Air:Scrolled:PicA
     END
     CASE EVENT()
     OF EVENT:OpenWindow
@@ -1515,6 +1661,8 @@ Looped BYTE
       OF CtrlHome
         DO Air:Fit:PicB
       END
+    OF AirImg:Scrolled
+      DO Air:Scrolled:PicB
     END
     CASE EVENT()
     OF EVENT:OpenWindow

@@ -126,6 +126,22 @@ AirImg:WheelUp       EQUATE(EVENT:User + 216)                 ! the wheel, carri
 AirImg:WheelDown     EQUATE(EVENT:User + 217)                 !   window procedure
 AirImg:CtrlUp        EQUATE(EVENT:User + 218)                 ! ... with Ctrl held down
 AirImg:CtrlDown      EQUATE(EVENT:User + 219)
+AirImg:Scrolled      EQUATE(EVENT:User + 215)                 ! a canvas scrollbar was moved
+AirImg:GwlStyle      EQUATE(-16)
+AirImg:HScroll       EQUATE(00100000h)                        ! WS_HSCROLL
+AirImg:VScroll       EQUATE(00200000h)                        ! WS_VSCROLL
+AirImg:FrameChanged  EQUATE(0020h)                            ! SWP_FRAMECHANGED
+AirImg:NoMove        EQUATE(0002h)
+AirImg:NoSize        EQUATE(0001h)
+AirImg:NoZOrder      EQUATE(0004h)
+AirImg:SbHorz        EQUATE(0)
+AirImg:SbVert        EQUATE(1)
+AirImg:WmHScroll     EQUATE(0114h)
+AirImg:WmVScroll     EQUATE(0115h)
+AirImg:SifRange      EQUATE(1)
+AirImg:SifPage       EQUATE(2)
+AirImg:SifPos        EQUATE(4)
+AirImg:SifTrack      EQUATE(10h)
 #ENDAT
 #!
 #!  Everything a picture needs before ImageClass can see it. The Windows file
@@ -152,6 +168,10 @@ airApi_GetProp(ULONG hWnd,LONG lpString),LONG,PASCAL,NAME('GetPropA')
 airApi_RemoveProp(ULONG hWnd,LONG lpString),LONG,PASCAL,PROC,NAME('RemovePropA')
 airApi_CallWndProc(LONG lpPrevWndFunc,ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam),LONG,PASCAL,NAME('CallWindowProcA')
 airApi_SetWindowLong(ULONG hWnd,LONG nIndex,LONG dwNewLong),LONG,PASCAL,PROC,NAME('SetWindowLongA')
+airApi_GetWindowLong(ULONG hWnd,LONG nIndex),LONG,PASCAL,NAME('GetWindowLongA')
+airApi_SetWindowPos(ULONG hWnd,LONG after,LONG x,LONG y,LONG cx,LONG cy,ULONG flags),LONG,PASCAL,PROC,NAME('SetWindowPos')
+airApi_SetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi,LONG redraw),LONG,PASCAL,PROC,NAME('SetScrollInfo')
+airApi_GetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi),LONG,PASCAL,PROC,NAME('GetScrollInfo')
     END
 AirImg_Temp(STRING,STRING),STRING
 AirImg_PutBytes(*STRING,LONG,STRING),BYTE,PROC
@@ -165,6 +185,11 @@ AirImg_Filter(),STRING
 AirImg_WheelProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
 AirImg_HookWheel(LONG),BYTE,PROC
 AirImg_DropWheel(LONG),LONG,PROC
+AirImg_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
+AirImg_HookBars(LONG),BYTE,PROC
+AirImg_DropBars(LONG),LONG,PROC
+AirImg_SetBar(LONG,LONG,LONG,LONG,LONG)
+AirImg_BarPos(LONG,LONG),LONG
 #!  the GPU canvas. cdecl exports from C, so the Clarion name carries a
 #!  leading underscore; every canvas is a small handle, 0 meaning "no GPU".
     MODULE('d2dcanvas.c')
@@ -472,6 +497,138 @@ dz   LONG,AUTO
   END
   RETURN 0
 
+!  ---- the scrollbars ---------------------------------------------------
+!  A REGION is not born with scrollbars, so the styles go on at run time and
+!  the control is subclassed for the two scroll messages. Same shape as the
+!  wheel hook, and for the same reason: the address of the callback is taken
+!  HERE, in the module that defines it, never in a member module.
+AirImg_HookBars PROCEDURE(LONG pHwnd)
+prop CSTRING('AirImgBarProc')
+old  LONG,AUTO
+sty  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  IF airApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.       ! already hooked
+  sty = airApi_GetWindowLong(pHwnd,AirImg:GwlStyle)
+  airApi_SetWindowLong(pHwnd,AirImg:GwlStyle,                                 |
+                       BOR(BOR(sty,AirImg:HScroll),AirImg:VScroll))
+  airApi_SetWindowPos(pHwnd,0,0,0,0,0,BOR(BOR(BOR(AirImg:FrameChanged,        |
+                      AirImg:NoMove),AirImg:NoSize),AirImg:NoZOrder))
+  old = airApi_SetWindowLong(pHwnd,AirImg:GwlWndProc,ADDRESS(AirImg_BarProc))
+  IF ~old THEN RETURN 0.
+  airApi_SetProp(pHwnd,ADDRESS(prop),old)
+  RETURN 1
+
+AirImg_DropBars PROCEDURE(LONG pHwnd)
+prop CSTRING('AirImgBarProc')
+old  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  old = airApi_GetProp(pHwnd,ADDRESS(prop))
+  IF old
+    airApi_SetWindowLong(pHwnd,AirImg:GwlWndProc,old)
+  END
+  airApi_RemoveProp(pHwnd,ADDRESS(prop))
+  RETURN old
+
+!  Range, page and position for one bar. Windows hides a bar whose page covers
+!  its whole range, which is exactly what should happen when the picture fits.
+AirImg_SetBar PROCEDURE(LONG pHwnd,LONG pBar,LONG pPos,LONG pPage,LONG pTotal)
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  IF ~pHwnd THEN RETURN.
+  si.cbSize = SIZE(si)
+  si.fMask  = BOR(BOR(AirImg:SifRange,AirImg:SifPage),AirImg:SifPos)
+  si.nMin   = 0
+  si.nMax   = pTotal - 1
+  si.nPage  = pPage
+  si.nPos   = pPos
+  airApi_SetScrollInfo(pHwnd,pBar,ADDRESS(si),1)
+
+AirImg_BarPos PROCEDURE(LONG pHwnd,LONG pBar)
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  si.cbSize = SIZE(si)
+  si.fMask  = AirImg:SifPos
+  IF ~airApi_GetScrollInfo(pHwnd,pBar,ADDRESS(si)) THEN RETURN 0.
+  RETURN si.nPos
+
+!  The canvas control's window procedure, for the scrollbars only. It works out
+!  the new position itself - Windows does not do that for you - writes it back,
+!  and tells the ACCEPT loop something moved. Which canvas moved is not in the
+!  message, and does not need to be: every canvas reads its own bars back.
+AirImg_BarProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
+prop CSTRING('AirImgBarProc')
+old  LONG,AUTO
+bar  LONG,AUTO
+code LONG,AUTO
+pos  LONG,AUTO
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  old = airApi_GetProp(hWnd,ADDRESS(prop))
+  IF wMsg = AirImg:WmHScroll OR wMsg = AirImg:WmVScroll
+    bar = CHOOSE(wMsg = AirImg:WmHScroll, AirImg:SbHorz, AirImg:SbVert)
+    code = BAND(wParam,0FFFFh)
+    si.cbSize = SIZE(si)
+    si.fMask  = BOR(BOR(BOR(AirImg:SifRange,AirImg:SifPage),AirImg:SifPos),AirImg:SifTrack)
+    IF airApi_GetScrollInfo(hWnd,bar,ADDRESS(si))
+      pos = si.nPos
+      CASE code
+      OF 0                                                    ! a line back
+        pos -= INT(si.nPage / 10) + 1
+      OF 1                                                    ! a line on
+        pos += INT(si.nPage / 10) + 1
+      OF 2                                                    ! a page back
+        pos -= si.nPage
+      OF 3                                                    ! a page on
+        pos += si.nPage
+      OF 4                                                    ! the thumb, dropped
+        pos = si.nTrack
+      OF 5                                                    ! the thumb, dragging
+        pos = si.nTrack
+      OF 6
+        pos = si.nMin
+      OF 7
+        pos = si.nMax
+      END
+      IF pos > si.nMax - si.nPage + 1 THEN pos = si.nMax - si.nPage + 1.
+      IF pos < si.nMin THEN pos = si.nMin.
+      si.fMask = AirImg:SifPos
+      si.nPos  = pos
+      airApi_SetScrollInfo(hWnd,bar,ADDRESS(si),1)
+      POST(AirImg:Scrolled)
+    END
+  END
+  IF old
+    RETURN airApi_CallWndProc(old,hWnd,wMsg,wParam,lParam)
+  END
+  RETURN 0
+
 !  Everything ImageClass can open, for FILEDIALOG.
 AirImg_Filter PROCEDURE()
   CODE
@@ -543,6 +700,7 @@ AirImg_Filter PROCEDURE()
       #PROMPT('Zoom &step (per cent):',SPIN(@n3,5,100,5)),%airCZoomStep,DEFAULT(25)
       #PROMPT('&Pan (drag the picture)',CHECK),%airCPan,DEFAULT(1),AT(10)
       #PROMPT('Pan with &Ctrl+arrows too (Ctrl+Home refits)',CHECK),%airCPanKeys,DEFAULT(1),AT(20)
+      #PROMPT('&Scrollbars once it is zoomed in',CHECK),%airCBars,DEFAULT(1),AT(20)
       #PROMPT('Keyboard pan &step (per cent of the frame):',SPIN(@n3,1,100,5)),%airCPanStep,DEFAULT(15)
       #PROMPT('&Right-click menu',CHECK),%airCMenu,DEFAULT(1),AT(10)
       #PROMPT('&Open another picture (menu, and double-click)',CHECK),%airCOpen,DEFAULT(1),AT(10)
@@ -642,6 +800,7 @@ INCLUDE('ImageClass.INC'),ONCE
     DO Air:Show:%airCObject
 #INSERT(%airWheel,%airCObject,%airCZoom,%airCZoomCtrl)
 #INSERT(%airKeys,%airCObject,%airCPan,%airCPanKeys)
+#INSERT(%airBarEvent,%airCObject,%airCBars)
   END
 #ENDAT
 #!
@@ -964,6 +1123,7 @@ f LONG,AUTO
       #PROMPT('Zoom &step (per cent):',SPIN(@n3,5,100,5)),%airWZoomStep,DEFAULT(25)
       #PROMPT('&Pan (drag the picture)',CHECK),%airWPan,DEFAULT(1),AT(10)
       #PROMPT('Pan with &Ctrl+arrows too (Ctrl+Home refits)',CHECK),%airWPanKeys,DEFAULT(1),AT(20)
+      #PROMPT('&Scrollbars once it is zoomed in',CHECK),%airWBars,DEFAULT(1),AT(20)
       #PROMPT('Keyboard pan &step (per cent of the frame):',SPIN(@n3,1,100,5)),%airWPanStep,DEFAULT(15)
       #PROMPT('&Right-click menu',CHECK),%airWMenu,DEFAULT(1),AT(10)
       #PROMPT('&Open another picture (menu, and double-click)',CHECK),%airWOpen,DEFAULT(1),AT(10)
@@ -1012,6 +1172,7 @@ f LONG,AUTO
     DO Air:Show:%airWObject
 #INSERT(%airWheel,%airWObject,%airWZoom,%airWZoomCtrl)
 #INSERT(%airKeys,%airWObject,%airWPan,%airWPanKeys)
+#INSERT(%airBarEvent,%airWObject,%airWBars)
   END
 #ENDAT
 #!
@@ -1195,6 +1356,7 @@ fname CSTRING(261)
 %pObj:Gpu            LONG                                    ! the GPU canvas, 0 = drawing on the processor
 %pObj:Bmp            CSTRING(261)                            ! what was handed to the graphics card
 %pObj:Hooked         BYTE                                    ! this canvas took the window procedure
+%pObj:Barred         BYTE                                    ! and its control's, for the scrollbars
 %pObj:Drag           BYTE
 %pObj:DragX          SIGNED
 %pObj:DragY          SIGNED
@@ -1318,6 +1480,12 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #!  Windows is asked for the Ctrl state directly - see the prototype above for
 #!  why KEYSTATE() is no good during a wheel event.
 #!-----------------------------------------------------------------------------
+#GROUP(%airBarEvent,%pObj,%pBars)
+#IF(%pBars)
+  OF AirImg:Scrolled
+    DO Air:Scrolled:%pObj
+#ENDIF
+#!-----------------------------------------------------------------------------
 #GROUP(%airKeys,%pObj,%pPan,%pPanKeys)
 #IF(%pPan AND %pPanKeys)
   OF EVENT:AlertKey
@@ -1364,6 +1532,10 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
   IF %pObj:Hooked
     AirImg_DropWheel(%Window{PROP:Handle})
     %pObj:Hooked = 0
+  END
+  IF %pObj:Barred
+    AirImg_DropBars(%pObj:Rgn{PROP:Handle})
+    %pObj:Barred = 0
   END
   IF %pObj:Gpu
     d2c_Detach(%pObj:Gpu)                                     ! gives the control its own window back
@@ -1450,6 +1622,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #SET(%airXStep,%airCZoomStep)
 #SET(%airXPan,%airCPan)
 #SET(%airXPanKeys,%airCPanKeys)
+#SET(%airXBars,%airCBars)
 #SET(%airXPanStep,%airCPanStep)
 #SET(%airXMenu,%airCMenu)
 #SET(%airXOpen,%airCOpen)
@@ -1487,6 +1660,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
 #SET(%airXStep,%airWZoomStep)
 #SET(%airXPan,%airWPan)
 #SET(%airXPanKeys,%airWPanKeys)
+#SET(%airXBars,%airWBars)
 #SET(%airXPanStep,%airWPanStep)
 #SET(%airXMenu,%airWMenu)
 #SET(%airXOpen,%airWOpen)
@@ -1524,6 +1698,7 @@ Air:Redraw:%pObj     EQUATE(EVENT:User + %pBase + %ActiveTemplateInstance)
   #DECLARE(%airXStep)
   #DECLARE(%airXPan)
   #DECLARE(%airXPanKeys)
+  #DECLARE(%airXBars)
   #DECLARE(%airXPanStep)
   #DECLARE(%airXMenu)
   #DECLARE(%airXOpen)
@@ -1631,6 +1806,14 @@ Air:Setup:%airXObj ROUTINE
   END
   DO Air:Place:%airXObj
   UNHIDE(%airXObj:Rgn)
+#IF(%airXBars)
+!  The scrollbars go on BEFORE the graphics card attaches: adding the styles
+!  takes a slice off the client area, and the render target must be built for
+!  what is left of it.
+  IF AirImg_HookBars(%airXObj:Rgn{PROP:Handle})
+    %airXObj:Barred = 1
+  END
+#ENDIF
 #IF(%airXEngine = 'AUTO')
 !  Hand the canvas to the graphics card. The REGION laid over the image owns a
 !  real window, so Direct2D renders into THAT and Clarion keeps the rest of the
@@ -1786,6 +1969,7 @@ savePx LONG,AUTO
   END
   IF ~%airXObj:Zoom
     %airXObj.Draw(%Window,%airXFeq,%airXFit,%airXObj.ArgbOf(%airXBack))
+    DO Air:Bars:%airXObj
     EXIT
   END
   savePx = 0{PROP:Pixels}                                     ! the frame, in real pixels
@@ -1833,6 +2017,7 @@ savePx LONG,AUTO
                    %airXObj:PanY - INT(sy * %airXObj:Zoom / 100),cw,ch)
   %airXObj:Cv.Fit(w,h,Img:Centered,%airXObj.ArgbOf(%airXBack))  ! pad out to the frame
   %airXObj:Cv.Draw(%Window,%airXFeq,-1)                       ! -1 = blit it as it is
+  DO Air:Bars:%airXObj
 #IF(%airXEngine = 'AUTO')
 
 Air:Gpu:%airXObj ROUTINE
@@ -1873,6 +2058,7 @@ ih   LONG,AUTO
   IF %airXObj:PanY < 0 THEN %airXObj:PanY = 0.
   d2c_SetView(%airXObj:Gpu, z, %airXObj:PanX, %airXObj:PanY,                |
               %airXObj.ArgbOf(%airXBack), 1)
+  DO Air:Bars:%airXObj
 #ENDIF
 #IF(%airXZoom)
 
@@ -2013,6 +2199,78 @@ savePx LONG,AUTO
   %airXObj:PanX += INT(%airXObj:StepX * w * %airXPanStep / 100)
   %airXObj:PanY += INT(%airXObj:StepY * h * %airXPanStep / 100)
   DO Air:Show:%airXObj
+
+Air:Bars:%airXObj ROUTINE
+!  Tell the scrollbars how much picture there is and how much of it shows, in
+!  whatever units this engine pans in. Windows hides a bar whose page covers
+!  its whole range, so at "fit the frame" they take themselves away.
+#IF(%airXBars)
+  DATA
+tot  LONG,AUTO
+page LONG,AUTO
+w    LONG,AUTO
+h    LONG,AUTO
+savePx LONG,AUTO
+  CODE
+  IF ~%airXObj:Barred THEN EXIT.
+  IF ~%airXObj.Ok() OR ~%airXObj:Zoom                         ! fitted: no bars
+    AirImg_SetBar(%airXObj:Rgn{PROP:Handle},AirImg:SbHorz,0,1,1)
+    AirImg_SetBar(%airXObj:Rgn{PROP:Handle},AirImg:SbVert,0,1,1)
+#IF(%airXEngine = 'AUTO')
+    IF %airXObj:Gpu THEN d2c_Resize(%airXObj:Gpu).
+#ENDIF
+    EXIT
+  END
+#IF(%airXEngine = 'AUTO')
+  IF %airXObj:Gpu                                             ! the GPU pans in image pixels
+    tot  = d2c_ImageW(%airXObj:Gpu)
+    page = INT(d2c_ViewW(%airXObj:Gpu) * 100 / %airXObj:Zoom)
+    AirImg_SetBar(%airXObj:Rgn{PROP:Handle},AirImg:SbHorz,%airXObj:PanX,page,tot)
+    tot  = d2c_ImageH(%airXObj:Gpu)
+    page = INT(d2c_ViewH(%airXObj:Gpu) * 100 / %airXObj:Zoom)
+    AirImg_SetBar(%airXObj:Rgn{PROP:Handle},AirImg:SbVert,%airXObj:PanY,page,tot)
+    d2c_Resize(%airXObj:Gpu)
+    EXIT
+  END
+#ENDIF
+  savePx = 0{PROP:Pixels}                                     ! the processor pans in scaled pixels
+  0{PROP:Pixels} = 1
+  w = %airXFeq{PROP:Width}
+  h = %airXFeq{PROP:Height}
+  0{PROP:Pixels} = savePx
+  AirImg_SetBar(%airXObj:Rgn{PROP:Handle},AirImg:SbHorz,%airXObj:PanX,w,      |
+                INT(%airXObj.Wide() * %airXObj:Zoom / 100))
+  AirImg_SetBar(%airXObj:Rgn{PROP:Handle},AirImg:SbVert,%airXObj:PanY,h,      |
+                INT(%airXObj.High() * %airXObj:Zoom / 100))
+#ELSE
+  EXIT                                                        ! scrollbars are switched off
+#ENDIF
+
+Air:Scrolled:%airXObj ROUTINE
+!  A bar moved - on this canvas or on another one. Read our own two back; if
+!  they have not moved there is nothing to do, which is what makes it safe to
+!  send the one event to every canvas on the window.
+#IF(%airXBars)
+  DATA
+nx LONG,AUTO
+ny LONG,AUTO
+  CODE
+  IF ~%airXObj:Barred OR ~%airXObj:Zoom THEN EXIT.
+  nx = AirImg_BarPos(%airXObj:Rgn{PROP:Handle},AirImg:SbHorz)
+  ny = AirImg_BarPos(%airXObj:Rgn{PROP:Handle},AirImg:SbVert)
+  IF nx = %airXObj:PanX AND ny = %airXObj:PanY THEN EXIT.
+  %airXObj:PanX = nx
+  %airXObj:PanY = ny
+#IF(%airXEngine = 'AUTO')
+  IF %airXObj:Gpu
+    DO Air:Gpu:%airXObj
+    EXIT
+  END
+#ENDIF
+  DO Air:Show:%airXObj
+#ELSE
+  EXIT
+#ENDIF
 
 Air:Fit:%airXObj ROUTINE
   %airXObj:Zoom = 0

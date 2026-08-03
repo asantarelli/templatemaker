@@ -30,6 +30,22 @@ AirImg:WheelUp       EQUATE(EVENT:User + 216)                 ! the wheel, carri
 AirImg:WheelDown     EQUATE(EVENT:User + 217)                 !   window procedure
 AirImg:CtrlUp        EQUATE(EVENT:User + 218)                 ! ... with Ctrl held down
 AirImg:CtrlDown      EQUATE(EVENT:User + 219)
+AirImg:Scrolled      EQUATE(EVENT:User + 215)                 ! a canvas scrollbar was moved
+AirImg:GwlStyle      EQUATE(-16)
+AirImg:HScroll       EQUATE(00100000h)                        ! WS_HSCROLL
+AirImg:VScroll       EQUATE(00200000h)                        ! WS_VSCROLL
+AirImg:FrameChanged  EQUATE(0020h)                            ! SWP_FRAMECHANGED
+AirImg:NoMove        EQUATE(0002h)
+AirImg:NoSize        EQUATE(0001h)
+AirImg:NoZOrder      EQUATE(0004h)
+AirImg:SbHorz        EQUATE(0)
+AirImg:SbVert        EQUATE(1)
+AirImg:WmHScroll     EQUATE(0114h)
+AirImg:WmVScroll     EQUATE(0115h)
+AirImg:SifRange      EQUATE(1)
+AirImg:SifPage       EQUATE(2)
+AirImg:SifPos        EQUATE(4)
+AirImg:SifTrack      EQUATE(10h)
 
    MAP
      MODULE('AIRWIN_BC.CLW')
@@ -49,6 +65,10 @@ DctKill     PROCEDURE                                      ! Kills the dictionar
      airApi_RemoveProp(ULONG hWnd,LONG lpString),LONG,PASCAL,PROC,NAME('RemovePropA')
      airApi_CallWndProc(LONG lpPrevWndFunc,ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam),LONG,PASCAL,NAME('CallWindowProcA')
      airApi_SetWindowLong(ULONG hWnd,LONG nIndex,LONG dwNewLong),LONG,PASCAL,PROC,NAME('SetWindowLongA')
+     airApi_GetWindowLong(ULONG hWnd,LONG nIndex),LONG,PASCAL,NAME('GetWindowLongA')
+     airApi_SetWindowPos(ULONG hWnd,LONG after,LONG x,LONG y,LONG cx,LONG cy,ULONG flags),LONG,PASCAL,PROC,NAME('SetWindowPos')
+     airApi_SetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi,LONG redraw),LONG,PASCAL,PROC,NAME('SetScrollInfo')
+     airApi_GetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi),LONG,PASCAL,PROC,NAME('GetScrollInfo')
          END
      AirImg_Temp(STRING,STRING),STRING
      AirImg_PutBytes(*STRING,LONG,STRING),BYTE,PROC
@@ -62,6 +82,11 @@ DctKill     PROCEDURE                                      ! Kills the dictionar
      AirImg_WheelProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
      AirImg_HookWheel(LONG),BYTE,PROC
      AirImg_DropWheel(LONG),LONG,PROC
+     AirImg_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
+     AirImg_HookBars(LONG),BYTE,PROC
+     AirImg_DropBars(LONG),LONG,PROC
+     AirImg_SetBar(LONG,LONG,LONG,LONG,LONG)
+     AirImg_BarPos(LONG,LONG),LONG
          MODULE('d2dcanvas.c')
      d2c_Available(),LONG,NAME('_d2c_Available')
      d2c_Attach(LONG hwnd),LONG,NAME('_d2c_Attach')
@@ -398,6 +423,138 @@ dz   LONG,AUTO
       ELSIF dz < 0
         POST(AirImg:WheelDown)
       END
+    END
+  END
+  IF old
+    RETURN airApi_CallWndProc(old,hWnd,wMsg,wParam,lParam)
+  END
+  RETURN 0
+
+!  ---- the scrollbars ---------------------------------------------------
+!  A REGION is not born with scrollbars, so the styles go on at run time and
+!  the control is subclassed for the two scroll messages. Same shape as the
+!  wheel hook, and for the same reason: the address of the callback is taken
+!  HERE, in the module that defines it, never in a member module.
+AirImg_HookBars PROCEDURE(LONG pHwnd)
+prop CSTRING('AirImgBarProc')
+old  LONG,AUTO
+sty  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  IF airApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.       ! already hooked
+  sty = airApi_GetWindowLong(pHwnd,AirImg:GwlStyle)
+  airApi_SetWindowLong(pHwnd,AirImg:GwlStyle,                                 |
+                       BOR(BOR(sty,AirImg:HScroll),AirImg:VScroll))
+  airApi_SetWindowPos(pHwnd,0,0,0,0,0,BOR(BOR(BOR(AirImg:FrameChanged,        |
+                      AirImg:NoMove),AirImg:NoSize),AirImg:NoZOrder))
+  old = airApi_SetWindowLong(pHwnd,AirImg:GwlWndProc,ADDRESS(AirImg_BarProc))
+  IF ~old THEN RETURN 0.
+  airApi_SetProp(pHwnd,ADDRESS(prop),old)
+  RETURN 1
+
+AirImg_DropBars PROCEDURE(LONG pHwnd)
+prop CSTRING('AirImgBarProc')
+old  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  old = airApi_GetProp(pHwnd,ADDRESS(prop))
+  IF old
+    airApi_SetWindowLong(pHwnd,AirImg:GwlWndProc,old)
+  END
+  airApi_RemoveProp(pHwnd,ADDRESS(prop))
+  RETURN old
+
+!  Range, page and position for one bar. Windows hides a bar whose page covers
+!  its whole range, which is exactly what should happen when the picture fits.
+AirImg_SetBar PROCEDURE(LONG pHwnd,LONG pBar,LONG pPos,LONG pPage,LONG pTotal)
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  IF ~pHwnd THEN RETURN.
+  si.cbSize = SIZE(si)
+  si.fMask  = BOR(BOR(AirImg:SifRange,AirImg:SifPage),AirImg:SifPos)
+  si.nMin   = 0
+  si.nMax   = pTotal - 1
+  si.nPage  = pPage
+  si.nPos   = pPos
+  airApi_SetScrollInfo(pHwnd,pBar,ADDRESS(si),1)
+
+AirImg_BarPos PROCEDURE(LONG pHwnd,LONG pBar)
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  si.cbSize = SIZE(si)
+  si.fMask  = AirImg:SifPos
+  IF ~airApi_GetScrollInfo(pHwnd,pBar,ADDRESS(si)) THEN RETURN 0.
+  RETURN si.nPos
+
+!  The canvas control's window procedure, for the scrollbars only. It works out
+!  the new position itself - Windows does not do that for you - writes it back,
+!  and tells the ACCEPT loop something moved. Which canvas moved is not in the
+!  message, and does not need to be: every canvas reads its own bars back.
+AirImg_BarProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
+prop CSTRING('AirImgBarProc')
+old  LONG,AUTO
+bar  LONG,AUTO
+code LONG,AUTO
+pos  LONG,AUTO
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  old = airApi_GetProp(hWnd,ADDRESS(prop))
+  IF wMsg = AirImg:WmHScroll OR wMsg = AirImg:WmVScroll
+    bar = CHOOSE(wMsg = AirImg:WmHScroll, AirImg:SbHorz, AirImg:SbVert)
+    code = BAND(wParam,0FFFFh)
+    si.cbSize = SIZE(si)
+    si.fMask  = BOR(BOR(BOR(AirImg:SifRange,AirImg:SifPage),AirImg:SifPos),AirImg:SifTrack)
+    IF airApi_GetScrollInfo(hWnd,bar,ADDRESS(si))
+      pos = si.nPos
+      CASE code
+      OF 0                                                    ! a line back
+        pos -= INT(si.nPage / 10) + 1
+      OF 1                                                    ! a line on
+        pos += INT(si.nPage / 10) + 1
+      OF 2                                                    ! a page back
+        pos -= si.nPage
+      OF 3                                                    ! a page on
+        pos += si.nPage
+      OF 4                                                    ! the thumb, dropped
+        pos = si.nTrack
+      OF 5                                                    ! the thumb, dragging
+        pos = si.nTrack
+      OF 6
+        pos = si.nMin
+      OF 7
+        pos = si.nMax
+      END
+      IF pos > si.nMax - si.nPage + 1 THEN pos = si.nMax - si.nPage + 1.
+      IF pos < si.nMin THEN pos = si.nMin.
+      si.fMask = AirImg:SifPos
+      si.nPos  = pos
+      airApi_SetScrollInfo(hWnd,bar,ADDRESS(si),1)
+      POST(AirImg:Scrolled)
     END
   END
   IF old
