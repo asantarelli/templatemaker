@@ -527,8 +527,28 @@ void d2g_Column(int h, int col, int width, int align, const char* title) {
 }
 
 void d2g_Frozen(int h, int n)      { Grid* c = slot(h); if (c) c->frozen = n; }
-void d2g_RowHeight(int h, int px)  { Grid* c = slot(h); if (c && px > 4) c->rowH = px; }
-void d2g_HeaderHeight(int h,int px){ Grid* c = slot(h); if (c && px >= 0) c->hdrH = px; }
+/* A row can never be shorter than the type needs. Whatever asks - the LIST's
+   line height, the developer's own setting - it is clamped here, because the
+   alternative is big type crammed into short rows with its descenders cut off
+   by the row below, and there are several paths that can ask. One place, once,
+   instead of trusting all of them to have thought about it. */
+void d2g_RowHeight(int h, int px) {
+    Grid* c = slot(h);
+    int   need;
+    if (!c || px <= 4) return;
+    need = D2G_ROWFOR(c->pt);
+    c->rowH = px < need ? need : px;
+}
+
+/* what the type needs, so the Clarion side can keep the LIST in step */
+int d2g_RowNeed(int h) { Grid* c = slot(h); return c ? D2G_ROWFOR(c->pt) : 0; }
+void d2g_HeaderHeight(int h,int px){
+    Grid* c = slot(h);
+    int   need;
+    if (!c || px < 0) return;
+    need = D2G_HDRFOR(c->pt);
+    c->hdrH = (px && px < need) ? need : px;   /* 0 means no heading at all */
+}
 void d2g_Total(int h, int n)       { Grid* c = slot(h); if (c) c->totalRows = n; }
 void d2g_Select(int h, int row)    { Grid* c = slot(h); if (c) c->selRow = row; }
 void d2g_ScrollX(int h, int x)     { Grid* c = slot(h); if (c) c->scrollX = x < 0 ? 0 : x; }

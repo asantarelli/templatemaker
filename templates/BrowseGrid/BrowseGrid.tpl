@@ -127,6 +127,7 @@ d2g_VGrab(LONG h,LONG y),LONG,NAME('_d2g_VGrab')
 d2g_VDrag(LONG h,LONG y,LONG grab),LONG,NAME('_d2g_VDrag')
 d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
 d2g_FontPt(LONG h),LONG,NAME('_d2g_FontPt')
+d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -719,23 +720,28 @@ BG:Rows:%bgObject ROUTINE
 !  units, 16 pixels, measured in examples/BrowseGrid/lineh.clw - so it is read
 !  in pixels, which is what the grid works in.
   DATA
-sp LONG,AUTO
-lh LONG,AUTO
+sp   LONG,AUTO
+lh   LONG,AUTO
+need LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
   sp = 0{PROP:Pixels}
   0{PROP:Pixels} = 1
+!  Whatever height is wanted, it can never be less than the type needs - that
+!  is what made big rows come out short. The engine clamps it too, but the
+!  clamped value is what has to go back to the LIST, or the browse still loads
+!  to a height nothing is drawn at.
+  need = d2g_RowNeed(%bgObject:G)
 #IF(%bgRowH > 0)
-!  A row height was asked for, so the BROWSE is the one that has to give way.
-  d2g_RowHeight(%bgObject:G,%bgRowH)
-  %bgList{PROP:LineHeight} = %bgRowH
+!  A row height was asked for, so the BROWSE is the one that gives way.
+  lh = %bgRowH
 #ELSE
-!  Nothing was asked for: take the browse's own line height and draw to it.
+!  Nothing was asked for: take the browse's own line height...
   lh = %bgList{PROP:LineHeight}
-  IF lh > 4
-    d2g_RowHeight(%bgObject:G,lh)
-  END
 #ENDIF
+  IF lh < need THEN lh = need.                                ! ...but never squash the type
+  d2g_RowHeight(%bgObject:G,lh)
+  %bgList{PROP:LineHeight} = lh                               ! and both sides agree on it
   0{PROP:Pixels} = sp
 
 BG:Conceal:%bgObject ROUTINE
@@ -1008,10 +1014,7 @@ sp LONG,AUTO
 !  height, leaving big type crammed into short rows with its descenders cut
 !  off. The height goes the other way here, from the grid to the LIST, so the
 !  browse reloads to fit however many rows there is now room for.
-    sp = 0{PROP:Pixels}
-    0{PROP:Pixels} = 1
-    %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G)
-    0{PROP:Pixels} = sp
+    DO BG:Rows:%bgObject                                      ! settles both sides at the new size
     DO BG:Fill:%bgObject
     EXIT
   END

@@ -430,7 +430,18 @@ to fit however many rows there is now room for.
 It is `pt * 3 / 2 + 6` now, which grows with the type and lands on exactly the same numbers as the old
 rule at the default size, so nothing moves for anyone who never touches it.
 
-`docs/BrowseGrid-big-font.png` is the harness at 18 point: rows 33 pixels, nothing clipped.
+**Then it happened again**, and the way it failed named the culprit: the *heading* grew and the *rows*
+did not. `d2g_FontSize` sets both, and only the row height has anything that reads back off the LIST —
+so something was still handing the grid the LIST's 16-pixel line after the font had grown.
+
+Chasing which call ordering did it is the wrong fix, because there are several paths that can set a row
+height and any of them can be wrong. `d2g_RowHeight` now **refuses** a height shorter than the type
+needs, in the engine, once — and `BG:Rows` sends the clamped value back to the LIST, so the browse
+never loads to a height nothing is drawn at.
+
+`gridtest.clw` reproduces the failure deliberately: grow the type to 18 point, then try to squash the
+rows back to 16 the way the LIST did. `pagesize=15` is the proof — 33-pixel rows, not 16, which would
+have given about 30. `docs/BrowseGrid-big-font.png` is that run.
 
 ## Ctrl and the roller resize the type
 
