@@ -134,6 +134,9 @@ typedef struct {
     int   totalRows;
     int   selRow;               /* selected, in absolute row numbers          */
     int   scrollX;
+    int   scrollY;              /* pixels the page is nudged UP by; 0..rowH-1
+                                   is a part-row at the top, which is what
+                                   makes scrolling smooth rather than jumpy   */
     char  cell[G_VIS][G_COLS][G_TEXT];
 
     unsigned int cBack, cBand, cGrid, cText, cHdrBack, cHdrText, cSelBack, cSelText;
@@ -296,11 +299,20 @@ static void d2g_Draw(Grid* c) {
         ((void (WINAPI*)(void*, const COLORF*))VT(c->rt)[47])(c->rt, &bg);  /* Clear */
     }
 
-    /* ---- the rows ---------------------------------------------------- */
+    /* ---- the rows ----------------------------------------------------
+       Everything below the header is clipped, so the first row can be sliced
+       off half way through without painting over the titles. That slice is
+       the whole trick to smooth scrolling: the page moves by pixels, and only
+       jumps a record when a whole row has gone by. */
+    clip.l = 0.0f; clip.t = (float)c->hdrH;
+    clip.r = (float)r.right; clip.b = (float)r.bottom;
+    ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+
     rowsDrawn = c->visRows;
     for (i = 0; i < rowsDrawn; i++) {
-        float top = (float)(c->hdrH + i * c->rowH);
+        float top = (float)(c->hdrH + i * c->rowH - c->scrollY);
         float bot = top + c->rowH;
+        if (bot < (float)c->hdrH) continue;                  /* scrolled off the top */
         unsigned int back, fore;
         if (top > (float)r.bottom) break;
         absRow = c->firstRow + i;
@@ -326,6 +338,8 @@ static void d2g_Draw(Grid* c) {
         }
         line(c, 0.0f, bot - 0.5f, (float)r.right, bot - 0.5f, c->cGrid);
     }
+
+    ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);            /* done with the rows */
 
     /* ---- the column lines -------------------------------------------- */
     x = -c->scrollX;
@@ -440,6 +454,9 @@ void d2g_HeaderHeight(int h,int px){ Grid* c = slot(h); if (c && px >= 0) c->hdr
 void d2g_Total(int h, int n)       { Grid* c = slot(h); if (c) c->totalRows = n; }
 void d2g_Select(int h, int row)    { Grid* c = slot(h); if (c) c->selRow = row; }
 void d2g_ScrollX(int h, int x)     { Grid* c = slot(h); if (c) c->scrollX = x < 0 ? 0 : x; }
+void d2g_ScrollY(int h, int y)     { Grid* c = slot(h); if (c) c->scrollY = y < 0 ? 0 : y; }
+int  d2g_RowH(int h)               { Grid* c = slot(h); return c ? c->rowH : 0; }
+int  d2g_HeaderH(int h)            { Grid* c = slot(h); return c ? c->hdrH : 0; }
 
 void d2g_Colours(int h, unsigned int back, unsigned int band, unsigned int grid,
                  unsigned int txt, unsigned int hdrBack, unsigned int hdrText,
@@ -504,7 +521,7 @@ int d2g_HitRow(int h, int y) {
     Grid* c = slot(h);
     if (!c) return -1;
     if (y < c->hdrH) return -1;
-    return c->firstRow + (int)((y - c->hdrH) / c->rowH);
+    return c->firstRow + (int)((y - c->hdrH + c->scrollY) / c->rowH);
 }
 
 int d2g_HitCol(int h, int x) {

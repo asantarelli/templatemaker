@@ -20,6 +20,8 @@ Main PROCEDURE
       d2g_PaintNow(LONG h),LONG,NAME('_d2g_PaintNow')
       d2g_PageSize(LONG h),LONG,NAME('_d2g_PageSize')
       d2g_Resize(LONG h),LONG,NAME('_d2g_Resize')
+      d2g_ScrollY(LONG h,LONG y),NAME('_d2g_ScrollY')
+      d2g_RowH(LONG h),LONG,NAME('_d2g_RowH')
     END
   END
   INCLUDE('EQUATES.CLW'),ONCE
@@ -81,6 +83,7 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
         t3 += 1 ; IF t3 > 2 THEN t3 = 0.
         d2g_Cell(g, i, 4, cell)
       END
+      d2g_ScrollY(g, 11)                                      ! half a row: the top record is sliced
       d2g_PaintNow(g)
       Win{PROP:Text} = 'GridTest OK rows=' & page & ' pagesize=' & d2g_PageSize(g)
     END

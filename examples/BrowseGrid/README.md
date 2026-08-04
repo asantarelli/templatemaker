@@ -17,6 +17,14 @@ powershell -File shot.ps1 -Exe .\gridtest.exe -Prefix GridTest -Out gridshot.png
 a selected row, right-aligned numeric columns, text centred down each row, and a frozen first column.
 23 rows fill the region exactly, which is `d2g_PageSize()` answering how many fit.
 
+## Smooth scrolling, proved
+
+`docs/BrowseGrid-smooth-scroll.png` is the same grid with `d2g_ScrollY(11)` — half a row. The top record
+is **sliced through the middle**, showing only its lower half beneath an intact header. That is the whole
+trick: everything below the header is clipped, so the page can be nudged by pixels and only changes
+record when a whole row has gone past. Hit testing accounts for the offset, so a click still lands on the
+record you pointed at.
+
 ## What the engine gives Clarion
 
 | call | for |
@@ -29,6 +37,7 @@ a selected row, right-aligned numeric columns, text centred down each row, and a
 | `d2g_Page(first, rows)` + `d2g_Cell(row, col, text)` | push the visible page in |
 | `d2g_PageSize()` | how many whole rows fit — what to ask the VIEW for |
 | `d2g_HitRow` / `d2g_HitCol` | turn a click into a record and a column |
+| `d2g_ScrollY(px)` / `d2g_RowH` | nudge the page by pixels — smooth, not jumpy |
 | `d2g_Resize` / `d2g_Repaint` / `d2g_PaintNow` | keep it in step with the window |
 
 ## Not built yet
