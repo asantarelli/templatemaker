@@ -997,13 +997,21 @@ BG:Scroll:%bgObject ROUTINE
 !  limits keep behaving as they always did.
 #IF(%bgBars OR %bgWheel)
   DATA
-i LONG,AUTO
-n LONG,AUTO
+i  LONG,AUTO
+n  LONG,AUTO
+sp LONG,AUTO
   CODE
   IF BG:LastCode = BG:FontCode
-!  The type changed size, so the rows did too: the LIST is given the new row
-!  height and the browse reloads to fit.
-    DO BG:Rows:%bgObject
+!  The type changed size, so the rows did too - and this time the GRID is the
+!  one that knows how tall they are. NOT BG:Rows, which reads the height off
+!  the LIST: that would pull the rows straight back down to the old line
+!  height, leaving big type crammed into short rows with its descenders cut
+!  off. The height goes the other way here, from the grid to the LIST, so the
+!  browse reloads to fit however many rows there is now room for.
+    sp = 0{PROP:Pixels}
+    0{PROP:Pixels} = 1
+    %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G)
+    0{PROP:Pixels} = sp
     DO BG:Fill:%bgObject
     EXIT
   END

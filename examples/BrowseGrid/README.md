@@ -416,6 +416,22 @@ A filtered or range-limited browse will read high, because the count is the file
 The **position** is still ABC's `PROP:VScrollPos` — nought to a hundred, estimated from the key. Making
 that honest as well means the grid reading the VIEW itself, which is the outstanding job below.
 
+## Leading has to grow with the type
+
+Two separate faults made big type sit in short rows with its descenders cut off by the row below.
+
+**The row height was being pulled straight back down.** After `d2g_FontSize` grew the rows, the next
+thing to run was `BG:Rows` — which reads the row height *off the LIST*. So the grid was told its rows
+were 16 pixels again, whatever the font was doing. When the font changes, the **grid** is the one that
+knows how tall a row is, so the height now travels the other way: grid to LIST, and the browse reloads
+to fit however many rows there is now room for.
+
+**And the leading was a fixed number of pixels.** `pt + 10` is roomy at 9 point and cramped at 24.
+It is `pt * 3 / 2 + 6` now, which grows with the type and lands on exactly the same numbers as the old
+rule at the default size, so nothing moves for anyone who never touches it.
+
+`docs/BrowseGrid-big-font.png` is the harness at 18 point: rows 33 pixels, nothing clipped.
+
 ## Ctrl and the roller resize the type
 
 The same wheel hook checks for `MK_CONTROL` and rebuilds the text formats a point larger or smaller,

@@ -163,6 +163,15 @@ static void* g_dw  = 0;
 static int   g_tried = 0;
 
 static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
+
+/* How tall a row and a heading are for a given point size. Leading has to grow
+   WITH the type, not sit at a fixed number of pixels above it: pt + 10 is
+   roomy at 9 point and cramped at 24, where the descenders start being cut off
+   by the row below. Three halves and a bit keeps the same look all the way up,
+   and lands on the same numbers as the old rule at the default size, so
+   nothing moves for anyone who never touches it. */
+#define D2G_ROWFOR(pt) ((pt) * 3 / 2 + 6)
+#define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 
 /* ---- the two factories --------------------------------------------------- */
@@ -471,7 +480,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
-    c->rowH = pt + 10; c->hdrH = pt + 12;
+    c->rowH = D2G_ROWFOR(pt); c->hdrH = D2G_HDRFOR(pt);
     c->cBack = 0xFFFFFF; c->cBand = 0xF5F7FA; c->cGrid = 0xE1E5EA;
     c->cText = 0x1F2933; c->cHdrBack = 0x2B3A4A; c->cHdrText = 0xFFFFFF;
     c->cSelBack = 0x2F6FB5; c->cSelText = 0xFFFFFF;
@@ -731,8 +740,8 @@ int d2g_FontSize(int h, int pt) {
     if (c->fmt)    ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
     if (c->fmtHdr) ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
     c->fmt = f; c->fmtHdr = fh;
-    c->rowH = pt + 10;                          /* the same rule d2g_Attach uses */
-    c->hdrH = pt + 12;
+    c->rowH = D2G_ROWFOR(pt);                   /* the same rule d2g_Attach uses */
+    c->hdrH = D2G_HDRFOR(pt);
     c->pt = pt;
     InvalidateRect(c->hwnd, 0, 0);
     return c->pt;
