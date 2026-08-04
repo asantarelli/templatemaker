@@ -19,6 +19,7 @@ Main PROCEDURE
       d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
       d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align),NAME('_d2g_ColumnAt')
       d2g_Lines(LONG h,LONG n),NAME('_d2g_Lines')
+      d2g_Wrap(LONG h,LONG on,LONG lines),NAME('_d2g_Wrap')
       d2g_Frozen(LONG h,LONG n),NAME('_d2g_Frozen')
       d2g_Total(LONG h,LONG n),NAME('_d2g_Total')
       d2g_Select(LONG h,LONG row),NAME('_d2g_Select')
@@ -69,12 +70,13 @@ towns STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   ')
       d2g_ColumnAt(g, 1, 0, 0, 110, 110, 0)                   ! FirstName
       d2g_ColumnAt(g, 2, 0, 1,   0, 110, 0)                   ! Major
       d2g_ColumnAt(g, 3, 0, 1, 110, 110, 2)                   ! GradYear
-      d2g_ColumnAt(g, 4, 1, 0, 220, 300, 0)                   ! Address
+      d2g_ColumnAt(g, 4, 1, 0, 220, 160, 0)                   ! Address
       d2g_ColumnAt(g, 5, 1, 1, 220, 160, 0)                   ! City
       d2g_ColumnAt(g, 6, 1, 1, 380, 140, 0)                   ! State Zip
       d2g_ColumnAt(g, 7, 2, 0, 520, 140, 0)                   ! Telephone
       d2g_Groups(g, 3)
       d2g_Lines(g, 2)                                         ! two lines to a record
+      d2g_Wrap(g, 1, 2)                                       ! and long text may use two more
       d2g_Frozen(g, 1)                                        ! the name group stays put
 
       rows = d2g_PageSize(g) + 1
@@ -85,7 +87,7 @@ towns STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   ')
         cell = 'Neal E'                 ; d2g_Cell(g, i - 1, 1, cell)
         cell = 'Computer Science'       ; d2g_Cell(g, i - 1, 2, cell)
         cell = '20' & (10 + i)          ; d2g_Cell(g, i - 1, 3, cell)
-        cell = (340 + i) & ' Tidd Drive, Apartment ' & i
+        cell = (340 + i) & ' Tidd Drive, Apartment ' & i & ', Lighthouse Point Business Park, Building C'
                                           d2g_Cell(g, i - 1, 4, cell)
         tn = i - 1 - INT((i - 1) / 6) * 6
         cell = CLIP(towns[1 + tn * 9 : 8 + tn * 9])

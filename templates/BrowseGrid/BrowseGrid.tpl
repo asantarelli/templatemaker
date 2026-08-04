@@ -134,6 +134,7 @@ d2g_FontPt(LONG h),LONG,NAME('_d2g_FontPt')
 d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
 d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
 d2g_Lines(LONG h,LONG n),NAME('_d2g_Lines')
+d2g_Wrap(LONG h,LONG on,LONG lines),NAME('_d2g_Wrap')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
 d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align),NAME('_d2g_ColumnAt')
@@ -405,6 +406,14 @@ c LONG,AUTO
     #BOXED('Type')
       #PROMPT('&Font:',@s32),%bgFont,DEFAULT('Segoe UI')
       #PROMPT('&Size (points):',SPIN(@n3,6,24,1)),%bgSize,DEFAULT(9)
+      #PROMPT('&Wrap text that is too long for its column',CHECK),%bgWrap,DEFAULT(0),AT(10)
+      #ENABLE(%bgWrap)
+        #PROMPT('  &Lines a cell may use:',SPIN(@n1,2,4,1)),%bgWrapLines,DEFAULT(2)
+      #ENDENABLE
+      #DISPLAY('Every row is that many lines tall, whether its text needs them or not.')
+      #DISPLAY('Rows of differing heights would take the page size, the hit testing and')
+      #DISPLAY('the scrolling with them, and none of those want to know that one')
+      #DISPLAY('particular address happened to be long.')
       #PROMPT('&Row height (pixels, 0 = follow the browse):',SPIN(@n3,0,80,1)),%bgRowH,DEFAULT(0)
       #DISPLAY('Left at 0 the grid draws to the LIST<39>s own line height, so the browse')
       #DISPLAY('loads exactly as many records as there is room to draw. Set it and the')
@@ -581,6 +590,11 @@ h  SIGNED,AUTO
 !  its queue, counting its visible rows and holding the selection, and the
 !  region sits on top of it. WS_CLIPSIBLINGS is what makes that stick - without
 !  it the LIST paints over the grid whenever it redraws.
+#IF(%bgWrap)
+!  Before BG:Rows, which asks the engine how tall a row has to be - and with
+!  wrapping on, that answer is several lines.
+  d2g_Wrap(%bgObject:G,1,%bgWrapLines)
+#ENDIF
   DO BG:Rows:%bgObject
 #IF(%bgHdrH > 0)
   d2g_HeaderHeight(%bgObject:G,%bgHdrH)

@@ -545,6 +545,29 @@ everything downstream is unchanged.
 `docs/BrowseGrid-grouped.png` is `grptest.clw`: two-line records, three spanning headings, the name
 group frozen, drawn straight from the same calls `BG:Groups` makes.
 
+## Wrapping long text
+
+**Wrap text that is too long for its column** on the extension, with a spin for how many lines a cell
+may use, 2 to 4. Every row is that many lines tall whether its text needs them or not: rows of
+differing heights would take the page size, the hit testing and the scrolling with them, and none of
+those want to know that one particular address happened to be long.
+
+The wrapping itself is DirectWrite's —  on the text format, set per cell alongside
+the alignment that was already set there, so headings never wrap and cells do.
+
+It appeared not to work for three builds, and the reason is worth writing down. Forcing wrapping on
+unconditionally changed nothing, so the vtable index looked wrong. Reading the value back settled it:
+
+    GRPTEST rows=6 setwrap0>got0
+
+Set 0, got 0 — DirectWrite had wrapping on the whole time. The text was being **truncated to 63
+characters when stored**, because  was 64, and 63 characters at 9 point happened to just fit
+the column. There was nothing left to wrap. A cell that can wrap wants room to be worth wrapping, so
+ is 128 now (and  96, which is still more rows than any screen holds at the minimum row
+height).
+
+ is the harness with a narrow Address column, wrapping onto a second line.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

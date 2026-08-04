@@ -102,6 +102,7 @@ typedef struct { HWND hwnd; SIZEU size; int present; } HRTPROPS;
 #define DW_CENTER             2
 #define DW_PARA_CENTER        2     /* centred down the row, not hugging the top */
 #define DW_NO_WRAP            1     /* a cell is one line; clip, never wrap      */
+#define DW_WRAP               0     /* ...or let it run onto the next line       */
 
 #define VT(o) (*(void***)(o))
 
@@ -110,8 +111,12 @@ typedef HRESULT (WINAPI *PFN_DWriteCreateFactory)(int, const GUID*, void**);
 
 #define G_MAX      8            /* grids at once                              */
 #define G_COLS    32            /* columns                                    */
-#define G_VIS    128            /* visible rows the Clarion side pushes in     */
-#define G_TEXT    64            /* characters per cell                        */
+#define G_VIS     96            /* visible rows the Clarion side pushes in     */
+#define G_TEXT   128            /* characters per cell. Long enough to be worth
+                                   wrapping: at 64 a cell was cut at 63
+                                   characters before it ever reached
+                                   DirectWrite, which looks exactly like text
+                                   that refused to wrap.                      */
 
 typedef struct {
     int   used;
@@ -171,6 +176,9 @@ typedef struct {
     int   colLine[G_COLS];      /* and which line of it                     */
     int   colGrp[G_COLS];       /* which group it belongs to                */
     int   lines;                /* lines per record, 1 for an ordinary one  */
+
+    int   wrap;                 /* let long text run onto another line?     */
+    int   wrapLines;            /* how many lines a cell is allowed         */
 } Grid;
 
 #define D2G_BARW 15
@@ -189,6 +197,11 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
    and lands on the same numbers as the old rule at the default size, so
    nothing moves for anyone who never touches it. */
 #define D2G_ROWFOR(pt) ((pt) * 3 / 2 + 6)
+/* A record is as tall as its format needs times as many lines as a wrapped
+   cell is allowed. Every row is the same height either way - variable-height
+   rows would take the page size, the hit testing and the scrolling with them,
+   and none of those want to know that a particular address was long. */
+#define D2G_ROWH(c) (D2G_ROWFOR((c)->pt) * (c)->lines * (c)->wrapLines)
 #define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
@@ -306,7 +319,7 @@ static void line(Grid* c, float x1, float y1, float x2, float y2, unsigned int r
 }
 
 static void text(Grid* c, const char* s, float l, float t, float r, float b,
-                 unsigned int rgb, int align, void* fmt) {
+                 unsigned int rgb, int align, void* fmt, int wrap) {
     WCHAR w[G_TEXT * 2];
     RECTF rc;
     int   n = 0;
@@ -321,6 +334,9 @@ static void text(Grid* c, const char* s, float l, float t, float r, float b,
        than keeping six formats about; it is a field assignment, not work. */
     ((HRESULT (WINAPI*)(void*, int))VT(fmt)[3])(fmt,
         align == 1 ? DW_TRAILING : (align == 2 ? DW_CENTER : DW_LEADING));
+    /* IDWriteTextFormat::SetWordWrapping - slot 5, set the same way and for
+       the same reason: it is a field assignment, not work. */
+    ((HRESULT (WINAPI*)(void*, int))VT(fmt)[5])(fmt, wrap ? DW_WRAP : DW_NO_WRAP);
     ((void (WINAPI*)(void*, const WCHAR*, unsigned, void*, const RECTF*, void*, int, int))
      VT(c->rt)[27])(c->rt, w, (unsigned)n, fmt, &rc, c->brush, 0, 0);
 }
@@ -399,7 +415,7 @@ static void d2g_Draw(Grid* c) {
             cr = cl + c->colW[col];
             if ((c->grps || col >= c->frozen) && cr > (float)frozenW && cl < (float)r.right)
                 text(c, c->cell[i][col], cl + 4.0f, ty + 1.0f, cr - 4.0f, tb,
-                     fore, c->colAlign[col], c->fmt);
+                     fore, c->colAlign[col], c->fmt, c->wrap);
             x += c->colW[col];
         }
         ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
@@ -416,13 +432,13 @@ static void d2g_Draw(Grid* c) {
                     ty = top + (float)(c->colLine[col] * lineH);
                     text(c, c->cell[i][col], (float)c->colX[col] + 4.0f, ty + 1.0f,
                          (float)(c->colX[col] + c->colW[col]) - 4.0f, ty + (float)lineH,
-                         fore, c->colAlign[col], c->fmt);
+                         fore, c->colAlign[col], c->fmt, c->wrap);
                 }
             } else {
                 fx = 0;
                 for (col = 0; col < c->frozen && col < c->cols; col++) {
                     text(c, c->cell[i][col], (float)fx + 4.0f, top + 1.0f,
-                         (float)(fx + c->colW[col]) - 4.0f, bot, fore, c->colAlign[col], c->fmt);
+                         (float)(fx + c->colW[col]) - 4.0f, bot, fore, c->colAlign[col], c->fmt, c->wrap);
                     fx += c->colW[col];
                 }
             }
@@ -463,7 +479,7 @@ static void d2g_Draw(Grid* c) {
             cr = cl + c->grpW[col];
             if (cr > (float)frozenW && cl < (float)r.right) {
                 text(c, c->grpTitle[col], cl + 4.0f, 2.0f, cr - 4.0f, (float)c->hdrH,
-                     c->cHdrText, 2, c->fmtHdr);              /* centred over its fields */
+                     c->cHdrText, 2, c->fmtHdr, 0);              /* centred over its fields */
                 line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
             }
         }
@@ -475,7 +491,7 @@ static void d2g_Draw(Grid* c) {
         if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right) {
             float tr = (col == c->sortCol) ? cr - 14.0f : cr - 4.0f;  /* keep clear of the mark */
             text(c, c->colTitle[col], cl + 4.0f, 2.0f, tr, (float)c->hdrH,
-                 c->cHdrText, c->colAlign[col], c->fmtHdr);
+                 c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
             if (col == c->sortCol)
                 sortMark(c, cr, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
@@ -492,7 +508,7 @@ static void d2g_Draw(Grid* c) {
             for (col = 0; col < c->frozen && col < c->grps; col++) {
                 float ge = (float)(c->grpX[col] + c->grpW[col]);
                 text(c, c->grpTitle[col], (float)c->grpX[col] + 4.0f, 2.0f, ge - 4.0f,
-                     (float)c->hdrH, c->cHdrText, 2, c->fmtHdr);
+                     (float)c->hdrH, c->cHdrText, 2, c->fmtHdr, 0);
                 line(c, ge - 0.5f, 0.0f, ge - 0.5f, (float)c->hdrH, c->cGrid);
             }
         }
@@ -501,7 +517,7 @@ static void d2g_Draw(Grid* c) {
             float cre = (float)(fx + c->colW[col]);
             text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
                  (col == c->sortCol) ? cre - 14.0f : cre - 4.0f, (float)c->hdrH,
-                 c->cHdrText, c->colAlign[col], c->fmtHdr);
+                 c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
             if (col == c->sortCol)
                 sortMark(c, cre, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             fx += c->colW[col];
@@ -557,7 +573,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c = &g_g[i];
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
     c->sortCol = -1; c->sortDir = 1;
-    c->grps = 0; c->lines = 1;
+    c->grps = 0; c->lines = 1; c->wrapLines = 1;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
     c->rowH = D2G_ROWFOR(pt); c->hdrH = D2G_HDRFOR(pt);
@@ -565,9 +581,10 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c->cText = 0x1F2933; c->cHdrBack = 0x2B3A4A; c->cHdrText = 0xFFFFFF;
     c->cSelBack = 0x2F6FB5; c->cSelText = 0xFFFFFF;
     if (!d2g_MakeTarget(c)) { c->used = 0; return 0; }
-    c->fmt    = d2g_Font(face, (float)pt, 0);
-    c->fmtHdr = d2g_Font(face, (float)pt, 1);
+    c->fmt     = d2g_Font(face, (float)pt, 0);
+    c->fmtHdr  = d2g_Font(face, (float)pt, 1);
     if (!c->fmt || !c->fmtHdr) { c->used = 0; return 0; }
+    c->wrap = 0; c->wrapLines = 1;
     { int k; for (k = 0; k < 63 && face[k]; k++) c->face[k] = face[k]; c->face[k] = 0; }
     c->pt = pt;
     c->oldProc = (WNDPROC)GetWindowLongA((HWND)hwnd, GWL_WNDPROC);
@@ -616,12 +633,12 @@ void d2g_RowHeight(int h, int px) {
     Grid* c = slot(h);
     int   need;
     if (!c || px <= 4) return;
-    need = D2G_ROWFOR(c->pt);
+    need = D2G_ROWH(c);
     c->rowH = px < need ? need : px;
 }
 
 /* what the type needs, so the Clarion side can keep the LIST in step */
-int d2g_RowNeed(int h) { Grid* c = slot(h); return c ? D2G_ROWFOR(c->pt) : 0; }
+int d2g_RowNeed(int h) { Grid* c = slot(h); return c ? D2G_ROWH(c) : 0; }
 void d2g_HeaderHeight(int h,int px){
     Grid* c = slot(h);
     int   need;
@@ -766,7 +783,20 @@ void d2g_Lines(int h, int n) {
     Grid* c = slot(h);
     if (!c || n < 1 || n > 8) return;
     c->lines = n;
-    c->rowH  = D2G_ROWFOR(c->pt) * n;
+    c->rowH  = D2G_ROWH(c);
+}
+
+/* Long text runs onto another line instead of being cut off, and every row
+   grows to suit. The wrapping itself is DirectWrite's - the only difference is
+   which text format the cell is drawn with. */
+void d2g_Wrap(int h, int on, int lines) {
+    Grid* c = slot(h);
+    if (!c) return;
+    if (lines < 1) lines = 1;
+    if (lines > 4) lines = 4;
+    c->wrap      = on ? 1 : 0;
+    c->wrapLines = on ? lines : 1;
+    c->rowH      = D2G_ROWH(c);
 }
 
 void d2g_Groups(int h, int n) {
@@ -897,13 +927,14 @@ int d2g_FontSize(int h, int pt) {
         if (fh) ((unsigned long (WINAPI*)(void*))VT(fh)[2])(fh);
         return c->pt;
     }
-    if (c->fmt)    ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
-    if (c->fmtHdr) ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
+    if (c->fmt)     ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
+    if (c->fmtHdr)  ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
     c->fmt = f; c->fmtHdr = fh;
     /* set outright, not through d2g_RowHeight - that clamps against the size
        the type needs, and here the type is what just changed. Going through it
        would let the rows grow and never come back down. */
-    c->rowH = D2G_ROWFOR(pt);                   /* the same rule d2g_Attach uses */
+    c->pt   = pt;
+    c->rowH = D2G_ROWH(c);                      /* the same rule d2g_Attach uses */
     c->hdrH = D2G_HDRFOR(pt);
     c->pt = pt;
     InvalidateRect(c->hwnd, 0, 0);
@@ -911,6 +942,7 @@ int d2g_FontSize(int h, int pt) {
 }
 
 int d2g_FontPt(int h) { Grid* c = slot(h); return c ? c->pt : 0; }
+
 
 int d2g_HdrHeight(int h) {
     Grid* c = slot(h);
