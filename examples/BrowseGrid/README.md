@@ -222,6 +222,25 @@ behave as they always did.
 The keystroke is sent on a POSTed event rather than immediately, because `SELECT()` does not take
 effect until the next ACCEPT cycle — sent in the same breath it would still be sitting on the region.
 
+## Scrolling sideways has to happen inside Windows' own loop
+
+Drag the horizontal thumb and the columns did not move until you let go, which is no use when the
+whole point is to find the column you want.
+
+Dragging a scrollbar thumb puts Windows into a **message loop of its own**, inside `DefWindowProc`.
+Clarion's `ACCEPT` gets no turn until the button comes back up, so anything `POST`ed from the scroll
+callback simply queues. `tracktest.clw` is the harness that pins this down: the region's window proc
+logs every `WM_VSCROLL` it sees and posts an event, and the `ACCEPT` loop logs when it receives one.
+
+Sideways needs nothing from the browse, though — it is the grid's own pixels. So it is done right
+there in the callback, synchronously, and **painted immediately** (`d2g_PaintNow`) rather than
+invalidated, because an invalidated window would not be repainted until the loop ended either. The
+callback finds its grid with `d2g_FromHwnd`, since a scrollbar callback is handed an HWND and nothing
+else.
+
+Downwards is not like this and cannot be: it needs records, and only the browse can fetch them. The
+vertical thumb still moves the browse when you release it.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

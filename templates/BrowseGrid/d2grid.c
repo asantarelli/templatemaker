@@ -608,6 +608,15 @@ int d2g_HitEdge(int h, int x) {
     return -1;
 }
 
+/* Which grid is drawn on this window? A scrollbar callback is handed an HWND
+   and nothing else, and it has to be able to reach the grid from there. */
+int d2g_FromHwnd(void* hwnd) {
+    int i;
+    for (i = 1; i <= G_MAX; i++)
+        if (g_g[i].used && g_g[i].hwnd == (HWND)hwnd) return i;
+    return 0;
+}
+
 int d2g_HdrHeight(int h) {
     Grid* c = slot(h);
     return c ? c->hdrH : 0;

@@ -112,6 +112,7 @@ d2g_HitEdge(LONG h,LONG x),LONG,NAME('_d2g_HitEdge')
 d2g_ColWidth(LONG h,LONG col),LONG,NAME('_d2g_ColWidth')
 d2g_SetWidth(LONG h,LONG col,LONG width),NAME('_d2g_SetWidth')
 d2g_HdrHeight(LONG h),LONG,NAME('_d2g_HdrHeight')
+d2g_FromHwnd(LONG hwnd),LONG,NAME('_d2g_FromHwnd')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -211,6 +212,7 @@ nTrack  LONG
 BG_BarProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
 prop CSTRING('BrowseGridBarProc')
 old  LONG,AUTO
+g    LONG,AUTO
 bar  LONG,AUTO
 code LONG,AUTO
 pos  LONG,AUTO
@@ -256,6 +258,20 @@ nTrack  LONG
         si.fMask = BG:SifPos
         si.nPos  = pos
         bgApi_SetScrollInfo(hWnd,bar,ADDRESS(si),1)
+!  AND MOVE THEM NOW, not on the next ACCEPT. Dragging a scrollbar thumb puts
+!  Windows into a message loop of its OWN, and Clarion's ACCEPT does not get a
+!  turn until the button comes back up - so anything POSTed from here just
+!  queues, and the columns would not budge until you let go. Scrolling
+!  sideways needs nothing from the browse though: it is the grid's own pixels.
+!  So it is done right here, synchronously, and painted immediately rather than
+!  invalidated - an invalidated window would not be repainted until the loop
+!  ends either. Downwards is not like this: that one needs records, which only
+!  the browse can fetch, so it still waits for the button.
+        g = d2g_FromHwnd(hWnd)
+        IF g
+          d2g_ScrollX(g,pos)
+          d2g_PaintNow(g)
+        END
       END
       BG:LastBar  = bar
       BG:LastCode = code
@@ -704,6 +720,15 @@ c LONG,AUTO
   c = %bgObject:Col[%bgObject:RzCol]
   IF c
     %bgList{PROPLIST:Width,c} = d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2
+!  Changing a LIST's format makes it redraw itself, and it comes back over the
+!  grid when it does - the clip style and the stacking order both survive the
+!  write, so it is the painting that gets through, not the ordering. Putting
+!  the region back on top and repainting it undoes that in the same breath.
+!  Nothing else in the drag touches the LIST, which is why it only ever
+!  happened when the button came up.
+    DO BG:Place:%bgObject
+    d2g_Resize(%bgObject:G)
+    d2g_Repaint(%bgObject:G)
   END
   %bgObject:RzCol = 0
 #ELSE
