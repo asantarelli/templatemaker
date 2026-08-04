@@ -840,28 +840,23 @@ i  LONG,AUTO
 
 BG:Sort:%bgObject ROUTINE
 !  Sort by the column that was clicked, exactly as clicking the LIST's own
-!  heading would. It has to be a REAL click: ABC's sort-header class reads
-!  PROPLIST:MouseDownField to find out which column was pressed, and only the
-!  runtime sets that - from where the mouse actually went down. So the click is
-!  posted to the LIST at the x of that column's heading.
+!  heading would. ABC's sort-header class reads PROPLIST:MouseDownField to find
+!  out which column was pressed (brwext.clw:2926) - and that property can simply
+!  be WRITTEN. So it is set and EVENT:HeaderPressed posted, and there is no
+!  geometry in it at all.
 !
-!  The x maps across exactly, because the two agree on their widths: the grid
-!  builds its columns from PROPLIST:Width and a resize is written back to it.
-!  The LIST is measured in dialog units and the grid in pixels, hence the two.
-!  Posted messages reach a window Windows will not hit-test, which matters
-!  because the LIST is invisible.
+!  It used to post a fake mouse click at the heading's x instead, which is why
+!  a column could not be sorted until it had been resized once.
+!  examples/BrowseGrid/mdfield.clw shows why: a posted click on a LIST that
+!  Windows will not paint raises no header press whatever - "HeaderPressed n1"
+!  counts the written one only, not the clicked one - while writing the field
+!  and posting the event works on the concealed control every time.
 #IF(%bgSortHdr)
   DATA
-j  LONG,AUTO
 lc LONG,AUTO
-lx LONG,AUTO
   CODE
   lc = %bgObject:Col[%bgObject:SortCol + 1]                   ! which LIST column that was
   IF ~lc THEN EXIT.
-  lx = 0
-  LOOP j = 1 TO lc - 1
-    lx += %bgList{PROPLIST:Width,j}                           ! everything to its left
-  END
 !  Which way round the arrow points. ABC toggles on a second click of the same
 !  heading, so the same rule is kept here. It is only a mark: if the browse
 !  refuses the sort - not a valid field, or descending not allowed - the arrow
@@ -873,9 +868,8 @@ lx LONG,AUTO
     %bgObject:SortDir = 1
   END
   d2g_SortMark(%bgObject:G,%bgObject:SortCol,%bgObject:SortDir)
-  lx = lx * 2 + %bgList{PROPLIST:Width,lc}                    ! and into the middle of it
-  bgApi_PostMessage(%bgList{PROP:Handle},BG:WmLButtonDown,BG:MkLButton,BSHIFT(4,16) + BAND(lx,0FFFFh))
-  bgApi_PostMessage(%bgList{PROP:Handle},BG:WmLButtonUp,0,BSHIFT(4,16) + BAND(lx,0FFFFh))
+  %bgList{PROPLIST:MouseDownField} = lc
+  POST(EVENT:HeaderPressed,%bgList)
 #ELSE
   EXIT
 #ENDIF

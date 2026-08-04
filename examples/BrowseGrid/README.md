@@ -464,22 +464,32 @@ The same wheel hook checks for `MK_CONTROL` and rebuilds the text formats a poin
 line height and the browse reloads — a bigger font fits fewer records, and both sides have to agree on
 that or the last rows go missing again.
 
-## Clicking a heading sorts, by handing the click to the browse
+## Clicking a heading sorts, without any geometry
 
 The grid does not sort anything. ABC's sort-header class reads
 `SELF.ListControl{PROPLIST:MouseDownField}` to find out which column was pressed
-(`brwext.clw:2926`), and only the **runtime** sets that — from where the mouse actually went down.
-There is no property to write and no method to call without knowing the browse object's name.
+(`brwext.clw:2926`) — and that property can simply be **written**. So it is set, `EVENT:HeaderPressed`
+is posted, and the browse sorts by whatever rule it was already given.
 
-So the click is posted to the LIST for real, at the x of that column's heading. The x maps across
-exactly because the two already agree on their widths: the grid builds its columns from
-`PROPLIST:Width`, and a column resize is written back to it. The LIST measures in dialog units and the
-grid in pixels, hence the factor of two. Posted messages reach a window Windows will not hit-test,
-which is what makes this work at all now the LIST is invisible.
+It first went the long way round: post a fake mouse click to the LIST at the x of that column's
+heading, computed from `PROPLIST:Width`. That failed, and the way it failed was the clue — a column
+could not be sorted until it had been resized once, **bigger or smaller**, which meant the size was
+irrelevant and the *act of writing the width* was what mattered.
 
-The browse then sorts by whatever rule it was already given — a browse with no sort headers ignores the
-click, exactly as it would have before. Clicking the *edge* of a heading still resizes; sorting is
-anywhere else on it.
+`mdfield.clw` settles it. On a LIST concealed exactly as the template conceals one:
+
+    MDFIELD set2>2 | HeaderPressed n1 field 2
+
+`set2>2` — the property is writable and reads back. `n1` — **one** header press, the written one. The
+posted mouse click that follows raises nothing at all: a window Windows will not paint is a window a
+fake click cannot press. Posted messages reach it, but the control does not turn them into a header
+press.
+
+So the coordinate arithmetic was never the problem; the whole approach was. Clicking the *edge* of a
+heading still resizes and anywhere else sorts, and "edge" is still decided on the mouse coming up
+rather than going down — the grab margin reaches four pixels either side of every boundary, including
+the seam at the end of the frozen block, so a heading against one of those would otherwise have every
+click swallowed by a resize that goes nowhere.
 
 A small arrow marks the sorted column, and the heading's text is shortened to keep clear of it. It is
 four one-pixel rows rather than a triangle path — there is no geometry sink here, and at that size the
