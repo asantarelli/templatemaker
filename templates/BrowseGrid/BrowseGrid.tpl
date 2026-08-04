@@ -80,6 +80,7 @@ BG:MkControl         EQUATE(0008h)
 BG:WmLButtonDown     EQUATE(0201h)
 BG:WmLButtonUp       EQUATE(0202h)
 BG:MkLButton         EQUATE(0001h)
+BG:DragSlop          EQUATE(3)                                ! pixels before a click becomes a drag
 BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
@@ -435,6 +436,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
+%bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -695,19 +697,27 @@ row LONG,AUTO
 !  A heading. On the edge of a column that is a resize; anywhere else it is a
 !  request to sort by that column. Either way it never changes the selection.
   IF my < d2g_HdrHeight(%bgObject:G)
+#IF(%bgSortHdr)
+    %bgObject:SortCol = d2g_HitCol(%bgObject:G,mx)            ! remember it either way
+#ENDIF
 #IF(%bgSizeable)
     col = d2g_HitEdge(%bgObject:G,mx)
     IF col >= 0
-      %bgObject:RzCol = col + 1                               ! 1-based: 0 means nothing is being dragged
-      %bgObject:RzX   = mx
-      %bgObject:RzW   = d2g_ColWidth(%bgObject:G,col)
+!  Near an edge - but a click and a drag both start here, and until the mouse
+!  MOVES there is no telling which this is. So the resize is only armed. Commit
+!  it on the first click and a narrow column can never be sorted at all: the
+!  grab margin reaches four pixels either side of every boundary, so a narrow
+!  heading is almost entirely edge, and every click on it was being swallowed
+!  by a resize that then went nowhere.
+      %bgObject:RzCol   = col + 1                             ! 1-based: 0 means nothing is being dragged
+      %bgObject:RzX     = mx
+      %bgObject:RzW     = d2g_ColWidth(%bgObject:G,col)
+      %bgObject:RzArmed = 1
       EXIT
     END
 #ENDIF
 #IF(%bgSortHdr)
-    col = d2g_HitCol(%bgObject:G,mx)
-    IF col >= 0
-      %bgObject:SortCol = col                                 ! a ROUTINE cannot be passed one
+    IF %bgObject:SortCol >= 0
       DO BG:Sort:%bgObject
     END
 #ENDIF
@@ -976,6 +986,10 @@ vp  LONG,AUTO
       DO BG:SizeEnd:%bgObject
       EXIT
     END
+    IF %bgObject:RzArmed
+      IF ABS(mx - %bgObject:RzX) < BG:DragSlop THEN EXIT.      ! still just a click
+      %bgObject:RzArmed = 0                                    ! it has moved: a real drag
+    END
     wid = %bgObject:RzW + mx - %bgObject:RzX
     IF wid < 16 THEN wid = 16.
     d2g_SetWidth(%bgObject:G,%bgObject:RzCol - 1,wid)
@@ -1010,6 +1024,18 @@ c LONG,AUTO
   CODE
   %bgObject:VDrag = 0
   IF ~%bgObject:RzCol THEN EXIT.
+  IF %bgObject:RzArmed
+!  It never moved, so it was a click on the heading after all - and a click on
+!  a heading sorts. Nothing has been resized, so there is no width to write.
+    %bgObject:RzArmed = 0
+    %bgObject:RzCol   = 0
+#IF(%bgSortHdr)
+    IF %bgObject:SortCol >= 0
+      DO BG:Sort:%bgObject
+    END
+#ENDIF
+    EXIT
+  END
   c = %bgObject:Col[%bgObject:RzCol]
   IF c
     %bgList{PROPLIST:Width,c} = d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2
