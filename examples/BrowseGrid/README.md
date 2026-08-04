@@ -338,6 +338,27 @@ selected record is the last row on screen, clamped so it never runs off either e
 that starting point, and the selection is set in absolute row numbers, which is what the engine
 compares against.
 
+## Making the grid and the browse agree on a page
+
+Keeping the selection in view was not enough — the last record still could not be *seen*, because the
+browse and the grid still disagreed about how long a page is. ABC works out how many records to load
+from the LIST's height and its **line height**; the grid works out how many it can draw from the
+region's height and its **row height**. Two independent numbers for the same thing, and every symptom
+above came out of the gap between them.
+
+`PROP:LineHeight` is readable and writable, and it answers in whatever `PROP:Pixels` is set to —
+`lineh.clw` measures it: `units 8 pixels 16 | height 120u 240p | rows 15`.
+
+So they are made to agree, in whichever direction the developer chose:
+
+- **Row height 0** (the default): the grid takes the LIST's own line height and draws to it. The browse
+  goes on loading exactly the number of records there is room for.
+- **Row height set**: the grid uses it, and the LIST is given the same line height, so ABC loads to the
+  grid's shape instead.
+
+The header heights are still independent, which can leave the two out by a single row. The
+selection-follows-the-page fix above covers that, so nothing disappears.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

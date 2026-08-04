@@ -346,7 +346,10 @@ c LONG,AUTO
     #BOXED('Type')
       #PROMPT('&Font:',@s32),%bgFont,DEFAULT('Segoe UI')
       #PROMPT('&Size (points):',SPIN(@n3,6,24,1)),%bgSize,DEFAULT(9)
-      #PROMPT('&Row height (pixels, 0 = from the font):',SPIN(@n3,0,80,1)),%bgRowH,DEFAULT(0)
+      #PROMPT('&Row height (pixels, 0 = follow the browse):',SPIN(@n3,0,80,1)),%bgRowH,DEFAULT(0)
+      #DISPLAY('Left at 0 the grid draws to the LIST<39>s own line height, so the browse')
+      #DISPLAY('loads exactly as many records as there is room to draw. Set it and the')
+      #DISPLAY('LIST is given the same height, so the two still agree.')
       #PROMPT('&Header height (pixels, 0 = from the font):',SPIN(@n3,0,80,1)),%bgHdrH,DEFAULT(0)
     #ENDBOXED
     #BOXED('Colours')
@@ -511,9 +514,7 @@ h  SIGNED,AUTO
 !  its queue, counting its visible rows and holding the selection, and the
 !  region sits on top of it. WS_CLIPSIBLINGS is what makes that stick - without
 !  it the LIST paints over the grid whenever it redraws.
-#IF(%bgRowH > 0)
-  d2g_RowHeight(%bgObject:G,%bgRowH)
-#ENDIF
+  DO BG:Rows:%bgObject
 #IF(%bgHdrH > 0)
   d2g_HeaderHeight(%bgObject:G,%bgHdrH)
 #ENDIF
@@ -653,6 +654,37 @@ row LONG,AUTO
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
+
+BG:Rows:%bgObject ROUTINE
+!  Make the grid and the browse agree on how tall a row is, because otherwise
+!  they never agree on how long a PAGE is. ABC works out how many records to
+!  load from the LIST's height and its line height; the grid works out how many
+!  it can draw from the region's height and its row height. Let those differ
+!  and the browse loads records the grid has no room for - they end up below
+!  the visible area, and the last of them cannot be seen at all.
+!
+!  PROP:LineHeight answers in whatever PROP:Pixels is currently set to - 8
+!  units, 16 pixels, measured in examples/BrowseGrid/lineh.clw - so it is read
+!  in pixels, which is what the grid works in.
+  DATA
+sp LONG,AUTO
+lh LONG,AUTO
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  sp = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+#IF(%bgRowH > 0)
+!  A row height was asked for, so the BROWSE is the one that has to give way.
+  d2g_RowHeight(%bgObject:G,%bgRowH)
+  %bgList{PROP:LineHeight} = %bgRowH
+#ELSE
+!  Nothing was asked for: take the browse's own line height and draw to it.
+  lh = %bgList{PROP:LineHeight}
+  IF lh > 4
+    d2g_RowHeight(%bgObject:G,lh)
+  END
+#ENDIF
+  0{PROP:Pixels} = sp
 
 BG:Conceal:%bgObject ROUTINE
 !  Take WS_VISIBLE off the LIST at the WINDOWS level. Not HIDE(): ABC works out
