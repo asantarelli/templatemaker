@@ -151,9 +151,18 @@ c LONG,AUTO
   END
 #ENDAT
 #!
-#!  After the parent has run, the browse has already filled its queue for this
-#!  event - so this is the moment the grid can be brought into line with it.
-#AT(%WindowManagerMethodCodeSection,'TakeEvent','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
+#!  WHERE THE REFILL HANGS OFF. Not TakeEvent: that method returns the moment
+#!  PARENT.TakeEvent() comes back, so code embedded after it is unreachable -
+#!  it generates, it compiles, and it never runs. ABC calls Reset when the
+#!  browse has refilled itself, and TakeNewSelection when the highlight moves,
+#!  which between them cover scrolling, locating, filtering and editing.
+#AT(%WindowManagerMethodCodeSection,'Reset','(BYTE Force=0)'),PRIORITY(8000),WHERE(%bgDisable=0 AND %bgList)
+  IF %bgObject:G
+    DO BG:Fill:%bgObject
+  END
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'TakeNewSelection','(),BYTE'),PRIORITY(8000),WHERE(%bgDisable=0 AND %bgList)
   IF %bgObject:G
     DO BG:Fill:%bgObject
   END
@@ -206,10 +215,13 @@ h  SIGNED,AUTO
   %bgObject:Face = '%bgFont'
   %bgObject:G = d2g_Attach(%bgObject:Rgn{PROP:Handle},%bgObject:Face,%bgSize)
   IF ~%bgObject:G
-    HIDE(%bgObject:Rgn)                                       ! could not start: give the LIST back
+    HIDE(%bgObject:Rgn)                                       ! could not start: the LIST shows through
     EXIT
   END
-  HIDE(%bgList)
+!  The LIST is COVERED, not hidden. It goes on filling its queue, counting its
+!  visible rows, holding the selection and answering the browse exactly as it
+!  always did - the region simply sits over it, drawn later and so on top. Hide
+!  it instead and the browse can decide it has nothing to show.
 #IF(%bgRowH > 0)
   d2g_RowHeight(%bgObject:G,%bgRowH)
 #ENDIF

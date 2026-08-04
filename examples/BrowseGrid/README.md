@@ -70,6 +70,32 @@ Two things that testing caught, which reading would not have:
   `Unknown Variable`. Template expressions can call groups; output lines cannot. The BGR-to-RGB
   conversion is an ordinary Clarion function now, `BG_Rgb`, written once by the global extension.
 
+## Two more that only running it found
+
+The grid drew its header and columns correctly and showed **no rows at all**. Two causes, both invisible
+to inspection:
+
+- **The refill was unreachable code.** It was embedded in `ThisWindow.TakeEvent` at a high priority, and
+  that method *returns* the moment `PARENT.TakeEvent()` comes back:
+
+  ```
+    ReturnValue = PARENT.TakeEvent()
+      RETURN ReturnValue        <-- returns here
+    END
+    ReturnValue = Level:Fatal
+      IF Grid1:G
+        DO BG:Fill:Grid1        <-- generated, compiled, never ran
+  ```
+
+  It now hangs off `Reset` — which ABC calls when the browse has refilled — and `TakeNewSelection`, which
+  between them cover scrolling, locating, filtering and editing. **A high priority is not "last"; it can
+  be past the RETURN.**
+
+- **Hiding the LIST was wrong.** A hidden LIST is one ABC may decide has no rows to show, since it loads
+  by the control's visible row count. The LIST is now **covered, not hidden**: it goes on filling its
+  queue, counting rows, holding the selection and answering the browse exactly as before, and the region
+  simply sits over it — created later, so drawn on top. Same trick allImageRead uses over its IMAGE.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
