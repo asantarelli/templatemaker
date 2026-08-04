@@ -299,6 +299,7 @@ c LONG,AUTO
       #PROMPT('&Frozen columns (stay put when scrolled sideways):',SPIN(@n2,0,8,1)),%bgFrozen,DEFAULT(0)
       #PROMPT('&Scrollbars on the grid',CHECK),%bgBars,DEFAULT(1),AT(10)
       #PROMPT('Let the user &resize columns by dragging',CHECK),%bgSizeable,DEFAULT(1),AT(10)
+      #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #DISPLAY('Sideways is the grid<39>s own. Downwards is passed to the browse,')
       #DISPLAY('so paging, locators and range limits behave as they always did.')
     #ENDBOXED
@@ -325,6 +326,7 @@ c LONG,AUTO
 #!-----------------------------------------------------------------------------
 #AT(%DataSection),WHERE(%bgDisable=0 AND %bgList)
 BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
+BG:Popup:%bgObject   EQUATE(EVENT:User + 200 + %ActiveTemplateInstance)
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
 %bgObject:Cols       LONG                                    ! how many columns came over
@@ -381,6 +383,13 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
       DO BG:Scroll:%bgObject
     END
 #ENDIF
+#IF(%bgPopup)
+  OF BG:Popup:%bgObject
+!  By now the SELECT has taken effect and the LIST really has the focus, so the
+!  keystroke reaches it. Done in the same breath as the SELECT it would still
+!  be sitting on the region.
+    PRESSKEY(AppsKey)
+#ENDIF
   OF BG:Resized:%bgObject
     IF %bgObject:G
       DO BG:Place:%bgObject                                   ! follow the LIST to its new size
@@ -395,6 +404,12 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
     CASE EVENT()
     OF EVENT:MouseDown
       DO BG:Hit:%bgObject
+#IF(%bgPopup)
+    OF EVENT:AlertKey
+      IF KEYCODE() = MouseRightUp
+        DO BG:Right:%bgObject
+      END
+#ENDIF
 #IF(%bgSizeable)
     OF EVENT:MouseMove
       DO BG:Sizing:%bgObject
@@ -454,6 +469,11 @@ h  SIGNED,AUTO
   IF BG_HookBars(%bgObject:Rgn{PROP:Handle})
     %bgObject:Barred = 1
   END
+#ENDIF
+#IF(%bgPopup)
+!  The region is on top, so it - not the LIST - is what a right-click lands on.
+!  Alerting it here is what lets that click be handed back to the browse.
+  %bgObject:Rgn{PROP:Alrt,250} = MouseRightUp
 #ENDIF
   d2g_Frozen(%bgObject:G,%bgFrozen)
   d2g_Colours(%bgObject:G,BG_Rgb(%bgCBack),BG_Rgb(%bgCBand),                  |
@@ -576,6 +596,42 @@ row LONG,AUTO
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
+
+BG:Right:%bgObject ROUTINE
+!  Hand a right-click back to the browse. NOT by forwarding the click itself:
+!  the grid's rows and the LIST's rows are not the same height, so the same
+!  y would pick a different record. The row is worked out in the grid's own
+!  geometry, the LIST is told to select it, and then the browse is sent
+!  AppsKey - "show the menu for what is selected", which needs no coordinates
+!  at all. ABC alerts AppsKey on the list alongside MouseRightUp and treats
+!  the two identically, so Insert/Change/Delete behave exactly as they always
+!  did, popup formatter and all.
+#IF(%bgPopup)
+  DATA
+rx SIGNED,AUTO
+ry SIGNED,AUTO
+rw SIGNED,AUTO
+rh SIGNED,AUTO
+sp LONG,AUTO
+row LONG,AUTO
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  sp = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+  GETPOSITION(%bgObject:Rgn,rx,ry,rw,rh)
+  row = d2g_HitRow(%bgObject:G,MOUSEY() - ry)
+  0{PROP:Pixels} = sp
+  IF row >= 0 AND row < RECORDS(%bgQueue)                     ! on a row: take it with us
+    %bgList{PROP:Selected} = row + 1
+    %bgObject:Sel = row
+    d2g_Select(%bgObject:G,row)
+    d2g_Repaint(%bgObject:G)
+  END
+  SELECT(%bgList)
+  POST(BG:Popup:%bgObject)
+#ELSE
+  EXIT
+#ENDIF
 
 BG:Sizing:%bgObject ROUTINE
 !  Two jobs on one event. Dragging: widen or narrow the column under the
@@ -749,6 +805,12 @@ view LONG,AUTO
 !  position Clarion's own browse thumb shows, because on an ISAM file that is
 !  the only answer there is.
   BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbVert,%bgList{PROP:VScrollPos},10,110)
+!  A scrollbar appearing or disappearing RESIZES the client area behind our
+!  back - hide the horizontal one and the client grows by its height. Nothing
+!  covers the strip it vacated until the render target is grown to match, so
+!  what shows there is whatever is underneath, which is the old list. This does
+!  nothing at all unless the client area really did change.
+  d2g_Resize(%bgObject:G)
 #ELSE
   EXIT
 #ENDIF

@@ -190,6 +190,38 @@ is on screen.
 notice it has changed and links the cached `.obj` — which shows up as `Unresolved External _d2g_HitEdge`
 rather than as anything obviously to do with the C file.
 
+## A vanishing scrollbar uncovers the list
+
+Resize a column and the old list came back. It is not the write-back to
+`PROPLIST:Width` — `clipkeep.clw` puts a region over a list exactly as the template does, writes a
+width, and reports `hwnd same clip 1>1 zord 1>1`: the control is not rebuilt, `WS_CLIPSIBLINGS`
+survives, and the region is still topmost.
+
+It is the scrollbar. Making a column narrower can drop the total column width below the view, which
+**hides the horizontal bar** — and hiding a scrollbar on a child window *grows its client area* by the
+bar's height. `clipshot.clw` measures it: `client 183>200`. Seventeen pixels of the region that the
+Direct2D render target does not cover, so what shows there is whatever is underneath.
+
+`d2g_Resize` fixes it, and `BG:Bars` now calls it every time it sets the bars. It is guarded in C
+against doing anything when the client area has not actually changed, so calling it on every refill
+costs a `GetClientRect` and two comparisons.
+
+## Right-click has to be handed back to the browse
+
+The region is on top, so a right-click lands on *it*, not the LIST — and the browse never sees the
+click that would raise its Insert/Change/Delete popup.
+
+The region is alerted for `MouseRightUp`, and the click is handed back. **Not** by forwarding the click
+itself: the grid's rows and the LIST's rows are not the same height, so the same y picks a different
+record. Instead the row is worked out in the grid's own geometry, the LIST is told to select it, and
+the browse is sent **`AppsKey`** — "show the menu for what is selected", which needs no coordinates at
+all. ABC alerts `AppsKey` on the list alongside `MouseRightUp` and treats the two identically
+(`ABBROWSE.CLW:2618`, `QListClass.TakeNewSelection`), so the popup formatter and every item on it
+behave as they always did.
+
+The keystroke is sent on a POSTed event rather than immediately, because `SELECT()` does not take
+effect until the next ACCEPT cycle — sent in the same breath it would still be sitting on the region.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

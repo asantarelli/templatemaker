@@ -128,6 +128,7 @@ typedef struct {
     char  colTitle[G_COLS][G_TEXT];
     int   frozen;               /* how many columns stay put while scrolling  */
 
+    int   rtW, rtH;             /* what the render target is currently sized to */
     int   rowH, hdrH;
     int   visRows;              /* rows the Clarion side has pushed in        */
     int   firstRow;             /* which record visRow 0 is                   */
@@ -228,6 +229,8 @@ static int d2g_MakeTarget(Grid* c) {
     hp.present = 0;
     if (((HRESULT (WINAPI*)(void*, const RTPROPS*, const HRTPROPS*, void**))
          VT(g_d2d)[14])(g_d2d, &rp, &hp, &c->rt) < 0) { c->rt = 0; return 0; }
+    c->rtW = r.right - r.left;                     /* what it was built at */
+    c->rtH = r.bottom - r.top;
 
     col.r = col.g = col.b = 0.0f; col.a = 1.0f;
     /* ID2D1RenderTarget::CreateSolidColorBrush - slot 8 */
@@ -526,6 +529,11 @@ void d2g_Repaint(int h) { Grid* c = slot(h); if (c) InvalidateRect(c->hwnd, 0, 0
 
 int d2g_PaintNow(int h) { Grid* c = slot(h); if (!c) return 0; d2g_Draw(c); return 1; }
 
+/* Cheap enough to call whenever anything MIGHT have changed the client area -
+   it does nothing at all unless it actually did. That matters because a
+   scrollbar appearing or disappearing resizes the client area behind your
+   back: hide the horizontal bar and the client grows by its height, and the
+   strip it vacated is not covered by the render target until this has run. */
 int d2g_Resize(int h) {
     Grid* c = slot(h);
     RECT  r;
@@ -536,7 +544,10 @@ int d2g_Resize(int h) {
     s.w = (unsigned)(r.right - r.left);
     s.h = (unsigned)(r.bottom - r.top);
     if (s.w < 1 || s.h < 1) return 0;
+    if ((int)s.w == c->rtW && (int)s.h == c->rtH) return 1;    /* nothing moved */
     ((HRESULT (WINAPI*)(void*, const SIZEU*))VT(c->rt)[58])(c->rt, &s);
+    c->rtW = (int)s.w;
+    c->rtH = (int)s.h;
     InvalidateRect(c->hwnd, 0, 0);
     return 1;
 }
