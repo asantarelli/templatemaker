@@ -521,10 +521,29 @@ own heading if it has one and the group's if it has not (and both, `Address City
 Resizing, sorting and freezing then work per field, and the grid scrolls sideways rather than growing
 taller — which is the thing it already does well.
 
-**Drawing the groups and the lines faithfully is not built yet.** Until it is, unticking *Flatten a
-grouped or multi-line format* makes the grid **stand down** on a multi-line browse: it detaches, hides
-its region and leaves the ordinary LIST to draw the browse exactly as it always did. Drawing a grouped
-format wrongly is worse than not drawing it.
+**Faithful** is the other half, and it is now built. Untick *Flatten a grouped or multi-line format*
+and the record is drawn the way the formatter lays it out: the group headings span their fields, each
+record is as many lines tall as the format makes it, and the banding, the selection bar and the
+gridlines cover the whole record rather than each line of it.
+
+The engine needed a column that says **where it goes** rather than only how wide it is —
+`d2g_ColumnAt(h, col, group, line, x, width, align)` — plus `d2g_Group` for the spanning headings and
+`d2g_Lines` for the height of a record. An ordinary browse sets no groups at all, and every one of
+those paths is skipped, so nothing about a flat browse changed.
+
+Two things follow from grouping that are worth knowing:
+
+- **Freezing counts groups, not fields.** Freezing one freezes the whole name block, which is the only
+  thing that makes sense when a heading spans several fields.
+- **Columns cannot be resized by dragging** in this mode. Widening a group would have to move every
+  field inside it, and that is a different job. `d2g_HitEdge` returns nothing, so the click falls
+  through to sorting instead.
+
+Clicking a group heading sorts by the **first field in that group** — `d2g_HitCol` answers with it, so
+everything downstream is unchanged.
+
+`docs/BrowseGrid-grouped.png` is `grptest.clw`: two-line records, three spanning headings, the name
+group frozen, drawn straight from the same calls `BG:Groups` makes.
 
 ## Still to come
 

@@ -133,6 +133,10 @@ d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
 d2g_FontPt(LONG h),LONG,NAME('_d2g_FontPt')
 d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
 d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
+d2g_Lines(LONG h,LONG n),NAME('_d2g_Lines')
+d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
+d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
+d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align),NAME('_d2g_ColumnAt')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -380,8 +384,10 @@ c LONG,AUTO
       #DISPLAY('line, under headings that span them. Flattened, every field becomes a')
       #DISPLAY('column of its own on a single line - so resizing, sorting and freezing')
       #DISPLAY('work per field, and the grid scrolls sideways instead of growing taller.')
-      #DISPLAY('Drawing the groups and the lines faithfully is not built yet; until it')
-      #DISPLAY('is, unticking this leaves the browse to the ordinary LIST.')
+      #DISPLAY('Untick it and the record is drawn the way the formatter lays it out:')
+      #DISPLAY('the groups<39> headings span their fields and each record is as many lines')
+      #DISPLAY('tall as the format makes it. Columns cannot be resized by dragging in')
+      #DISPLAY('that mode - the fields inside the group would have to move as well.')
       #DISPLAY('Passes the click to the browse, so it sorts by whatever rule the browse')
       #DISPLAY('was already given. A browse with no sort headers will simply ignore it.')
       #PROMPT('F&ile the browse reads (sizes the scrollbar thumb):',@s64),%bgFile,DEFAULT(%Primary)
@@ -570,18 +576,6 @@ h  SIGNED,AUTO
     EXIT
   END
   DO BG:Columns:%bgObject
-#IF(%bgFlatten = 0)
-!  The format puts a record on more than one line and we have not been asked to
-!  flatten it. Drawing the groups faithfully is not built yet, and drawing them
-!  wrongly is worse than not drawing them at all - so the grid stands down and
-!  the ordinary LIST carries on, correctly, exactly as it did before.
-  IF %bgObject:Lines > 1
-    d2g_Detach(%bgObject:G)
-    %bgObject:G = 0
-    HIDE(%bgObject:Rgn)
-    EXIT
-  END
-#ENDIF
   DO BG:Conceal:%bgObject                                     ! only now the grid can be seen
 !  The LIST is neither hidden nor moved: it stays exactly where it is, filling
 !  its queue, counting its visible rows and holding the selection, and the
@@ -697,6 +691,99 @@ ghead CSTRING(65)
   %bgObject:Cols = n
   %bgObject:Lines = lines                                     ! 1 = an ordinary flat browse
   d2g_Columns(%bgObject:G,n)
+#IF(%bgFlatten = 0)
+  IF lines > 1
+    DO BG:Groups:%bgObject                                    ! place them where the format does
+  END
+#ENDIF
+
+BG:Groups:%bgObject ROUTINE
+!  Lay the record out the way the List Box Formatter does: fields sit inside
+!  groups, several to a line, and the group's heading spans the lot. Three
+!  things say how:
+!
+!    PROPLIST:GroupNo     which group a column is in
+!    PROPLIST:LastOnLine  where the record wraps onto its next line
+!    PROPLIST:Group       ADDED to any other property, reads the GROUP's one -
+!                         which is where the heading and the overall width live
+!
+!  A column with no group is a group of its own, one field on one line, which
+!  is how an ordinary browse falls out of the same code.
+#IF(%bgFlatten = 0)
+  DATA
+c    LONG,AUTO
+n    LONG,AUTO
+g    LONG,AUTO
+ex   LONG,AUTO
+fld  LONG,AUTO
+wid  LONG,AUTO
+algn LONG,AUTO
+p    LONG,AUTO
+grp  LONG,AUTO
+prev LONG,AUTO
+gx   LONG,AUTO
+gw   LONG,AUTO
+ln   LONG,AUTO
+xo   LONG,AUTO
+mx   LONG,AUTO
+head CSTRING(65)
+  CODE
+  n    = 0
+  g    = -1
+  prev = -9999
+  gx   = 0
+  mx   = 1
+  LOOP c = 1 TO 512
+    ex = %bgList{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK.
+    fld = %bgList{PROPLIST:FieldNo,c}
+    IF ~fld THEN CYCLE.
+    wid = %bgList{PROPLIST:Width,c}
+    IF wid < 1 THEN CYCLE.
+    IF n >= 32 THEN BREAK.
+    grp = %bgList{PROPLIST:GroupNo,c}
+    IF grp <> prev OR ~grp                                    ! a new group starts here
+      IF g >= 0 THEN gx += gw.
+      g += 1
+      prev = grp
+      ln = 0
+      xo = 0
+      IF grp
+        gw   = %bgList{PROPLIST:Width + PROPLIST:Group,c} * 2
+        head = CLIP(%bgList{PROPLIST:Header + PROPLIST:Group,c})
+      ELSE
+        gw   = wid * 2                                        ! ungrouped: a group of one
+        head = CLIP(%bgList{PROPLIST:Header,c})
+      END
+      LOOP p = 1 TO LEN(head)
+        IF head[p] = '|' THEN head[p] = ' '.
+      END
+      head = CLIP(LEFT(head))
+      d2g_Group(%bgObject:G,g,gx,gw,head)
+    END
+    algn = 0
+    p = %bgList{PROPLIST:Right,c}
+    IF p THEN algn = 1.
+    p = %bgList{PROPLIST:Decimal,c}
+    IF p THEN algn = 1.
+    p = %bgList{PROPLIST:Center,c}
+    IF p THEN algn = 2.
+    d2g_ColumnAt(%bgObject:G,n,g,ln,gx + xo,wid * 2,algn)
+    xo += wid * 2
+    IF grp AND %bgList{PROPLIST:LastOnLine,c}                 ! the record wraps here
+      ln += 1
+      xo = 0
+      IF ln + 1 > mx THEN mx = ln + 1.
+    END
+    n += 1
+  END
+  IF g >= 0
+    d2g_Groups(%bgObject:G,g + 1)
+    d2g_Lines(%bgObject:G,mx)
+  END
+#ELSE
+  EXIT
+#ENDIF
 
 BG:Hit:%bgObject ROUTINE
 !  A click picks a row. The browse still owns the selection: it is told which
@@ -805,6 +892,7 @@ need LONG,AUTO
 !  clamped value is what has to go back to the LIST, or the browse still loads
 !  to a height nothing is drawn at.
   need = d2g_RowNeed(%bgObject:G)
+  IF %bgObject:Lines > 1 THEN need = need * %bgObject:Lines.  ! a record is that many lines tall
 #IF(%bgRowH > 0)
 !  A row height was asked for, so the BROWSE is the one that gives way.
   lh = %bgRowH

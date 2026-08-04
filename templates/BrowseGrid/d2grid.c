@@ -156,6 +156,21 @@ typedef struct {
 
     int   sortCol;              /* which column is sorted, -1 for none      */
     int   sortDir;              /* 1 up, -1 down                            */
+
+    /* ---- grouped, multi-line formats -------------------------------------
+       An ordinary browse has one line per record and its columns simply follow
+       one another, which is what grps == 0 means and nothing below is touched.
+       A grouped one puts several fields on each record over several lines,
+       under headings that span them - so a column needs to say WHERE it goes
+       rather than just how wide it is, and the headings belong to the groups
+       rather than to the columns. */
+    int   grps;                 /* 0 = an ordinary flat browse              */
+    int   grpX[G_COLS], grpW[G_COLS];
+    char  grpTitle[G_COLS][G_TEXT];
+    int   colX[G_COLS];         /* where the column sits across the record  */
+    int   colLine[G_COLS];      /* and which line of it                     */
+    int   colGrp[G_COLS];       /* which group it belongs to                */
+    int   lines;                /* lines per record, 1 for an ordinary one  */
 } Grid;
 
 #define D2G_BARW 15
@@ -319,7 +334,7 @@ static void text(Grid* c, const char* s, float l, float t, float r, float b,
 static void d2g_Draw(Grid* c) {
     RECT  r;
     RECTF clip;
-    int   i, col, x, fx, rowsDrawn, absRow, frozenW, barW;
+    int   i, col, x, fx, rowsDrawn, absRow, frozenW, barW, lineH;
     float top, bot, cl, cr;
 
     if (!c->rt && !d2g_MakeTarget(c)) return;
@@ -327,8 +342,13 @@ static void d2g_Draw(Grid* c) {
     barW = c->vBar ? D2G_BARW : 0;
     r.right -= barW;                       /* the columns stop at the scrollbar */
 
+    lineH = (c->lines > 1) ? (c->rowH / c->lines) : c->rowH;
     frozenW = 0;
-    for (col = 0; col < c->frozen && col < c->cols; col++) frozenW += c->colW[col];
+    if (c->grps) {                               /* frozen counts GROUPS, not fields */
+        for (col = 0; col < c->frozen && col < c->grps; col++) frozenW += c->grpW[col];
+    } else {
+        for (col = 0; col < c->frozen && col < c->cols; col++) frozenW += c->colW[col];
+    }
 
     ((void (WINAPI*)(void*))VT(c->rt)[48])(c->rt);                     /* BeginDraw */
     {
@@ -365,10 +385,20 @@ static void d2g_Draw(Grid* c) {
         ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
         x = -c->scrollX;
         for (col = 0; col < c->cols; col++) {
-            cl = (float)x;
+            float ty, tb;
+            if (c->grps) {                       /* grouped: it says where it goes */
+                if (c->colGrp[col] < c->frozen) continue;   /* drawn with the frozen block */
+                cl = (float)(c->colX[col] - c->scrollX);
+                ty = top + (float)(c->colLine[col] * lineH);
+                tb = ty + (float)lineH;
+            } else {
+                cl = (float)x;
+                ty = top;
+                tb = bot;
+            }
             cr = cl + c->colW[col];
-            if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right)
-                text(c, c->cell[i][col], cl + 4.0f, top + 1.0f, cr - 4.0f, bot,
+            if ((c->grps || col >= c->frozen) && cr > (float)frozenW && cl < (float)r.right)
+                text(c, c->cell[i][col], cl + 4.0f, ty + 1.0f, cr - 4.0f, tb,
                      fore, c->colAlign[col], c->fmt);
             x += c->colW[col];
         }
@@ -379,11 +409,22 @@ static void d2g_Draw(Grid* c) {
             fillRect(c, 0.0f, top, (float)frozenW, bot, back);         /* wipe what slid under */
             clip.l = 0.0f; clip.t = top; clip.r = (float)frozenW; clip.b = bot;
             ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
-            fx = 0;
-            for (col = 0; col < c->frozen && col < c->cols; col++) {
-                text(c, c->cell[i][col], (float)fx + 4.0f, top + 1.0f,
-                     (float)(fx + c->colW[col]) - 4.0f, bot, fore, c->colAlign[col], c->fmt);
-                fx += c->colW[col];
+            if (c->grps) {
+                for (col = 0; col < c->cols; col++) {
+                    float ty;
+                    if (c->colGrp[col] >= c->frozen) continue;
+                    ty = top + (float)(c->colLine[col] * lineH);
+                    text(c, c->cell[i][col], (float)c->colX[col] + 4.0f, ty + 1.0f,
+                         (float)(c->colX[col] + c->colW[col]) - 4.0f, ty + (float)lineH,
+                         fore, c->colAlign[col], c->fmt);
+                }
+            } else {
+                fx = 0;
+                for (col = 0; col < c->frozen && col < c->cols; col++) {
+                    text(c, c->cell[i][col], (float)fx + 4.0f, top + 1.0f,
+                         (float)(fx + c->colW[col]) - 4.0f, bot, fore, c->colAlign[col], c->fmt);
+                    fx += c->colW[col];
+                }
             }
             ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
         }
@@ -395,11 +436,19 @@ static void d2g_Draw(Grid* c) {
     clip.l = (float)frozenW; clip.t = 0.0f;
     clip.r = (float)r.right; clip.b = (float)r.bottom;
     ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
-    x = -c->scrollX;
-    for (col = 0; col < c->cols; col++) {
-        x += c->colW[col];
-        if (col >= c->frozen && (float)x > (float)frozenW && (float)x < (float)r.right)
-            line(c, (float)x - 0.5f, 0.0f, (float)x - 0.5f, (float)r.bottom, c->cGrid);
+    if (c->grps) {
+        for (col = c->frozen; col < c->grps; col++) {
+            x = c->grpX[col] + c->grpW[col] - c->scrollX;
+            if ((float)x > (float)frozenW && (float)x < (float)r.right)
+                line(c, (float)x - 0.5f, 0.0f, (float)x - 0.5f, (float)r.bottom, c->cGrid);
+        }
+    } else {
+        x = -c->scrollX;
+        for (col = 0; col < c->cols; col++) {
+            x += c->colW[col];
+            if (col >= c->frozen && (float)x > (float)frozenW && (float)x < (float)r.right)
+                line(c, (float)x - 0.5f, 0.0f, (float)x - 0.5f, (float)r.bottom, c->cGrid);
+        }
     }
     ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
 
@@ -408,8 +457,19 @@ static void d2g_Draw(Grid* c) {
     clip.l = (float)frozenW; clip.t = 0.0f;
     clip.r = (float)r.right; clip.b = (float)c->hdrH;
     ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+    if (c->grps) {
+        for (col = c->frozen; col < c->grps; col++) {
+            cl = (float)(c->grpX[col] - c->scrollX);
+            cr = cl + c->grpW[col];
+            if (cr > (float)frozenW && cl < (float)r.right) {
+                text(c, c->grpTitle[col], cl + 4.0f, 2.0f, cr - 4.0f, (float)c->hdrH,
+                     c->cHdrText, 2, c->fmtHdr);              /* centred over its fields */
+                line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
+            }
+        }
+    }
     x = -c->scrollX;
-    for (col = 0; col < c->cols; col++) {
+    for (col = 0; col < c->cols && !c->grps; col++) {
         cl = (float)x;
         cr = cl + c->colW[col];
         if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right) {
@@ -428,8 +488,16 @@ static void d2g_Draw(Grid* c) {
         fillRect(c, 0.0f, 0.0f, (float)frozenW, (float)c->hdrH, c->cHdrBack);
         clip.l = 0.0f; clip.t = 0.0f; clip.r = (float)frozenW; clip.b = (float)c->hdrH;
         ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+        if (c->grps) {
+            for (col = 0; col < c->frozen && col < c->grps; col++) {
+                float ge = (float)(c->grpX[col] + c->grpW[col]);
+                text(c, c->grpTitle[col], (float)c->grpX[col] + 4.0f, 2.0f, ge - 4.0f,
+                     (float)c->hdrH, c->cHdrText, 2, c->fmtHdr);
+                line(c, ge - 0.5f, 0.0f, ge - 0.5f, (float)c->hdrH, c->cGrid);
+            }
+        }
         fx = 0;
-        for (col = 0; col < c->frozen && col < c->cols; col++) {
+        for (col = 0; col < c->frozen && col < c->cols && !c->grps; col++) {
             float cre = (float)(fx + c->colW[col]);
             text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
                  (col == c->sortCol) ? cre - 14.0f : cre - 4.0f, (float)c->hdrH,
@@ -489,6 +557,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c = &g_g[i];
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
     c->sortCol = -1; c->sortDir = 1;
+    c->grps = 0; c->lines = 1;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
     c->rowH = D2G_ROWFOR(pt); c->hdrH = D2G_HDRFOR(pt);
@@ -630,6 +699,10 @@ int d2g_TotalWidth(int h) {
     Grid* c = slot(h);
     int col, w = 0;
     if (!c) return 0;
+    if (c->grps) {
+        for (col = 0; col < c->grps; col++) w += c->grpW[col];
+        return w;
+    }
     for (col = 0; col < c->cols; col++) w += c->colW[col];
     return w;
 }
@@ -666,7 +739,7 @@ int d2g_HitEdge(int h, int x) {
     Grid* c = slot(h);
     int col, at, fx = 0;
     const int grab = 4;
-    if (!c) return -1;
+    if (!c || c->grps) return -1;     /* grouped: the fields inside would have to move too */
     for (col = 0; col < c->frozen && col < c->cols; col++) {
         fx += c->colW[col];
         if (x >= fx - grab && x <= fx + grab) return col;
@@ -686,6 +759,43 @@ int d2g_FromHwnd(void* hwnd) {
     for (i = 1; i <= G_MAX; i++)
         if (g_g[i].used && g_g[i].hwnd == (HWND)hwnd) return i;
     return 0;
+}
+
+/* ---- grouped formats ---------------------------------------------------- */
+void d2g_Lines(int h, int n) {
+    Grid* c = slot(h);
+    if (!c || n < 1 || n > 8) return;
+    c->lines = n;
+    c->rowH  = D2G_ROWFOR(c->pt) * n;
+}
+
+void d2g_Groups(int h, int n) {
+    Grid* c = slot(h);
+    if (!c || n < 0 || n > G_COLS) return;
+    c->grps = n;
+}
+
+void d2g_Group(int h, int gi, int x, int width, const char* title) {
+    Grid* c = slot(h);
+    int   k;
+    if (!c || gi < 0 || gi >= G_COLS) return;
+    c->grpX[gi] = x;
+    c->grpW[gi] = width;
+    for (k = 0; k < G_TEXT - 1 && title[k]; k++) c->grpTitle[gi][k] = title[k];
+    c->grpTitle[gi][k] = 0;
+}
+
+/* A column that says where it goes: which group, which line of the record, how
+   far across, how wide. The title is the group's, so it is not repeated here. */
+void d2g_ColumnAt(int h, int col, int grp, int line, int x, int width, int align) {
+    Grid* c = slot(h);
+    if (!c || col < 0 || col >= G_COLS) return;
+    c->colGrp[col]   = grp;
+    c->colLine[col]  = line;
+    c->colX[col]     = x;
+    c->colW[col]     = width;
+    c->colAlign[col] = align;
+    c->colTitle[col][0] = 0;
 }
 
 void d2g_SortMark(int h, int col, int dir) {
@@ -824,6 +934,16 @@ int d2g_HitCol(int h, int x) {
     Grid* c = slot(h);
     int col, at, fx = 0;
     if (!c) return -1;
+    if (c->grps) {                    /* a heading is a group: answer its first field */
+        int g = -1, gx;
+        for (col = 0; col < c->grps; col++) {
+            gx = c->grpX[col] - ((col < c->frozen) ? 0 : c->scrollX);
+            if (x >= gx && x < gx + c->grpW[col]) { g = col; break; }
+        }
+        if (g < 0) return -1;
+        for (col = 0; col < c->cols; col++) if (c->colGrp[col] == g) return col;
+        return -1;
+    }
     for (col = 0; col < c->frozen && col < c->cols; col++) {   /* the frozen strip first */
         if (x >= fx && x < fx + c->colW[col]) return col;
         fx += c->colW[col];
