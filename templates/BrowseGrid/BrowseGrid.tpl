@@ -77,6 +77,9 @@ BG:WheelLines        EQUATE(3)                                ! rows per notch, 
 BG:ThumbPct          EQUATE(12)                               ! fallback when the count is unknown
 BG:FontCode          EQUATE(98)                               ! Ctrl-wheel resized the type
 BG:MkControl         EQUATE(0008h)
+BG:WmLButtonDown     EQUATE(0201h)
+BG:WmLButtonUp       EQUATE(0202h)
+BG:MkLButton         EQUATE(0001h)
 BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
@@ -147,6 +150,7 @@ bgApi_SetWindowPos(ULONG hWnd,LONG after,LONG x,LONG y,LONG cx,LONG cy,ULONG fla
 bgApi_SetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi,LONG redraw),LONG,PASCAL,PROC,NAME('SetScrollInfo')
 bgApi_GetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi),LONG,PASCAL,PROC,NAME('GetScrollInfo')
 bgApi_GetAsyncKeyState(LONG vKey),SHORT,PASCAL,NAME('GetAsyncKeyState')
+bgApi_PostMessage(ULONG hWnd,ULONG msg,ULONG wParam,LONG lParam),LONG,PASCAL,PROC,NAME('PostMessageA')
     END
 #ENDAT
 #!
@@ -368,6 +372,9 @@ c LONG,AUTO
       #PROMPT('Let the user &resize columns by dragging',CHECK),%bgSizeable,DEFAULT(1),AT(10)
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
+      #PROMPT('&Sort when a heading is clicked',CHECK),%bgSortHdr,DEFAULT(1),AT(10)
+      #DISPLAY('Passes the click to the browse, so it sorts by whatever rule the browse')
+      #DISPLAY('was already given. A browse with no sort headers will simply ignore it.')
       #PROMPT('F&ile the browse reads (sizes the scrollbar thumb):',@s64),%bgFile,DEFAULT(%Primary)
       #DISPLAY('RECORDS() reads the count from the file header, so the thumb can be')
       #DISPLAY('sized honestly: a page against the whole file. Leave it blank and the')
@@ -424,6 +431,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:RzCur      BYTE                                    ! is the sizing cursor showing?
 %bgObject:VDrag      BYTE                                    ! is the thumb being dragged?
 %bgObject:VGrab      LONG                                    ! and where it was taken hold of
+%bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -681,18 +689,27 @@ row LONG,AUTO
     POST(EVENT:PageDown,%bgList)
     EXIT
   END
-#IF(%bgSizeable)
-!  On a heading, over the edge of a column: that is a resize, not a selection.
+!  A heading. On the edge of a column that is a resize; anywhere else it is a
+!  request to sort by that column. Either way it never changes the selection.
   IF my < d2g_HdrHeight(%bgObject:G)
+#IF(%bgSizeable)
     col = d2g_HitEdge(%bgObject:G,mx)
     IF col >= 0
       %bgObject:RzCol = col + 1                               ! 1-based: 0 means nothing is being dragged
       %bgObject:RzX   = mx
       %bgObject:RzW   = d2g_ColWidth(%bgObject:G,col)
+      EXIT
     END
-    EXIT                                                      ! headings never change the selection
-  END
 #ENDIF
+#IF(%bgSortHdr)
+    col = d2g_HitCol(%bgObject:G,mx)
+    IF col >= 0
+      %bgObject:SortCol = col                                 ! a ROUTINE cannot be passed one
+      DO BG:Sort:%bgObject
+    END
+#ENDIF
+    EXIT
+  END
   IF row < 0 OR row >= RECORDS(%bgQueue) THEN EXIT.
   %bgList{PROP:Selected} = row + 1
   POST(EVENT:NewSelection,%bgList)                            ! let the browse react as usual
@@ -782,6 +799,37 @@ sty LONG,AUTO
   bgApi_SetWindowPos(%bgList{PROP:Handle},0,0,0,0,0,                            |
                      BOR(BOR(BG:FrameChanged,BG:NoMove),BOR(BG:NoSize,BG:NoZOrder)))
   %bgObject:Clipped = 0
+
+BG:Sort:%bgObject ROUTINE
+!  Sort by the column that was clicked, exactly as clicking the LIST's own
+!  heading would. It has to be a REAL click: ABC's sort-header class reads
+!  PROPLIST:MouseDownField to find out which column was pressed, and only the
+!  runtime sets that - from where the mouse actually went down. So the click is
+!  posted to the LIST at the x of that column's heading.
+!
+!  The x maps across exactly, because the two agree on their widths: the grid
+!  builds its columns from PROPLIST:Width and a resize is written back to it.
+!  The LIST is measured in dialog units and the grid in pixels, hence the two.
+!  Posted messages reach a window Windows will not hit-test, which matters
+!  because the LIST is invisible.
+#IF(%bgSortHdr)
+  DATA
+j  LONG,AUTO
+lc LONG,AUTO
+lx LONG,AUTO
+  CODE
+  lc = %bgObject:Col[%bgObject:SortCol + 1]                   ! which LIST column that was
+  IF ~lc THEN EXIT.
+  lx = 0
+  LOOP j = 1 TO lc - 1
+    lx += %bgList{PROPLIST:Width,j}                           ! everything to its left
+  END
+  lx = lx * 2 + %bgList{PROPLIST:Width,lc}                    ! and into the middle of it
+  bgApi_PostMessage(%bgList{PROP:Handle},BG:WmLButtonDown,BG:MkLButton,BSHIFT(4,16) + BAND(lx,0FFFFh))
+  bgApi_PostMessage(%bgList{PROP:Handle},BG:WmLButtonUp,0,BSHIFT(4,16) + BAND(lx,0FFFFh))
+#ELSE
+  EXIT
+#ENDIF
 
 BG:Cover:%bgObject ROUTINE
 !  Put the grid back over the LIST and draw it THIS INSTANT. Wanted any time

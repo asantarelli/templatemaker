@@ -464,6 +464,25 @@ The same wheel hook checks for `MK_CONTROL` and rebuilds the text formats a poin
 line height and the browse reloads — a bigger font fits fewer records, and both sides have to agree on
 that or the last rows go missing again.
 
+## Clicking a heading sorts, by handing the click to the browse
+
+The grid does not sort anything. ABC's sort-header class reads
+`SELF.ListControl{PROPLIST:MouseDownField}` to find out which column was pressed
+(`brwext.clw:2926`), and only the **runtime** sets that — from where the mouse actually went down.
+There is no property to write and no method to call without knowing the browse object's name.
+
+So the click is posted to the LIST for real, at the x of that column's heading. The x maps across
+exactly because the two already agree on their widths: the grid builds its columns from
+`PROPLIST:Width`, and a column resize is written back to it. The LIST measures in dialog units and the
+grid in pixels, hence the factor of two. Posted messages reach a window Windows will not hit-test,
+which is what makes this work at all now the LIST is invisible.
+
+The browse then sorts by whatever rule it was already given — a browse with no sort headers ignores the
+click, exactly as it would have before. Clicking the *edge* of a heading still resizes; sorting is
+anywhere else on it.
+
+The grid does not yet draw a sort arrow on the sorted column.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
