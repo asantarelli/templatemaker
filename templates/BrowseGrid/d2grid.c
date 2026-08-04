@@ -153,6 +153,9 @@ typedef struct {
 
     char  face[64];             /* kept so the font can be rebuilt bigger   */
     int   pt;
+
+    int   sortCol;              /* which column is sorted, -1 for none      */
+    int   sortDir;              /* 1 up, -1 down                            */
 } Grid;
 
 #define D2G_BARW 15
@@ -173,6 +176,7 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
 #define D2G_ROWFOR(pt) ((pt) * 3 / 2 + 6)
 #define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
+static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
 
 /* ---- the two factories --------------------------------------------------- */
 static int d2g_Factories(void) {
@@ -409,8 +413,11 @@ static void d2g_Draw(Grid* c) {
         cl = (float)x;
         cr = cl + c->colW[col];
         if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right) {
-            text(c, c->colTitle[col], cl + 4.0f, 2.0f, cr - 4.0f, (float)c->hdrH,
+            float tr = (col == c->sortCol) ? cr - 14.0f : cr - 4.0f;  /* keep clear of the mark */
+            text(c, c->colTitle[col], cl + 4.0f, 2.0f, tr, (float)c->hdrH,
                  c->cHdrText, c->colAlign[col], c->fmtHdr);
+            if (col == c->sortCol)
+                sortMark(c, cr, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
         }
         x += c->colW[col];
@@ -423,9 +430,12 @@ static void d2g_Draw(Grid* c) {
         ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
         fx = 0;
         for (col = 0; col < c->frozen && col < c->cols; col++) {
+            float cre = (float)(fx + c->colW[col]);
             text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
-                 (float)(fx + c->colW[col]) - 4.0f, (float)c->hdrH,
+                 (col == c->sortCol) ? cre - 14.0f : cre - 4.0f, (float)c->hdrH,
                  c->cHdrText, c->colAlign[col], c->fmtHdr);
+            if (col == c->sortCol)
+                sortMark(c, cre, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             fx += c->colW[col];
             line(c, (float)fx - 0.5f, 0.0f, (float)fx - 0.5f, (float)c->hdrH, c->cGrid);
         }
@@ -478,6 +488,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     if (i > G_MAX) return 0;
     c = &g_g[i];
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
+    c->sortCol = -1; c->sortDir = 1;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
     c->rowH = D2G_ROWFOR(pt); c->hdrH = D2G_HDRFOR(pt);
@@ -675,6 +686,25 @@ int d2g_FromHwnd(void* hwnd) {
     for (i = 1; i <= G_MAX; i++)
         if (g_g[i].used && g_g[i].hwnd == (HWND)hwnd) return i;
     return 0;
+}
+
+void d2g_SortMark(int h, int col, int dir) {
+    Grid* c = slot(h);
+    if (!c) return;
+    c->sortCol = col;
+    c->sortDir = dir < 0 ? -1 : 1;
+}
+
+/* A small triangle, built out of four one-pixel rows rather than a path -
+   there is no geometry sink here and at this size the steps are invisible. */
+static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb) {
+    int   i;
+    float cx = right - 5.0f;
+    for (i = 0; i < 4; i++) {
+        float w = (dir > 0) ? (float)(1 + i * 2) : (float)(7 - i * 2);
+        float y = top + (float)i;
+        fillRect(c, cx - w / 2.0f, y, cx + w / 2.0f, y + 1.0f, rgb);
+    }
 }
 
 /* ---- our own vertical scrollbar ---------------------------------------- */

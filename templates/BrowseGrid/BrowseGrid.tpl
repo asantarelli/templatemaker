@@ -131,6 +131,7 @@ d2g_VDrag(LONG h,LONG y,LONG grab),LONG,NAME('_d2g_VDrag')
 d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
 d2g_FontPt(LONG h),LONG,NAME('_d2g_FontPt')
 d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
+d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -432,6 +433,8 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:VDrag      BYTE                                    ! is the thumb being dragged?
 %bgObject:VGrab      LONG                                    ! and where it was taken hold of
 %bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
+%bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
+%bgObject:SortDir    LONG                                    ! 1 up, -1 down
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -800,6 +803,31 @@ sty LONG,AUTO
                      BOR(BOR(BG:FrameChanged,BG:NoMove),BOR(BG:NoSize,BG:NoZOrder)))
   %bgObject:Clipped = 0
 
+BG:Mark:%bgObject ROUTINE
+!  Where ABC will say which column it sorted by, believe it rather than our own
+!  memory of what was clicked - a sort can be changed by a tab, a button or the
+!  browse's own code, none of which come through us. PROPLIST:SortColumn is
+!  only kept when the browse was given sort colours, so when it says nothing
+!  the mark stays where the last click put it.
+#IF(%bgSortHdr)
+  DATA
+sc LONG,AUTO
+i  LONG,AUTO
+  CODE
+  sc = %bgList{PROPLIST:SortColumn}
+  IF ~sc OR sc = %bgObject:SortOn THEN EXIT.
+  %bgObject:SortOn = sc
+  LOOP i = 1 TO %bgObject:Cols                                ! back to a GRID column
+    IF %bgObject:Col[i] = sc
+      d2g_SortMark(%bgObject:G,i - 1,%bgObject:SortDir)
+      EXIT
+    END
+  END
+  d2g_SortMark(%bgObject:G,-1,1)                              ! sorted on a column we do not draw
+#ELSE
+  EXIT
+#ENDIF
+
 BG:Sort:%bgObject ROUTINE
 !  Sort by the column that was clicked, exactly as clicking the LIST's own
 !  heading would. It has to be a REAL click: ABC's sort-header class reads
@@ -824,6 +852,17 @@ lx LONG,AUTO
   LOOP j = 1 TO lc - 1
     lx += %bgList{PROPLIST:Width,j}                           ! everything to its left
   END
+!  Which way round the arrow points. ABC toggles on a second click of the same
+!  heading, so the same rule is kept here. It is only a mark: if the browse
+!  refuses the sort - not a valid field, or descending not allowed - the arrow
+!  is corrected on the next fill, where PROPLIST:SortColumn is read back.
+  IF %bgObject:SortOn = lc
+    %bgObject:SortDir = -%bgObject:SortDir
+  ELSE
+    %bgObject:SortOn  = lc
+    %bgObject:SortDir = 1
+  END
+  d2g_SortMark(%bgObject:G,%bgObject:SortCol,%bgObject:SortDir)
   lx = lx * 2 + %bgList{PROPLIST:Width,lc}                    ! and into the middle of it
   bgApi_PostMessage(%bgList{PROP:Handle},BG:WmLButtonDown,BG:MkLButton,BSHIFT(4,16) + BAND(lx,0FFFFh))
   bgApi_PostMessage(%bgList{PROP:Handle},BG:WmLButtonUp,0,BSHIFT(4,16) + BAND(lx,0FFFFh))
@@ -1037,6 +1076,9 @@ total LONG,AUTO
       d2g_Cell(%bgObject:G,i - 1,col - 1,%bgObject:Cell)
     END
   END
+#IF(%bgSortHdr)
+  DO BG:Mark:%bgObject
+#ENDIF
   d2g_Total(%bgObject:G,total)
   %bgObject:Sel = sel                                         ! the browse owns the selection
   d2g_Select(%bgObject:G,sel - 1)                             ! absolute, and now always in view

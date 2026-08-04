@@ -481,7 +481,15 @@ The browse then sorts by whatever rule it was already given — a browse with no
 click, exactly as it would have before. Clicking the *edge* of a heading still resizes; sorting is
 anywhere else on it.
 
-The grid does not yet draw a sort arrow on the sorted column.
+A small arrow marks the sorted column, and the heading's text is shortened to keep clear of it. It is
+four one-pixel rows rather than a triangle path — there is no geometry sink here, and at that size the
+steps do not show. `docs/BrowseGrid-sort-mark.png` is the harness with Town sorted ascending, drawn
+correctly on a grid that is also scrolled sideways with two frozen columns.
+
+Which way it points is our own memory of the clicks, because ABC toggles on a second click of the same
+heading and there is nothing to read that back from. Where ABC *does* say — `PROPLIST:SortColumn`,
+which it keeps when the browse was given sort colours — that is believed instead, since a sort can also
+be changed by a tab, a button or the browse's own code, none of which come through us.
 
 ## Still to come
 
