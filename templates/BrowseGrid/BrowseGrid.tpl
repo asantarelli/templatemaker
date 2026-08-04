@@ -136,6 +136,7 @@ c LONG,AUTO
 #!-----------------------------------------------------------------------------
 #AT(%DataSection),WHERE(%bgDisable=0 AND %bgList)
 BG:Park              EQUATE(4000)                             ! how far off the window the LIST is parked
+BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
 %bgObject:Cols       LONG                                    ! how many columns came over
@@ -173,9 +174,17 @@ BG:Park              EQUATE(4000)                             ! how far off the 
 #AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
   CASE EVENT()
   OF EVENT:Sized
+!  Do NOT move the region here. The window resizer is working on this same
+!  event, and on this window it runs after us - so the LIST has not been given
+!  its new size yet, and anything measured from it now is the old one. Posting
+!  puts the move at the back of the queue, by which time the resizer has
+!  finished and the LIST is the size it is going to be.
+    POST(BG:Resized:%bgObject)
+  OF BG:Resized:%bgObject
     IF %bgObject:G
-      DO BG:Place:%bgObject
-      d2g_Resize(%bgObject:G)
+      DO BG:Place:%bgObject                                   ! follow the LIST to its new size
+      d2g_Resize(%bgObject:G)                                 ! and the render target with it
+      DO BG:Fill:%bgObject                                    ! a taller browse holds more rows
     END
   END
 #ENDAT

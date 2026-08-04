@@ -110,6 +110,17 @@ than to a fixed spot, so the window resizer can go on moving and sizing it exact
 region simply follows it back by the same distance. Clicking a row also puts the focus on the region, so
 nothing pulls the parked LIST into view.
 
+## Resizing: measure after the resizer, not with it
+
+The grid stayed its old size while the LIST grew. `EVENT:Sized` reaches this template *before* the window
+resizer has moved anything, so measuring the LIST there returns the size it used to be — and nothing ever
+looks again.
+
+`EVENT:Sized` now just **posts** a private event. That puts the move at the back of the queue, by which
+time the resizer has finished and the LIST is the size it is going to be; the region follows it, the
+render target is resized to match, and the page is refilled because a taller browse holds more rows. It
+needs to know nothing about the resizer, which is the point — any resizer, any priority.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
