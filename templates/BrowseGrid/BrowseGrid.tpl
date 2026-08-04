@@ -59,6 +59,8 @@ BG:FrameChanged      EQUATE(0020h)
 BG:NoMove            EQUATE(0002h)
 BG:NoSize            EQUATE(0001h)
 BG:NoZOrder          EQUATE(0004h)
+BG:ClipSiblings      EQUATE(04000000h)                        ! WS_CLIPSIBLINGS
+BG:HwndTop           EQUATE(0)
 BG:SbHorz            EQUATE(0)
 BG:SbVert            EQUATE(1)
 BG:WmHScroll         EQUATE(0114h)
@@ -315,7 +317,6 @@ c LONG,AUTO
 #ENDSHEET
 #!-----------------------------------------------------------------------------
 #AT(%DataSection),WHERE(%bgDisable=0 AND %bgList)
-BG:Park              EQUATE(4000)                             ! how far off the window the LIST is parked
 BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
@@ -325,7 +326,7 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 %bgObject:Face       CSTRING(33)
 %bgObject:Cell       CSTRING(65)
 %bgObject:Sel        LONG
-%bgObject:Parked     BYTE                                    ! is the LIST out of sight yet?
+%bgObject:Clipped    BYTE                                    ! has the LIST been told to clip?
 %bgObject:Barred     BYTE                                    ! does it have scrollbars yet?
 %bgObject:ScrollX    LONG                                    ! how far sideways the columns are
 #ENDAT
@@ -421,11 +422,10 @@ h  SIGNED,AUTO
     HIDE(%bgObject:Rgn)                                       ! could not start: the LIST shows through
     EXIT
   END
-!  The LIST is PARKED, not hidden: BG:Place has moved it off past the edge of
-!  the window at full size. It goes on filling its queue, counting its visible
-!  rows and holding the selection exactly as it always did - Windows simply
-!  clips it away. Hidden, the browse can decide it has nothing to show; left
-!  where it was, it repaints over the grid the moment it is clicked.
+!  The LIST is neither hidden nor moved: it stays exactly where it is, filling
+!  its queue, counting its visible rows and holding the selection, and the
+!  region sits on top of it. WS_CLIPSIBLINGS is what makes that stick - without
+!  it the LIST paints over the grid whenever it redraws.
 #IF(%bgRowH > 0)
   d2g_RowHeight(%bgObject:G,%bgRowH)
 #ENDIF
@@ -446,25 +446,29 @@ h  SIGNED,AUTO
   DO BG:Fill:%bgObject
 
 BG:Place:%bgObject ROUTINE
-!  Put the region where the LIST would be, and park the LIST the same distance
-!  off to the left. The resizer goes on moving and sizing the LIST as it always
-!  did; the region just follows it back by the parking distance, so it stays
-!  exactly where the browse appears to be.
+!  Sit the region exactly on the LIST and keep it on top. The LIST is not moved
+!  and not hidden: it is left where the resizer wants it, doing everything it
+!  did before, and WS_CLIPSIBLINGS stops it painting into the region's
+!  rectangle. Moving it instead fought the resizer, which works out every
+!  control's place from the design layout and put it back over the grid.
   DATA
 x  SIGNED,AUTO
 y  SIGNED,AUTO
 w  SIGNED,AUTO
 h  SIGNED,AUTO
+sty LONG,AUTO
   CODE
   IF ~%bgObject:Rgn THEN EXIT.
   GETPOSITION(%bgList,x,y,w,h)
-  IF %bgObject:Parked
-    SETPOSITION(%bgObject:Rgn,x + BG:Park,y,w,h)              ! it is already off to the left
-  ELSE
-    SETPOSITION(%bgObject:Rgn,x,y,w,h)
-    SETPOSITION(%bgList,x - BG:Park,y,w,h)                    ! same size, out of sight
-    %bgObject:Parked = 1
+  SETPOSITION(%bgObject:Rgn,x,y,w,h)
+  IF ~%bgObject:Clipped
+    sty = bgApi_GetWindowLong(%bgList{PROP:Handle},BG:GwlStyle)
+    bgApi_SetWindowLong(%bgList{PROP:Handle},BG:GwlStyle,BOR(sty,BG:ClipSiblings))
+    %bgObject:Clipped = 1
   END
+!  and raise the region above it, every time, because a resize can restack them
+  bgApi_SetWindowPos(%bgObject:Rgn{PROP:Handle},BG:HwndTop,0,0,0,0,             |
+                     BOR(BG:NoMove,BG:NoSize))
 
 BG:Columns:%bgObject ROUTINE
 !  Read the columns off the LIST as they stand. Every PROPLIST read goes
@@ -532,7 +536,7 @@ row LONG,AUTO
   IF row < 0 OR row >= RECORDS(%bgQueue) THEN EXIT.
   %bgList{PROP:Selected} = row + 1
   POST(EVENT:NewSelection,%bgList)                            ! let the browse react as usual
-  SELECT(%bgObject:Rgn)                                       ! keep the focus off the parked LIST
+  SELECT(%bgObject:Rgn)                                       ! keep the focus on the grid
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)

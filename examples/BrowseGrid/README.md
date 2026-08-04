@@ -96,19 +96,22 @@ to inspection:
   queue, counting rows, holding the selection and answering the browse exactly as before, and the region
   simply sits over it — created later, so drawn on top. Same trick allImageRead uses over its IMAGE.
 
-## The third position for the LIST
+## What to do with the LIST — three wrong answers before the right one
 
-Neither hidden nor left in place. Both were wrong, for opposite reasons:
+1. **Hide it.** ABC loads a browse by the control's visible row count, so a hidden LIST shows no rows at
+   all. The grid drew a header over an empty page.
+2. **Leave it where it is.** It repaints straight over the grid the moment it is clicked — two controls
+   in one rectangle, both painting, and the one that redraws last wins.
+3. **Park it off the window.** Fixed the painting, and lasted until the first resize: ABC's resizer works
+   every control's position out from the *design* layout, so it hauled the LIST straight back over the
+   grid and the template thought it was still parked.
 
-- **Hidden** — ABC loads a browse by the control's visible row count, so a hidden LIST shows no rows.
-- **Left where it was** — it repaints straight over the grid the moment it is clicked. Two controls in
-  one place, both painting.
+The right answer is not to move it at all, but to make Windows respect the stacking order.
+**`WS_CLIPSIBLINGS`** on the LIST means it cannot paint into the rectangle of a sibling above it; the
+region is raised to the top and re-raised on every resize, because a resize can restack them. The LIST
+stays exactly where the resizer puts it, doing everything it did before, and simply never appears.
 
-So it is **parked**: still there, still full size, still filling its queue and holding the selection, but
-moved out past the edge of the window where Windows clips it away. It is parked by a fixed offset rather
-than to a fixed spot, so the window resizer can go on moving and sizing it exactly as before and the
-region simply follows it back by the same distance. Clicking a row also puts the focus on the region, so
-nothing pulls the parked LIST into view.
+Three attempts, and the first two each looked right until something touched the window.
 
 ## Resizing: measure after the resizer, not with it
 
