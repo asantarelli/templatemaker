@@ -760,6 +760,9 @@ int d2g_FontSize(int h, int pt) {
     if (c->fmt)    ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
     if (c->fmtHdr) ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
     c->fmt = f; c->fmtHdr = fh;
+    /* set outright, not through d2g_RowHeight - that clamps against the size
+       the type needs, and here the type is what just changed. Going through it
+       would let the rows grow and never come back down. */
     c->rowH = D2G_ROWFOR(pt);                   /* the same rule d2g_Attach uses */
     c->hdrH = D2G_HDRFOR(pt);
     c->pt = pt;

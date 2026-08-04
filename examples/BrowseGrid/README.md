@@ -439,9 +439,23 @@ height and any of them can be wrong. `d2g_RowHeight` now **refuses** a height sh
 needs, in the engine, once — and `BG:Rows` sends the clamped value back to the LIST, so the browse
 never loads to a height nothing is drawn at.
 
-`gridtest.clw` reproduces the failure deliberately: grow the type to 18 point, then try to squash the
-rows back to 16 the way the LIST did. `pagesize=15` is the proof — 33-pixel rows, not 16, which would
-have given about 30. `docs/BrowseGrid-big-font.png` is that run.
+**And then they grew but never shrank** — a ratchet, and the clamp was only half of why. `BG:Rows`
+asks the LIST how tall a row should be, but the LIST's line height is the number *we ourselves pushed
+up* the last time the type grew. Asking it again just gets that number back, and the clamp then keeps
+it. Two feedback loops pointing the same way.
+
+When the type changes size the **grid** is the authority and the LIST is told — never the other way
+round. The font path no longer calls `BG:Rows` at all, and `d2g_FontSize` sets the height outright
+rather than through `d2g_RowHeight`, whose clamp is measured against the very thing that just changed.
+`BG:Rows` keeps its job: adopting the LIST's height at setup, clamped so nothing can squash the type.
+
+`gridtest.clw` now drives the whole cycle — grow to 18 point, let the LIST try to squash the rows back
+to 16, then shrink to 9:
+
+    GridTest grew=33 shrank=19
+
+33 pixels at 18 point (the squash refused), 19 at 9 point (all the way back down).
+`docs/BrowseGrid-big-font.png` is that run.
 
 ## Ctrl and the roller resize the type
 

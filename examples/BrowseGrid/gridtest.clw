@@ -49,6 +49,8 @@ t8      LONG
 t3      LONG
 page    LONG
 ticks   LONG
+big     LONG
+small   LONG
 towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   Dundee   ')
   CODE
   OPEN(Win)
@@ -67,9 +69,12 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       title = 'Orders'    ; d2g_Column(g, 3,  70, 1, title)
       title = 'Status'    ; d2g_Column(g, 4, 120, 0, title)
       d2g_Frozen(g, 2)
-      d2g_FontSize(g, 18)                                     ! grown, as Ctrl-wheel would
-      d2g_RowHeight(g, 16)                                    ! and now the LIST tries to squash it
-      Win{PROP:Text} = 'GridTest pt18 need=' & d2g_RowNeed(g) & ' got=' & d2g_RowH(g)
+!     Grow, squash, then shrink again - the rows must come back DOWN
+      d2g_FontSize(g, 18)
+      d2g_RowHeight(g, 16)                                    ! the LIST tries to squash it
+      big = d2g_RowH(g)
+      d2g_FontSize(g, 9)                                      ! Ctrl-wheel the other way
+      small = d2g_RowH(g)
       d2g_VBar(g, 1, 40, 12)                                  ! the drawn thumb, 40 pct down                                        ! two columns stay put
       d2g_RowHeight(g, 22)
       d2g_Total(g, 5000)
@@ -95,7 +100,8 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       d2g_ScrollY(g, 11)                                      ! half a row: the top record is sliced
       d2g_ScrollX(g, 170)                                     ! scrolled sideways, under the frozen pair
       d2g_PaintNow(g)
-      Win{PROP:Text} = 'GridTest OK rows=' & page & ' pagesize=' & d2g_PageSize(g)
+      Win{PROP:Text} = 'GridTest grew=' & big & ' shrank=' & small |
+                     & ' rows=' & page & ' pagesize=' & d2g_PageSize(g)
     END
   END
   ACCEPT

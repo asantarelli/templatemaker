@@ -1014,7 +1014,15 @@ sp LONG,AUTO
 !  height, leaving big type crammed into short rows with its descenders cut
 !  off. The height goes the other way here, from the grid to the LIST, so the
 !  browse reloads to fit however many rows there is now room for.
-    DO BG:Rows:%bgObject                                      ! settles both sides at the new size
+!  NOT BG:Rows. That asks the LIST how tall a row should be - and the LIST's
+!  line height is the number we ourselves pushed up the last time the type grew.
+!  Asking it again just gets that number back, so the rows would ratchet up and
+!  never come down. When the type changes size the GRID is the authority and the
+!  LIST is told, never the other way round.
+    sp = 0{PROP:Pixels}
+    0{PROP:Pixels} = 1
+    %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G)           ! whatever the font just made it
+    0{PROP:Pixels} = sp
     DO BG:Fill:%bgObject
     EXIT
   END
