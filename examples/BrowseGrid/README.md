@@ -501,6 +501,31 @@ heading and there is nothing to read that back from. Where ABC *does* say — `P
 which it keeps when the browse was given sort colours — that is believed instead, since a sort can also
 be changed by a tab, a button or the browse's own code, none of which come through us.
 
+## Grouped and multi-line formats
+
+A grouped browse puts several fields on each record over more than one line, under headings that span
+them — the shape the List Box Formatter shows as a tree. Read as a flat list of columns, that comes out
+as one very long row with most of the headings missing.
+
+The runtime describes the whole structure, which is what makes this tractable:
+
+- `PROPLIST:GroupNo` — which group a column belongs to, 0 for none.
+- `PROPLIST:LastOnLine` — where the format wraps onto the next line of the record. Counting these is
+  how a multi-line format is recognised at all.
+- **`PROPLIST:Group` (0040H) added to any other property** reads the *group's* version of it, so
+  `PROPLIST:Header + PROPLIST:Group` is where "Last Name", "Address" and "Telephone" actually live —
+  the fields underneath usually carry no heading of their own.
+
+**Flattening** is what is built: every field becomes a column of its own on a single line, taking its
+own heading if it has one and the group's if it has not (and both, `Address City`, when they differ).
+Resizing, sorting and freezing then work per field, and the grid scrolls sideways rather than growing
+taller — which is the thing it already does well.
+
+**Drawing the groups and the lines faithfully is not built yet.** Until it is, unticking *Flatten a
+grouped or multi-line format* makes the grid **stand down** on a multi-line browse: it detaches, hides
+its region and leaves the ordinary LIST to draw the browse exactly as it always did. Drawing a grouped
+format wrongly is worse than not drawing it.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

@@ -375,6 +375,13 @@ c LONG,AUTO
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
       #PROMPT('&Sort when a heading is clicked',CHECK),%bgSortHdr,DEFAULT(1),AT(10)
+      #PROMPT('&Flatten a grouped or multi-line format',CHECK),%bgFlatten,DEFAULT(1),AT(10)
+      #DISPLAY('A grouped browse puts several fields on each record, over more than one')
+      #DISPLAY('line, under headings that span them. Flattened, every field becomes a')
+      #DISPLAY('column of its own on a single line - so resizing, sorting and freezing')
+      #DISPLAY('work per field, and the grid scrolls sideways instead of growing taller.')
+      #DISPLAY('Drawing the groups and the lines faithfully is not built yet; until it')
+      #DISPLAY('is, unticking this leaves the browse to the ordinary LIST.')
       #DISPLAY('Passes the click to the browse, so it sorts by whatever rule the browse')
       #DISPLAY('was already given. A browse with no sort headers will simply ignore it.')
       #PROMPT('F&ile the browse reads (sizes the scrollbar thumb):',@s64),%bgFile,DEFAULT(%Primary)
@@ -437,6 +444,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
 %bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
+%bgObject:Lines      LONG                                    ! lines per record in the LIST's format
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -561,6 +569,19 @@ h  SIGNED,AUTO
     HIDE(%bgObject:Rgn)                                       ! could not start: leave the LIST alone
     EXIT
   END
+  DO BG:Columns:%bgObject
+#IF(%bgFlatten = 0)
+!  The format puts a record on more than one line and we have not been asked to
+!  flatten it. Drawing the groups faithfully is not built yet, and drawing them
+!  wrongly is worse than not drawing them at all - so the grid stands down and
+!  the ordinary LIST carries on, correctly, exactly as it did before.
+  IF %bgObject:Lines > 1
+    d2g_Detach(%bgObject:G)
+    %bgObject:G = 0
+    HIDE(%bgObject:Rgn)
+    EXIT
+  END
+#ENDIF
   DO BG:Conceal:%bgObject                                     ! only now the grid can be seen
 !  The LIST is neither hidden nor moved: it stays exactly where it is, filling
 !  its queue, counting its visible rows and holding the selection, and the
@@ -585,7 +606,6 @@ h  SIGNED,AUTO
               BG_Rgb(%bgCGrid),BG_Rgb(%bgCText),                               |
               BG_Rgb(%bgCHdrBack),BG_Rgb(%bgCHdrText),                         |
               BG_Rgb(%bgCSelBack),BG_Rgb(%bgCSelText))
-  DO BG:Columns:%bgObject
   DO BG:Fill:%bgObject
 
 BG:Place:%bgObject ROUTINE
@@ -623,9 +643,13 @@ fld   LONG,AUTO
 wid   LONG,AUTO
 algn  LONG,AUTO
 p     LONG,AUTO
+grp   LONG,AUTO
+lines LONG,AUTO
 head  CSTRING(65)
+ghead CSTRING(65)
   CODE
   n = 0
+  lines = 1
   LOOP c = 1 TO 512
     ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
@@ -641,7 +665,25 @@ head  CSTRING(65)
     IF p THEN algn = 1.
     p = %bgList{PROPLIST:Center,c}
     IF p THEN algn = 2.
+!  A column inside a GROUP usually carries no heading of its own - the group's
+!  heading stands over the whole set of them. Adding PROPLIST:Group to any of
+!  these properties reads the GROUP's version of it, which is where the words
+!  in the formatter's top row actually live. Flattened, each field becomes a
+!  column of its own, so it needs a heading of its own: its own if it has one,
+!  the group's if it has not.
     head = CLIP(%bgList{PROPLIST:Header,c})
+    grp  = %bgList{PROPLIST:GroupNo,c}
+    IF grp
+      ghead = CLIP(%bgList{PROPLIST:Header + PROPLIST:Group,c})
+      IF ~head
+        head = ghead
+      ELSIF ghead AND UPPER(ghead) <> UPPER(head)
+        head = CLIP(ghead) & ' ' & CLIP(head)                 ! "Address City", not just "City"
+      END
+!  LastOnLine is where the format wraps onto the next line of the row. Counting
+!  them is how a multi-line browse is recognised at all.
+      IF %bgList{PROPLIST:LastOnLine,c} THEN lines += 1.
+    END
     LOOP p = 1 TO LEN(head)                                   ! a bar wraps a heading on screen
       IF head[p] = '|' THEN head[p] = ' '.
     END
@@ -653,6 +695,7 @@ head  CSTRING(65)
     n += 1
   END
   %bgObject:Cols = n
+  %bgObject:Lines = lines                                     ! 1 = an ordinary flat browse
   d2g_Columns(%bgObject:G,n)
 
 BG:Hit:%bgObject ROUTINE
