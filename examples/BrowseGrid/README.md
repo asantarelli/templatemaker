@@ -287,6 +287,34 @@ dark slate blue, which reads as black at header size. Every colour the grid uses
 tab of the extension: background, banding, gridlines, text, header background and text, selected row
 and text.
 
+## The keyboard is the browse's, so give the browse the focus
+
+Arrow keys, PageUp and PageDown, Ctrl-PageUp and Ctrl-PageDown for the two ends — every one of these
+is something an ABC browse has always done. None of it is reimplemented here.
+
+A click used to `SELECT` the region, to keep the focus off the LIST. It now selects the **LIST**. That
+is only possible because the LIST is invisible to Windows but perfectly alive to Clarion: it can hold
+the focus and answer keys while showing nothing. So the arrows, the paging, the two Ctrl-Page ends, the
+incremental locator, Insert, Delete and Enter all go on working exactly as they did, unwritten by us.
+The region only ever needed the mouse, and a REGION with `PROP:IMM` gets that whether it has the focus
+or not.
+
+`novis.clw` cannot prove the keyboard half — `PRESSKEY` does not drive a bare `FROM(Q)` list in a
+harness, and the control arm fails the same way (`visible 2>2 | concealed 2>2`), so the probe says
+nothing either way. What does prove it is the popup: it works by `SELECT`ing the concealed LIST and
+sending it `PRESSKEY(AppsKey)`, and the menu appears. A control that takes the focus and acts on a key
+is a control that can be typed at.
+
+## The roller
+
+`WM_MOUSEWHEEL` goes to whatever is under the pointer, which is the region — the LIST underneath is
+invisible and cannot be hit — so it is caught on the region's own window proc, alongside the
+scrollbars. One notch is three rows, as everywhere else in Windows, capped at thirty so a flicked
+wheel is not a page jump.
+
+Unlike a thumb drag there is no modal loop here, so posting is enough: the ACCEPT loop runs between
+notches and the browse fetches its records as it always would.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

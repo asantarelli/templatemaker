@@ -27,6 +27,7 @@ Main PROCEDURE
     END
   END
   INCLUDE('EQUATES.CLW'),ONCE
+  INCLUDE('KEYCODES.CLW'),ONCE
 
 GWL_STYLE    EQUATE(-16)
 WS_VISIBLE   EQUATE(10000000h)
@@ -74,6 +75,10 @@ vis1  LONG
 hid0  LONG
 hid1  LONG
 recs  LONG
+ch0   LONG
+ch1   LONG
+chV0  LONG
+chV1  LONG
 pxA   ULONG
 pxB   ULONG
 step  LONG
@@ -111,6 +116,13 @@ res   CSTRING(240)
     OF EVENT:Timer
       step += 1
       CASE step
+      OF 1
+        SELECT(?List)
+        ?List{PROP:Selected} = 2
+        chV0 = CHOICE(?List)
+        PRESSKEY(DownKey)                                     ! control arm: still visible
+      OF 2
+        chV1 = CHOICE(?List)
       OF 3
 !       take the WINDOWS visibility away - not Clarion's
         sty = GetWindowLongA(hl, GWL_STYLE)
@@ -118,7 +130,13 @@ res   CSTRING(240)
         SetWindowPosA(hl, 0, 0, 0, 0, 0, BOR(BOR(SWP_FRAME, SWP_NOMOVE), BOR(SWP_NOSIZE, SWP_NOZORD)))
         SELECT(?List)                                         ! the very thing that made it paint
         DISPLAY
+      OF 4
+        SELECT(?List)
+        ?List{PROP:Selected} = 2
+        ch0 = CHOICE(?List)
+        PRESSKEY(DownKey)                                     ! can an invisible control still take it?
       OF 6
+        ch1 = CHOICE(?List)
         vis1 = IsWindowVisibleA(hl)
         hid1 = ?List{PROP:Hide}
         recs = RECORDS(Q)
@@ -131,7 +149,7 @@ res   CSTRING(240)
         res = 'sameparent ' & sameP                                            |
             & ' | winvis ' & vis0 & '>' & vis1                                 |
             & ' | PROP:Hide ' & hid0 & '>' & hid1                              |
-            & ' | recs ' & recs                                                |
+            & ' | recs ' & recs & ' | visible ' & chV0 & '>' & chV1 & ' | concealed ' & ch0 & '>' & ch1                                                |
             & ' | px ' & CHOOSE(pxA = 0FFh,'red','NOT') & CHOOSE(pxB = 0FFh,'red','NOT')
         Win{PROP:Text} = 'NOVIS ' & CLIP(res)
       OF 20

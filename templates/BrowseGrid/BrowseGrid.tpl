@@ -70,6 +70,10 @@ BG:SifRange          EQUATE(1)
 BG:SifPage           EQUATE(2)
 BG:SifPos            EQUATE(4)
 BG:SifTrack          EQUATE(10h)
+BG:WmMouseWheel      EQUATE(020Ah)
+BG:WheelNotch        EQUATE(120)                              ! WHEEL_DELTA
+BG:WheelCode         EQUATE(99)                               ! not one of Windows' scroll codes
+BG:WheelLines        EQUATE(3)                                ! rows per notch, as everything else does
 BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
@@ -214,6 +218,7 @@ BG_BarProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
 prop CSTRING('BrowseGridBarProc')
 old  LONG,AUTO
 g    LONG,AUTO
+dz   LONG,AUTO
 bar  LONG,AUTO
 code LONG,AUTO
 pos  LONG,AUTO
@@ -228,6 +233,21 @@ nTrack  LONG
      END
   CODE
   old = bgApi_GetProp(hWnd,ADDRESS(prop))
+!  The roller. Windows sends this to whatever is under the pointer, which is
+!  the region - the LIST underneath is invisible and cannot be hit. There is no
+!  modal loop involved here, so unlike a thumb drag it is enough to post: the
+!  ACCEPT loop runs between notches and the browse fetches its records as it
+!  always would.
+  IF wMsg = BG:WmMouseWheel
+    dz = BSHIFT(BAND(wParam,0FFFF0000h),-16)
+    IF dz > 32767 THEN dz -= 65536.                           ! it is a SIGNED short up there
+    IF dz
+      BG:LastBar  = BG:SbVert
+      BG:LastCode = BG:WheelCode
+      BG:LastPos  = dz
+      POST(BG:Scrolled)
+    END
+  END
   IF wMsg = BG:WmHScroll OR wMsg = BG:WmVScroll
     bar = CHOOSE(wMsg = BG:WmHScroll, BG:SbHorz, BG:SbVert)
     code = BAND(wParam,0FFFFh)
@@ -317,6 +337,7 @@ c LONG,AUTO
       #PROMPT('&Scrollbars on the grid',CHECK),%bgBars,DEFAULT(1),AT(10)
       #PROMPT('Let the user &resize columns by dragging',CHECK),%bgSizeable,DEFAULT(1),AT(10)
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
+      #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
       #DISPLAY('Sideways is the grid<39>s own. Downwards is passed to the browse,')
       #DISPLAY('so paging, locators and range limits behave as they always did.')
     #ENDBOXED
@@ -395,7 +416,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 !  puts the move at the back of the queue, by which time the resizer has
 !  finished and the LIST is the size it is going to be.
     POST(BG:Resized:%bgObject)
-#IF(%bgBars)
+#IF(%bgBars OR %bgWheel)
   OF BG:Scrolled
     IF %bgObject:G AND %bgObject:Barred
       DO BG:Scroll:%bgObject
@@ -496,8 +517,8 @@ h  SIGNED,AUTO
 #IF(%bgHdrH > 0)
   d2g_HeaderHeight(%bgObject:G,%bgHdrH)
 #ENDIF
-#IF(%bgBars)
-  IF BG_HookBars(%bgObject:Rgn{PROP:Handle})
+#IF(%bgBars OR %bgWheel)
+  IF BG_HookBars(%bgObject:Rgn{PROP:Handle})                  ! the roller comes through here too
     %bgObject:Barred = 1
   END
 #ENDIF
@@ -621,7 +642,14 @@ row LONG,AUTO
   IF row < 0 OR row >= RECORDS(%bgQueue) THEN EXIT.
   %bgList{PROP:Selected} = row + 1
   POST(EVENT:NewSelection,%bgList)                            ! let the browse react as usual
-  SELECT(%bgObject:Rgn)                                       ! keep the focus on the grid
+!  Give the focus to the BROWSE, not to the region. The LIST is invisible to
+!  Windows but perfectly alive to Clarion, so with the focus on it every key an
+!  ABC browse has always answered goes on working, unchanged and unwritten by
+!  us: up and down arrows, PageUp and PageDown, Ctrl-PageUp and Ctrl-PageDown
+!  for the two ends, the incremental locator, Insert, Delete and Enter. The
+!  region only ever needed the mouse, and a REGION with PROP:IMM gets that
+!  whether it has the focus or not.
+  SELECT(%bgList)
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
@@ -841,7 +869,27 @@ BG:Scroll:%bgObject ROUTINE
 !  its own scrollbar, and when it has refilled its queue ABC calls Reset, which
 !  is where the grid picks the new page up. So paging, locators and range
 !  limits keep behaving as they always did.
-#IF(%bgBars)
+#IF(%bgBars OR %bgWheel)
+  DATA
+i LONG,AUTO
+n LONG,AUTO
+  CODE
+  IF BG:LastCode = BG:WheelCode
+!  One notch is three rows, the same as everywhere else in Windows. The browse
+!  is asked to scroll exactly as its own scrollbar would ask it, so paging,
+!  locators and range limits are none of our business.
+    n = INT(ABS(BG:LastPos) / BG:WheelNotch) * BG:WheelLines
+    IF n < 1 THEN n = 1.
+    IF n > 30 THEN n = 30.                                    ! a flicked wheel is not a page jump
+    LOOP i = 1 TO n
+      IF BG:LastPos > 0
+        POST(EVENT:ScrollUp,%bgList)
+      ELSE
+        POST(EVENT:ScrollDown,%bgList)
+      END
+    END
+    EXIT
+  END
   IF BG:LastBar = BG:SbHorz
     %bgObject:ScrollX = BG:LastPos
     d2g_ScrollX(%bgObject:G,%bgObject:ScrollX)
