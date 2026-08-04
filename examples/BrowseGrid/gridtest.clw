@@ -23,6 +23,8 @@ Main PROCEDURE
       d2g_ScrollY(LONG h,LONG y),NAME('_d2g_ScrollY')
       d2g_ScrollX(LONG h,LONG x),NAME('_d2g_ScrollX')
       d2g_RowH(LONG h),LONG,NAME('_d2g_RowH')
+      d2g_VBar(LONG h,LONG show,LONG pos,LONG pct),NAME('_d2g_VBar')
+      d2g_VHit(LONG h,LONG x,LONG y),LONG,NAME('_d2g_VHit')
     END
   END
   INCLUDE('EQUATES.CLW'),ONCE
@@ -62,7 +64,8 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       title = 'Credit'    ; d2g_Column(g, 2,  90, 1, title)
       title = 'Orders'    ; d2g_Column(g, 3,  70, 1, title)
       title = 'Status'    ; d2g_Column(g, 4, 120, 0, title)
-      d2g_Frozen(g, 2)                                        ! two columns stay put
+      d2g_Frozen(g, 2)
+      d2g_VBar(g, 1, 40, 12)                                  ! the drawn thumb, 40 pct down                                        ! two columns stay put
       d2g_RowHeight(g, 22)
       d2g_Total(g, 5000)
       d2g_Select(g, 3)                                        ! fourth row highlighted

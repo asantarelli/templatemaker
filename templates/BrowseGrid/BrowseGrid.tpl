@@ -74,6 +74,7 @@ BG:WmMouseWheel      EQUATE(020Ah)
 BG:WheelNotch        EQUATE(120)                              ! WHEEL_DELTA
 BG:WheelCode         EQUATE(99)                               ! not one of Windows' scroll codes
 BG:WheelLines        EQUATE(3)                                ! rows per notch, as everything else does
+BG:ThumbPct          EQUATE(12)                               ! how much of the trough the thumb takes
 BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
@@ -118,6 +119,10 @@ d2g_ColWidth(LONG h,LONG col),LONG,NAME('_d2g_ColWidth')
 d2g_SetWidth(LONG h,LONG col,LONG width),NAME('_d2g_SetWidth')
 d2g_HdrHeight(LONG h),LONG,NAME('_d2g_HdrHeight')
 d2g_FromHwnd(LONG hwnd),LONG,NAME('_d2g_FromHwnd')
+d2g_VBar(LONG h,LONG show,LONG pos,LONG pct),NAME('_d2g_VBar')
+d2g_VHit(LONG h,LONG x,LONG y),LONG,NAME('_d2g_VHit')
+d2g_VGrab(LONG h,LONG y),LONG,NAME('_d2g_VGrab')
+d2g_VDrag(LONG h,LONG y,LONG grab),LONG,NAME('_d2g_VDrag')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -153,8 +158,13 @@ sty  LONG,AUTO
   CODE
   IF ~pHwnd THEN RETURN 0.
   IF bgApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.
+!  Only the horizontal bar is Windows'. The vertical one is drawn by the grid,
+!  because Windows' cannot be made to follow the data: it drags inside a
+!  message loop of its own, and moving the browse needs records, which needs
+!  ACCEPT, which that loop is holding up. Sideways needed nothing from the
+!  browse so it could be done inside the loop; downwards cannot be.
   sty = bgApi_GetWindowLong(pHwnd,BG:GwlStyle)
-  bgApi_SetWindowLong(pHwnd,BG:GwlStyle,BOR(BOR(sty,BG:HScrollStyle),BG:VScrollStyle))
+  bgApi_SetWindowLong(pHwnd,BG:GwlStyle,BOR(sty,BG:HScrollStyle))
   bgApi_SetWindowPos(pHwnd,0,0,0,0,0,BOR(BOR(BOR(BG:FrameChanged,BG:NoMove),BG:NoSize),BG:NoZOrder))
   old = bgApi_SetWindowLong(pHwnd,BG:GwlWndProc,ADDRESS(BG_BarProc))
   IF ~old THEN RETURN 0.
@@ -385,6 +395,8 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:RzX        LONG                                    ! where the drag started
 %bgObject:RzW        LONG                                    ! and how wide the column was then
 %bgObject:RzCur      BYTE                                    ! is the sizing cursor showing?
+%bgObject:VDrag      BYTE                                    ! is the thumb being dragged?
+%bgObject:VGrab      LONG                                    ! and where it was taken hold of
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -628,6 +640,20 @@ row LONG,AUTO
   my = MOUSEY() - ry
   row = d2g_HitRow(%bgObject:G,my)
   0{PROP:Pixels} = sp
+!  The scrollbar first: it is drawn over everything else, so it is clicked
+!  before everything else.
+  CASE d2g_VHit(%bgObject:G,mx,my)
+  OF 1
+    %bgObject:VDrag = 1
+    %bgObject:VGrab = d2g_VGrab(%bgObject:G,my)               ! anchored, so it cannot jump
+    EXIT
+  OF 2
+    POST(EVENT:PageUp,%bgList)
+    EXIT
+  OF 3
+    POST(EVENT:PageDown,%bgList)
+    EXIT
+  END
 #IF(%bgSizeable)
 !  On a heading, over the edge of a column: that is a resize, not a selection.
   IF my < d2g_HdrHeight(%bgObject:G)
@@ -793,6 +819,7 @@ mx LONG,AUTO
 my LONG,AUTO
 col LONG,AUTO
 wid LONG,AUTO
+vp  LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
   sp = 0{PROP:Pixels}
@@ -801,6 +828,26 @@ wid LONG,AUTO
   mx = MOUSEX() - rx
   my = MOUSEY() - ry
   0{PROP:Pixels} = sp
+  IF %bgObject:VDrag
+!  THIS is what Windows' own scrollbar could not do. There is no modal loop
+!  here - it is an ordinary mouse move - so ACCEPT runs, the browse is told to
+!  scroll exactly as its own thumb would tell it, and by the time the pointer
+!  has moved again the records are on screen. The thumb follows the POINTER
+!  while the drag is on rather than the browse, so it cannot stutter.
+    IF bgApi_GetAsyncKeyState(BG:VkLButton) >= 0
+      %bgObject:VDrag = 0
+      EXIT
+    END
+    vp = d2g_VDrag(%bgObject:G,my,%bgObject:VGrab)
+    d2g_VBar(%bgObject:G,1,vp,BG:ThumbPct)
+    IF vp <> %bgList{PROP:VScrollPos}
+      %bgList{PROP:VScrollPos} = vp
+      POST(EVENT:ScrollDrag,%bgList)                          ! ABC fetches, Reset redraws
+    ELSE
+      d2g_Repaint(%bgObject:G)
+    END
+    EXIT
+  END
   IF %bgObject:RzCol
 !  Windows answers with the high bit set while the button is down, and a SHORT
 !  is signed, so "still held" is simply "negative". Clarion has no MOUSEDOWN,
@@ -842,6 +889,7 @@ BG:SizeEnd:%bgObject ROUTINE
   DATA
 c LONG,AUTO
   CODE
+  %bgObject:VDrag = 0
   IF ~%bgObject:RzCol THEN EXIT.
   c = %bgObject:Col[%bgObject:RzCol]
   IF c
@@ -995,7 +1043,14 @@ view LONG,AUTO
 !  the LIST's own PROP:VScrollPos, nought to a hundred - the same approximate
 !  position Clarion's own browse thumb shows, because on an ISAM file that is
 !  the only answer there is.
-  BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbVert,%bgList{PROP:VScrollPos},10,110)
+!  Downwards, ABC gives us one number and only one: PROP:VScrollPos, nought to
+!  a hundred. It is the same approximate position Clarion's own browse thumb
+!  shows, because on an ISAM file that is the only answer there is - nothing
+!  knows the record count without reading the whole file. So the thumb is a
+!  fixed size and the position is ABC's.
+  IF ~%bgObject:VDrag                                         ! not while it is being dragged
+    d2g_VBar(%bgObject:G,1,%bgList{PROP:VScrollPos},BG:ThumbPct)
+  END
 !  A scrollbar appearing or disappearing RESIZES the client area behind our
 !  back - hide the horizontal one and the client grows by its height. Nothing
 !  covers the strip it vacated until the render target is grown to match, so

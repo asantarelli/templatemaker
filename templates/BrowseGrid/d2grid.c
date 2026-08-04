@@ -141,7 +141,18 @@ typedef struct {
     char  cell[G_VIS][G_COLS][G_TEXT];
 
     unsigned int cBack, cBand, cGrid, cText, cHdrBack, cHdrText, cSelBack, cSelText;
+
+    /* our own vertical scrollbar. Windows' one cannot be made to track: it
+       drags inside a message loop of its own, and moving the browse needs
+       records, which needs Clarion's ACCEPT, which that loop is holding up.
+       Drawn here it is just pixels, and dragging it is an ordinary mouse
+       event like any other. */
+    int   vBar;                 /* drawn at all?                            */
+    int   vPos;                 /* 0..100, the browse's own scale           */
+    int   vPct;                 /* how much of the trough the thumb takes   */
 } Grid;
+
+#define D2G_BARW 15
 
 static Grid  g_g[G_MAX + 1];
 static void* g_d2d = 0;
@@ -149,6 +160,7 @@ static void* g_dw  = 0;
 static int   g_tried = 0;
 
 static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
+static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 
 /* ---- the two factories --------------------------------------------------- */
 static int d2g_Factories(void) {
@@ -291,11 +303,13 @@ static void text(Grid* c, const char* s, float l, float t, float r, float b,
 static void d2g_Draw(Grid* c) {
     RECT  r;
     RECTF clip;
-    int   i, col, x, fx, rowsDrawn, absRow, frozenW;
+    int   i, col, x, fx, rowsDrawn, absRow, frozenW, barW;
     float top, bot, cl, cr;
 
     if (!c->rt && !d2g_MakeTarget(c)) return;
     GetClientRect(c->hwnd, &r);
+    barW = c->vBar ? D2G_BARW : 0;
+    r.right -= barW;                       /* the columns stop at the scrollbar */
 
     frozenW = 0;
     for (col = 0; col < c->frozen && col < c->cols; col++) frozenW += c->colW[col];
@@ -408,6 +422,17 @@ static void d2g_Draw(Grid* c) {
         line(c, (float)frozenW - 0.5f, 0.0f, (float)frozenW - 0.5f, (float)r.bottom, c->cGrid);
     }
     line(c, 0.0f, (float)c->hdrH - 0.5f, (float)r.right, (float)c->hdrH - 0.5f, c->cGrid);
+
+    /* ---- our own vertical scrollbar, drawn last ------------------------- */
+    if (barW) {
+        int top, len, tTop, tLen;
+        float bl = (float)r.right, br = (float)(r.right + barW);
+        d2g_VGeom(c, &top, &len, &tTop, &tLen);
+        fillRect(c, bl, 0.0f, br, (float)(r.bottom), c->cBand);        /* the trough */
+        line(c, bl + 0.5f, 0.0f, bl + 0.5f, (float)r.bottom, c->cGrid);
+        fillRect(c, bl + 3.0f, (float)tTop + 2.0f,
+                    br - 3.0f, (float)(tTop + tLen) - 2.0f, c->cHdrBack);  /* the thumb */
+    }
 
     if (((HRESULT (WINAPI*)(void*, void*, void*))VT(c->rt)[49])(c->rt, 0, 0) < 0) {
         if (c->brush) { ((unsigned long (WINAPI*)(void*))VT(c->brush)[2])(c->brush); c->brush = 0; }
@@ -569,6 +594,7 @@ int d2g_ViewWidth(int h) {
     RECT  r;
     if (!c || !IsWindow(c->hwnd)) return 0;
     GetClientRect(c->hwnd, &r);
+    if (c->vBar) r.right -= D2G_BARW;
     return (int)(r.right - r.left);
 }
 
@@ -615,6 +641,69 @@ int d2g_FromHwnd(void* hwnd) {
     for (i = 1; i <= G_MAX; i++)
         if (g_g[i].used && g_g[i].hwnd == (HWND)hwnd) return i;
     return 0;
+}
+
+/* ---- our own vertical scrollbar ---------------------------------------- */
+void d2g_VBar(int h, int show, int pos, int pct) {
+    Grid* c = slot(h);
+    if (!c) return;
+    c->vBar = show ? 1 : 0;
+    c->vPos = pos < 0 ? 0 : (pos > 100 ? 100 : pos);
+    c->vPct = pct < 4 ? 4 : (pct > 100 ? 100 : pct);
+}
+
+int d2g_VBarW(int h) { Grid* c = slot(h); return (c && c->vBar) ? D2G_BARW : 0; }
+
+/* where the trough runs, and where the thumb sits inside it */
+static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen) {
+    RECT r;
+    int  t, l, tl;
+    GetClientRect(c->hwnd, &r);
+    t  = c->hdrH;
+    l  = (r.bottom - r.top) - t;
+    if (l < 0) l = 0;
+    tl = l * c->vPct / 100;
+    if (tl < 24) tl = 24;
+    if (tl > l)  tl = l;
+    *top = t; *len = l; *tLen = tl;
+    *tTop = t + (l - tl) * c->vPos / 100;
+}
+
+/* 0 nowhere near it, 1 on the thumb, 2 above it, 3 below it */
+int d2g_VHit(int h, int x, int y) {
+    Grid* c = slot(h);
+    RECT  r;
+    int   top, len, tTop, tLen;
+    if (!c || !c->vBar) return 0;
+    GetClientRect(c->hwnd, &r);
+    if (x < r.right - D2G_BARW) return 0;
+    d2g_VGeom(c, &top, &len, &tTop, &tLen);
+    if (y < top) return 0;
+    if (y < tTop) return 2;
+    if (y < tTop + tLen) return 1;
+    return 3;
+}
+
+/* how far down the thumb the pointer took hold - so the drag is anchored and
+   the thumb does not jump under the cursor when it starts */
+int d2g_VGrab(int h, int y) {
+    Grid* c = slot(h);
+    int   top, len, tTop, tLen;
+    if (!c || !c->vBar) return 0;
+    d2g_VGeom(c, &top, &len, &tTop, &tLen);
+    return y - tTop;
+}
+
+/* where the thumb has been dragged to, back on the browse's 0..100 scale */
+int d2g_VDrag(int h, int y, int grab) {
+    Grid* c = slot(h);
+    int   top, len, tTop, tLen, room, pos;
+    if (!c || !c->vBar) return 0;
+    d2g_VGeom(c, &top, &len, &tTop, &tLen);
+    room = len - tLen;
+    if (room < 1) return 0;
+    pos = (y - grab - top) * 100 / room;
+    return pos < 0 ? 0 : (pos > 100 ? 100 : pos);
 }
 
 int d2g_HdrHeight(int h) {

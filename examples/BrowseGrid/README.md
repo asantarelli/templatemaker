@@ -359,6 +359,33 @@ So they are made to agree, in whichever direction the developer chose:
 The header heights are still independent, which can leave the two out by a single row. The
 selection-follows-the-page fix above covers that, so nothing disappears.
 
+## The vertical bar is drawn, not Windows'
+
+Sideways worked because scrolling sideways needs nothing from the browse — it could be done inside
+Windows' modal drag loop. Downwards cannot: moving the browse needs records, records need ABC, and ABC
+needs `ACCEPT`, which is exactly what that loop is holding up. No amount of work on Windows' scrollbar
+gets round that.
+
+So the vertical bar is no longer Windows'. `WS_VSCROLL` is gone from the region and the grid draws its
+own — trough and thumb, in the grid's own colours. Dragging it is then an **ordinary mouse move**:
+`ACCEPT` runs, the browse is told to scroll exactly as its own thumb would tell it, and by the time the
+pointer has moved again the records are on screen. The horizontal bar stays Windows', because it works.
+
+Details that matter:
+
+- **The drag is anchored** (`d2g_VGrab`), so the thumb does not jump under the cursor when you take
+  hold of it half way down — the same rule as the column drag and the image pan.
+- **While dragging, the thumb follows the pointer, not the browse.** `BG:Bars` skips it during a drag,
+  or the thumb stutters as ABC's approximate position argues with where you are holding it.
+- **Releasing off the grid still ends it** — `GetAsyncKeyState`, as everywhere else.
+- **Clicking the trough** pages up or down.
+
+The thumb is a fixed size, because ABC gives one number and only one: `PROP:VScrollPos`, nought to a
+hundred. That is the same approximate position Clarion's own browse thumb shows, and for the same
+reason — on an ISAM file nothing knows the record count without reading the whole file.
+
+`docs/BrowseGrid-vertical-bar.png` is the harness with the thumb 40% down.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
