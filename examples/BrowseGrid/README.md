@@ -96,6 +96,20 @@ to inspection:
   queue, counting rows, holding the selection and answering the browse exactly as before, and the region
   simply sits over it — created later, so drawn on top. Same trick allImageRead uses over its IMAGE.
 
+## The third position for the LIST
+
+Neither hidden nor left in place. Both were wrong, for opposite reasons:
+
+- **Hidden** — ABC loads a browse by the control's visible row count, so a hidden LIST shows no rows.
+- **Left where it was** — it repaints straight over the grid the moment it is clicked. Two controls in
+  one place, both painting.
+
+So it is **parked**: still there, still full size, still filling its queue and holding the selection, but
+moved out past the edge of the window where Windows clips it away. It is parked by a fixed offset rather
+than to a fixed spot, so the window resizer can go on moving and sizing it exactly as before and the
+region simply follows it back by the same distance. Clicking a row also puts the focus on the region, so
+nothing pulls the parked LIST into view.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

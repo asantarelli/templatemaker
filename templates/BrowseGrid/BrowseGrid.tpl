@@ -135,6 +135,7 @@ c LONG,AUTO
 #ENDSHEET
 #!-----------------------------------------------------------------------------
 #AT(%DataSection),WHERE(%bgDisable=0 AND %bgList)
+BG:Park              EQUATE(4000)                             ! how far off the window the LIST is parked
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
 %bgObject:Cols       LONG                                    ! how many columns came over
@@ -143,6 +144,7 @@ c LONG,AUTO
 %bgObject:Face       CSTRING(33)
 %bgObject:Cell       CSTRING(65)
 %bgObject:Sel        LONG
+%bgObject:Parked     BYTE                                    ! is the LIST out of sight yet?
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -218,10 +220,11 @@ h  SIGNED,AUTO
     HIDE(%bgObject:Rgn)                                       ! could not start: the LIST shows through
     EXIT
   END
-!  The LIST is COVERED, not hidden. It goes on filling its queue, counting its
-!  visible rows, holding the selection and answering the browse exactly as it
-!  always did - the region simply sits over it, drawn later and so on top. Hide
-!  it instead and the browse can decide it has nothing to show.
+!  The LIST is PARKED, not hidden: BG:Place has moved it off past the edge of
+!  the window at full size. It goes on filling its queue, counting its visible
+!  rows and holding the selection exactly as it always did - Windows simply
+!  clips it away. Hidden, the browse can decide it has nothing to show; left
+!  where it was, it repaints over the grid the moment it is clicked.
 #IF(%bgRowH > 0)
   d2g_RowHeight(%bgObject:G,%bgRowH)
 #ENDIF
@@ -237,7 +240,10 @@ h  SIGNED,AUTO
   DO BG:Fill:%bgObject
 
 BG:Place:%bgObject ROUTINE
-!  Keep the region exactly over the LIST, however the resizer moves it.
+!  Put the region where the LIST would be, and park the LIST the same distance
+!  off to the left. The resizer goes on moving and sizing the LIST as it always
+!  did; the region just follows it back by the parking distance, so it stays
+!  exactly where the browse appears to be.
   DATA
 x  SIGNED,AUTO
 y  SIGNED,AUTO
@@ -246,7 +252,13 @@ h  SIGNED,AUTO
   CODE
   IF ~%bgObject:Rgn THEN EXIT.
   GETPOSITION(%bgList,x,y,w,h)
-  SETPOSITION(%bgObject:Rgn,x,y,w,h)
+  IF %bgObject:Parked
+    SETPOSITION(%bgObject:Rgn,x + BG:Park,y,w,h)              ! it is already off to the left
+  ELSE
+    SETPOSITION(%bgObject:Rgn,x,y,w,h)
+    SETPOSITION(%bgList,x - BG:Park,y,w,h)                    ! same size, out of sight
+    %bgObject:Parked = 1
+  END
 
 BG:Columns:%bgObject ROUTINE
 !  Read the columns off the LIST as they stand. Every PROPLIST read goes
@@ -314,6 +326,7 @@ row LONG,AUTO
   IF row < 0 OR row >= RECORDS(%bgQueue) THEN EXIT.
   %bgList{PROP:Selected} = row + 1
   POST(EVENT:NewSelection,%bgList)                            ! let the browse react as usual
+  SELECT(%bgObject:Rgn)                                       ! keep the focus off the parked LIST
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
