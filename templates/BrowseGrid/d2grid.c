@@ -279,41 +279,46 @@ static void text(Grid* c, const char* s, float l, float t, float r, float b,
      VT(c->rt)[27])(c->rt, w, (unsigned)n, fmt, &rc, c->brush, 0, 0);
 }
 
-/* ---- the paint ----------------------------------------------------------- */
+/* ---- the paint -----------------------------------------------------------
+   Frozen columns are drawn LAST, on top, and the scrolling ones are clipped to
+   the right of them. Drawn in plain left-to-right order the scrolling columns
+   come after the frozen ones and paint straight over them, which is exactly
+   what you see if you freeze two columns and scroll: the third slides over the
+   first two instead of under them.                                          */
 static void d2g_Draw(Grid* c) {
     RECT  r;
     RECTF clip;
-    int   i, col, x, y, rowsDrawn, absRow;
-    float fx;
+    int   i, col, x, fx, rowsDrawn, absRow, frozenW;
+    float top, bot, cl, cr;
 
     if (!c->rt && !d2g_MakeTarget(c)) return;
     GetClientRect(c->hwnd, &r);
 
-    ((void (WINAPI*)(void*))VT(c->rt)[48])(c->rt);                    /* BeginDraw */
+    frozenW = 0;
+    for (col = 0; col < c->frozen && col < c->cols; col++) frozenW += c->colW[col];
+
+    ((void (WINAPI*)(void*))VT(c->rt)[48])(c->rt);                     /* BeginDraw */
     {
         COLORF bg;
         bg.r = (float)((c->cBack >> 16) & 0xFF) / 255.0f;
         bg.g = (float)((c->cBack >>  8) & 0xFF) / 255.0f;
         bg.b = (float)( c->cBack        & 0xFF) / 255.0f;
         bg.a = 1.0f;
-        ((void (WINAPI*)(void*, const COLORF*))VT(c->rt)[47])(c->rt, &bg);  /* Clear */
+        ((void (WINAPI*)(void*, const COLORF*))VT(c->rt)[47])(c->rt, &bg);   /* Clear */
     }
 
-    /* ---- the rows ----------------------------------------------------
-       Everything below the header is clipped, so the first row can be sliced
-       off half way through without painting over the titles. That slice is
-       the whole trick to smooth scrolling: the page moves by pixels, and only
-       jumps a record when a whole row has gone by. */
+    /* everything below the header is clipped, so a part-row at the top cannot
+       paint over the titles - that is what makes pixel scrolling possible */
     clip.l = 0.0f; clip.t = (float)c->hdrH;
     clip.r = (float)r.right; clip.b = (float)r.bottom;
     ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
 
     rowsDrawn = c->visRows;
     for (i = 0; i < rowsDrawn; i++) {
-        float top = (float)(c->hdrH + i * c->rowH - c->scrollY);
-        float bot = top + c->rowH;
-        if (bot < (float)c->hdrH) continue;                  /* scrolled off the top */
         unsigned int back, fore;
+        top = (float)(c->hdrH + i * c->rowH - c->scrollY);
+        bot = top + c->rowH;
+        if (bot < (float)c->hdrH) continue;
         if (top > (float)r.bottom) break;
         absRow = c->firstRow + i;
         if (absRow == c->selRow)      { back = c->cSelBack; fore = c->cSelText; }
@@ -321,52 +326,83 @@ static void d2g_Draw(Grid* c) {
         else                          { back = c->cBack;    fore = c->cText;    }
         fillRect(c, 0.0f, top, (float)r.right, bot, back);
 
+        /* --- the scrolling columns, kept off the frozen strip -------------- */
+        clip.l = (float)frozenW; clip.t = top;
+        clip.r = (float)r.right; clip.b = bot;
+        ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
         x = -c->scrollX;
         for (col = 0; col < c->cols; col++) {
-            float cl, cr;
-            if (col < c->frozen) { cl = (float)(x + c->scrollX); }   /* frozen: ignore scroll */
-            else                 { cl = (float)x; }
+            cl = (float)x;
             cr = cl + c->colW[col];
-            if (cr > 0.0f && cl < (float)r.right) {
-                clip.l = cl + 3.0f; clip.t = top; clip.r = cr - 3.0f; clip.b = bot;
-                ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+            if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right)
                 text(c, c->cell[i][col], cl + 4.0f, top + 1.0f, cr - 4.0f, bot,
                      fore, c->colAlign[col], c->fmt);
-                ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
-            }
             x += c->colW[col];
+        }
+        ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
+
+        /* --- then the frozen ones, on top of them ------------------------- */
+        if (c->frozen > 0) {
+            fillRect(c, 0.0f, top, (float)frozenW, bot, back);         /* wipe what slid under */
+            clip.l = 0.0f; clip.t = top; clip.r = (float)frozenW; clip.b = bot;
+            ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+            fx = 0;
+            for (col = 0; col < c->frozen && col < c->cols; col++) {
+                text(c, c->cell[i][col], (float)fx + 4.0f, top + 1.0f,
+                     (float)(fx + c->colW[col]) - 4.0f, bot, fore, c->colAlign[col], c->fmt);
+                fx += c->colW[col];
+            }
+            ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
         }
         line(c, 0.0f, bot - 0.5f, (float)r.right, bot - 0.5f, c->cGrid);
     }
+    ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);                     /* done with the rows */
 
-    ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);            /* done with the rows */
-
-    /* ---- the column lines -------------------------------------------- */
+    /* ---- the column lines, scrolling ones clipped the same way ---------- */
+    clip.l = (float)frozenW; clip.t = 0.0f;
+    clip.r = (float)r.right; clip.b = (float)r.bottom;
+    ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
     x = -c->scrollX;
     for (col = 0; col < c->cols; col++) {
         x += c->colW[col];
-        fx = (float)((col < c->frozen) ? (x + c->scrollX) : x);
-        if (fx > 0.0f && fx < (float)r.right)
-            line(c, fx - 0.5f, 0.0f, fx - 0.5f, (float)r.bottom, c->cGrid);
+        if (col >= c->frozen && (float)x > (float)frozenW && (float)x < (float)r.right)
+            line(c, (float)x - 0.5f, 0.0f, (float)x - 0.5f, (float)r.bottom, c->cGrid);
     }
+    ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
 
-    /* ---- the header, last, so it sits over the rows ------------------- */
+    /* ---- the header, over the rows -------------------------------------- */
     fillRect(c, 0.0f, 0.0f, (float)r.right, (float)c->hdrH, c->cHdrBack);
+    clip.l = (float)frozenW; clip.t = 0.0f;
+    clip.r = (float)r.right; clip.b = (float)c->hdrH;
+    ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
     x = -c->scrollX;
     for (col = 0; col < c->cols; col++) {
-        float cl = (float)((col < c->frozen) ? (x + c->scrollX) : x);
-        float cr = cl + c->colW[col];
-        if (cr > 0.0f && cl < (float)r.right) {
-            clip.l = cl + 3.0f; clip.t = 0.0f; clip.r = cr - 3.0f; clip.b = (float)c->hdrH;
-            ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+        cl = (float)x;
+        cr = cl + c->colW[col];
+        if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right) {
             text(c, c->colTitle[col], cl + 4.0f, 2.0f, cr - 4.0f, (float)c->hdrH,
                  c->cHdrText, c->colAlign[col], c->fmtHdr);
-            ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
+            line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
         }
         x += c->colW[col];
-        cl = (float)((col < c->frozen) ? (x + c->scrollX) : x);
-        if (cl > 0.0f && cl < (float)r.right)
-            line(c, cl - 0.5f, 0.0f, cl - 0.5f, (float)c->hdrH, c->cGrid);
+    }
+    ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
+
+    if (c->frozen > 0) {                                    /* frozen headings on top */
+        fillRect(c, 0.0f, 0.0f, (float)frozenW, (float)c->hdrH, c->cHdrBack);
+        clip.l = 0.0f; clip.t = 0.0f; clip.r = (float)frozenW; clip.b = (float)c->hdrH;
+        ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
+        fx = 0;
+        for (col = 0; col < c->frozen && col < c->cols; col++) {
+            text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
+                 (float)(fx + c->colW[col]) - 4.0f, (float)c->hdrH,
+                 c->cHdrText, c->colAlign[col], c->fmtHdr);
+            fx += c->colW[col];
+            line(c, (float)fx - 0.5f, 0.0f, (float)fx - 0.5f, (float)c->hdrH, c->cGrid);
+        }
+        ((void (WINAPI*)(void*))VT(c->rt)[46])(c->rt);
+        /* the edge of the frozen block, so it reads as a seam */
+        line(c, (float)frozenW - 0.5f, 0.0f, (float)frozenW - 0.5f, (float)r.bottom, c->cGrid);
     }
     line(c, 0.0f, (float)c->hdrH - 0.5f, (float)r.right, (float)c->hdrH - 0.5f, c->cGrid);
 
@@ -544,12 +580,16 @@ int d2g_HitRow(int h, int y) {
 
 int d2g_HitCol(int h, int x) {
     Grid* c = slot(h);
-    int col, at;
+    int col, at, fx = 0;
     if (!c) return -1;
+    for (col = 0; col < c->frozen && col < c->cols; col++) {   /* the frozen strip first */
+        if (x >= fx && x < fx + c->colW[col]) return col;
+        fx += c->colW[col];
+    }
+    if (x < fx) return -1;
     at = -c->scrollX;
     for (col = 0; col < c->cols; col++) {
-        int l = (col < c->frozen) ? (at + c->scrollX) : at;
-        if (x >= l && x < l + c->colW[col]) return col;
+        if (col >= c->frozen && x >= at && x < at + c->colW[col]) return col;
         at += c->colW[col];
     }
     return -1;

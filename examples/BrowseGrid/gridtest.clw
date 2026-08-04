@@ -21,6 +21,7 @@ Main PROCEDURE
       d2g_PageSize(LONG h),LONG,NAME('_d2g_PageSize')
       d2g_Resize(LONG h),LONG,NAME('_d2g_Resize')
       d2g_ScrollY(LONG h,LONG y),NAME('_d2g_ScrollY')
+      d2g_ScrollX(LONG h,LONG x),NAME('_d2g_ScrollX')
       d2g_RowH(LONG h),LONG,NAME('_d2g_RowH')
     END
   END
@@ -61,7 +62,7 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       title = 'Credit'    ; d2g_Column(g, 2,  90, 1, title)
       title = 'Orders'    ; d2g_Column(g, 3,  70, 1, title)
       title = 'Status'    ; d2g_Column(g, 4, 120, 0, title)
-      d2g_Frozen(g, 1)                                        ! the name column stays put
+      d2g_Frozen(g, 2)                                        ! two columns stay put
       d2g_RowHeight(g, 22)
       d2g_Total(g, 5000)
       d2g_Select(g, 3)                                        ! fourth row highlighted
@@ -84,6 +85,7 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
         d2g_Cell(g, i, 4, cell)
       END
       d2g_ScrollY(g, 11)                                      ! half a row: the top record is sliced
+      d2g_ScrollX(g, 170)                                     ! scrolled sideways, under the frozen pair
       d2g_PaintNow(g)
       Win{PROP:Text} = 'GridTest OK rows=' & page & ' pagesize=' & d2g_PageSize(g)
     END

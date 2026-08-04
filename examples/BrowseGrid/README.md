@@ -144,6 +144,23 @@ The thumb is approximate on an ISAM file, because `PROP:VScrollPos` is a nought-
 the same approximation Clarion's own browse thumb shows, for the same reason: the file cannot say what
 its 743,000th record is without counting.
 
+## Frozen columns have to be drawn LAST
+
+Freeze two columns, scroll sideways, and the third slid straight *over* the frozen pair instead of under
+them. Two causes, in the same few lines:
+
+- Columns were drawn left to right, so the scrolling ones came **after** the frozen ones and painted on
+  top of them. Whatever is drawn last wins.
+- Nothing clipped them, so they were free to draw into the frozen strip at all.
+
+Both are fixed together: the scrolling columns are clipped to the right of the frozen block, and the
+frozen ones are drawn afterwards, on top, clipped to their own strip. The header, the gridlines and
+`d2g_HitCol` all needed the same treatment — a click in the frozen strip must not be measured against the
+scroll offset either.
+
+`docs/BrowseGrid-frozen-columns.png` is the harness with two frozen columns scrolled 170px: Customer and
+Town intact on the left, Status sliding underneath them and clipped at the seam.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
