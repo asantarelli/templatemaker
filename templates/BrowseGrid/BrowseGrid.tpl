@@ -60,6 +60,7 @@ BG:NoMove            EQUATE(0002h)
 BG:NoSize            EQUATE(0001h)
 BG:NoZOrder          EQUATE(0004h)
 BG:ClipSiblings      EQUATE(04000000h)                        ! WS_CLIPSIBLINGS
+BG:Visible           EQUATE(10000000h)                        ! WS_VISIBLE
 BG:HwndTop           EQUATE(0)
 BG:SbHorz            EQUATE(0)
 BG:SbVert            EQUATE(1)
@@ -352,7 +353,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:Face       CSTRING(33)
 %bgObject:Cell       CSTRING(65)
 %bgObject:Sel        LONG
-%bgObject:Clipped    BYTE                                    ! has the LIST been told to clip?
+%bgObject:Clipped    BYTE                                    ! has the LIST been made invisible?
 %bgObject:Barred     BYTE                                    ! does it have scrollbars yet?
 %bgObject:ScrollX    LONG                                    ! how far sideways the columns are
 %bgObject:Col        LONG,DIM(32)                            ! LIST column behind each grid one
@@ -449,6 +450,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
+  DO BG:Reveal:%bgObject
   IF %bgObject:Barred
     BG_DropBars(%bgObject:Rgn{PROP:Handle})
     %bgObject:Barred = 0
@@ -480,9 +482,10 @@ h  SIGNED,AUTO
   %bgObject:Face = '%bgFont'
   %bgObject:G = d2g_Attach(%bgObject:Rgn{PROP:Handle},%bgObject:Face,%bgSize)
   IF ~%bgObject:G
-    HIDE(%bgObject:Rgn)                                       ! could not start: the LIST shows through
+    HIDE(%bgObject:Rgn)                                       ! could not start: leave the LIST alone
     EXIT
   END
+  DO BG:Conceal:%bgObject                                     ! only now the grid can be seen
 !  The LIST is neither hidden nor moved: it stays exactly where it is, filling
 !  its queue, counting its visible rows and holding the selection, and the
 !  region sits on top of it. WS_CLIPSIBLINGS is what makes that stick - without
@@ -527,10 +530,8 @@ sty LONG,AUTO
   IF ~%bgObject:Rgn THEN EXIT.
   GETPOSITION(%bgList,x,y,w,h)
   SETPOSITION(%bgObject:Rgn,x,y,w,h)
-  IF ~%bgObject:Clipped
-    sty = bgApi_GetWindowLong(%bgList{PROP:Handle},BG:GwlStyle)
-    bgApi_SetWindowLong(%bgList{PROP:Handle},BG:GwlStyle,BOR(sty,BG:ClipSiblings))
-    %bgObject:Clipped = 1
+  IF %bgObject:G
+    DO BG:Conceal:%bgObject                                   ! a resize can bring it back
   END
 !  and raise the region above it, every time, because a resize can restack them
   bgApi_SetWindowPos(%bgObject:Rgn{PROP:Handle},BG:HwndTop,0,0,0,0,             |
@@ -624,6 +625,45 @@ row LONG,AUTO
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
+
+BG:Conceal:%bgObject ROUTINE
+!  Take WS_VISIBLE off the LIST at the WINDOWS level. Not HIDE(): ABC works out
+!  how many rows to load from the control's own state, and a hidden browse
+!  decides it has none - that was the very first bug this template had. But
+!  WS_VISIBLE is Windows' flag, not Clarion's. Strip it and Windows stops
+!  painting and hit-testing the control, while PROP:Hide, the queue, the
+!  visible-row count and everything else ABC reads are untouched. Proved in
+!  examples/BrowseGrid/novis.clw: winvis 1>0, PROP:Hide 0>0, recs 20.
+!
+!  This replaces WS_CLIPSIBLINGS, which was never enough. The two controls
+!  really are siblings - the same harness reports sameparent 1 - so the LIST
+!  was painting by some route that ignores the clip, and it did it every time
+!  it had any reason to redraw: on being given a new column width, on taking
+!  the focus for the popup. A window Windows will not paint cannot do that.
+  DATA
+sty LONG,AUTO
+  CODE
+  sty = bgApi_GetWindowLong(%bgList{PROP:Handle},BG:GwlStyle)
+  IF BAND(sty,BG:Visible)
+    bgApi_SetWindowLong(%bgList{PROP:Handle},BG:GwlStyle,                       |
+                        BAND(sty,BXOR(0FFFFFFFFh,BG:Visible)))
+    bgApi_SetWindowPos(%bgList{PROP:Handle},0,0,0,0,0,                          |
+                       BOR(BOR(BG:FrameChanged,BG:NoMove),BOR(BG:NoSize,BG:NoZOrder)))
+    %bgObject:Clipped = 1
+  END
+
+BG:Reveal:%bgObject ROUTINE
+!  ...and give it back, so a window that gives up on the grid still has a
+!  working browse to show.
+  DATA
+sty LONG,AUTO
+  CODE
+  IF ~%bgObject:Clipped THEN EXIT.
+  sty = bgApi_GetWindowLong(%bgList{PROP:Handle},BG:GwlStyle)
+  bgApi_SetWindowLong(%bgList{PROP:Handle},BG:GwlStyle,BOR(sty,BG:Visible))
+  bgApi_SetWindowPos(%bgList{PROP:Handle},0,0,0,0,0,                            |
+                     BOR(BOR(BG:FrameChanged,BG:NoMove),BOR(BG:NoSize,BG:NoZOrder)))
+  %bgObject:Clipped = 0
 
 BG:Cover:%bgObject ROUTINE
 !  Put the grid back over the LIST and draw it THIS INSTANT. Wanted any time

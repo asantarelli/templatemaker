@@ -241,6 +241,32 @@ else.
 Downwards is not like this and cannot be: it needs records, and only the browse can fetch them. The
 vertical thumb still moves the browse when you release it.
 
+## The LIST is made invisible to WINDOWS, not to Clarion
+
+Three fixes in a row failed to stop the LIST painting through the grid: it came back when a new column
+width was written to it, and again when it took the focus so the browse could be sent `AppsKey`. Each
+time the answer was "put the grid back on top and repaint", and each time another path turned up.
+
+The diagnosis was wrong, not the patches. `WS_CLIPSIBLINGS` was never enough — `novis.clw` reports
+`sameparent 1`, so the two controls really are siblings and the clip *should* apply, and `clipkeep.clw`
+reports `clip 1>1 zord 1>1`, so the style and the stacking order both survive. The LIST simply paints
+by a route that ignores them.
+
+`HIDE()` is not the answer either: ABC works out how many rows to load from the control's own state,
+and a hidden browse decides it has none — the very first bug this template had.
+
+But `WS_VISIBLE` is **Windows'** flag, not Clarion's. Strip it off the HWND with `SetWindowLong` and
+Windows stops painting and hit-testing the control, while `PROP:Hide`, the queue, the visible-row count
+and everything else ABC reads are untouched. `novis.clw` proves all of it in the faithful arrangement —
+a SHEET, a TAB, the LIST inside it, the region created the way the template creates it:
+
+    NOVIS sameparent 1 | winvis 1>0 | PROP:Hide 0>0 | recs 20 | px redred
+
+`winvis 1>0` it is gone from Windows, `PROP:Hide 0>0` Clarion still thinks it is there, `recs 20` the
+queue is intact, and `px redred` the region stays solid **after `SELECT(?List)`** — the exact action
+that produced the ghost row. `BG:Reveal` hands the flag back at Kill, so a window that gives up on the
+grid still has a working browse.
+
 ## The LIST draws through, so the grid has to be put back
 
 Right-click and the selected row appeared twice — once as the grid draws it, once at a different
