@@ -315,6 +315,29 @@ wheel is not a page jump.
 Unlike a thumb drag there is no modal loop here, so posting is enough: the ACCEPT loop runs between
 notches and the browse fetches its records as it always would.
 
+## The drawn page has to follow the selection
+
+Ctrl-PageUp went to the top and selected the first record. Ctrl-PageDown went to the bottom and
+selected nothing.
+
+`BG:Fill` always started drawing at queue entry one and stopped when it ran out of room:
+
+    rows = RECORDS(queue)
+    fit  = d2g_PageSize(grid) + 1
+    IF rows > fit THEN rows = fit.
+
+The grid's rows are taller than the LIST's lines, so the browse loads more records than there is room
+to draw, and starting from the top throws the tail away — those records are below the visible area. At
+the bottom of the file ABC selects the **last** entry, which was therefore never drawn, so nothing
+highlighted. The top never showed the bug because entry one is always drawn, which is exactly why one
+key worked and the other did not.
+
+`BG:Fill` now picks a starting point instead of assuming one: if the queue is longer than the grid can
+draw and the selection falls past the end of what would be drawn, it starts at `sel - fit` so the
+selected record is the last row on screen, clamped so it never runs off either end. `d2g_Page` is told
+that starting point, and the selection is set in absolute row numbers, which is what the engine
+compares against.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

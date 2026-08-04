@@ -834,18 +834,38 @@ BG:Fill:%bgObject ROUTINE
 !  more, which is exactly what the queue holds - the grid is told nothing
 !  about the file.
   DATA
-i    LONG,AUTO
-col  LONG,AUTO
-rows LONG,AUTO
-fit  LONG,AUTO
+i     LONG,AUTO
+col   LONG,AUTO
+rows  LONG,AUTO
+fit   LONG,AUTO
+first LONG,AUTO
+sel   LONG,AUTO
+total LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
-  rows = RECORDS(%bgQueue)
-  fit  = d2g_PageSize(%bgObject:G) + 1
-  IF rows > fit THEN rows = fit.
-  d2g_Page(%bgObject:G,0,rows)
+  total = RECORDS(%bgQueue)
+  fit   = d2g_PageSize(%bgObject:G) + 1
+  sel   = CHOICE(%bgList)
+  first = 0
+  rows  = total
+  IF fit > 0 AND total > fit
+!  The grid cannot draw the whole queue. Its rows are taller than the LIST's
+!  lines, so the browse has loaded more records than there is room for, and
+!  drawing from the top simply throws the tail away. Start far enough down that
+!  the SELECTED record is one of the ones drawn - at the bottom of the file ABC
+!  selects the last entry, and without this it was never on screen, which is
+!  what made Ctrl-PageDown look as though it had selected nothing. The top
+!  never showed it: entry one is always drawn.
+    rows = fit
+    IF sel > fit
+      first = sel - fit
+      IF first > total - fit THEN first = total - fit.
+      IF first < 0 THEN first = 0.
+    END
+  END
+  d2g_Page(%bgObject:G,first,rows)
   LOOP i = 1 TO rows
-    GET(%bgQueue,i)
+    GET(%bgQueue,first + i)
     IF ERRORCODE() THEN BREAK.
     LOOP col = 1 TO %bgObject:Cols
       IF %bgObject:Pic[col]
@@ -857,9 +877,9 @@ fit  LONG,AUTO
       d2g_Cell(%bgObject:G,i - 1,col - 1,%bgObject:Cell)
     END
   END
-  d2g_Total(%bgObject:G,rows)
-  %bgObject:Sel = CHOICE(%bgList)                             ! the browse owns the selection
-  d2g_Select(%bgObject:G,%bgObject:Sel - 1)
+  d2g_Total(%bgObject:G,total)
+  %bgObject:Sel = sel                                         ! the browse owns the selection
+  d2g_Select(%bgObject:G,sel - 1)                             ! absolute, and now always in view
   DO BG:Bars:%bgObject
   d2g_Repaint(%bgObject:G)
 
