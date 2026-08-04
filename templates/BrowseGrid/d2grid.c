@@ -150,6 +150,9 @@ typedef struct {
     int   vBar;                 /* drawn at all?                            */
     int   vPos;                 /* 0..100, the browse's own scale           */
     int   vPct;                 /* how much of the trough the thumb takes   */
+
+    char  face[64];             /* kept so the font can be rebuilt bigger   */
+    int   pt;
 } Grid;
 
 #define D2G_BARW 15
@@ -476,6 +479,8 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c->fmt    = d2g_Font(face, (float)pt, 0);
     c->fmtHdr = d2g_Font(face, (float)pt, 1);
     if (!c->fmt || !c->fmtHdr) { c->used = 0; return 0; }
+    { int k; for (k = 0; k < 63 && face[k]; k++) c->face[k] = face[k]; c->face[k] = 0; }
+    c->pt = pt;
     c->oldProc = (WNDPROC)GetWindowLongA((HWND)hwnd, GWL_WNDPROC);
     SetWindowLongA((HWND)hwnd, GWL_WNDPROC, (long)d2g_WndProc);
     return i;
@@ -705,6 +710,35 @@ int d2g_VDrag(int h, int y, int grab) {
     pos = (y - grab - top) * 100 / room;
     return pos < 0 ? 0 : (pos > 100 ? 100 : pos);
 }
+
+/* Build the text formats again at a new size, and grow the rows to match -
+   Ctrl and the wheel, the way every other program does it. Returns the size
+   actually used, so the caller can see where it stopped. */
+int d2g_FontSize(int h, int pt) {
+    Grid* c = slot(h);
+    void *f, *fh;
+    if (!c) return 0;
+    if (pt < 6)  pt = 6;
+    if (pt > 32) pt = 32;
+    if (pt == c->pt) return c->pt;
+    f  = d2g_Font(c->face, (float)pt, 0);
+    fh = d2g_Font(c->face, (float)pt, 1);
+    if (!f || !fh) {
+        if (f)  ((unsigned long (WINAPI*)(void*))VT(f)[2])(f);
+        if (fh) ((unsigned long (WINAPI*)(void*))VT(fh)[2])(fh);
+        return c->pt;
+    }
+    if (c->fmt)    ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
+    if (c->fmtHdr) ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
+    c->fmt = f; c->fmtHdr = fh;
+    c->rowH = pt + 10;                          /* the same rule d2g_Attach uses */
+    c->hdrH = pt + 12;
+    c->pt = pt;
+    InvalidateRect(c->hwnd, 0, 0);
+    return c->pt;
+}
+
+int d2g_FontPt(int h) { Grid* c = slot(h); return c ? c->pt : 0; }
 
 int d2g_HdrHeight(int h) {
     Grid* c = slot(h);

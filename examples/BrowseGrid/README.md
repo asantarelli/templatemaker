@@ -386,6 +386,43 @@ reason — on an ISAM file nothing knows the record count without reading the wh
 
 `docs/BrowseGrid-vertical-bar.png` is the harness with the thumb 40% down.
 
+## Why the thumb would not drag
+
+Clicking the trough worked; dragging the thumb did nothing. A trough click needs only
+`EVENT:MouseDown`, a drag needs `EVENT:MouseMove` — so the obvious suspect was the focus, which had
+just been handed to the LIST for the keyboard. `movefocus.clw` says no: an IMM region gets mouse moves
+whether it has the focus or not (`rgn d0m49u0`, `list d1m31u1`).
+
+The real cause is in ABC. `BrowseClass.UpdateThumb` turns the LIST's scrollbar **off** when the browse
+was not given a thumb (`ABBROWSE.CLW:1688`), and with it off, writing `PROP:VScrollPos` is ignored. So
+every drag wrote a position, read back nought, and ABC's `ScrollDrag` handler saw `VSP <= 1` and went
+to the top of the file. Setting `PROP:VScroll` on costs nothing here — the LIST is invisible, so this
+is a number being borrowed, not a scrollbar anyone will see.
+
+## A thumb that tells the truth about its size
+
+`RECORDS()` reads the count out of the file header, so it costs nothing to ask. The thumb is then sized
+the way every other scrollbar in Windows sizes one: a page against the whole file. Twenty records and
+it nearly fills the trough; two million and it is a sliver.
+
+Name the file on the extension's prompts — it defaults to the procedure's primary file. It is a plain
+label, deliberately **not** a `FILE` prompt: a `FILE` prompt puts the file into the procedure's
+schematic, which changes what AppGen thinks the procedure uses, and that broke an unrelated procedure
+in the test app with `Procedure doesn't belong to module`. A template that only wants to *read* a count
+has no business changing what the app is made of.
+
+A filtered or range-limited browse will read high, because the count is the file's, not the view's.
+
+The **position** is still ABC's `PROP:VScrollPos` — nought to a hundred, estimated from the key. Making
+that honest as well means the grid reading the VIEW itself, which is the outstanding job below.
+
+## Ctrl and the roller resize the type
+
+The same wheel hook checks for `MK_CONTROL` and rebuilds the text formats a point larger or smaller,
+6 to 32. The rows grow with the font by the same rule `d2g_Attach` uses, so the LIST is handed the new
+line height and the browse reloads — a bigger font fits fewer records, and both sides have to agree on
+that or the last rows go missing again.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

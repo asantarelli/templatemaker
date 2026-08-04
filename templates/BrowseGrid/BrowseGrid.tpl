@@ -74,7 +74,9 @@ BG:WmMouseWheel      EQUATE(020Ah)
 BG:WheelNotch        EQUATE(120)                              ! WHEEL_DELTA
 BG:WheelCode         EQUATE(99)                               ! not one of Windows' scroll codes
 BG:WheelLines        EQUATE(3)                                ! rows per notch, as everything else does
-BG:ThumbPct          EQUATE(12)                               ! how much of the trough the thumb takes
+BG:ThumbPct          EQUATE(12)                               ! fallback when the count is unknown
+BG:FontCode          EQUATE(98)                               ! Ctrl-wheel resized the type
+BG:MkControl         EQUATE(0008h)
 BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
@@ -123,6 +125,8 @@ d2g_VBar(LONG h,LONG show,LONG pos,LONG pct),NAME('_d2g_VBar')
 d2g_VHit(LONG h,LONG x,LONG y),LONG,NAME('_d2g_VHit')
 d2g_VGrab(LONG h,LONG y),LONG,NAME('_d2g_VGrab')
 d2g_VDrag(LONG h,LONG y,LONG grab),LONG,NAME('_d2g_VDrag')
+d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
+d2g_FontPt(LONG h),LONG,NAME('_d2g_FontPt')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -252,10 +256,25 @@ nTrack  LONG
     dz = BSHIFT(BAND(wParam,0FFFF0000h),-16)
     IF dz > 32767 THEN dz -= 65536.                           ! it is a SIGNED short up there
     IF dz
-      BG:LastBar  = BG:SbVert
-      BG:LastCode = BG:WheelCode
-      BG:LastPos  = dz
-      POST(BG:Scrolled)
+      IF BAND(wParam,BG:MkControl)
+!  Ctrl and the roller: bigger and smaller type, the way every other program
+!  does it. The rows grow with the font, so the browse is told to reload - it
+!  fits a different number of records now.
+        g = d2g_FromHwnd(hWnd)
+        IF g
+          d2g_FontSize(g,d2g_FontPt(g) + CHOOSE(dz > 0, 1, -1))
+          d2g_PaintNow(g)
+          BG:LastBar  = BG:SbVert
+          BG:LastCode = BG:FontCode
+          BG:LastPos  = 0
+          POST(BG:Scrolled)
+        END
+      ELSE
+        BG:LastBar  = BG:SbVert
+        BG:LastCode = BG:WheelCode
+        BG:LastPos  = dz
+        POST(BG:Scrolled)
+      END
     END
   END
   IF wMsg = BG:WmHScroll OR wMsg = BG:WmVScroll
@@ -348,6 +367,13 @@ c LONG,AUTO
       #PROMPT('Let the user &resize columns by dragging',CHECK),%bgSizeable,DEFAULT(1),AT(10)
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
+      #PROMPT('F&ile the browse reads (sizes the scrollbar thumb):',@s64),%bgFile,DEFAULT(%Primary)
+      #DISPLAY('RECORDS() reads the count from the file header, so the thumb can be')
+      #DISPLAY('sized honestly: a page against the whole file. Leave it blank and the')
+      #DISPLAY('thumb is a fixed size. A filtered or range-limited browse will read')
+      #DISPLAY('high, because the count is the file<39>s, not the view<39>s. This is a')
+      #DISPLAY('plain label, not a file prompt - naming it here must not change what')
+      #DISPLAY('the procedure is considered to use.')
       #DISPLAY('Sideways is the grid<39>s own. Downwards is passed to the browse,')
       #DISPLAY('so paging, locators and range limits behave as they always did.')
     #ENDBOXED
@@ -974,6 +1000,13 @@ BG:Scroll:%bgObject ROUTINE
 i LONG,AUTO
 n LONG,AUTO
   CODE
+  IF BG:LastCode = BG:FontCode
+!  The type changed size, so the rows did too: the LIST is given the new row
+!  height and the browse reloads to fit.
+    DO BG:Rows:%bgObject
+    DO BG:Fill:%bgObject
+    EXIT
+  END
   IF BG:LastCode = BG:WheelCode
 !  One notch is three rows, the same as everywhere else in Windows. The browse
 !  is asked to scroll exactly as its own scrollbar would ask it, so paging,
@@ -1023,8 +1056,10 @@ BG:Bars:%bgObject ROUTINE
 !  the columns are wider than the view, which is what anyone expects.
 #IF(%bgBars)
   DATA
-tot  LONG,AUTO
-view LONG,AUTO
+tot   LONG,AUTO
+view  LONG,AUTO
+pct   LONG,AUTO
+fRecs LONG,AUTO
   CODE
   IF ~%bgObject:Barred THEN EXIT.
 !  Sideways: the grid's own business - the total column width against the view.
@@ -1048,8 +1083,27 @@ view LONG,AUTO
 !  shows, because on an ISAM file that is the only answer there is - nothing
 !  knows the record count without reading the whole file. So the thumb is a
 !  fixed size and the position is ABC's.
+!  ABC only keeps PROP:VScrollPos when the browse was given a thumb, and turns
+!  the LIST's scrollbar off when it was not - and with it off, writing
+!  PROP:VScrollPos is ignored, so every drag read back as nought and was taken
+!  for "go to the top". Turning it on costs nothing: the LIST is invisible, so
+!  this is a number we are borrowing, not a scrollbar anyone will see.
+  %bgList{PROP:VScroll} = 1
   IF ~%bgObject:VDrag                                         ! not while it is being dragged
-    d2g_VBar(%bgObject:G,1,%bgList{PROP:VScrollPos},BG:ThumbPct)
+    pct = BG:ThumbPct
+#IF(%bgFile)
+!  How big the thumb should be is a question that CAN be answered honestly:
+!  RECORDS() reads the count out of the file header, so it costs nothing. A
+!  page against the whole file is what every other scrollbar in Windows means
+!  by the size of its thumb.
+    fRecs = RECORDS(%bgFile)
+    IF fRecs > 0
+      pct = 100 * RECORDS(%bgQueue) / fRecs
+      IF pct < 4 THEN pct = 4.
+      IF pct > 100 THEN pct = 100.
+    END
+#ENDIF
+    d2g_VBar(%bgObject:G,CHOOSE(pct >= 100, 0, 1),%bgList{PROP:VScrollPos},pct)
   END
 !  A scrollbar appearing or disappearing RESIZES the client area behind our
 !  back - hide the horizontal one and the client grows by its height. Nothing
