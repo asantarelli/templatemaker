@@ -121,6 +121,26 @@ time the resizer has finished and the LIST is the size it is going to be; the re
 render target is resized to match, and the page is refilled because a taller browse holds more rows. It
 needs to know nothing about the resizer, which is the point — any resizer, any priority.
 
+## Scrollbars: one is ours, one is the browse's
+
+The LIST's own scrollbars went off the window with it, so the grid needed its own — but the two
+directions are completely different jobs.
+
+- **Sideways is the grid's.** The columns can be wider than the region; nothing in the file changes when
+  you slide them. The bar is sized from `d2g_TotalWidth` against `d2g_ViewWidth`, and moving it just sets
+  `d2g_ScrollX` and repaints. Windows hides a bar whose page covers its range, so it appears only when
+  the columns really are too wide.
+- **Downwards is the browse's.** The grid has no idea where it is in the file — only ABC does. So the
+  vertical bar is a remote control: a line, a page or an end posts the matching `EVENT:ScrollUp` /
+  `PageDown` / `ScrollBottom` at the parked LIST, and a dragged thumb sets `PROP:VScrollPos` and posts
+  `EVENT:ScrollDrag` — exactly what the LIST's own bar would have done. The browse refills its queue,
+  ABC calls `Reset`, and that is where the grid picks up the new page. Paging, locators and range limits
+  therefore behave exactly as they always did.
+
+The thumb is approximate on an ISAM file, because `PROP:VScrollPos` is a nought-to-a-hundred estimate —
+the same approximation Clarion's own browse thumb shows, for the same reason: the file cannot say what
+its 743,000th record is without counting.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

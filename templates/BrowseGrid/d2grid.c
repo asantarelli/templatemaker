@@ -507,6 +507,24 @@ int d2g_Resize(int h) {
 
 /* how many whole rows fit below the header - what the Clarion side needs to
    know to fill a page */
+/* how wide every column is together, and how wide the view is - what a
+   horizontal scrollbar needs to size itself */
+int d2g_TotalWidth(int h) {
+    Grid* c = slot(h);
+    int col, w = 0;
+    if (!c) return 0;
+    for (col = 0; col < c->cols; col++) w += c->colW[col];
+    return w;
+}
+
+int d2g_ViewWidth(int h) {
+    Grid* c = slot(h);
+    RECT  r;
+    if (!c || !IsWindow(c->hwnd)) return 0;
+    GetClientRect(c->hwnd, &r);
+    return (int)(r.right - r.left);
+}
+
 int d2g_PageSize(int h) {
     Grid* c = slot(h);
     RECT  r;

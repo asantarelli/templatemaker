@@ -50,6 +50,32 @@
 #!-----------------------------------------------------------------------------
 #AT(%AfterGlobalIncludes),WHERE(%bgGDisable=0)
   PRAGMA('compile(d2grid.c)')                                 ! the grid, built by Clarion's own C compiler
+BG:Scrolled          EQUATE(EVENT:User + 244)                 ! a grid scrollbar moved
+BG:GwlStyle          EQUATE(-16)
+BG:GwlWndProc        EQUATE(-4)
+BG:HScrollStyle      EQUATE(00100000h)
+BG:VScrollStyle      EQUATE(00200000h)
+BG:FrameChanged      EQUATE(0020h)
+BG:NoMove            EQUATE(0002h)
+BG:NoSize            EQUATE(0001h)
+BG:NoZOrder          EQUATE(0004h)
+BG:SbHorz            EQUATE(0)
+BG:SbVert            EQUATE(1)
+BG:WmHScroll         EQUATE(0114h)
+BG:WmVScroll         EQUATE(0115h)
+BG:SifRange          EQUATE(1)
+BG:SifPage           EQUATE(2)
+BG:SifPos            EQUATE(4)
+BG:SifTrack          EQUATE(10h)
+#ENDAT
+#!
+#!  The callback cannot hand anything to Clarion through POST, so what it saw
+#!  is left here for the ACCEPT loop to pick up. Only one scrollbar can be
+#!  moving at a time, so one set of variables is enough.
+#AT(%GlobalData),WHERE(%bgGDisable=0)
+BG:LastBar           LONG                                     ! 0 horizontal, 1 vertical
+BG:LastCode          LONG                                     ! what the user did to it
+BG:LastPos           LONG                                     ! and where the thumb ended up
 #ENDAT
 #!
 #AT(%GlobalMap),WHERE(%bgGDisable=0)
@@ -78,11 +104,162 @@ d2g_RowH(LONG h),LONG,NAME('_d2g_RowH')
 d2g_HeaderH(LONG h),LONG,NAME('_d2g_HeaderH')
 d2g_HitRow(LONG h,LONG y),LONG,NAME('_d2g_HitRow')
 d2g_HitCol(LONG h,LONG x),LONG,NAME('_d2g_HitCol')
+d2g_TotalWidth(LONG h),LONG,NAME('_d2g_TotalWidth')
+d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
+BG_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
+BG_HookBars(LONG),BYTE,PROC
+BG_DropBars(LONG),LONG,PROC
+BG_SetBar(LONG,LONG,LONG,LONG,LONG)
+BG_BarPos(LONG,LONG),LONG
+    MODULE('win32')
+bgApi_SetProp(ULONG hWnd,LONG lpString,LONG hData),LONG,PASCAL,PROC,NAME('SetPropA')
+bgApi_GetProp(ULONG hWnd,LONG lpString),LONG,PASCAL,NAME('GetPropA')
+bgApi_RemoveProp(ULONG hWnd,LONG lpString),LONG,PASCAL,PROC,NAME('RemovePropA')
+bgApi_CallWndProc(LONG lpPrev,ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam),LONG,PASCAL,NAME('CallWindowProcA')
+bgApi_SetWindowLong(ULONG hWnd,LONG nIndex,LONG dwNewLong),LONG,PASCAL,PROC,NAME('SetWindowLongA')
+bgApi_GetWindowLong(ULONG hWnd,LONG nIndex),LONG,PASCAL,NAME('GetWindowLongA')
+bgApi_SetWindowPos(ULONG hWnd,LONG after,LONG x,LONG y,LONG cx,LONG cy,ULONG flags),LONG,PASCAL,PROC,NAME('SetWindowPos')
+bgApi_SetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi,LONG redraw),LONG,PASCAL,PROC,NAME('SetScrollInfo')
+bgApi_GetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi),LONG,PASCAL,PROC,NAME('GetScrollInfo')
+    END
 #ENDAT
 #!
 #AT(%ProgramProcedures),WHERE(%bgGDisable=0)
+!  ---- scrollbars ---------------------------------------------------------
+!  A REGION is not born with scrollbars, so the styles go on at run time and
+!  the control is subclassed for the two scroll messages. The address of the
+!  callback is taken HERE, in the module that defines it - taken in a member
+!  module it is an import thunk, not the procedure.
+BG_HookBars PROCEDURE(LONG pHwnd)
+prop CSTRING('BrowseGridBarProc')
+old  LONG,AUTO
+sty  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  IF bgApi_GetProp(pHwnd,ADDRESS(prop)) THEN RETURN 0.
+  sty = bgApi_GetWindowLong(pHwnd,BG:GwlStyle)
+  bgApi_SetWindowLong(pHwnd,BG:GwlStyle,BOR(BOR(sty,BG:HScrollStyle),BG:VScrollStyle))
+  bgApi_SetWindowPos(pHwnd,0,0,0,0,0,BOR(BOR(BOR(BG:FrameChanged,BG:NoMove),BG:NoSize),BG:NoZOrder))
+  old = bgApi_SetWindowLong(pHwnd,BG:GwlWndProc,ADDRESS(BG_BarProc))
+  IF ~old THEN RETURN 0.
+  bgApi_SetProp(pHwnd,ADDRESS(prop),old)
+  RETURN 1
+
+BG_DropBars PROCEDURE(LONG pHwnd)
+prop CSTRING('BrowseGridBarProc')
+old  LONG,AUTO
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  old = bgApi_GetProp(pHwnd,ADDRESS(prop))
+  IF old
+    bgApi_SetWindowLong(pHwnd,BG:GwlWndProc,old)
+  END
+  bgApi_RemoveProp(pHwnd,ADDRESS(prop))
+  RETURN old
+
+BG_SetBar PROCEDURE(LONG pHwnd,LONG pBar,LONG pPos,LONG pPage,LONG pTotal)
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  IF ~pHwnd THEN RETURN.
+  si.cbSize = SIZE(si)
+  si.fMask  = BOR(BOR(BG:SifRange,BG:SifPage),BG:SifPos)
+  si.nMin   = 0
+  si.nMax   = pTotal - 1
+  si.nPage  = pPage
+  si.nPos   = pPos
+  bgApi_SetScrollInfo(pHwnd,pBar,ADDRESS(si),1)
+
+BG_BarPos PROCEDURE(LONG pHwnd,LONG pBar)
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  IF ~pHwnd THEN RETURN 0.
+  si.cbSize = SIZE(si)
+  si.fMask  = BG:SifPos
+  IF ~bgApi_GetScrollInfo(pHwnd,pBar,ADDRESS(si)) THEN RETURN 0.
+  RETURN si.nPos
+
+!  Windows does not work out the new position for a scroll message; this does,
+!  writes it back, leaves what happened in the globals and tells the ACCEPT
+!  loop. Horizontal scrolling is the grid's own business - it just slides the
+!  columns. Vertical is the BROWSE's, so it is passed on rather than acted on.
+BG_BarProc PROCEDURE(ULONG hWnd,ULONG wMsg,ULONG wParam,LONG lParam)
+prop CSTRING('BrowseGridBarProc')
+old  LONG,AUTO
+bar  LONG,AUTO
+code LONG,AUTO
+pos  LONG,AUTO
+si   GROUP
+cbSize  ULONG
+fMask   ULONG
+nMin    LONG
+nMax    LONG
+nPage   ULONG
+nPos    LONG
+nTrack  LONG
+     END
+  CODE
+  old = bgApi_GetProp(hWnd,ADDRESS(prop))
+  IF wMsg = BG:WmHScroll OR wMsg = BG:WmVScroll
+    bar = CHOOSE(wMsg = BG:WmHScroll, BG:SbHorz, BG:SbVert)
+    code = BAND(wParam,0FFFFh)
+    si.cbSize = SIZE(si)
+    si.fMask  = BOR(BOR(BOR(BG:SifRange,BG:SifPage),BG:SifPos),BG:SifTrack)
+    IF bgApi_GetScrollInfo(hWnd,bar,ADDRESS(si))
+      pos = si.nPos
+      CASE code
+      OF 0
+        pos -= INT(si.nPage / 8) + 1
+      OF 1
+        pos += INT(si.nPage / 8) + 1
+      OF 2
+        pos -= si.nPage
+      OF 3
+        pos += si.nPage
+      OF 4
+        pos = si.nTrack
+      OF 5
+        pos = si.nTrack
+      OF 6
+        pos = si.nMin
+      OF 7
+        pos = si.nMax
+      END
+      IF pos > si.nMax - si.nPage + 1 THEN pos = si.nMax - si.nPage + 1.
+      IF pos < si.nMin THEN pos = si.nMin.
+      IF bar = BG:SbHorz                                      ! ours: just move the columns
+        si.fMask = BG:SifPos
+        si.nPos  = pos
+        bgApi_SetScrollInfo(hWnd,bar,ADDRESS(si),1)
+      END
+      BG:LastBar  = bar
+      BG:LastCode = code
+      BG:LastPos  = pos
+      POST(BG:Scrolled)
+    END
+  END
+  IF old
+    RETURN bgApi_CallWndProc(old,hWnd,wMsg,wParam,lParam)
+  END
+  RETURN 0
+
 !  A Clarion COLOR is a BGR long; Direct2D wants 0xRRGGBB. One place, once.
 BG_Rgb PROCEDURE(LONG pColor)
 c LONG,AUTO
@@ -112,6 +289,9 @@ c LONG,AUTO
       #DISPLAY('pictures and alignment come over as they are, including any')
       #DISPLAY('the user has resized or reordered.')
       #PROMPT('&Frozen columns (stay put when scrolled sideways):',SPIN(@n2,0,8,1)),%bgFrozen,DEFAULT(0)
+      #PROMPT('&Scrollbars on the grid',CHECK),%bgBars,DEFAULT(1),AT(10)
+      #DISPLAY('Sideways is the grid<39>s own. Downwards is passed to the browse,')
+      #DISPLAY('so paging, locators and range limits behave as they always did.')
     #ENDBOXED
   #ENDTAB
   #TAB('&Look')
@@ -146,6 +326,8 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 %bgObject:Cell       CSTRING(65)
 %bgObject:Sel        LONG
 %bgObject:Parked     BYTE                                    ! is the LIST out of sight yet?
+%bgObject:Barred     BYTE                                    ! does it have scrollbars yet?
+%bgObject:ScrollX    LONG                                    ! how far sideways the columns are
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -180,6 +362,12 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 !  puts the move at the back of the queue, by which time the resizer has
 !  finished and the LIST is the size it is going to be.
     POST(BG:Resized:%bgObject)
+#IF(%bgBars)
+  OF BG:Scrolled
+    IF %bgObject:G AND %bgObject:Barred
+      DO BG:Scroll:%bgObject
+    END
+#ENDIF
   OF BG:Resized:%bgObject
     IF %bgObject:G
       DO BG:Place:%bgObject                                   ! follow the LIST to its new size
@@ -199,6 +387,10 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
+  IF %bgObject:Barred
+    BG_DropBars(%bgObject:Rgn{PROP:Handle})
+    %bgObject:Barred = 0
+  END
   IF %bgObject:G
     d2g_Detach(%bgObject:G)
     %bgObject:G = 0
@@ -239,6 +431,11 @@ h  SIGNED,AUTO
 #ENDIF
 #IF(%bgHdrH > 0)
   d2g_HeaderHeight(%bgObject:G,%bgHdrH)
+#ENDIF
+#IF(%bgBars)
+  IF BG_HookBars(%bgObject:Rgn{PROP:Handle})
+    %bgObject:Barred = 1
+  END
 #ENDIF
   d2g_Frozen(%bgObject:G,%bgFrozen)
   d2g_Colours(%bgObject:G,BG_Rgb(%bgCBack),BG_Rgb(%bgCBand),                  |
@@ -371,7 +568,73 @@ fit  LONG,AUTO
   d2g_Total(%bgObject:G,rows)
   %bgObject:Sel = CHOICE(%bgList)                             ! the browse owns the selection
   d2g_Select(%bgObject:G,%bgObject:Sel - 1)
+  DO BG:Bars:%bgObject
   d2g_Repaint(%bgObject:G)
+
+BG:Scroll:%bgObject ROUTINE
+!  Sideways is ours: slide the columns and repaint, nothing else changes.
+!  Downwards is the browse's: it is told to scroll exactly as it would be by
+!  its own scrollbar, and when it has refilled its queue ABC calls Reset, which
+!  is where the grid picks the new page up. So paging, locators and range
+!  limits keep behaving as they always did.
+#IF(%bgBars)
+  IF BG:LastBar = BG:SbHorz
+    %bgObject:ScrollX = BG:LastPos
+    d2g_ScrollX(%bgObject:G,%bgObject:ScrollX)
+    d2g_Repaint(%bgObject:G)
+    EXIT
+  END
+  CASE BG:LastCode
+  OF 0
+    POST(EVENT:ScrollUp,%bgList)
+  OF 1
+    POST(EVENT:ScrollDown,%bgList)
+  OF 2
+    POST(EVENT:PageUp,%bgList)
+  OF 3
+    POST(EVENT:PageDown,%bgList)
+  OF 6
+    POST(EVENT:ScrollTop,%bgList)
+  OF 7
+    POST(EVENT:ScrollBottom,%bgList)
+  ELSE
+    %bgList{PROP:VScrollPos} = BG:LastPos                     ! the thumb, dragged
+    POST(EVENT:ScrollDrag,%bgList)
+  END
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Bars:%bgObject ROUTINE
+!  Size both scrollbars from what is actually showing. Windows hides a bar
+!  whose page covers its whole range, so the horizontal one appears only when
+!  the columns are wider than the view, which is what anyone expects.
+#IF(%bgBars)
+  DATA
+tot  LONG,AUTO
+view LONG,AUTO
+  CODE
+  IF ~%bgObject:Barred THEN EXIT.
+!  Sideways: the grid's own business - the total column width against the view.
+  tot  = d2g_TotalWidth(%bgObject:G)
+  view = d2g_ViewWidth(%bgObject:G)
+  IF view < 1 THEN view = 1.
+  IF tot <= view
+    %bgObject:ScrollX = 0
+    d2g_ScrollX(%bgObject:G,0)
+    BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbHorz,0,1,1)     ! nothing to scroll: no bar
+  ELSE
+    IF %bgObject:ScrollX > tot - view THEN %bgObject:ScrollX = tot - view.
+    BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbHorz,%bgObject:ScrollX,view,tot)
+  END
+!  Down: NOT ours. The browse knows where it is in the file and keeps that in
+!  the LIST's own PROP:VScrollPos, nought to a hundred - the same approximate
+!  position Clarion's own browse thumb shows, because on an ISAM file that is
+!  the only answer there is.
+  BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbVert,%bgList{PROP:VScrollPos},10,110)
+#ELSE
+  EXIT
+#ENDIF
 #ENDAT
 #!#############################################################################
 #!  GROUPS
