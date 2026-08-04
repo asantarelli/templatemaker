@@ -241,6 +241,26 @@ else.
 Downwards is not like this and cannot be: it needs records, and only the browse can fetch them. The
 vertical thumb still moves the browse when you release it.
 
+## The LIST draws through, so the grid has to be put back
+
+Right-click and the selected row appeared twice — once as the grid draws it, once at a different
+height with different column widths. That second one is the LIST's own rendering: `SELECT` gives it
+the focus so the browse can be sent `AppsKey`, and taking the focus is exactly what makes a listbox
+draw its selection bar.
+
+`WS_CLIPSIBLINGS` stops the LIST *owning* the region's pixels but does not stop it drawing into them,
+which is the same thing that happened when a new column width was written back. So there is now one
+routine, `BG:Cover`, that puts the region back on top and draws it **this instant** — `d2g_PaintNow`,
+not `d2g_Repaint`, because an invalidated window would not be redrawn until the menu closed. It runs
+before the menu opens and again afterwards, and at the end of a column drag.
+
+## Colours are prompts, not accidents
+
+The default header is `004A3A2BH`. Clarion colours are `0x00BBGGRR`, so that is RGB(43, 58, 74) — a
+dark slate blue, which reads as black at header size. Every colour the grid uses is on the **Look**
+tab of the extension: background, banding, gridlines, text, header background and text, selected row
+and text.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

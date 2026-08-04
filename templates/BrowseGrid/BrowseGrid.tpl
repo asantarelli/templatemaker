@@ -343,6 +343,7 @@ c LONG,AUTO
 #AT(%DataSection),WHERE(%bgDisable=0 AND %bgList)
 BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 BG:Popup:%bgObject   EQUATE(EVENT:User + 200 + %ActiveTemplateInstance)
+BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
 %bgObject:Cols       LONG                                    ! how many columns came over
@@ -404,7 +405,18 @@ BG:Popup:%bgObject   EQUATE(EVENT:User + 200 + %ActiveTemplateInstance)
 !  By now the SELECT has taken effect and the LIST really has the focus, so the
 !  keystroke reaches it. Done in the same breath as the SELECT it would still
 !  be sitting on the region.
+!
+!  Taking the focus is also what makes the LIST draw its own selected row, and
+!  it draws it straight through the grid - at its own line height and its own
+!  column widths, which is what makes it look like the row appears twice. So
+!  the grid is put back over it BEFORE the menu opens, and again afterwards in
+!  case the LIST repaints while the menu is up. PaintNow, not Repaint: an
+!  invalidated window would not be redrawn until the menu closed.
+    DO BG:Cover:%bgObject
     PRESSKEY(AppsKey)
+    POST(BG:Cover:%bgObject)
+  OF BG:Cover:%bgObject
+    DO BG:Cover:%bgObject
 #ENDIF
   OF BG:Resized:%bgObject
     IF %bgObject:G
@@ -613,6 +625,20 @@ row LONG,AUTO
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
 
+BG:Cover:%bgObject ROUTINE
+!  Put the grid back over the LIST and draw it THIS INSTANT. Wanted any time
+!  the LIST has had a reason to paint itself - taking the focus, being given a
+!  new column width - because the clip style stops it owning the region's
+!  pixels but does not stop it drawing into them.
+#IF(%bgPopup)
+  IF ~%bgObject:G THEN EXIT.
+  DO BG:Place:%bgObject
+  d2g_Resize(%bgObject:G)
+  d2g_PaintNow(%bgObject:G)
+#ELSE
+  EXIT
+#ENDIF
+
 BG:Right:%bgObject ROUTINE
 !  Hand a right-click back to the browse. NOT by forwarding the click itself:
 !  the grid's rows and the LIST's rows are not the same height, so the same
@@ -728,7 +754,7 @@ c LONG,AUTO
 !  happened when the button came up.
     DO BG:Place:%bgObject
     d2g_Resize(%bgObject:G)
-    d2g_Repaint(%bgObject:G)
+    d2g_PaintNow(%bgObject:G)
   END
   %bgObject:RzCol = 0
 #ELSE
