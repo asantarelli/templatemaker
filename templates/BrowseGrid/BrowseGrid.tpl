@@ -69,6 +69,7 @@ BG:SifRange          EQUATE(1)
 BG:SifPage           EQUATE(2)
 BG:SifPos            EQUATE(4)
 BG:SifTrack          EQUATE(10h)
+BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
 #!  The callback cannot hand anything to Clarion through POST, so what it saw
@@ -107,6 +108,10 @@ d2g_HeaderH(LONG h),LONG,NAME('_d2g_HeaderH')
 d2g_HitRow(LONG h,LONG y),LONG,NAME('_d2g_HitRow')
 d2g_HitCol(LONG h,LONG x),LONG,NAME('_d2g_HitCol')
 d2g_TotalWidth(LONG h),LONG,NAME('_d2g_TotalWidth')
+d2g_HitEdge(LONG h,LONG x),LONG,NAME('_d2g_HitEdge')
+d2g_ColWidth(LONG h,LONG col),LONG,NAME('_d2g_ColWidth')
+d2g_SetWidth(LONG h,LONG col,LONG width),NAME('_d2g_SetWidth')
+d2g_HdrHeight(LONG h),LONG,NAME('_d2g_HdrHeight')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -125,6 +130,7 @@ bgApi_GetWindowLong(ULONG hWnd,LONG nIndex),LONG,PASCAL,NAME('GetWindowLongA')
 bgApi_SetWindowPos(ULONG hWnd,LONG after,LONG x,LONG y,LONG cx,LONG cy,ULONG flags),LONG,PASCAL,PROC,NAME('SetWindowPos')
 bgApi_SetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi,LONG redraw),LONG,PASCAL,PROC,NAME('SetScrollInfo')
 bgApi_GetScrollInfo(ULONG hWnd,LONG bar,LONG lpsi),LONG,PASCAL,PROC,NAME('GetScrollInfo')
+bgApi_GetAsyncKeyState(LONG vKey),SHORT,PASCAL,NAME('GetAsyncKeyState')
     END
 #ENDAT
 #!
@@ -292,6 +298,7 @@ c LONG,AUTO
       #DISPLAY('the user has resized or reordered.')
       #PROMPT('&Frozen columns (stay put when scrolled sideways):',SPIN(@n2,0,8,1)),%bgFrozen,DEFAULT(0)
       #PROMPT('&Scrollbars on the grid',CHECK),%bgBars,DEFAULT(1),AT(10)
+      #PROMPT('Let the user &resize columns by dragging',CHECK),%bgSizeable,DEFAULT(1),AT(10)
       #DISPLAY('Sideways is the grid<39>s own. Downwards is passed to the browse,')
       #DISPLAY('so paging, locators and range limits behave as they always did.')
     #ENDBOXED
@@ -329,6 +336,11 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 %bgObject:Clipped    BYTE                                    ! has the LIST been told to clip?
 %bgObject:Barred     BYTE                                    ! does it have scrollbars yet?
 %bgObject:ScrollX    LONG                                    ! how far sideways the columns are
+%bgObject:Col        LONG,DIM(32)                            ! LIST column behind each grid one
+%bgObject:RzCol      LONG                                    ! column being dragged, 0 = none
+%bgObject:RzX        LONG                                    ! where the drag started
+%bgObject:RzW        LONG                                    ! and how wide the column was then
+%bgObject:RzCur      BYTE                                    ! is the sizing cursor showing?
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
@@ -383,6 +395,12 @@ BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
     CASE EVENT()
     OF EVENT:MouseDown
       DO BG:Hit:%bgObject
+#IF(%bgSizeable)
+    OF EVENT:MouseMove
+      DO BG:Sizing:%bgObject
+    OF EVENT:MouseUp
+      DO BG:SizeEnd:%bgObject
+#ENDIF
     END
   END
 #ENDAT
@@ -506,6 +524,7 @@ head  CSTRING(65)
     END
     head = CLIP(LEFT(head))
     %bgObject:Fld[n + 1] = fld
+    %bgObject:Col[n + 1] = c                                  ! so a resize can be written back
     %bgObject:Pic[n + 1] = CLIP(%bgList{PROPLIST:Picture,c})
     d2g_Column(%bgObject:G,n,wid * 2,algn,head)               ! LIST widths are dialog units
     n += 1
@@ -525,14 +544,31 @@ ry SIGNED,AUTO
 rw SIGNED,AUTO
 rh SIGNED,AUTO
 sp LONG,AUTO
+mx LONG,AUTO
+my LONG,AUTO
+col LONG,AUTO
 row LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
   sp = 0{PROP:Pixels}
   0{PROP:Pixels} = 1
   GETPOSITION(%bgObject:Rgn,rx,ry,rw,rh)
-  row = d2g_HitRow(%bgObject:G,MOUSEY() - ry)
+  mx = MOUSEX() - rx
+  my = MOUSEY() - ry
+  row = d2g_HitRow(%bgObject:G,my)
   0{PROP:Pixels} = sp
+#IF(%bgSizeable)
+!  On a heading, over the edge of a column: that is a resize, not a selection.
+  IF my < d2g_HdrHeight(%bgObject:G)
+    col = d2g_HitEdge(%bgObject:G,mx)
+    IF col >= 0
+      %bgObject:RzCol = col + 1                               ! 1-based: 0 means nothing is being dragged
+      %bgObject:RzX   = mx
+      %bgObject:RzW   = d2g_ColWidth(%bgObject:G,col)
+    END
+    EXIT                                                      ! headings never change the selection
+  END
+#ENDIF
   IF row < 0 OR row >= RECORDS(%bgQueue) THEN EXIT.
   %bgList{PROP:Selected} = row + 1
   POST(EVENT:NewSelection,%bgList)                            ! let the browse react as usual
@@ -540,6 +576,83 @@ row LONG,AUTO
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
+
+BG:Sizing:%bgObject ROUTINE
+!  Two jobs on one event. Dragging: widen or narrow the column under the
+!  pointer, measured from where the drag STARTED rather than from the last
+!  event - deltas lose their remainder and the column creeps away from the
+!  pointer. Not dragging: show the sizing cursor when the edge is grabbable, so
+!  the user can see there is something there. Only when it CHANGES, or the
+!  cursor is reset on every mouse move and flickers.
+#IF(%bgSizeable)
+  DATA
+rx SIGNED,AUTO
+ry SIGNED,AUTO
+rw SIGNED,AUTO
+rh SIGNED,AUTO
+sp LONG,AUTO
+mx LONG,AUTO
+my LONG,AUTO
+col LONG,AUTO
+wid LONG,AUTO
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  sp = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+  GETPOSITION(%bgObject:Rgn,rx,ry,rw,rh)
+  mx = MOUSEX() - rx
+  my = MOUSEY() - ry
+  0{PROP:Pixels} = sp
+  IF %bgObject:RzCol
+!  Windows answers with the high bit set while the button is down, and a SHORT
+!  is signed, so "still held" is simply "negative". Clarion has no MOUSEDOWN,
+!  and the mouse can be released off the grid, where no MouseUp ever arrives.
+    IF bgApi_GetAsyncKeyState(BG:VkLButton) >= 0
+
+      DO BG:SizeEnd:%bgObject
+      EXIT
+    END
+    wid = %bgObject:RzW + mx - %bgObject:RzX
+    IF wid < 16 THEN wid = 16.
+    d2g_SetWidth(%bgObject:G,%bgObject:RzCol - 1,wid)
+    DO BG:Bars:%bgObject                                      ! the columns are a different width now
+    d2g_Repaint(%bgObject:G)
+    EXIT
+  END
+  col = -1
+  IF my < d2g_HdrHeight(%bgObject:G)
+    col = d2g_HitEdge(%bgObject:G,mx)
+  END
+  IF col >= 0
+    IF ~%bgObject:RzCur
+      %bgObject:Rgn{PROP:Cursor} = CURSOR:SizeWE
+      %bgObject:RzCur = 1
+    END
+  ELSIF %bgObject:RzCur
+    %bgObject:Rgn{PROP:Cursor} = ''
+    %bgObject:RzCur = 0
+  END
+#ELSE
+  EXIT
+#ENDIF
+
+BG:SizeEnd:%bgObject ROUTINE
+!  Put the new width back on the LIST as well. The browse goes on believing it
+!  owns its own columns - anything that reads them, saves them or rebuilds the
+!  grid from them then agrees with what is on screen.
+#IF(%bgSizeable)
+  DATA
+c LONG,AUTO
+  CODE
+  IF ~%bgObject:RzCol THEN EXIT.
+  c = %bgObject:Col[%bgObject:RzCol]
+  IF c
+    %bgList{PROPLIST:Width,c} = d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2
+  END
+  %bgObject:RzCol = 0
+#ELSE
+  EXIT
+#ENDIF
 
 BG:Fill:%bgObject ROUTINE
 !  Push the browse's queue into the grid. This is every visible row and no

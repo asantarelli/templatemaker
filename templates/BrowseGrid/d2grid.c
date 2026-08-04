@@ -578,6 +578,43 @@ int d2g_HitRow(int h, int y) {
     return c->firstRow + (int)((y - c->hdrH + c->scrollY) / c->rowH);
 }
 
+/* Which column's RIGHT edge is under x, within a few pixels - the grab handle
+   for resizing. Frozen columns keep their own edges, unscrolled. -1 for none. */
+int d2g_HitEdge(int h, int x) {
+    Grid* c = slot(h);
+    int col, at, fx = 0;
+    const int grab = 4;
+    if (!c) return -1;
+    for (col = 0; col < c->frozen && col < c->cols; col++) {
+        fx += c->colW[col];
+        if (x >= fx - grab && x <= fx + grab) return col;
+    }
+    at = -c->scrollX;
+    for (col = 0; col < c->cols; col++) {
+        at += c->colW[col];
+        if (col >= c->frozen && at > fx && x >= at - grab && x <= at + grab) return col;
+    }
+    return -1;
+}
+
+int d2g_HdrHeight(int h) {
+    Grid* c = slot(h);
+    return c ? c->hdrH : 0;
+}
+
+int d2g_ColWidth(int h, int col) {
+    Grid* c = slot(h);
+    if (!c || col < 0 || col >= c->cols) return 0;
+    return c->colW[col];
+}
+
+/* just the width - d2g_Column would want the title and alignment again */
+void d2g_SetWidth(int h, int col, int w) {
+    Grid* c = slot(h);
+    if (!c || col < 0 || col >= c->cols) return;
+    c->colW[col] = w < 16 ? 16 : w;
+}
+
 int d2g_HitCol(int h, int x) {
     Grid* c = slot(h);
     int col, at, fx = 0;

@@ -161,6 +161,35 @@ scroll offset either.
 `docs/BrowseGrid-frozen-columns.png` is the harness with two frozen columns scrolled 170px: Customer and
 Town intact on the left, Status sliding underneath them and clipped at the seam.
 
+## Dragging a column edge
+
+Grab the edge of a heading and drag: the column follows. Turn it off with **Let the user resize
+columns by dragging** on the extension's prompts.
+
+Four things it has to get right, and `edgetest.clw` proves all fifteen assertions behind them:
+
+- **A frozen edge never moves.** Scroll sideways and the frozen columns stay where they are, so their
+  edges have to be measured unscrolled. `d2g_HitEdge` checks the frozen strip first, before it looks at
+  anything the scroll offset touches.
+- **An edge that has slid under the frozen block is not grabbable.** Otherwise you would be dragging a
+  column you cannot see. Scrolled 170px, the edge at x=200 belongs to a hidden column — the hit test
+  returns nothing there.
+- **The drag is anchored, not incremental.** Width is recomputed from where the drag *started*
+  (`startW + x - startX`), never accumulated from the last event. Deltas lose their remainder and the
+  column creeps away from the pointer — the same bug that made the image pan wander.
+- **Releasing off the grid still ends the drag.** No `EVENT:MouseUp` arrives if the button comes up
+  outside the region, so each `MouseMove` asks Windows directly whether the button is still down.
+  Clarion has no `MOUSEDOWN`; `GetAsyncKeyState` returns a *signed* SHORT with the high bit set while
+  held, so "still down" is simply "negative".
+
+The new width is written back to the LIST's `PROPLIST:Width` when the drag ends, so the browse goes on
+believing it owns its own columns — anything that reads, saves or rebuilds from them agrees with what
+is on screen.
+
+**After updating, force a full rebuild.** `d2grid.c` lives on the redirection path, so Clarion does not
+notice it has changed and links the cached `.obj` — which shows up as `Unresolved External _d2g_HitEdge`
+rather than as anything obviously to do with the C file.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
