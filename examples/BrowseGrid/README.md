@@ -40,7 +40,38 @@ record you pointed at.
 | `d2g_ScrollY(px)` / `d2g_RowH` | nudge the page by pixels — smooth, not jumpy |
 | `d2g_Resize` / `d2g_Repaint` / `d2g_PaintNow` | keep it in step with the window |
 
-## Not built yet
+## The template, tested on a real browse
 
-The **template** — dropping this on an existing ABC browse so it takes the LIST's place, driven by the
-same `BrowseClass` and VIEW. The engine is deliberately data-free so that binding is a Clarion-side job.
+`templates/BrowseGrid/BrowseGrid.tpl` is the drop-in: add it to a procedure that already has an ABC
+browse, point it at the LIST, and the LIST is hidden with the grid drawn in its place.
+
+It was tested against a **copy of a real application** rather than an invented one — School's
+`BrowseStudents`, whose LIST is `?Browse:1` over `Queue:Browse:1`. `add-to-a-real-browse.py` is how:
+export the app to a TXA, splice the two `[ADDITION]` blocks in, re-import, generate, compile.
+
+```
+ClarionCL -win -au -ax SCHOOL.APP school.txa      # export a COPY, never the original
+python add-to-a-real-browse.py                    # splice BrowseGrid in
+ClarionCL -win -au -ai bgschool.app school.txa
+ClarionCL -win -au -ag bgschool.app
+MSBuild bgschool.cwproj /p:ClarionBinPath=C:\clarion12in /p:Configuration=Debug
+```
+
+Result: **generates and compiles clean, 0 errors**, whole application. The generated code hides
+`?Browse:1`, reads its columns with `PROPLIST:FieldNo` and friends, and reads values with
+`WHAT(Queue:Browse:1, fieldno)` — the browse itself is untouched.
+
+Two things that testing caught, which reading would not have:
+
+- **`Queue:Browse` is wrong.** ABC names the first browse queue `Queue:Browse:1`. The prompt default
+  said otherwise until a real app said so.
+- **A value-returning `#GROUP` cannot be called from an emitted line.** `%bgRgb(%bgCBack)` inside
+  generated source is not a call — substitution looks for a symbol of that name and reports
+  `Unknown Variable`. Template expressions can call groups; output lines cannot. The BGR-to-RGB
+  conversion is an ordinary Clarion function now, `BG_Rgb`, written once by the global extension.
+
+## Still to come
+
+Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
+the browse's own queue, which is one page, so it moves a page at a time like any browse. Buffering a
+few pages around the viewport and moving through the VIEW with NEXT/PREVIOUS is the next piece.
