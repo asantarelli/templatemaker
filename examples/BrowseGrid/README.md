@@ -674,9 +674,24 @@ restarts from the queue's own view position rather than the top (`RESET(SELF.Vie
 SELF.ListQueue.GetViewPosition())`), so a filter that matches nothing near the cursor can come back
 empty even when it matches plenty elsewhere.
 
-So the filter is applied and then the browse is asked to go to the top of the new set through its own
-event — `POST(EVENT:ScrollTop, list)`. ABC re-reads, calls `Reset` when it has, and the `Reset` embed
-fills the grid, by which time there is something to fill it from.
+So the filter is applied, the browse is asked to go to the top of the new set through its own event
+(`POST(EVENT:ScrollTop, list)`), **and a refill of the grid is posted behind it**. Relying on `Reset` or
+`TakeNewSelection` to fire after a filter was not enough on its own — the posted refill is handled after
+everything the browse posted for itself, so by the time it runs the queue is whatever the browse ended
+up with, whichever path got it there.
+
+## Ascending and descending have to mean it
+
+Both menu items sorted ascending, whichever was chosen, and the arrow always pointed up.
+
+`BG:Sort` sets ascending whenever it thinks the heading is a new one — and the menu cleared `SortOn`
+first, precisely so the toggle would not fire, which sent both items down that branch. Asking twice for
+descending did not help: two presses from an unknown starting point land back where they began.
+
+Nothing reports ABC's sort direction back — `PROPLIST:SortColumn` is an `ABS()` — so the only way to
+ask for a direction is to know where it currently is. `SortOn` and `SortDir` are that: a model of ABC's
+state, kept by the same rule ABC keeps it (a new heading starts ascending, the same heading toggles).
+The menu now presses only as often as getting to the asked-for direction takes — none, one or two.
 
 ## One button, saying everything
 

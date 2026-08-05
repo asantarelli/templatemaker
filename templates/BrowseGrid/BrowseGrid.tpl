@@ -455,6 +455,7 @@ c LONG,AUTO
 BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 BG:Popup:%bgObject   EQUATE(EVENT:User + 200 + %ActiveTemplateInstance)
 BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
+BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
 %bgObject:Cols       LONG                                    ! how many columns came over
@@ -540,6 +541,17 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
   OF BG:Cover:%bgObject
     DO BG:Cover:%bgObject
 #ENDIF
+  OF BG:Refill:%bgObject
+!  Posted LAST, so it is handled after everything the browse posted for itself.
+!  Refilling the grid depends on ABC calling Reset or TakeNewSelection once it
+!  has re-read, and after a filter that is not something to rely on - if
+!  neither fires, or fires before the queue is rebuilt, the grid keeps showing
+!  what it had. This does not care which: by the time it runs, the queue is
+!  whatever the browse ended up with.
+    IF %bgObject:G
+      DO BG:Fill:%bgObject
+      d2g_PaintNow(%bgObject:G)
+    END
   OF BG:Resized:%bgObject
     IF %bgObject:G
       DO BG:Place:%bgObject                                   ! follow the LIST to its new size
@@ -1069,6 +1081,7 @@ BG:Menu:%bgObject ROUTINE
   DATA
 pick LONG,AUTO
 fld  LONG,AUTO
+lc   LONG,AUTO
 nm   CSTRING(65)
 val  CSTRING(129)
   CODE
@@ -1084,13 +1097,23 @@ val  CSTRING(129)
   pick = POPUP('Sort &Ascending|Sort &Descending|-|' |
              & '&Filter on {{' & CLIP(val) & '}|Clear this &filter|-|Clear &all filters')
   CASE pick
-  OF 1
-  OROF 2
-    %bgObject:SortDir = CHOOSE(pick = 1, 1, -1)
-    %bgObject:SortOn  = 0                                     ! so BG:Sort does not flip it back
-    DO BG:Sort:%bgObject
-    IF pick = 2                                               ! ABC toggles: ask twice for descending
-      %bgObject:SortOn = 0
+  OF 1                                                        ! ascending
+    lc = %bgObject:Col[%bgObject:SortCol + 1]
+    IF %bgObject:SortOn <> lc
+      DO BG:Sort:%bgObject                                    ! a new heading starts ascending
+    ELSIF %bgObject:SortDir < 0
+      DO BG:Sort:%bgObject                                    ! it is descending: one press flips it
+    END
+  OF 2                                                        ! descending
+!  Clearing SortOn first - which is what this used to do - makes BG:Sort take
+!  its "a new column" branch, and that branch always sets ascending. So both
+!  menu items came out ascending however many times they were pressed. Ask for
+!  the direction instead, and press only as often as getting there takes.
+    lc = %bgObject:Col[%bgObject:SortCol + 1]
+    IF %bgObject:SortOn <> lc
+      DO BG:Sort:%bgObject                                    ! ascending first...
+      DO BG:Sort:%bgObject                                    ! ...then over to descending
+    ELSIF %bgObject:SortDir > 0
       DO BG:Sort:%bgObject
     END
   OF 4
@@ -1134,6 +1157,7 @@ BG:Filter:%bgObject ROUTINE
   %bgBrowseObj.SetFilter(%bgObject:Filter)
   %bgBrowseObj.ResetSort(1)
   POST(EVENT:ScrollTop,%bgList)
+  POST(BG:Refill:%bgObject)                                   ! and refresh once it has landed
 #ELSE
   MESSAGE('This grid has no browse object named on its prompts, so it cannot ' |
         & 'filter. Put the browse<39>s object name - BRW1, usually - in ' |
@@ -1160,12 +1184,14 @@ BG:Sort:%bgObject ROUTINE
   DATA
 lc LONG,AUTO
   CODE
+!  One press of a heading, and a note of what it will have done. ABC toggles
+!  ascending and descending on each press of the SAME heading and starts a new
+!  one ascending; nothing reports the direction back - PROPLIST:SortColumn is
+!  an ABS() - so the only way to ask for a direction is to know where it
+!  currently is. That is what SortOn and SortDir are: our model of ABC's state,
+!  kept by the same rule ABC keeps it.
   lc = %bgObject:Col[%bgObject:SortCol + 1]                   ! which LIST column that was
   IF ~lc THEN EXIT.
-!  Which way round the arrow points. ABC toggles on a second click of the same
-!  heading, so the same rule is kept here. It is only a mark: if the browse
-!  refuses the sort - not a valid field, or descending not allowed - the arrow
-!  is corrected on the next fill, where PROPLIST:SortColumn is read back.
   IF %bgObject:SortOn = lc
     %bgObject:SortDir = -%bgObject:SortDir
   ELSE
