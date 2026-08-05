@@ -142,7 +142,7 @@ d2g_GrpColW(LONG h,LONG col),LONG,NAME('_d2g_GrpColW')
 d2g_ColGrp(LONG h,LONG col),LONG,NAME('_d2g_ColGrp')
 d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
 d2g_HitBtn(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitBtn')
-d2g_FilterOn(LONG h,LONG col),NAME('_d2g_FilterOn')
+d2g_FilterOn(LONG h,LONG col,LONG on),NAME('_d2g_FilterOn')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
 d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align,*CSTRING title),RAW,NAME('_d2g_ColumnAt')
@@ -478,7 +478,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
 %bgObject:Filter     CSTRING(1025)                           ! what the grid has filtered on
-%bgObject:FilterCol  LONG                                    ! and which column it is on
+%bgObject:ColFilt    CSTRING(161),DIM(32)                    ! one filter per column, ANDed together
 %bgObject:Fills      LONG                                    ! how many times it has been refilled
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
@@ -646,8 +646,7 @@ h  SIGNED,AUTO
 #ENDIF
 #IF(%bgFilterBtn)
   d2g_FilterBtns(%bgObject:G,1)
-  %bgObject:FilterCol = -1                                    ! 0 is a real column, not "none"
-  d2g_FilterOn(%bgObject:G,-1)
+  d2g_FilterOn(%bgObject:G,-1,0)                              ! nothing is filtered to begin with
 #ENDIF
   d2g_Frozen(%bgObject:G,%bgFrozen)
   d2g_Colours(%bgObject:G,BG_Rgb(%bgCBack),BG_Rgb(%bgCBand),                  |
@@ -1055,7 +1054,10 @@ sc LONG,AUTO
 i  LONG,AUTO
   CODE
 #IF(%bgFilterBtn)
-  d2g_FilterOn(%bgObject:G,%bgObject:FilterCol)               ! survives every refill
+  d2g_FilterOn(%bgObject:G,-1,0)                              ! every mark, every refill
+  LOOP i = 1 TO %bgObject:Cols
+    IF %bgObject:ColFilt[i] THEN d2g_FilterOn(%bgObject:G,i - 1,1).
+  END
 #ENDIF
   sc = %bgList{PROPLIST:SortColumn}
   IF ~sc OR sc = %bgObject:SortOn THEN EXIT.
@@ -1125,17 +1127,24 @@ val  CSTRING(129)
     END
   OF 3                                                        ! filter on this value
     IF nm AND val
-      %bgObject:Filter = CLIP(nm) & ' = ' & '''' & CLIP(val) & ''''
-      %bgObject:FilterCol = %bgObject:SortCol
-      d2g_FilterOn(%bgObject:G,%bgObject:SortCol)
+!  Per column, and they add up - filtering a second column used to replace the
+!  first, so the browse quietly stopped being filtered on the one whose glyph
+!  had just gone out.
+      %bgObject:ColFilt[%bgObject:SortCol + 1] = CLIP(nm) & ' = ' & '''' & CLIP(val) & ''''
+      d2g_FilterOn(%bgObject:G,%bgObject:SortCol,1)
       d2g_PaintNow(%bgObject:G)                               ! say so NOW, not when the data lands
       DO BG:Filter:%bgObject
     END
-  OF 4
-  OROF 5                                                      ! clear this one, or all of them
-    %bgObject:Filter    = ''
-    %bgObject:FilterCol = -1
-    d2g_FilterOn(%bgObject:G,-1)
+  OF 4                                                        ! clear this column's
+    %bgObject:ColFilt[%bgObject:SortCol + 1] = ''
+    d2g_FilterOn(%bgObject:G,%bgObject:SortCol,0)
+    d2g_PaintNow(%bgObject:G)
+    DO BG:Filter:%bgObject
+  OF 5                                                        ! clear every column's
+    LOOP fld = 1 TO 32
+      %bgObject:ColFilt[fld] = ''
+    END
+    d2g_FilterOn(%bgObject:G,-1,0)
     d2g_PaintNow(%bgObject:G)
     DO BG:Filter:%bgObject
   END
@@ -1148,6 +1157,21 @@ BG:Filter:%bgObject ROUTINE
 !  come out of the VIEW, and only the browse object knows how to re-read them.
 #IF(%bgFilterBtn)
 #IF(%bgBrowseObj)
+  DATA
+i LONG,AUTO
+  CODE
+!  Every column's filter, ANDed. One string is what goes to the browse - ABC
+!  keeps a single expression per ID - so the columns are kept apart here and
+!  joined only on the way out.
+  %bgObject:Filter = ''
+  LOOP i = 1 TO %bgObject:Cols
+    IF ~%bgObject:ColFilt[i] THEN CYCLE.
+    IF %bgObject:Filter
+      %bgObject:Filter = CLIP(%bgObject:Filter) & ' AND ' & CLIP(%bgObject:ColFilt[i])
+    ELSE
+      %bgObject:Filter = CLIP(%bgObject:ColFilt[i])
+    END
+  END
 !  No DATA section here, so no CODE statement either - a ROUTINE only accepts
 !  CODE after a DATA block, and this one emitted a bare one the moment the
 !  filter button was switched on.
@@ -1485,7 +1509,6 @@ total LONG,AUTO
 !  empty, the rows were too tall to fit, or the columns never got read - and
 !  those want different fixes.
   0{PROP:Text} = 'BG q=' & total & ' fill=' & %bgObject:Fills                   |
-               & ' fcol=' & %bgObject:FilterCol                                 |
                & ' filt=' & CHOOSE(%bgObject:Filter <> '','Y','n')              |
                & ' cols=' & %bgObject:Cols                                      |
                & ' lines=' & %bgObject:Lines & ' rowh=' & d2g_RowH(%bgObject:G) |

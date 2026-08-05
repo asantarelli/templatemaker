@@ -662,6 +662,19 @@ Turning them on is a TXA round trip:
     ClarionCL -win -au -ai app.app out.txa      # import
     ClarionCL -win -au -ag app.app              # and generate
 
+## A filter per column, added together
+
+Filtering a second column made the first column's funnel disappear — and the glyph was telling the
+truth: the filter had gone too. There was **one** filter and **one** marked column, so a second one
+replaced the first, and the browse quietly stopped being filtered on a column the user still thought
+was filtered. That is worse than the missing glyph.
+
+Filters are per column now and add up the way Excel's do. Each column keeps its own expression; they
+are joined with `AND` only on the way out to `SetFilter`, because ABC keeps a single expression per ID.
+The marks are a set rather than one column index, so every filtered heading shows its funnel, and all
+of them are re-applied on every refill. **Clear this filter** clears the column you opened the menu on;
+**Clear all filters** clears the lot.
+
 ## POPUP counts its separators
 
 Filtering did nothing, and *clearing* a filter applied one — on the value that had been selected

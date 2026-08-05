@@ -478,7 +478,8 @@ it while every group to its right shifts along.
 **Excel's drop-down on every heading.** A boxed glyph at the right of each heading — `˅` for a menu, `▲`/`▼`
 for the sort direction, a **funnel** on a filled button when the column is filtered (U+E71C out of Windows'
 own icon font; if it does not resolve, the fill still says it). The menu sorts either way and filters on the
-value under the selection. Sorting goes through the browse exactly as a heading click does, and filtering
+value under the selection, **per column and added together** — filter three columns and all three are
+in force, all three say so, and each can be cleared on its own. Sorting goes through the browse exactly as a heading click does, and filtering
 calls the browse object's own `SetFilter`, so range limits and locators keep working. The field name for the
 filter is read at run time with **`WHO()`** — an ABC browse queue labels its fields with the file fields they
 came from, so `WHO(Queue:Browse:1,n)` answers `STU:LastName` and nothing has to be mapped by hand.

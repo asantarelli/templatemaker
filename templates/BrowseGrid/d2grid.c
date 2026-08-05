@@ -161,7 +161,10 @@ typedef struct {
     int   pt;
 
     int   btns;                 /* draw a filter button on every heading?   */
-    int   filterCol;            /* which column is filtered, -1 for none    */
+    /* Which columns are filtered - a SET, not one column. Filters add up the
+       way Excel's do, so more than one can be on at once and every one of them
+       has to say so on its own heading. */
+    int   colFilt[G_COLS];
     int   sortCol;              /* which column is sorted, -1 for none      */
     int   sortDir;              /* 1 up, -1 down                            */
 
@@ -531,7 +534,7 @@ static void d2g_Draw(Grid* c) {
                     int scol, sdir = 0, fcol = 0, i;
                     for (i = 0; i < c->cols; i++) if (c->colGrp[i] == col) {
                         if (i == c->sortCol)   sdir = c->sortDir;
-                        if (i == c->filterCol) fcol = 1;
+                        if (c->colFilt[i]) fcol = 1;
                     }
                     scol = sdir;
                     filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
@@ -562,9 +565,9 @@ static void d2g_Draw(Grid* c) {
                  c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
             if (c->btns)
                 filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
-                          (col == c->filterCol) ? c->cSelBack : c->cHdrBack,
+                          c->colFilt[col] ? c->cSelBack : c->cHdrBack,
                           (col == c->sortCol) ? c->sortDir : 0,
-                          col == c->filterCol);
+                          c->colFilt[col]);
             else if (col == c->sortCol)
                 sortMark(c, cr, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
@@ -604,9 +607,9 @@ static void d2g_Draw(Grid* c) {
                      c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
                 if (c->btns)
                     filterBtn(c, cre, (float)(c->hdrH / 2), c->cHdrText,
-                              (col == c->filterCol) ? c->cSelBack : c->cHdrBack,
+                              c->colFilt[col] ? c->cSelBack : c->cHdrBack,
                               (col == c->sortCol) ? c->sortDir : 0,
-                              col == c->filterCol);
+                              c->colFilt[col]);
                 else if (col == c->sortCol)
                     sortMark(c, cre, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             }
@@ -662,7 +665,8 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     if (i > G_MAX) return 0;
     c = &g_g[i];
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
-    c->sortCol = -1; c->sortDir = 1; c->filterCol = -1;
+    c->sortCol = -1; c->sortDir = 1;
+    { int k; for (k = 0; k < G_COLS; k++) c->colFilt[k] = 0; }
     c->grps = 0; c->lines = 1; c->wrapLines = 1; c->btns = 0;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
@@ -948,12 +952,17 @@ void d2g_FilterBtns(int h, int on) {
     if (c) c->btns = on ? 1 : 0;
 }
 
-/* Which column a filter is on, so its button can say so. Excel shows a funnel;
-   this fills the button instead, which reads the same at this size and does not
-   need a second icon drawn out of one-pixel rows. */
-void d2g_FilterOn(int h, int col) {
+/* Mark a column as filtered, or unmark it. col < 0 clears the lot, which is
+   what "clear all filters" wants and what a fresh grid starts from. */
+void d2g_FilterOn(int h, int col, int on) {
     Grid* c = slot(h);
-    if (c) c->filterCol = col;
+    int   k;
+    if (!c) return;
+    if (col < 0) {
+        for (k = 0; k < G_COLS; k++) c->colFilt[k] = 0;
+        return;
+    }
+    if (col < G_COLS) c->colFilt[col] = on ? 1 : 0;
 }
 
 /* Excel's little boxed arrow at the right of a heading, and the one place the
