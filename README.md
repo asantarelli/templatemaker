@@ -110,6 +110,9 @@ templates/                      # ready-to-register Clarion templates
     MsgHookClass.clw            #     the implementation (hook thunks + append-only logger)
     myHook.tpl                  #     global extension + per-procedure pause + code template
     myHook.zip                  #     the three files above, zipped for easy distribution
+  BrowseGrid/                   #   take over any ABC browse and draw it with Direct2D (see below)
+    BrowseGrid.tpl              #     the extension: one prompt sheet, no class to ship
+    d2grid.c                    #     the grid: Direct2D + DirectWrite, bound at run time
   weatherWidget/                #   a weather card when your program starts (see below)
     MyWeatherClass.inc          #     the widget (settings, the reading, EN/ES strings)
     MyWeatherClass.clw          #     the implementation (curl + JSON + the drawn card)
@@ -449,6 +452,50 @@ than argued — the wheel (a harness sends real `WM_MOUSEWHEEL` messages and rea
 the window title), the GPU canvas (it draws the test card into a run-time REGION, screenshot in
 [`docs/allImageRead-d2dcanvas.png`](docs/allImageRead-d2dcanvas.png)), and the 80x figure above. See
 [`examples/allImageRead/`](examples/allImageRead/).
+
+### `templates/BrowseGrid/` — **take over any ABC browse** and draw it with Direct2D
+A browse that does not look like 1995, **without touching the browse**. Drop the extension on a procedure,
+point it at the `LIST`, and the grid draws the rows instead: antialiased text through DirectWrite, banded
+rows, frozen columns, a header that sorts, and column widths you can drag. The `BrowseBox` keeps doing all
+the work it always did — the VIEW, the queue, the locator, range limits, the popup, Insert/Change/Delete —
+so **nothing about the browse's behaviour changes**, only what you look at. One `.tpl` plus `d2grid.c`,
+which Clarion's own C compiler builds; no DLL, no OCX, nothing to redistribute. A procedure that cannot get
+Direct2D leaves the `LIST` alone and carries on.
+**How it takes over.** A `REGION` is created over the `LIST` at run time and the grid is attached to it. The
+`LIST` is then made invisible **to Windows** — `WS_VISIBLE` stripped off the HWND — and *not* to Clarion:
+`HIDE()` makes ABC decide it has no rows to load, but `PROP:Hide`, the queue and the visible-row count are
+all untouched by clearing the style bit, so the browse goes on filling itself while Windows simply never
+paints it. It also keeps the focus, which is what makes every key an ABC browse has always answered go on
+working unwritten — arrows, PageUp/PageDown, Ctrl-PageUp/PageDown, the incremental locator, Insert, Delete,
+Enter. The region only ever needed the mouse, and a `REGION` with `PROP:IMM` gets that with or without focus.
+**Grouped and multi-line formats.** A browse whose format puts several fields on each record over more than
+one line, under headings that span them, is read back out of the `LIST` — `PROPLIST:GroupNo`,
+`PROPLIST:LastOnLine`, and `PROPLIST:Group` added to any other property for the group's own heading and
+width — and drawn either way: **flattened** to one column per field on a single line, or **faithfully**, with
+the spanning headings, the record as many lines tall as the format makes it, and the banding and selection
+covering the whole record. Freezing then counts groups, and dragging a group edge scales the fields inside
+it while every group to its right shifts along.
+**Excel's drop-down on every heading.** A boxed glyph at the right of each heading — `˅` for a menu, `▲`/`▼`
+for the sort direction, a **funnel** on a filled button when the column is filtered (U+E71C out of Windows'
+own icon font; if it does not resolve, the fill still says it). The menu sorts either way and filters on the
+value under the selection. Sorting goes through the browse exactly as a heading click does, and filtering
+calls the browse object's own `SetFilter`, so range limits and locators keep working. The field name for the
+filter is read at run time with **`WHO()`** — an ABC browse queue labels its fields with the file fields they
+came from, so `WHO(Queue:Browse:1,n)` answers `STU:LastName` and nothing has to be mapped by hand.
+**The rest of it.** Scrollbars — sideways is Windows' own and **tracks live**, because scrolling sideways
+needs nothing from the browse and can be done inside Windows' modal drag loop; downwards is **drawn by the
+grid**, because moving the browse needs records, records need ABC, and ABC needs `ACCEPT`, which that loop is
+holding up. Mouse wheel scrolls, **Ctrl+wheel resizes the type** (6 to 32 point, with the rows and the LIST's
+line height following it), long text **wraps** onto up to four lines, and a diagnostics prompt puts what the
+grid is working from into the window title, because a browse that draws nothing looks identical whether the
+queue was empty, the rows were too tall, or the columns were never read.
+Requires `d2grid.c` on the redirection path. Verified: registers, generates **with every optional path
+switched on** — a generate only covers the prompts that are ticked, which is how a `CODE` without a `DATA`
+once shipped — and the generated source compiles and links against a copy of `School`. Behaviour is proved
+at run time by harnesses rather than argued: column-edge hit testing (`edgetest`, 15 assertions),
+concealment (`novis` — `winvis 1>0 | PROP:Hide 0>0 | recs 20`), group resizing being reversible
+(`proptest` — `PROP-PASS was 200,300,160,140 now 200,300,160,140`), and the row-height clamp
+(`GridTest grew=33 shrank=19`). See [`examples/BrowseGrid/`](examples/BrowseGrid/).
 
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,
