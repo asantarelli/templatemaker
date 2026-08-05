@@ -219,7 +219,13 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
    cell is allowed. Every row is the same height either way - variable-height
    rows would take the page size, the hit testing and the scrolling with them,
    and none of those want to know that a particular address was long. */
-#define D2G_ROWH(c) (D2G_ROWFOR((c)->pt) * (c)->lines * (c)->wrapLines)
+/* A format that already says where its lines are does not also get the wrap
+   allowance multiplied on top: three lines times two wrapped lines is a row six
+   deep with every field floating in the middle of a box twice the size of its
+   text. Wrapping is for a flat browse, where a cell has one line and needs
+   more; a grouped record has been told exactly how many it wants. */
+#define D2G_ROWH(c) (D2G_ROWFOR((c)->pt) * (c)->lines *                        \
+                     (((c)->lines > 1) ? 1 : (c)->wrapLines))
 #define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);

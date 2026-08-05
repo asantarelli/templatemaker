@@ -709,9 +709,11 @@ fld   LONG,AUTO
 wid   LONG,AUTO
 algn  LONG,AUTO
 p     LONG,AUTO
-grp   LONG,AUTO
-lines LONG,AUTO
-pass  LONG,AUTO
+grp     LONG,AUTO
+lines   LONG,AUTO
+glines  LONG,AUTO
+lastgrp LONG,AUTO
+pass    LONG,AUTO
 head  CSTRING(65)
 ghead CSTRING(65)
   CODE
@@ -722,6 +724,8 @@ ghead CSTRING(65)
   LOOP pass = 1 TO 2
   n = 0
   lines = 1
+  glines = 1
+  lastgrp = -1
   LOOP c = 1 TO 512
     ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
@@ -752,9 +756,19 @@ ghead CSTRING(65)
       ELSIF ghead AND UPPER(ghead) <> UPPER(head)
         head = CLIP(ghead) & ' ' & CLIP(head)                 ! "Address City", not just "City"
       END
-!  LastOnLine is where the format wraps onto the next line of the row. Counting
-!  them is how a multi-line browse is recognised at all.
-      IF %bgList{PROPLIST:LastOnLine,c} THEN lines += 1.
+!  LastOnLine is where the format wraps onto the next line of the record. A
+!  record is as tall as its TALLEST group, not as the sum of every break in
+!  every group - counting them all made a three-line record report five, so the
+!  LIST was given a line height a third too small and the rows came out stretched
+!  with the text floating in the middle of them.
+      IF grp <> lastgrp
+        lastgrp = grp
+        glines  = 1                                           ! a new group starts on line one
+      END
+      IF %bgList{PROPLIST:LastOnLine,c}
+        glines += 1
+        IF glines > lines THEN lines = glines.
+      END
     END
     LOOP p = 1 TO LEN(head)                                   ! a bar wraps a heading on screen
       IF head[p] = '|' THEN head[p] = ' '.

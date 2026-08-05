@@ -914,6 +914,21 @@ the group. The filter mark is re-applied on every fill, because a refill would o
 With the buttons switched **off**, the old sort mark beside the title comes back — there is nowhere
 else for it to go.
 
+## A record is as tall as its tallest group
+
+A grouped browse came out with rows far too deep and the text floating in the middle of them. The
+diagnostics said it in two numbers: `lines=5 rowh=114`.
+
+`BG:Columns` counted a line for **every** `LastOnLine` in **every** group. A format with two breaks in
+the name block and two in the address block therefore reported five lines, when a record is only as
+tall as its *tallest* group — three. `BG:Groups` had always computed that correctly, so the template and
+the engine were working from different numbers, and the LIST was handed a line height a third too small.
+
+Then wrapping multiplied on top: three lines times two wrapped lines is a row six deep, with every
+field centred in a box twice the height of its text. **Wrapping no longer stacks on a format's own
+lines** — it is for a flat browse, where a cell has one line and needs more. A grouped record has
+already been told exactly how many lines it wants.
+
 ## Empty grid under the rows
 
 A browse would draw its records and then leave a blank banded row and a stretch of background beneath
