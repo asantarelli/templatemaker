@@ -490,6 +490,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
 %bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
+%bgObject:RzHide     BYTE                                    ! dragged past nothing: hide it
 %bgObject:Lines      LONG                                    ! lines per record in the LIST's format
 #ENDAT
 #!
@@ -1566,6 +1567,7 @@ wid  LONG,AUTO
 was  CSTRING(32)
 head CSTRING(65)
 p    LONG,AUTO
+ok   LONG,AUTO
   CODE
   FREE(ChQ)
   LOOP c = 1 TO 512
@@ -1653,16 +1655,7 @@ p    LONG,AUTO
         MESSAGE('A grid has to show at least one column.','Columns',ICON:Exclamation)
         CYCLE
       END
-      LOOP p = 1 TO RECORDS(ChQ)
-        GET(ChQ,p)
-        IF ChQ.On
-          %bgList{PROPLIST:Width,ChQ.Col} = ChQ.Wid
-        ELSE
-!  Remember how wide it was before it went, so it comes back the same size.
-          INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & ChQ.Col,ChQ.Wid)
-          %bgList{PROPLIST:Width,ChQ.Col} = 0
-        END
-      END
+      ok = 1                                                  ! decided; applied further down
       POST(EVENT:CloseWindow)
     OF ?ChCancel
       CLOSE(ChW)
@@ -1670,6 +1663,24 @@ p    LONG,AUTO
     END
   END
   CLOSE(ChW)
+  IF ~ok THEN EXIT.
+!  APPLIED HERE, not in the button. A field equate is resolved against whatever
+!  window is CURRENT, and while this dialog was open that was the dialog - so
+!  every ?Browse:1{PROPLIST:Width} written inside the ACCEPT loop above went to
+!  a control of the Columns window instead of to the browse, and did nothing at
+!  all. Nothing complains: the write is legal, it simply lands somewhere else.
+!  With the dialog closed the browse window is current again and the same lines
+!  do what they read as.
+  LOOP p = 1 TO RECORDS(ChQ)
+    GET(ChQ,p)
+    IF ChQ.On
+      %bgList{PROPLIST:Width,ChQ.Col} = ChQ.Wid
+    ELSE
+!  Remember how wide it was before it went, so it comes back the same size.
+      INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & ChQ.Col,ChQ.Wid)
+      %bgList{PROPLIST:Width,ChQ.Col} = 0
+    END
+  END
 !  The columns are different now, so they have to be read again from scratch.
   DO BG:Columns:%bgObject
   DO BG:Rows:%bgObject
@@ -1874,6 +1885,11 @@ vp  LONG,AUTO
       %bgObject:RzArmed = 0                                    ! it has moved: a real drag
     END
     wid = %bgObject:RzW + mx - %bgObject:RzX
+!  Dragged shut. The width itself cannot go below the button, so what the
+!  developer was reaching for - Excel's "drag it to nothing and it is hidden" -
+!  was simply unreachable. The INTENT is caught here, before the clamp, and
+!  acted on when the button comes up.
+    %bgObject:RzHide = CHOOSE(wid < 8, 1, 0)
     IF wid < 16 THEN wid = 16.
     IF %bgObject:RzGrp
       d2g_SetGrpWidth(%bgObject:G,%bgObject:RzCol - 1,wid)    ! fields inside come with it
@@ -1930,6 +1946,25 @@ c LONG,AUTO
     EXIT
   END
   c = %bgObject:Col[%bgObject:RzCol]
+#IF(%bgChooser)
+  IF c AND %bgObject:RzHide AND %bgObject:Cols > 1            ! never the last one
+!  Hidden by dragging it shut, the way Excel does. Its width is kept so
+!  Columns... can put it back the size it was.
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & c, |
+                  d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2)
+    %bgList{PROPLIST:Width,c} = 0
+    %bgObject:RzHide  = 0
+    %bgObject:RzCol   = 0
+    %bgObject:RzArmed = 0
+    DO BG:Columns:%bgObject
+    DO BG:Rows:%bgObject
+    d2g_Resize(%bgObject:G)
+    DO BG:Fill:%bgObject
+    d2g_PaintNow(%bgObject:G)
+    EXIT
+  END
+#ENDIF
+  %bgObject:RzHide = 0
   IF c
     %bgList{PROPLIST:Width,c} = d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2
 !  Changing a LIST's format makes it redraw itself, and it comes back over the

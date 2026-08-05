@@ -726,6 +726,29 @@ INI file is not one.
 The ticks are plain text now (`X` in a *Show* column) rather than a picture-token checkbox, because a
 checkbox nobody can see is what makes hiding everything an easy mistake.
 
+## A field equate belongs to whichever window is current
+
+Unticking a column and pressing OK did nothing whatever — no error, no change. The generated code was
+right, the write was right, and `widzero.clw` proves `PROPLIST:Width = 0` takes even on a LIST that has
+had `WS_VISIBLE` stripped:
+
+    WIDZERO visible 60>0 | concealed 60>0 TAKES
+
+The fault is Clarion's oldest trap. **A field equate is resolved against whatever window is CURRENT**,
+and while the Columns dialog was open that was the *dialog*. So every `?Browse:1{PROPLIST:Width} = 0`
+written inside its ACCEPT loop went to a control of the Columns window instead of to the browse. It is
+a legal write. It simply lands somewhere else, and nothing complains.
+
+The dialog decides now, and the widths are applied after `CLOSE(ChW)`, when the browse window is
+current again and the same lines mean what they read as.
+
+## Dragging a column shut hides it
+
+A column cannot be dragged narrower than its heading button, so Excel's "drag it to nothing and it is
+gone" was unreachable. The **intent** is caught before the clamp — if the drag asked for less than eight
+pixels, the column is hidden when the button comes up, keeping its width so **Columns…** can restore it
+at the size it was. Never the last column.
+
 ## Which columns to show
 
 The chooser shipped with two faults that made it useless rather than merely rough.
