@@ -728,6 +728,19 @@ checkbox nobody can see is what makes hiding everything an easy mistake.
 
 ## Which columns to show
 
+The chooser shipped with two faults that made it useless rather than merely rough.
+
+**The columns had no names.** It read `PROPLIST:Header`, and in a grouped format most columns carry no
+heading of their own — the group's stands over the lot — so the list came out blank, and falling back to
+"Column 7" is no better. `WHO()` answers with the field the column actually shows, `STU:LastName`,
+because an ABC browse queue labels its fields with the file fields they came from. It is the same thing
+that lets the grid build a filter expression, and it should have been the first answer here too.
+
+**And nothing happened when you clicked.** A Clarion LIST only raises `ACCEPTED` on a double click or
+Enter, so single clicks fell through and the dialog looked inert. Space toggles the highlighted row now,
+and there are **Show**, **Hide**, **All** and **None** buttons — a list that appears to ignore you is
+worse than no list at all.
+
 **Columns…** on the heading menu. Hiding a column is not a grid idea at all — a LIST column of zero
 width is already invisible to Clarion and `BG:Columns` already skips those — so the chooser only has to
 set widths and read them back, and nothing in the grid needed teaching about hidden columns.

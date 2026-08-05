@@ -1522,11 +1522,15 @@ Name   STRING(64)
 Col    LONG
 Wid    LONG
      END
-ChW  WINDOW('Columns'),AT(,,164,208),GRAY,SYSTEM,FONT('Segoe UI',9)
-       LIST,AT(6,6,152,168),USE(?ChList),FROM(ChQ),                            |
-            FORMAT('16C~Show~@s4@120L(2)~Column~@s64@')
-       BUTTON('&OK'),AT(58,180,48,16),USE(?ChOk),DEFAULT
-       BUTTON('&Cancel'),AT(110,180,48,16),USE(?ChCancel)
+ChW  WINDOW('Columns'),AT(,,200,232),GRAY,SYSTEM,FONT('Segoe UI',9)
+       LIST,AT(6,6,188,168),USE(?ChList),FROM(ChQ),                            |
+            FORMAT('20C~Show~@s4@160L(2)~Column~@s64@'),ALRT(SpaceKey)
+       BUTTON('&Show'),AT(6,178,44,14),USE(?ChShow)
+       BUTTON('&Hide'),AT(54,178,44,14),USE(?ChHide)
+       BUTTON('&All'),AT(102,178,44,14),USE(?ChAll)
+       BUTTON('&None'),AT(150,178,44,14),USE(?ChNone)
+       BUTTON('&OK'),AT(94,202,48,16),USE(?ChOk),DEFAULT
+       BUTTON('&Cancel'),AT(146,202,48,16),USE(?ChCancel)
      END
 c    LONG,AUTO
 ex   LONG,AUTO
@@ -1551,6 +1555,14 @@ p    LONG,AUTO
       IF head[p] = '|' THEN head[p] = ' '.
     END
     ChQ.Name = CLIP(LEFT(head))
+!  In a grouped format most columns carry no heading of their own - the group's
+!  heading stands over the lot - so this list came out blank, and "Column 7" is
+!  no better. WHO() answers with the field the column shows, STU:LastName,
+!  because an ABC browse queue labels its fields with the file fields they came
+!  from. It is the same thing that lets the grid build a filter expression.
+    IF ~ChQ.Name
+      ChQ.Name = CLIP(WHO(%bgQueue,fld))
+    END
     IF ~ChQ.Name THEN ChQ.Name = 'Column ' & c.
     ChQ.Col  = c
     ChQ.On   = CHOOSE(wid > 0, 1, 0)
@@ -1566,15 +1578,44 @@ p    LONG,AUTO
   IF ~RECORDS(ChQ) THEN EXIT.
   OPEN(ChW)
   ACCEPT
+!  A Clarion LIST only raises ACCEPTED on a double click or Enter, so a single
+!  click on a row did nothing at all and the dialog looked inert. Space toggles
+!  the highlighted row, and there are buttons for people who would rather press
+!  one - a list that appears to ignore you is worse than no list.
+  IF EVENT() = EVENT:AlertKey AND KEYCODE() = SpaceKey AND FIELD() = ?ChList
+    GET(ChQ,CHOICE(?ChList))
+    IF ~ERRORCODE()
+      ChQ.On   = 1 - ChQ.On
+      ChQ.Mark = CHOOSE(ChQ.On = 1, ' X', '')
+      PUT(ChQ)
+      DISPLAY(?ChList)
+    END
+    CYCLE
+  END
     CASE ACCEPTED()
     OF ?ChList
+    OROF ?ChShow
+    OROF ?ChHide
       GET(ChQ,CHOICE(?ChList))
       IF ~ERRORCODE()
-        ChQ.On   = 1 - ChQ.On                                 ! the tick is the whole point
+        CASE ACCEPTED()
+        OF ?ChShow ; ChQ.On = 1
+        OF ?ChHide ; ChQ.On = 0
+        ELSE       ; ChQ.On = 1 - ChQ.On                      ! double click or Enter
+        END
         ChQ.Mark = CHOOSE(ChQ.On = 1, ' X', '')
         PUT(ChQ)
         DISPLAY(?ChList)
       END
+    OF ?ChAll
+    OROF ?ChNone
+      LOOP p = 1 TO RECORDS(ChQ)
+        GET(ChQ,p)
+        ChQ.On   = CHOOSE(ACCEPTED() = ?ChAll, 1, 0)
+        ChQ.Mark = CHOOSE(ChQ.On = 1, ' X', '')
+        PUT(ChQ)
+      END
+      DISPLAY(?ChList)
     OF ?ChOk
       wid = 0
       LOOP p = 1 TO RECORDS(ChQ)                              ! is anything left to look at?
