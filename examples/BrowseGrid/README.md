@@ -535,9 +535,11 @@ Two things follow from grouping that are worth knowing:
 
 - **Freezing counts groups, not fields.** Freezing one freezes the whole name block, which is the only
   thing that makes sense when a heading spans several fields.
-- **Columns cannot be resized by dragging** in this mode. Widening a group would have to move every
-  field inside it, and that is a different job. `d2g_HitEdge` returns nothing, so the click falls
-  through to sorting instead.
+- **The draggable edges are the groups', not the fields'.** One heading stands over several fields and
+  there is nothing sensible to grab between two of them that sit on different lines. Dragging a group
+  edge scales the fields inside it to keep their share, and shifts every group to its right along.
+  `d2g_HitEdge` still answers nothing here, so a click that is not on a group edge falls through to
+  sorting.
 
 Clicking a group heading sorts by the **first field in that group** — `d2g_HitCol` answers with it, so
 everything downstream is unchanged.

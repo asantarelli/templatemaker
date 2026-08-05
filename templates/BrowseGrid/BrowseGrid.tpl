@@ -135,6 +135,11 @@ d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
 d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
 d2g_Lines(LONG h,LONG n),NAME('_d2g_Lines')
 d2g_Wrap(LONG h,LONG on,LONG lines),NAME('_d2g_Wrap')
+d2g_HitGrpEdge(LONG h,LONG x),LONG,NAME('_d2g_HitGrpEdge')
+d2g_GrpWidth(LONG h,LONG g),LONG,NAME('_d2g_GrpWidth')
+d2g_SetGrpWidth(LONG h,LONG g,LONG width),NAME('_d2g_SetGrpWidth')
+d2g_GrpColW(LONG h,LONG col),LONG,NAME('_d2g_GrpColW')
+d2g_ColGrp(LONG h,LONG col),LONG,NAME('_d2g_ColGrp')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
 d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align,*CSTRING title),RAW,NAME('_d2g_ColumnAt')
@@ -457,6 +462,8 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:VDrag      BYTE                                    ! is the thumb being dragged?
 %bgObject:VGrab      LONG                                    ! and where it was taken hold of
 %bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
+%bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
+%bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
 %bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
@@ -775,6 +782,7 @@ head CSTRING(65)
       END
       head = CLIP(LEFT(head))
       d2g_Group(%bgObject:G,g,gx,gw,head)
+      %bgObject:GrpCol[g + 1] = c                             ! for writing a resize back
     END
     algn = 0
     p = %bgList{PROPLIST:Right,c}
@@ -852,6 +860,20 @@ row LONG,AUTO
     %bgObject:SortCol = d2g_HitCol(%bgObject:G,mx)            ! remember it either way
 #ENDIF
 #IF(%bgSizeable)
+!  In a grouped format the draggable edges belong to the GROUPS - one heading
+!  stands over several fields, and there is nothing sensible to grab between
+!  two of them that sit on different lines.
+    IF %bgObject:Lines > 1
+      col = d2g_HitGrpEdge(%bgObject:G,mx)
+      IF col >= 0
+        %bgObject:RzGrp   = 1
+        %bgObject:RzCol   = col + 1
+        %bgObject:RzX     = mx
+        %bgObject:RzW     = d2g_GrpWidth(%bgObject:G,col)
+        %bgObject:RzArmed = 1
+        EXIT
+      END
+    END
     col = d2g_HitEdge(%bgObject:G,mx)
     IF col >= 0
 !  Near an edge - but a click and a drag both start here, and until the mouse
@@ -860,6 +882,7 @@ row LONG,AUTO
 !  grab margin reaches four pixels either side of every boundary, so a narrow
 !  heading is almost entirely edge, and every click on it was being swallowed
 !  by a resize that then went nowhere.
+      %bgObject:RzGrp   = 0
       %bgObject:RzCol   = col + 1                             ! 1-based: 0 means nothing is being dragged
       %bgObject:RzX     = mx
       %bgObject:RzW     = d2g_ColWidth(%bgObject:G,col)
@@ -1039,6 +1062,35 @@ lc LONG,AUTO
   EXIT
 #ENDIF
 
+BG:GrpBack:%bgObject ROUTINE
+!  Put a resized group back onto the LIST: the group's own width, and every
+!  field inside it, because they were all scaled to fit. The browse goes on
+!  believing it owns its columns, and a rebuild reads back what is on screen.
+#IF(%bgSizeable)
+  DATA
+i  LONG,AUTO
+lc LONG,AUTO
+g  LONG,AUTO
+  CODE
+  g = %bgObject:RzCol - 1
+  lc = %bgObject:GrpCol[g + 1]
+  IF lc
+    %bgList{PROPLIST:Width + PROPLIST:Group,lc} = d2g_GrpWidth(%bgObject:G,g) / 2
+  END
+  LOOP i = 1 TO %bgObject:Cols
+    IF d2g_ColGrp(%bgObject:G,i - 1) <> g THEN CYCLE.
+    lc = %bgObject:Col[i]
+    IF lc
+      %bgList{PROPLIST:Width,lc} = d2g_GrpColW(%bgObject:G,i - 1) / 2
+    END
+  END
+  DO BG:Place:%bgObject
+  d2g_Resize(%bgObject:G)
+  d2g_PaintNow(%bgObject:G)
+#ELSE
+  EXIT
+#ENDIF
+
 BG:Cover:%bgObject ROUTINE
 !  Put the grid back over the LIST and draw it THIS INSTANT. Wanted any time
 !  the LIST has had a reason to paint itself - taking the focus, being given a
@@ -1151,7 +1203,11 @@ vp  LONG,AUTO
     END
     wid = %bgObject:RzW + mx - %bgObject:RzX
     IF wid < 16 THEN wid = 16.
-    d2g_SetWidth(%bgObject:G,%bgObject:RzCol - 1,wid)
+    IF %bgObject:RzGrp
+      d2g_SetGrpWidth(%bgObject:G,%bgObject:RzCol - 1,wid)    ! fields inside come with it
+    ELSE
+      d2g_SetWidth(%bgObject:G,%bgObject:RzCol - 1,wid)
+    END
     DO BG:Bars:%bgObject                                      ! the columns are a different width now
     d2g_Repaint(%bgObject:G)
     EXIT
@@ -1193,6 +1249,12 @@ c LONG,AUTO
       DO BG:Sort:%bgObject
     END
 #ENDIF
+    EXIT
+  END
+  IF %bgObject:RzGrp
+    DO BG:GrpBack:%bgObject                                   ! the whole group, fields and all
+    %bgObject:RzGrp = 0
+    %bgObject:RzCol = 0
     EXIT
   END
   c = %bgObject:Col[%bgObject:RzCol]

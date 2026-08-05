@@ -973,6 +973,64 @@ int d2g_FontSize(int h, int pt) {
 int d2g_FontPt(int h) { Grid* c = slot(h); return c ? c->pt : 0; }
 
 
+/* ---- resizing a GROUP ---------------------------------------------------
+   In a grouped format the draggable edges are the groups', not the fields' -
+   there is one heading over the lot and nothing sensible to grab between two
+   fields that sit on different lines. Widening a group has to carry the fields
+   inside it and shift every group to its right, which is why this could not
+   just reuse the flat column code. */
+int d2g_HitGrpEdge(int h, int x) {
+    Grid* c = slot(h);
+    int   g, at;
+    const int grab = 4;
+    if (!c || !c->grps) return -1;
+    for (g = 0; g < c->grps; g++) {
+        at = c->grpX[g] + c->grpW[g] - ((g < c->frozen) ? 0 : c->scrollX);
+        if (x >= at - grab && x <= at + grab) return g;
+    }
+    return -1;
+}
+
+int d2g_GrpWidth(int h, int g) {
+    Grid* c = slot(h);
+    if (!c || g < 0 || g >= c->grps) return 0;
+    return c->grpW[g];
+}
+
+void d2g_SetGrpWidth(int h, int g, int w) {
+    Grid* c = slot(h);
+    int   old, delta, i, gx;
+    if (!c || g < 0 || g >= c->grps) return;
+    if (w < 32) w = 32;
+    old = c->grpW[g];
+    if (old < 1) return;
+    gx = c->grpX[g];
+    /* the fields inside keep their share of it */
+    for (i = 0; i < c->cols; i++) {
+        if (c->colGrp[i] != g) continue;
+        c->colX[i] = gx + (c->colX[i] - gx) * w / old;
+        c->colW[i] = c->colW[i] * w / old;
+        if (c->colW[i] < 8) c->colW[i] = 8;
+    }
+    delta = w - old;
+    c->grpW[g] = w;
+    for (i = g + 1; i < c->grps; i++) c->grpX[i] += delta;     /* everything right moves */
+    for (i = 0; i < c->cols; i++) if (c->colGrp[i] > g) c->colX[i] += delta;
+}
+
+/* which field of a group is which, so the new widths can go back on the LIST */
+int d2g_GrpColW(int h, int col) {
+    Grid* c = slot(h);
+    if (!c || col < 0 || col >= c->cols) return 0;
+    return c->colW[col];
+}
+
+int d2g_ColGrp(int h, int col) {
+    Grid* c = slot(h);
+    if (!c || col < 0 || col >= c->cols) return -1;
+    return c->colGrp[col];
+}
+
 int d2g_HdrHeight(int h) {
     Grid* c = slot(h);
     return c ? c->hdrH : 0;
