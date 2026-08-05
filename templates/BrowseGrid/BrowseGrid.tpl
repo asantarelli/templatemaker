@@ -81,6 +81,8 @@ BG:WmLButtonDown     EQUATE(0201h)
 BG:WmLButtonUp       EQUATE(0202h)
 BG:MkLButton         EQUATE(0001h)
 BG:DragSlop          EQUATE(3)                                ! pixels before a click becomes a drag
+BG:MaxScan           EQUATE(50000)                            ! records read looking for values
+BG:MaxVals           EQUATE(500)                              ! distinct values offered
 BG:VkLButton         EQUATE(1)
 #ENDAT
 #!
@@ -389,6 +391,7 @@ c LONG,AUTO
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
       #PROMPT('&Sort when a heading is clicked',CHECK),%bgSortHdr,DEFAULT(1),AT(10)
+      #PROMPT('&Columns... on the heading menu (show and hide columns)',CHECK),%bgChooser,DEFAULT(1),AT(10)
       #PROMPT('&Remember this grid<39>s layout between runs',CHECK),%bgRemember,DEFAULT(1),AT(10)
       #DISPLAY('Column widths and filters, through the application<39>s own INIMgr, under a')
       #DISPLAY('section named for this procedure and this grid. Nothing else stores it.')
@@ -1116,7 +1119,8 @@ val  CSTRING(129)
 !  "Filter on" was item 3 and matched nothing, and "Clear this filter" was item
 !  4, which is why CLEARING a filter is what applied one.
   pick = POPUP('Sort &Ascending|Sort &Descending|' |
-             & '&Filter on {{' & CLIP(val) & '}|Clear this &filter|Clear &all filters')
+             & '&Filter on {{' & CLIP(val) & '}|Filter &by value...|' |
+             & 'Clear this &filter|Clear all f&ilters|&Columns...')
   CASE pick
   OF 1                                                        ! ascending
     lc = %bgObject:Col[%bgObject:SortCol + 1]
@@ -1147,18 +1151,22 @@ val  CSTRING(129)
       d2g_PaintNow(%bgObject:G)                               ! say so NOW, not when the data lands
       DO BG:Filter:%bgObject
     END
-  OF 4                                                        ! clear this column's
+  OF 4                                                        ! pick from the values in the file
+    DO BG:Values:%bgObject
+  OF 5                                                        ! clear this column's
     %bgObject:ColFilt[%bgObject:SortCol + 1] = ''
     d2g_FilterOn(%bgObject:G,%bgObject:SortCol,0)
     d2g_PaintNow(%bgObject:G)
     DO BG:Filter:%bgObject
-  OF 5                                                        ! clear every column's
+  OF 6                                                        ! clear every column's
     LOOP fld = 1 TO 32
       %bgObject:ColFilt[fld] = ''
     END
     d2g_FilterOn(%bgObject:G,-1,0)
     d2g_PaintNow(%bgObject:G)
     DO BG:Filter:%bgObject
+  OF 7                                                        ! which columns to show
+    DO BG:Chooser:%bgObject
   END
 #ELSE
   EXIT
@@ -1277,6 +1285,214 @@ g  LONG,AUTO
   END
   DO BG:Place:%bgObject
   d2g_Resize(%bgObject:G)
+  d2g_PaintNow(%bgObject:G)
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Values:%bgObject ROUTINE
+!  Excel's checklist: every value in this column, tick the ones to keep.
+!
+!  The field is known only by NAME - WHO() off the browse queue - so the values
+!  are read with EVALUATE(), which resolves a name against whatever is bound.
+!  ABC binds the whole record buffer (FileManager.BindFields), and the proof it
+!  is already bound is that the filter expressions built from the same names
+!  work at all.
+!
+!  Reading the file moves its record buffer, which the browse shares. That is
+!  why this always finishes by re-applying the filters: the browse re-reads and
+!  is put back where it belongs, whether values were chosen or not.
+#IF(%bgFilterBtn AND %bgFile)
+  DATA
+VQ   QUEUE
+On     BYTE
+Val    STRING(64)
+     END
+VW   WINDOW('Values'),AT(,,164,224),GRAY,SYSTEM,FONT('Segoe UI',9)
+       LIST,AT(6,6,152,166),USE(?VList),FROM(VQ),                              |
+            FORMAT('12C~ ~L(2)@p p@120L(2)~Value~@s64@')
+       BUTTON('&All'),AT(6,176,34,14),USE(?VAll)
+       BUTTON('&None'),AT(44,176,34,14),USE(?VNone)
+       BUTTON('&OK'),AT(58,196,48,16),USE(?VOk),DEFAULT
+       BUTTON('&Cancel'),AT(110,196,48,16),USE(?VCancel)
+     END
+nm   CSTRING(65)
+v    CSTRING(65)
+expr CSTRING(161)
+n    LONG,AUTO
+i    LONG,AUTO
+on   LONG,AUTO
+off  LONG,AUTO
+  CODE
+  nm = CLIP(WHO(%bgQueue,%bgObject:Fld[%bgObject:SortCol + 1]))
+  IF ~nm THEN EXIT.
+  FREE(VQ)
+  SET(%bgFile)
+  LOOP
+    NEXT(%bgFile)
+    IF ERRORCODE() THEN BREAK.
+    n += 1
+    IF n > BG:MaxScan THEN BREAK.
+    v = CLIP(LEFT(EVALUATE(nm)))
+    VQ.Val = v
+    GET(VQ,+VQ.Val)                                           ! sorted, so this dedupes as it goes
+    IF ERRORCODE()
+      VQ.Val = v
+      VQ.On  = 1
+      ADD(VQ,+VQ.Val)
+      IF RECORDS(VQ) >= BG:MaxVals THEN BREAK.
+    END
+  END
+  IF ~RECORDS(VQ)
+    DO BG:Filter:%bgObject                                    ! put the browse back regardless
+    EXIT
+  END
+  OPEN(VW)
+  VW{PROP:Text} = 'Values in ' & CLIP(nm)
+  ACCEPT
+    CASE ACCEPTED()
+    OF ?VList
+      GET(VQ,CHOICE(?VList))
+      IF ~ERRORCODE()
+        VQ.On = 1 - VQ.On
+        PUT(VQ)
+        DISPLAY(?VList)
+      END
+    OF ?VAll
+    OROF ?VNone
+      LOOP i = 1 TO RECORDS(VQ)
+        GET(VQ,i)
+        VQ.On = CHOOSE(ACCEPTED() = ?VAll, 1, 0)
+        PUT(VQ)
+      END
+      DISPLAY(?VList)
+    OF ?VOk
+      LOOP i = 1 TO RECORDS(VQ)
+        GET(VQ,i)
+        IF VQ.On
+          on += 1
+          IF LEN(CLIP(expr)) < 120                            ! keep the expression sane
+            IF expr
+              expr = CLIP(expr) & ' OR ' & CLIP(nm) & ' = ' & '''' & CLIP(VQ.Val) & ''''
+            ELSE
+              expr = CLIP(nm) & ' = ' & '''' & CLIP(VQ.Val) & ''''
+            END
+          END
+        ELSE
+          off += 1
+        END
+      END
+      IF ~off OR ~on                                          ! all of them, or none: no filter
+        %bgObject:ColFilt[%bgObject:SortCol + 1] = ''
+        d2g_FilterOn(%bgObject:G,%bgObject:SortCol,0)
+      ELSE
+        %bgObject:ColFilt[%bgObject:SortCol + 1] = '(' & CLIP(expr) & ')'
+        d2g_FilterOn(%bgObject:G,%bgObject:SortCol,1)
+      END
+      POST(EVENT:CloseWindow)
+    OF ?VCancel
+      POST(EVENT:CloseWindow)
+    END
+  END
+  CLOSE(VW)
+  d2g_PaintNow(%bgObject:G)
+  DO BG:Filter:%bgObject
+#ELSE
+!  Without a file named on the prompts there is nothing to read the values out
+!  of - the grid only ever sees a page of the queue.
+  MESSAGE('Name the file this browse reads, on the grid<39>s prompts, and the ' |
+        & 'column menu can offer the values in it.','BrowseGrid',ICON:Asterisk)
+#ENDIF
+
+BG:Chooser:%bgObject ROUTINE
+!  Which columns to show. Hiding one is not a grid idea at all - a LIST column
+!  of zero width is already invisible to Clarion, and BG:Columns already skips
+!  those - so this only has to set widths and read them back. The width it had
+!  is remembered so unhiding puts it back where it was rather than at some
+!  default, and the layout store keeps that across runs for free, because it
+!  keys on LIST column number.
+#IF(%bgChooser)
+  DATA
+ChQ  QUEUE
+On     BYTE
+Name   STRING(64)
+Col    LONG
+Wid    LONG
+     END
+ChW  WINDOW('Columns'),AT(,,164,208),GRAY,SYSTEM,FONT('Segoe UI',9)
+       LIST,AT(6,6,152,168),USE(?ChList),FROM(ChQ),                            |
+            FORMAT('12C~ ~L(2)@p p@120L(2)~Column~@s64@')
+       BUTTON('&OK'),AT(58,180,48,16),USE(?ChOk),DEFAULT
+       BUTTON('&Cancel'),AT(110,180,48,16),USE(?ChCancel)
+     END
+c    LONG,AUTO
+ex   LONG,AUTO
+fld  LONG,AUTO
+wid  LONG,AUTO
+was  CSTRING(32)
+head CSTRING(65)
+p    LONG,AUTO
+  CODE
+  FREE(ChQ)
+  LOOP c = 1 TO 512
+    ex = %bgList{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK.
+    fld = %bgList{PROPLIST:FieldNo,c}
+    IF ~fld THEN CYCLE.                                       ! a decoration, not a column
+    wid = %bgList{PROPLIST:Width,c}
+    head = CLIP(%bgList{PROPLIST:Header,c})
+    IF ~head
+      head = CLIP(%bgList{PROPLIST:Header + PROPLIST:Group,c})
+    END
+    LOOP p = 1 TO LEN(head)
+      IF head[p] = '|' THEN head[p] = ' '.
+    END
+    ChQ.Name = CLIP(LEFT(head))
+    IF ~ChQ.Name THEN ChQ.Name = 'Column ' & c.
+    ChQ.Col  = c
+    ChQ.On   = CHOOSE(wid > 0, 1, 0)
+    IF wid > 0
+      ChQ.Wid = wid
+    ELSE                                                      ! hidden: what was it before?
+      was = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','h' & c))
+      ChQ.Wid = CHOOSE(was <> '', was, 40)
+    END
+    ADD(ChQ)
+  END
+  IF ~RECORDS(ChQ) THEN EXIT.
+  OPEN(ChW)
+  ACCEPT
+    CASE ACCEPTED()
+    OF ?ChList
+      GET(ChQ,CHOICE(?ChList))
+      IF ~ERRORCODE()
+        ChQ.On = 1 - ChQ.On                                   ! the tick is the whole point
+        PUT(ChQ)
+        DISPLAY(?ChList)
+      END
+    OF ?ChOk
+      LOOP p = 1 TO RECORDS(ChQ)
+        GET(ChQ,p)
+        IF ChQ.On
+          %bgList{PROPLIST:Width,ChQ.Col} = ChQ.Wid
+        ELSE
+!  Remember how wide it was before it went, so it comes back the same size.
+          INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & ChQ.Col,ChQ.Wid)
+          %bgList{PROPLIST:Width,ChQ.Col} = 0
+        END
+      END
+      POST(EVENT:CloseWindow)
+    OF ?ChCancel
+      CLOSE(ChW)
+      EXIT
+    END
+  END
+  CLOSE(ChW)
+!  The columns are different now, so they have to be read again from scratch.
+  DO BG:Columns:%bgObject
+  DO BG:Rows:%bgObject
+  d2g_Resize(%bgObject:G)
+  DO BG:Fill:%bgObject
   d2g_PaintNow(%bgObject:G)
 #ELSE
   EXIT

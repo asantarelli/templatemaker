@@ -676,6 +676,37 @@ brackets, with the range limits in front (`ABFILE.CLW:2613`). An empty expressio
 rather than leaving an empty bracket, so setting every column on every apply is both safe and
 idempotent, and there is nothing to concatenate here any more.
 
+## Which columns to show
+
+**Columns…** on the heading menu. Hiding a column is not a grid idea at all — a LIST column of zero
+width is already invisible to Clarion and `BG:Columns` already skips those — so the chooser only has to
+set widths and read them back, and nothing in the grid needed teaching about hidden columns.
+
+The width a column had is remembered when it is hidden, so unhiding puts it back where it was rather
+than at some default. That falls out of the layout store keying on **LIST column number**: a column the
+grid is not drawing still has somewhere to keep its width.
+
+## Excel's checklist of values
+
+**Filter by value…** lists every value in the column, ticked, with All and None. Untick what you do not
+want. Everything ticked, or nothing, means no filter rather than an impossible one.
+
+The field is known only by **name** — `WHO()` off the browse queue — so the values are read with
+`EVALUATE()`, which resolves a name against whatever is bound. ABC binds the whole record buffer
+(`FileManager.BindFields`), and the proof it is already bound is that the filter expressions built from
+those same names work at all.
+
+The chosen values become `(f = 'a' OR f = 'b')` in **that column's** filter ID, which is what the
+per-column IDs bought: one column can hold several values without touching another column's filter, and
+ABC ANDs the columns together itself.
+
+Two things are deliberate. Reading the file moves its record buffer, **which the browse shares** — so
+this always finishes by re-applying the filters, which makes the browse re-read and puts it back where
+it belongs, whether values were chosen or cancelled. And the scan is capped (50,000 records, 500
+distinct values), because a checklist is only useful while it is short. It needs the file named on the
+prompts; without it the grid only ever sees a page of the queue, and it says so rather than offering an
+empty list.
+
 ## The layout is remembered
 
 Column widths and filters are kept between runs, through the application's **own `INIMgr`** — no new
