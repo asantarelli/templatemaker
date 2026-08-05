@@ -662,6 +662,29 @@ Turning them on is a TXA round trip:
     ClarionCL -win -au -ai app.app out.txa      # import
     ClarionCL -win -au -ag app.app              # and generate
 
+## A filter does not take hold until the browse has re-read
+
+Filtering appeared to do nothing until something else was clicked, and clearing a filter appeared not
+to clear it until the next action — always one step behind.
+
+`BrowseClass.SetSort` does not finish applying a filter before it returns. It ends with
+`SELF.PostNewSelection`, which is a **POST**, so the re-read lands on a later ACCEPT cycle. Filling the
+grid straight after `SetFilter` therefore read the queue as it was *before* the filter. It also
+restarts from the queue's own view position rather than the top (`RESET(SELF.View,
+SELF.ListQueue.GetViewPosition())`), so a filter that matches nothing near the cursor can come back
+empty even when it matches plenty elsewhere.
+
+So the filter is applied and then the browse is asked to go to the top of the new set through its own
+event — `POST(EVENT:ScrollTop, list)`. ABC re-reads, calls `Reset` when it has, and the `Reset` embed
+fills the grid, by which time there is something to fill it from.
+
+## The heading has to show what it is doing
+
+A filtered column's button is filled with the selection colour, so the header says which column is
+filtered rather than leaving it to be remembered. It is re-applied on every fill, because a refill
+would otherwise wipe it. Excel draws a funnel; a filled button reads the same at this size without a
+second icon built out of one-pixel rows.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

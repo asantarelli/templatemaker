@@ -142,6 +142,7 @@ d2g_GrpColW(LONG h,LONG col),LONG,NAME('_d2g_GrpColW')
 d2g_ColGrp(LONG h,LONG col),LONG,NAME('_d2g_ColGrp')
 d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
 d2g_HitBtn(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitBtn')
+d2g_FilterOn(LONG h,LONG col),NAME('_d2g_FilterOn')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
 d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align,*CSTRING title),RAW,NAME('_d2g_ColumnAt')
@@ -476,6 +477,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
 %bgObject:Filter     CSTRING(1025)                           ! what the grid has filtered on
+%bgObject:FilterCol  LONG                                    ! and which column it is on
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
 %bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
@@ -1037,6 +1039,9 @@ BG:Mark:%bgObject ROUTINE
 sc LONG,AUTO
 i  LONG,AUTO
   CODE
+#IF(%bgFilterBtn)
+  d2g_FilterOn(%bgObject:G,%bgObject:FilterCol)               ! survives every refill
+#ENDIF
   sc = %bgList{PROPLIST:SortColumn}
   IF ~sc OR sc = %bgObject:SortOn THEN EXIT.
   %bgObject:SortOn = sc
@@ -1091,11 +1096,15 @@ val  CSTRING(129)
   OF 4
     IF nm AND val
       %bgObject:Filter = CLIP(nm) & ' = ' & '''' & CLIP(val) & ''''
+      %bgObject:FilterCol = %bgObject:SortCol
+      d2g_FilterOn(%bgObject:G,%bgObject:SortCol)             ! the button says so
       DO BG:Filter:%bgObject
     END
   OF 5
   OROF 7
-    %bgObject:Filter = ''
+    %bgObject:Filter    = ''
+    %bgObject:FilterCol = -1
+    d2g_FilterOn(%bgObject:G,-1)
     DO BG:Filter:%bgObject
   END
 #ELSE
@@ -1110,9 +1119,21 @@ BG:Filter:%bgObject ROUTINE
 !  No DATA section here, so no CODE statement either - a ROUTINE only accepts
 !  CODE after a DATA block, and this one emitted a bare one the moment the
 !  filter button was switched on.
+!
+!  Filling the grid HERE reads the old queue. ABC does not finish applying a
+!  filter inside SetSort: it ends with PostNewSelection, which is a POST, so
+!  the re-read lands on a later ACCEPT cycle - which is why the list only
+!  caught up when something else was done to it, and why clearing a filter
+!  appeared to do nothing until the next click. SetSort also restarts from the
+!  queue's own view position rather than the top, so on a filter that matches
+!  nothing where the cursor is, it can come back empty.
+!
+!  So: apply it, then ask the browse to go to the top of the new set through
+!  its own event. ABC re-reads, calls Reset when it has, and the Reset embed
+!  fills the grid - by which time there is something to fill it from.
   %bgBrowseObj.SetFilter(%bgObject:Filter)
   %bgBrowseObj.ResetSort(1)
-  DO BG:Fill:%bgObject
+  POST(EVENT:ScrollTop,%bgList)
 #ELSE
   MESSAGE('This grid has no browse object named on its prompts, so it cannot ' |
         & 'filter. Put the browse<39>s object name - BRW1, usually - in ' |
