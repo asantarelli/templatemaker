@@ -867,6 +867,24 @@ the group. The filter mark is re-applied on every fill, because a refill would o
 With the buttons switched **off**, the old sort mark beside the title comes back — there is nowhere
 else for it to go.
 
+## Empty grid under the rows
+
+A browse would draw its records and then leave a blank banded row and a stretch of background beneath
+them. Both are the same thing: **ABC had loaded fewer records than the grid had room to draw**, and what
+is left over is drawn as empty grid.
+
+The two sides count differently. ABC decides how many to load from the LIST's height and its line
+height; the grid decides how many it can draw from the region's height and its row height. They are
+close but not equal — the two headings are different sizes, for one — and the gap shows.
+
+Rather than guess at the difference it is measured. Whatever the LIST reserves for its own heading is
+`height - items × lineHeight`, and that stays true whatever else changes, so the height it needs in
+order to hold `fit` rows is that plus `fit` line heights. The LIST is then stretched or shrunk to
+exactly that. It is invisible, so being a different size from the region costs nothing and is never
+seen — and the browse loads to the grid's page instead of its own.
+
+Re-applied after every resize, because the window resizer puts the LIST back to its designed height.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

@@ -563,6 +563,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
     IF %bgObject:G
       DO BG:Place:%bgObject                                   ! follow the LIST to its new size
       d2g_Resize(%bgObject:G)                                 ! and the render target with it
+      DO BG:Items:%bgObject                                   ! and the browse loads to suit
       DO BG:Fill:%bgObject                                    ! a taller browse holds more rows
     END
   END
@@ -646,6 +647,7 @@ h  SIGNED,AUTO
   d2g_Wrap(%bgObject:G,1,%bgWrapLines)
 #ENDIF
   DO BG:Rows:%bgObject
+  DO BG:Items:%bgObject                                       ! load what there is room to draw
 #IF(%bgHdrH > 0)
   d2g_HeaderHeight(%bgObject:G,%bgHdrH)
 #ENDIF
@@ -1040,6 +1042,42 @@ need LONG,AUTO
     %bgList{PROP:LineHeight} = lh / %bgObject:Lines
   ELSE
     %bgList{PROP:LineHeight} = lh
+  END
+  0{PROP:Pixels} = sp
+
+BG:Items:%bgObject ROUTINE
+!  Make the browse load as many records as the grid can DRAW.
+!
+!  ABC works out how many to load from the LIST's own height and line height.
+!  The grid works out how many it can draw from the region's height and its row
+!  height. Those are close but not equal - the two headings are different sizes,
+!  for one - and whatever is left over is drawn as empty grid: one blank banded
+!  row and then background, which is the gap under the rows.
+!
+!  Rather than guess at the difference, it is measured. Whatever the LIST is
+!  using for its own heading is (its height - items * line height), and that
+!  stays true whatever else changes, so the height it needs to hold `fit` rows
+!  is that plus fit line heights. The LIST is invisible, so making it taller or
+!  shorter than the region costs nothing and is never seen.
+  DATA
+sp    LONG,AUTO
+x     SIGNED,AUTO
+y     SIGNED,AUTO
+w     SIGNED,AUTO
+h     SIGNED,AUTO
+lh    LONG,AUTO
+items LONG,AUTO
+fit   LONG,AUTO
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  sp = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+  lh    = %bgList{PROP:LineHeight}
+  items = %bgList{PROP:Items}
+  fit   = d2g_PageSize(%bgObject:G)
+  IF lh > 0 AND items > 0 AND fit > 0 AND fit <> items
+    GETPOSITION(%bgList,x,y,w,h)
+    SETPOSITION(%bgList,x,y,w,h + (fit - items) * lh)
   END
   0{PROP:Pixels} = sp
 
