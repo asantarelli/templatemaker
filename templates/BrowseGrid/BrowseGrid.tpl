@@ -1106,8 +1106,10 @@ BG:Filter:%bgObject ROUTINE
 !  Hand the filter to the browse itself. Nothing else can do it: the records
 !  come out of the VIEW, and only the browse object knows how to re-read them.
 #IF(%bgFilterBtn)
-  CODE
 #IF(%bgBrowseObj)
+!  No DATA section here, so no CODE statement either - a ROUTINE only accepts
+!  CODE after a DATA block, and this one emitted a bare one the moment the
+!  filter button was switched on.
   %bgBrowseObj.SetFilter(%bgObject:Filter)
   %bgBrowseObj.ResetSort(1)
   DO BG:Fill:%bgObject

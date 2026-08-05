@@ -643,6 +643,25 @@ button is what is visibly there.
 them, and a small window to show them in. The value under the selection covers the common case in the
 meantime.
 
+## Every option has to be generated at least once
+
+The filter button shipped with a `CODE` statement in a ROUTINE that had no `DATA` section. Clarion only
+accepts `CODE` after a `DATA` block, so the moment anyone switched the button on their app would not
+compile — `Expected: <statement> … DATA …`.
+
+It got through because the test app had the option **off**, which is its default, so that ROUTINE never
+generated. Registering a template only parses it; a generate is what proves the emitted Clarion is
+Clarion, and a generate only covers the paths whose prompts are switched on.
+
+The test app now has every optional path **on** — flattening off so the grouped one runs, wrapping on,
+diagnostics on, filter button on — so a generate exercises the code that used to hide behind a default.
+Turning them on is a TXA round trip:
+
+    ClarionCL -win -au -ax app.app out.txa      # export
+    ...edit the %prompt values in out.txa...
+    ClarionCL -win -au -ai app.app out.txa      # import
+    ClarionCL -win -au -ag app.app              # and generate
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
