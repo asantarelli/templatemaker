@@ -368,36 +368,15 @@ c LONG,AUTO
 #!#############################################################################
 #!  PROCEDURE EXTENSION - BrowseGrid
 #!#############################################################################
-#!#############################################################################
-#!  THE GRID ITSELF - a CHILD of the BrowseBox, not a separate extension.
-#!
-#!  REQ(BrowseBox) is what puts it under the browse in the Extensions tree,
-#!  beside "Update a Record from Browse Box", instead of beside it. That is not
-#!  tidiness: a procedure extension has to be TOLD which LIST it belongs to, and
-#!  on a window with two browses the developer has to get that right and keep it
-#!  right. A child belongs to one browse by construction.
-#!
-#!  Being a child also hands over three things that were prompts, or guesses:
-#!    the browse object    'BRW' & the parent instance
-#!    its queue            'Queue:Browse:' & the parent instance
-#!    its LIST             asked for at run time, BRW1.ILC.GetControl()
-#!  The object name in particular was a prompt defaulting to BRW1 that simply
-#!  failed to compile if the developer had renamed it.
-#!
-#!  It declares no CONTROLS. It does not need any - the region is created over
-#!  the LIST at run time - and a child template is not obliged to drop one.
-#!#############################################################################
-#CONTROL(BrowseGrid,'BrowseGrid - draw this browse with Direct2D'),REQ(BrowseBox),DESCRIPTION('Grid on ' & %Primary),HLP('~BrowseGrid.htm')
-#!  Derived from the browse this is attached to, so nothing has to be typed and
-#!  nothing can disagree with the browse it is drawing.
+#EXTENSION(BrowseGrid,'BrowseGrid - draw this browse with Direct2D'),PROCEDURE,MULTI,REQ(BrowseGridGlobal),DESCRIPTION('Grid on ' & %bgList),HLP('~BrowseGrid.htm')
 #SHEET
   #TAB('&Browse')
     #BOXED('Which browse')
       #PROMPT('&Disable this grid',CHECK),%bgDisable,DEFAULT(0),AT(10)
       #PROMPT('Show grid &diagnostics in the window title',CHECK),%bgDiag,DEFAULT(0),AT(10)
       #PROMPT('&Object name:',@s64),%bgObject,REQ,DEFAULT('Grid' & %ActiveTemplateInstance)
-      #DISPLAY('The LIST, the queue and the browse object all come from the browse')
-      #DISPLAY('this is attached to. There is nothing here to keep in step by hand.')
+      #PROMPT('&LIST control to take over:',CONTROL),%bgList,REQ
+      #PROMPT('Browse &queue:',@s64),%bgQueue,REQ,DEFAULT('Queue:Browse:1')
       #DISPLAY('The queue the LIST is FROM(). ABC calls the first one')
       #DISPLAY('Queue:Browse, the second Queue:Browse:2, and so on - look in')
       #DISPLAY('the generated source if you are not sure.')
@@ -417,6 +396,9 @@ c LONG,AUTO
       #DISPLAY('Column widths and filters, through the application<39>s own INIMgr, under a')
       #DISPLAY('section named for this procedure and this grid. Nothing else stores it.')
       #PROMPT('&Excel-style drop-down button on every heading',CHECK),%bgFilterBtn,DEFAULT(0),AT(10)
+      #ENABLE(%bgFilterBtn)
+        #PROMPT('  &Browse object to filter through:',@s64),%bgBrowseObj,DEFAULT('BRW1')
+      #ENDENABLE
       #DISPLAY('Sorting goes through the browse the same way a heading click does.')
       #DISPLAY('Filtering calls the browse object<39>s own SetFilter, so range limits and')
       #DISPLAY('locators keep working - which means the object has to be named here.')
@@ -475,12 +457,11 @@ c LONG,AUTO
   #ENDTAB
 #ENDSHEET
 #!-----------------------------------------------------------------------------
-#AT(%DataSection),WHERE(%bgDisable=0)
+#AT(%DataSection),WHERE(%bgDisable=0 AND %bgList)
 BG:Resized:%bgObject EQUATE(EVENT:User + 240 + %ActiveTemplateInstance)
 BG:Popup:%bgObject   EQUATE(EVENT:User + 200 + %ActiveTemplateInstance)
 BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
-%bgObject:Lst        SIGNED                                  ! the browse's own LIST, asked for at Init
 %bgObject:G          LONG                                    ! the grid, 0 = not running
 %bgObject:Rgn        SIGNED                                  ! the region it is drawn on
 %bgObject:Cols       LONG                                    ! how many columns came over
@@ -511,7 +492,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:Lines      LONG                                    ! lines per record in the LIST's format
 #ENDAT
 #!
-#AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0)
+#AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
   IF ReturnValue = Level:Benign
     DO BG:Setup:%bgObject
   END
@@ -522,19 +503,19 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 #!  it generates, it compiles, and it never runs. ABC calls Reset when the
 #!  browse has refilled itself, and TakeNewSelection when the highlight moves,
 #!  which between them cover scrolling, locating, filtering and editing.
-#AT(%WindowManagerMethodCodeSection,'Reset','(BYTE Force=0)'),PRIORITY(8000),WHERE(%bgDisable=0)
+#AT(%WindowManagerMethodCodeSection,'Reset','(BYTE Force=0)'),PRIORITY(8000),WHERE(%bgDisable=0 AND %bgList)
   IF %bgObject:G
     DO BG:Fill:%bgObject
   END
 #ENDAT
 #!
-#AT(%WindowManagerMethodCodeSection,'TakeNewSelection','(),BYTE'),PRIORITY(8000),WHERE(%bgDisable=0)
+#AT(%WindowManagerMethodCodeSection,'TakeNewSelection','(),BYTE'),PRIORITY(8000),WHERE(%bgDisable=0 AND %bgList)
   IF %bgObject:G
     DO BG:Fill:%bgObject
   END
 #ENDAT
 #!
-#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0)
+#AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
   CASE EVENT()
   OF EVENT:Sized
 !  Do NOT move the region here. The window resizer is working on this same
@@ -587,7 +568,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
   END
 #ENDAT
 #!
-#AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0)
+#AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
   IF FIELD() = %bgObject:Rgn AND %bgObject:G
     CASE EVENT()
     OF EVENT:MouseDown
@@ -608,7 +589,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
   END
 #ENDAT
 #!
-#AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0)
+#AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
 #IF(%bgRemember)
   DO BG:Remember:%bgObject                                    ! before anything is taken down
 #ENDIF
@@ -623,7 +604,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
   END
 #ENDAT
 #!
-#AT(%ProcedureRoutines),WHERE(%bgDisable=0)
+#AT(%ProcedureRoutines),WHERE(%bgDisable=0 AND %bgList)
 BG:Setup:%bgObject ROUTINE
 !  Put a region exactly where the LIST is, hide the LIST, and hand the region
 !  to the grid. The LIST stays in the window doing its job - it is simply not
@@ -634,12 +615,9 @@ y  SIGNED,AUTO
 w  SIGNED,AUTO
 h  SIGNED,AUTO
   CODE
-!  The browse knows which control it is driving; nothing else has to.
-  %bgObject:Lst = BRW%ActiveTemplateParentInstance.ILC.GetControl()
-  IF ~%bgObject:Lst THEN EXIT.
   IF ~d2g_Available() THEN EXIT.                              ! no Direct2D: leave the LIST alone
   IF ~%bgObject:Rgn
-    %bgObject:Rgn = CREATE(0,CREATE:Region,%bgObject:Lst{PROP:Parent})
+    %bgObject:Rgn = CREATE(0,CREATE:Region,%bgList{PROP:Parent})
     %bgObject:Rgn{PROP:IMM} = 1                               ! or no mouse events arrive
   END
   DO BG:Place:%bgObject
@@ -706,7 +684,7 @@ h  SIGNED,AUTO
 sty LONG,AUTO
   CODE
   IF ~%bgObject:Rgn THEN EXIT.
-  GETPOSITION(%bgObject:Lst,x,y,w,h)
+  GETPOSITION(%bgList,x,y,w,h)
   SETPOSITION(%bgObject:Rgn,x,y,w,h)
   IF %bgObject:G
     DO BG:Conceal:%bgObject                                   ! a resize can bring it back
@@ -741,19 +719,19 @@ ghead CSTRING(65)
   n = 0
   lines = 1
   LOOP c = 1 TO 512
-    ex = %bgObject:Lst{PROPLIST:Exists,c}
+    ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
-    fld = %bgObject:Lst{PROPLIST:FieldNo,c}
+    fld = %bgList{PROPLIST:FieldNo,c}
     IF ~fld THEN CYCLE.                                       ! a decoration, not a data column
-    wid = %bgObject:Lst{PROPLIST:Width,c}
+    wid = %bgList{PROPLIST:Width,c}
     IF wid < 1 THEN CYCLE.                                    ! hidden
     IF n >= 32 THEN BREAK.
     algn = 0
-    p = %bgObject:Lst{PROPLIST:Right,c}
+    p = %bgList{PROPLIST:Right,c}
     IF p THEN algn = 1.
-    p = %bgObject:Lst{PROPLIST:Decimal,c}
+    p = %bgList{PROPLIST:Decimal,c}
     IF p THEN algn = 1.
-    p = %bgObject:Lst{PROPLIST:Center,c}
+    p = %bgList{PROPLIST:Center,c}
     IF p THEN algn = 2.
 !  A column inside a GROUP usually carries no heading of its own - the group's
 !  heading stands over the whole set of them. Adding PROPLIST:Group to any of
@@ -761,10 +739,10 @@ ghead CSTRING(65)
 !  in the formatter's top row actually live. Flattened, each field becomes a
 !  column of its own, so it needs a heading of its own: its own if it has one,
 !  the group's if it has not.
-    head = CLIP(%bgObject:Lst{PROPLIST:Header,c})
-    grp  = %bgObject:Lst{PROPLIST:GroupNo,c}
+    head = CLIP(%bgList{PROPLIST:Header,c})
+    grp  = %bgList{PROPLIST:GroupNo,c}
     IF grp
-      ghead = CLIP(%bgObject:Lst{PROPLIST:Header + PROPLIST:Group,c})
+      ghead = CLIP(%bgList{PROPLIST:Header + PROPLIST:Group,c})
       IF ~head
         head = ghead
       ELSIF ghead AND UPPER(ghead) <> UPPER(head)
@@ -772,7 +750,7 @@ ghead CSTRING(65)
       END
 !  LastOnLine is where the format wraps onto the next line of the row. Counting
 !  them is how a multi-line browse is recognised at all.
-      IF %bgObject:Lst{PROPLIST:LastOnLine,c} THEN lines += 1.
+      IF %bgList{PROPLIST:LastOnLine,c} THEN lines += 1.
     END
     LOOP p = 1 TO LEN(head)                                   ! a bar wraps a heading on screen
       IF head[p] = '|' THEN head[p] = ' '.
@@ -780,7 +758,7 @@ ghead CSTRING(65)
     head = CLIP(LEFT(head))
     %bgObject:Fld[n + 1] = fld
     %bgObject:Col[n + 1] = c                                  ! so a resize can be written back
-    %bgObject:Pic[n + 1] = CLIP(%bgObject:Lst{PROPLIST:Picture,c})
+    %bgObject:Pic[n + 1] = CLIP(%bgList{PROPLIST:Picture,c})
     d2g_Column(%bgObject:G,n,wid * 2,algn,head)               ! LIST widths are dialog units
     n += 1
   END
@@ -791,12 +769,12 @@ ghead CSTRING(65)
 !  more. A grid can always be got back to.
   IF ~n AND pass = 1
     LOOP c = 1 TO 512
-      ex = %bgObject:Lst{PROPLIST:Exists,c}
+      ex = %bgList{PROPLIST:Exists,c}
       IF ~ex THEN BREAK.
-      fld = %bgObject:Lst{PROPLIST:FieldNo,c}
+      fld = %bgList{PROPLIST:FieldNo,c}
       IF ~fld THEN CYCLE.
       head = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','h' & c))
-      %bgObject:Lst{PROPLIST:Width,c} = CHOOSE(head <> '' AND head <> '0', head, 40)
+      %bgList{PROPLIST:Width,c} = CHOOSE(head <> '' AND head <> '0', head, 40)
       INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,'')
     END
     CYCLE                                                     ! read them again, once
@@ -849,14 +827,14 @@ head CSTRING(65)
   gx   = 0
   mx   = 1
   LOOP c = 1 TO 512
-    ex = %bgObject:Lst{PROPLIST:Exists,c}
+    ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
-    fld = %bgObject:Lst{PROPLIST:FieldNo,c}
+    fld = %bgList{PROPLIST:FieldNo,c}
     IF ~fld THEN CYCLE.
-    wid = %bgObject:Lst{PROPLIST:Width,c}
+    wid = %bgList{PROPLIST:Width,c}
     IF wid < 1 THEN CYCLE.
     IF n >= 32 THEN BREAK.
-    grp = %bgObject:Lst{PROPLIST:GroupNo,c}
+    grp = %bgList{PROPLIST:GroupNo,c}
     IF grp <> prev OR ~grp                                    ! a new group starts here
       IF g >= 0 THEN gx += gw.
       g += 1
@@ -864,11 +842,11 @@ head CSTRING(65)
       ln = 0
       xo = 0
       IF grp
-        gw   = %bgObject:Lst{PROPLIST:Width + PROPLIST:Group,c} * 2
-        head = CLIP(%bgObject:Lst{PROPLIST:Header + PROPLIST:Group,c})
+        gw   = %bgList{PROPLIST:Width + PROPLIST:Group,c} * 2
+        head = CLIP(%bgList{PROPLIST:Header + PROPLIST:Group,c})
       ELSE
         gw   = wid * 2                                        ! ungrouped: a group of one
-        head = CLIP(%bgObject:Lst{PROPLIST:Header,c})
+        head = CLIP(%bgList{PROPLIST:Header,c})
       END
       LOOP p = 1 TO LEN(head)
         IF head[p] = '|' THEN head[p] = ' '.
@@ -878,21 +856,21 @@ head CSTRING(65)
       %bgObject:GrpCol[g + 1] = c                             ! for writing a resize back
     END
     algn = 0
-    p = %bgObject:Lst{PROPLIST:Right,c}
+    p = %bgList{PROPLIST:Right,c}
     IF p THEN algn = 1.
-    p = %bgObject:Lst{PROPLIST:Decimal,c}
+    p = %bgList{PROPLIST:Decimal,c}
     IF p THEN algn = 1.
-    p = %bgObject:Lst{PROPLIST:Center,c}
+    p = %bgList{PROPLIST:Center,c}
     IF p THEN algn = 2.
 !  Its own heading, which in a grouped format is where most of the words are.
-    head = CLIP(%bgObject:Lst{PROPLIST:Header,c})
+    head = CLIP(%bgList{PROPLIST:Header,c})
     LOOP p = 1 TO LEN(head)
       IF head[p] = '|' THEN head[p] = ' '.
     END
     head = CLIP(LEFT(head))
     d2g_ColumnAt(%bgObject:G,n,g,ln,gx + xo,wid * 2,algn,head)
     xo += wid * 2
-    IF grp AND %bgObject:Lst{PROPLIST:LastOnLine,c}                 ! the record wraps here
+    IF grp AND %bgList{PROPLIST:LastOnLine,c}                 ! the record wraps here
       ln += 1
       xo = 0
       IF ln + 1 > mx THEN mx = ln + 1.
@@ -940,10 +918,10 @@ row LONG,AUTO
     %bgObject:VGrab = d2g_VGrab(%bgObject:G,my)               ! anchored, so it cannot jump
     EXIT
   OF 2
-    POST(EVENT:PageUp,%bgObject:Lst)
+    POST(EVENT:PageUp,%bgList)
     EXIT
   OF 3
-    POST(EVENT:PageDown,%bgObject:Lst)
+    POST(EVENT:PageDown,%bgList)
     EXIT
   END
 !  A heading. On the edge of a column that is a resize; anywhere else it is a
@@ -1000,9 +978,9 @@ row LONG,AUTO
 #ENDIF
     EXIT
   END
-  IF row < 0 OR row >= RECORDS(Queue:Browse:%ActiveTemplateParentInstance) THEN EXIT.
-  %bgObject:Lst{PROP:Selected} = row + 1
-  POST(EVENT:NewSelection,%bgObject:Lst)                            ! let the browse react as usual
+  IF row < 0 OR row >= RECORDS(%bgQueue) THEN EXIT.
+  %bgList{PROP:Selected} = row + 1
+  POST(EVENT:NewSelection,%bgList)                            ! let the browse react as usual
 !  Give the focus to the BROWSE, not to the region. The LIST is invisible to
 !  Windows but perfectly alive to Clarion, so with the focus on it every key an
 !  ABC browse has always answered goes on working, unchanged and unwritten by
@@ -1010,7 +988,7 @@ row LONG,AUTO
 !  for the two ends, the incremental locator, Insert, Delete and Enter. The
 !  region only ever needed the mouse, and a REGION with PROP:IMM gets that
 !  whether it has the focus or not.
-  SELECT(%bgObject:Lst)
+  SELECT(%bgList)
   %bgObject:Sel = row
   d2g_Select(%bgObject:G,row)
   d2g_Repaint(%bgObject:G)
@@ -1049,7 +1027,7 @@ need LONG,AUTO
   lh = %bgRowH
 #ELSE
 !  Nothing was asked for: take the browse's own line height...
-  lh = %bgObject:Lst{PROP:LineHeight} * %bgObject:Lines             ! which is per LINE, not per record
+  lh = %bgList{PROP:LineHeight} * %bgObject:Lines             ! which is per LINE, not per record
 #ENDIF
   IF lh < need THEN lh = need.                                ! ...but never squash the type
   d2g_RowHeight(%bgObject:G,lh)
@@ -1059,9 +1037,9 @@ need LONG,AUTO
 !  was lines-times-taller than it is, worked out that one fitted, and loaded
 !  one. The grid keeps the record height; the LIST is given one line of it.
   IF %bgObject:Lines > 1
-    %bgObject:Lst{PROP:LineHeight} = lh / %bgObject:Lines
+    %bgList{PROP:LineHeight} = lh / %bgObject:Lines
   ELSE
-    %bgObject:Lst{PROP:LineHeight} = lh
+    %bgList{PROP:LineHeight} = lh
   END
   0{PROP:Pixels} = sp
 
@@ -1082,11 +1060,11 @@ BG:Conceal:%bgObject ROUTINE
   DATA
 sty LONG,AUTO
   CODE
-  sty = bgApi_GetWindowLong(%bgObject:Lst{PROP:Handle},BG:GwlStyle)
+  sty = bgApi_GetWindowLong(%bgList{PROP:Handle},BG:GwlStyle)
   IF BAND(sty,BG:Visible)
-    bgApi_SetWindowLong(%bgObject:Lst{PROP:Handle},BG:GwlStyle,                       |
+    bgApi_SetWindowLong(%bgList{PROP:Handle},BG:GwlStyle,                       |
                         BAND(sty,BXOR(0FFFFFFFFh,BG:Visible)))
-    bgApi_SetWindowPos(%bgObject:Lst{PROP:Handle},0,0,0,0,0,                          |
+    bgApi_SetWindowPos(%bgList{PROP:Handle},0,0,0,0,0,                          |
                        BOR(BOR(BG:FrameChanged,BG:NoMove),BOR(BG:NoSize,BG:NoZOrder)))
     %bgObject:Clipped = 1
   END
@@ -1098,9 +1076,9 @@ BG:Reveal:%bgObject ROUTINE
 sty LONG,AUTO
   CODE
   IF ~%bgObject:Clipped THEN EXIT.
-  sty = bgApi_GetWindowLong(%bgObject:Lst{PROP:Handle},BG:GwlStyle)
-  bgApi_SetWindowLong(%bgObject:Lst{PROP:Handle},BG:GwlStyle,BOR(sty,BG:Visible))
-  bgApi_SetWindowPos(%bgObject:Lst{PROP:Handle},0,0,0,0,0,                            |
+  sty = bgApi_GetWindowLong(%bgList{PROP:Handle},BG:GwlStyle)
+  bgApi_SetWindowLong(%bgList{PROP:Handle},BG:GwlStyle,BOR(sty,BG:Visible))
+  bgApi_SetWindowPos(%bgList{PROP:Handle},0,0,0,0,0,                            |
                      BOR(BOR(BG:FrameChanged,BG:NoMove),BOR(BG:NoSize,BG:NoZOrder)))
   %bgObject:Clipped = 0
 
@@ -1121,7 +1099,7 @@ i  LONG,AUTO
     IF %bgObject:ColFilt[i] THEN d2g_FilterOn(%bgObject:G,i - 1,1).
   END
 #ENDIF
-  sc = %bgObject:Lst{PROPLIST:SortColumn}
+  sc = %bgList{PROPLIST:SortColumn}
   IF ~sc OR sc = %bgObject:SortOn THEN EXIT.
   %bgObject:SortOn = sc
   LOOP i = 1 TO %bgObject:Cols                                ! back to a GRID column
@@ -1154,12 +1132,12 @@ val  CSTRING(129)
   CODE
   fld = %bgObject:Fld[%bgObject:SortCol + 1]
   IF ~fld THEN EXIT.
-  nm  = CLIP(WHO(Queue:Browse:%ActiveTemplateParentInstance,fld))
-  GET(Queue:Browse:%ActiveTemplateParentInstance,CHOICE(%bgObject:Lst))
+  nm  = CLIP(WHO(%bgQueue,fld))
+  GET(%bgQueue,CHOICE(%bgList))
   IF ERRORCODE()
     val = ''
   ELSE
-    val = CLIP(LEFT(WHAT(Queue:Browse:%ActiveTemplateParentInstance,fld)))
+    val = CLIP(LEFT(WHAT(%bgQueue,fld)))
   END
 !  NO SEPARATORS. POPUP counts a '-' as an item, so with two of them in here
 !  every choice after the first was numbered one or two higher than it looked -
@@ -1225,6 +1203,7 @@ BG:Filter:%bgObject ROUTINE
 !  Hand the filter to the browse itself. Nothing else can do it: the records
 !  come out of the VIEW, and only the browse object knows how to re-read them.
 #IF(%bgFilterBtn)
+#IF(%bgBrowseObj)
   DATA
 i LONG,AUTO
   CODE
@@ -1241,7 +1220,7 @@ i LONG,AUTO
 !  Setting all of them every time is therefore both safe and idempotent.
   %bgObject:Filters = 0
   LOOP i = 1 TO %bgObject:Cols
-    BRW%ActiveTemplateParentInstance.SetFilter(%bgObject:ColFilt[i],'BrowseGrid:' & i)
+    %bgBrowseObj.SetFilter(%bgObject:ColFilt[i],'BrowseGrid:' & i)
     IF %bgObject:ColFilt[i] THEN %bgObject:Filters += 1.
   END
 !  No DATA section here, so no CODE statement either - a ROUTINE only accepts
@@ -1259,9 +1238,14 @@ i LONG,AUTO
 !  So: apply it, then ask the browse to go to the top of the new set through
 !  its own event. ABC re-reads, calls Reset when it has, and the Reset embed
 !  fills the grid - by which time there is something to fill it from.
-  BRW%ActiveTemplateParentInstance.ResetSort(1)
-  POST(EVENT:ScrollTop,%bgObject:Lst)
+  %bgBrowseObj.ResetSort(1)
+  POST(EVENT:ScrollTop,%bgList)
   POST(BG:Refill:%bgObject)                                   ! and refresh once it has landed
+#ELSE
+  MESSAGE('This grid has no browse object named on its prompts, so it cannot ' |
+        & 'filter. Put the browse<39>s object name - BRW1, usually - in ' |
+        & '<39>Browse object to filter through<39>.','BrowseGrid',ICON:Exclamation)
+#ENDIF
 #ELSE
   EXIT
 #ENDIF
@@ -1298,8 +1282,8 @@ lc LONG,AUTO
     %bgObject:SortDir = 1
   END
   d2g_SortMark(%bgObject:G,%bgObject:SortCol,%bgObject:SortDir)
-  %bgObject:Lst{PROPLIST:MouseDownField} = lc
-  POST(EVENT:HeaderPressed,%bgObject:Lst)
+  %bgList{PROPLIST:MouseDownField} = lc
+  POST(EVENT:HeaderPressed,%bgList)
 #ELSE
   EXIT
 #ENDIF
@@ -1317,13 +1301,13 @@ g  LONG,AUTO
   g = %bgObject:RzCol - 1
   lc = %bgObject:GrpCol[g + 1]
   IF lc
-    %bgObject:Lst{PROPLIST:Width + PROPLIST:Group,lc} = d2g_GrpWidth(%bgObject:G,g) / 2
+    %bgList{PROPLIST:Width + PROPLIST:Group,lc} = d2g_GrpWidth(%bgObject:G,g) / 2
   END
   LOOP i = 1 TO %bgObject:Cols
     IF d2g_ColGrp(%bgObject:G,i - 1) <> g THEN CYCLE.
     lc = %bgObject:Col[i]
     IF lc
-      %bgObject:Lst{PROPLIST:Width,lc} = d2g_GrpColW(%bgObject:G,i - 1) / 2
+      %bgList{PROPLIST:Width,lc} = d2g_GrpColW(%bgObject:G,i - 1) / 2
     END
   END
   DO BG:Place:%bgObject
@@ -1346,13 +1330,13 @@ was CSTRING(32)
   CODE
   IF ~%bgObject:G THEN EXIT.
   LOOP c = 1 TO 512
-    ex = %bgObject:Lst{PROPLIST:Exists,c}
+    ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
-    fld = %bgObject:Lst{PROPLIST:FieldNo,c}
+    fld = %bgList{PROPLIST:FieldNo,c}
     IF ~fld THEN CYCLE.
     was = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','h' & c))
     IF was AND was <> '0'                                     ! it was hidden: put it back
-      %bgObject:Lst{PROPLIST:Width,c} = was
+      %bgList{PROPLIST:Width,c} = was
     END
     INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,'')
     INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & c,'')
@@ -1404,7 +1388,7 @@ i    LONG,AUTO
 on   LONG,AUTO
 off  LONG,AUTO
   CODE
-  nm = CLIP(WHO(Queue:Browse:%ActiveTemplateParentInstance,%bgObject:Fld[%bgObject:SortCol + 1]))
+  nm = CLIP(WHO(%bgQueue,%bgObject:Fld[%bgObject:SortCol + 1]))
   IF ~nm THEN EXIT.
   FREE(VQ)
   SET(%bgFile)
@@ -1516,14 +1500,14 @@ p    LONG,AUTO
   CODE
   FREE(ChQ)
   LOOP c = 1 TO 512
-    ex = %bgObject:Lst{PROPLIST:Exists,c}
+    ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
-    fld = %bgObject:Lst{PROPLIST:FieldNo,c}
+    fld = %bgList{PROPLIST:FieldNo,c}
     IF ~fld THEN CYCLE.                                       ! a decoration, not a column
-    wid = %bgObject:Lst{PROPLIST:Width,c}
-    head = CLIP(%bgObject:Lst{PROPLIST:Header,c})
+    wid = %bgList{PROPLIST:Width,c}
+    head = CLIP(%bgList{PROPLIST:Header,c})
     IF ~head
-      head = CLIP(%bgObject:Lst{PROPLIST:Header + PROPLIST:Group,c})
+      head = CLIP(%bgList{PROPLIST:Header + PROPLIST:Group,c})
     END
     LOOP p = 1 TO LEN(head)
       IF head[p] = '|' THEN head[p] = ' '.
@@ -1566,11 +1550,11 @@ p    LONG,AUTO
       LOOP p = 1 TO RECORDS(ChQ)
         GET(ChQ,p)
         IF ChQ.On
-          %bgObject:Lst{PROPLIST:Width,ChQ.Col} = ChQ.Wid
+          %bgList{PROPLIST:Width,ChQ.Col} = ChQ.Wid
         ELSE
 !  Remember how wide it was before it went, so it comes back the same size.
           INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & ChQ.Col,ChQ.Wid)
-          %bgObject:Lst{PROPLIST:Width,ChQ.Col} = 0
+          %bgList{PROPLIST:Width,ChQ.Col} = 0
         END
       END
       POST(EVENT:CloseWindow)
@@ -1603,11 +1587,11 @@ ex  LONG,AUTO
 val CSTRING(32)
   CODE
   LOOP c = 1 TO 512
-    ex = %bgObject:Lst{PROPLIST:Exists,c}
+    ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
     val = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','w' & c))
     IF val AND val <> '0'
-      %bgObject:Lst{PROPLIST:Width,c} = val
+      %bgList{PROPLIST:Width,c} = val
     END
   END
 #ELSE
@@ -1693,13 +1677,13 @@ row LONG,AUTO
   GETPOSITION(%bgObject:Rgn,rx,ry,rw,rh)
   row = d2g_HitRow(%bgObject:G,MOUSEY() - ry)
   0{PROP:Pixels} = sp
-  IF row >= 0 AND row < RECORDS(Queue:Browse:%ActiveTemplateParentInstance)                     ! on a row: take it with us
-    %bgObject:Lst{PROP:Selected} = row + 1
+  IF row >= 0 AND row < RECORDS(%bgQueue)                     ! on a row: take it with us
+    %bgList{PROP:Selected} = row + 1
     %bgObject:Sel = row
     d2g_Select(%bgObject:G,row)
     d2g_Repaint(%bgObject:G)
   END
-  SELECT(%bgObject:Lst)
+  SELECT(%bgList)
   POST(BG:Popup:%bgObject)
 #ELSE
   EXIT
@@ -1744,9 +1728,9 @@ vp  LONG,AUTO
     END
     vp = d2g_VDrag(%bgObject:G,my,%bgObject:VGrab)
     d2g_VBar(%bgObject:G,1,vp,BG:ThumbPct)
-    IF vp <> %bgObject:Lst{PROP:VScrollPos}
-      %bgObject:Lst{PROP:VScrollPos} = vp
-      POST(EVENT:ScrollDrag,%bgObject:Lst)                          ! ABC fetches, Reset redraws
+    IF vp <> %bgList{PROP:VScrollPos}
+      %bgList{PROP:VScrollPos} = vp
+      POST(EVENT:ScrollDrag,%bgList)                          ! ABC fetches, Reset redraws
     ELSE
       d2g_Repaint(%bgObject:G)
     END
@@ -1823,7 +1807,7 @@ c LONG,AUTO
   END
   c = %bgObject:Col[%bgObject:RzCol]
   IF c
-    %bgObject:Lst{PROPLIST:Width,c} = d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2
+    %bgList{PROPLIST:Width,c} = d2g_ColWidth(%bgObject:G,%bgObject:RzCol - 1) / 2
 !  Changing a LIST's format makes it redraw itself, and it comes back over the
 !  grid when it does - the clip style and the stacking order both survive the
 !  write, so it is the painting that gets through, not the ordering. Putting
@@ -1854,9 +1838,9 @@ total LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
   %bgObject:Fills += 1                                        ! for the diagnostics line
-  total = RECORDS(Queue:Browse:%ActiveTemplateParentInstance)
+  total = RECORDS(%bgQueue)
   fit   = d2g_PageSize(%bgObject:G) + 1
-  sel   = CHOICE(%bgObject:Lst)
+  sel   = CHOICE(%bgList)
   first = 0
   rows  = total
   IF fit > 0 AND total > fit
@@ -1876,14 +1860,14 @@ total LONG,AUTO
   END
   d2g_Page(%bgObject:G,first,rows)
   LOOP i = 1 TO rows
-    GET(Queue:Browse:%ActiveTemplateParentInstance,first + i)
+    GET(%bgQueue,first + i)
     IF ERRORCODE() THEN BREAK.
     LOOP col = 1 TO %bgObject:Cols
       IF %bgObject:Pic[col]
-        %bgObject:Cell = CLIP(LEFT(FORMAT(WHAT(Queue:Browse:%ActiveTemplateParentInstance,%bgObject:Fld[col]), |
+        %bgObject:Cell = CLIP(LEFT(FORMAT(WHAT(%bgQueue,%bgObject:Fld[col]), |
                                           CLIP(%bgObject:Pic[col]))))
       ELSE
-        %bgObject:Cell = CLIP(LEFT(WHAT(Queue:Browse:%ActiveTemplateParentInstance,%bgObject:Fld[col])))
+        %bgObject:Cell = CLIP(LEFT(WHAT(%bgQueue,%bgObject:Fld[col])))
       END
       d2g_Cell(%bgObject:G,i - 1,col - 1,%bgObject:Cell)
     END
@@ -1902,8 +1886,8 @@ total LONG,AUTO
                & ' lines=' & %bgObject:Lines & ' rowh=' & d2g_RowH(%bgObject:G) |
                & ' need=' & d2g_RowNeed(%bgObject:G)                            |
                & ' page=' & d2g_PageSize(%bgObject:G) & ' fit=' & fit           |
-               & ' draw=' & rows & ' lh=' & %bgObject:Lst{PROP:LineHeight}            |
-               & ' items=' & %bgObject:Lst{PROP:Items}
+               & ' draw=' & rows & ' lh=' & %bgList{PROP:LineHeight}            |
+               & ' items=' & %bgList{PROP:Items}
 #ENDIF
   d2g_Total(%bgObject:G,total)
   %bgObject:Sel = sel                                         ! the browse owns the selection
@@ -1937,7 +1921,7 @@ sp LONG,AUTO
 !  LIST is told, never the other way round.
     sp = 0{PROP:Pixels}
     0{PROP:Pixels} = 1
-    %bgObject:Lst{PROP:LineHeight} = d2g_RowH(%bgObject:G)           ! whatever the font just made it
+    %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G)           ! whatever the font just made it
     0{PROP:Pixels} = sp
     DO BG:Fill:%bgObject
     EXIT
@@ -1951,9 +1935,9 @@ sp LONG,AUTO
     IF n > 30 THEN n = 30.                                    ! a flicked wheel is not a page jump
     LOOP i = 1 TO n
       IF BG:LastPos > 0
-        POST(EVENT:ScrollUp,%bgObject:Lst)
+        POST(EVENT:ScrollUp,%bgList)
       ELSE
-        POST(EVENT:ScrollDown,%bgObject:Lst)
+        POST(EVENT:ScrollDown,%bgList)
       END
     END
     EXIT
@@ -1966,20 +1950,20 @@ sp LONG,AUTO
   END
   CASE BG:LastCode
   OF 0
-    POST(EVENT:ScrollUp,%bgObject:Lst)
+    POST(EVENT:ScrollUp,%bgList)
   OF 1
-    POST(EVENT:ScrollDown,%bgObject:Lst)
+    POST(EVENT:ScrollDown,%bgList)
   OF 2
-    POST(EVENT:PageUp,%bgObject:Lst)
+    POST(EVENT:PageUp,%bgList)
   OF 3
-    POST(EVENT:PageDown,%bgObject:Lst)
+    POST(EVENT:PageDown,%bgList)
   OF 6
-    POST(EVENT:ScrollTop,%bgObject:Lst)
+    POST(EVENT:ScrollTop,%bgList)
   OF 7
-    POST(EVENT:ScrollBottom,%bgObject:Lst)
+    POST(EVENT:ScrollBottom,%bgList)
   ELSE
-    %bgObject:Lst{PROP:VScrollPos} = BG:LastPos                     ! the thumb, dragged
-    POST(EVENT:ScrollDrag,%bgObject:Lst)
+    %bgList{PROP:VScrollPos} = BG:LastPos                     ! the thumb, dragged
+    POST(EVENT:ScrollDrag,%bgList)
   END
 #ELSE
   EXIT
@@ -2023,7 +2007,7 @@ fRecs LONG,AUTO
 !  PROP:VScrollPos is ignored, so every drag read back as nought and was taken
 !  for "go to the top". Turning it on costs nothing: the LIST is invisible, so
 !  this is a number we are borrowing, not a scrollbar anyone will see.
-  %bgObject:Lst{PROP:VScroll} = 1
+  %bgList{PROP:VScroll} = 1
   IF ~%bgObject:VDrag                                         ! not while it is being dragged
     pct = BG:ThumbPct
 #IF(%bgFile)
@@ -2033,12 +2017,12 @@ fRecs LONG,AUTO
 !  by the size of its thumb.
     fRecs = RECORDS(%bgFile)
     IF fRecs > 0
-      pct = 100 * RECORDS(Queue:Browse:%ActiveTemplateParentInstance) / fRecs
+      pct = 100 * RECORDS(%bgQueue) / fRecs
       IF pct < 4 THEN pct = 4.
       IF pct > 100 THEN pct = 100.
     END
 #ENDIF
-    d2g_VBar(%bgObject:G,CHOOSE(pct >= 100, 0, 1),%bgObject:Lst{PROP:VScrollPos},pct)
+    d2g_VBar(%bgObject:G,CHOOSE(pct >= 100, 0, 1),%bgList{PROP:VScrollPos},pct)
   END
 !  A scrollbar appearing or disappearing RESIZES the client area behind our
 !  back - hide the horizontal one and the client grows by its height. Nothing
