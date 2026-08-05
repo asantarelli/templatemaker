@@ -159,6 +159,7 @@ typedef struct {
     char  face[64];             /* kept so the font can be rebuilt bigger   */
     int   pt;
 
+    int   btns;                 /* draw a filter button on every heading?   */
     int   sortCol;              /* which column is sorted, -1 for none      */
     int   sortDir;              /* 1 up, -1 down                            */
 
@@ -217,6 +218,8 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
 #define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
+static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill);
+#define D2G_BTNW 15         /* the drop-down box on a heading, as Excel draws it */
 
 /* ---- the two factories --------------------------------------------------- */
 static int d2g_Factories(void) {
@@ -491,8 +494,10 @@ static void d2g_Draw(Grid* c) {
             cl = (float)(c->grpX[col] - c->scrollX);
             cr = cl + c->grpW[col];
             if (cr > (float)frozenW && cl < (float)r.right) {
-                text(c, c->grpTitle[col], cl + 4.0f, 2.0f, cr - 4.0f, (float)c->hdrH,
+                text(c, c->grpTitle[col], cl + 4.0f, 2.0f,
+                     cr - (c->btns ? (float)(D2G_BTNW + 6) : 4.0f), (float)c->hdrH,
                      c->cHdrText, 2, c->fmtHdr, 0);
+                if (c->btns) filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText, c->cHdrBack);
                 line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
             }
         }
@@ -512,11 +517,14 @@ static void d2g_Draw(Grid* c) {
         cl = (float)x;
         cr = cl + c->colW[col];
         if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right) {
-            float tr = (col == c->sortCol) ? cr - 14.0f : cr - 4.0f;  /* keep clear of the mark */
+            float bw = c->btns ? (float)(D2G_BTNW + 4) : 0.0f;
+            float tr = cr - bw - ((col == c->sortCol) ? 14.0f : 4.0f);
             text(c, c->colTitle[col], cl + 4.0f, 2.0f, tr, (float)c->hdrH,
                  c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
             if (col == c->sortCol)
-                sortMark(c, cr, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
+                sortMark(c, cr - bw, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
+            if (c->btns)
+                filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText, c->cHdrBack);
             line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
         }
         x += c->colW[col];
@@ -547,11 +555,16 @@ static void d2g_Draw(Grid* c) {
         fx = 0;
         for (col = 0; col < c->frozen && col < c->cols && !c->grps; col++) {
             float cre = (float)(fx + c->colW[col]);
-            text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
-                 (col == c->sortCol) ? cre - 14.0f : cre - 4.0f, (float)c->hdrH,
-                 c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
-            if (col == c->sortCol)
-                sortMark(c, cre, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
+            {
+                float bw = c->btns ? (float)(D2G_BTNW + 4) : 0.0f;
+                text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
+                     cre - bw - ((col == c->sortCol) ? 14.0f : 4.0f), (float)c->hdrH,
+                     c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
+                if (col == c->sortCol)
+                    sortMark(c, cre - bw, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
+                if (c->btns)
+                    filterBtn(c, cre, (float)(c->hdrH / 2), c->cHdrText, c->cHdrBack);
+            }
             fx += c->colW[col];
             line(c, (float)fx - 0.5f, 0.0f, (float)fx - 0.5f, (float)c->hdrH, c->cGrid);
         }
@@ -605,7 +618,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c = &g_g[i];
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
     c->sortCol = -1; c->sortDir = 1;
-    c->grps = 0; c->lines = 1; c->wrapLines = 1;
+    c->grps = 0; c->lines = 1; c->wrapLines = 1; c->btns = 0;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
     c->rowH = D2G_ROWFOR(pt); c->hdrH = D2G_HDRFOR(pt);
@@ -877,6 +890,61 @@ void d2g_SortMark(int h, int col, int dir) {
     if (!c) return;
     c->sortCol = col;
     c->sortDir = dir < 0 ? -1 : 1;
+}
+
+void d2g_FilterBtns(int h, int on) {
+    Grid* c = slot(h);
+    if (c) c->btns = on ? 1 : 0;
+}
+
+/* Excel's little boxed arrow at the right of a heading. A bordered square with
+   a solid triangle pointing down - drawn, like the sort mark, out of rows
+   rather than a path, because there is no geometry sink in this binding. */
+static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill) {
+    float l = right - (float)D2G_BTNW - 2.0f;
+    float t = midY - 7.0f;
+    float r = right - 2.0f;
+    float b = midY + 7.0f;
+    int   i;
+    float cx = (l + r) / 2.0f;
+    fillRect(c, l, t, r, b, fill);
+    line(c, l + 0.5f, t, l + 0.5f, b, line_);
+    line(c, r - 0.5f, t, r - 0.5f, b, line_);
+    line(c, l, t + 0.5f, r, t + 0.5f, line_);
+    line(c, l, b - 0.5f, r, b - 0.5f, line_);
+    for (i = 0; i < 4; i++) {                       /* the arrow, pointing down */
+        float w = (float)(7 - i * 2);
+        float y = midY - 1.0f + (float)i;
+        fillRect(c, cx - w / 2.0f, y, cx + w / 2.0f, y + 1.0f, line_);
+    }
+}
+
+/* which heading's button is under the pointer, -1 for none */
+int d2g_HitBtn(int h, int x, int y) {
+    Grid* c = slot(h);
+    int   col, at, fx = 0;
+    if (!c || !c->btns || y > c->hdrH) return -1;
+    if (c->grps) {
+        for (col = 0; col < c->grps; col++) {
+            at = c->grpX[col] + c->grpW[col] - ((col < c->frozen) ? 0 : c->scrollX);
+            if (x >= at - D2G_BTNW - 2 && x < at - 2) {
+                int i;
+                for (i = 0; i < c->cols; i++) if (c->colGrp[i] == col) return i;
+                return -1;
+            }
+        }
+        return -1;
+    }
+    for (col = 0; col < c->frozen && col < c->cols; col++) {
+        fx += c->colW[col];
+        if (x >= fx - D2G_BTNW - 2 && x < fx - 2) return col;
+    }
+    at = -c->scrollX;
+    for (col = 0; col < c->cols; col++) {
+        at += c->colW[col];
+        if (col >= c->frozen && at > fx && x >= at - D2G_BTNW - 2 && x < at - 2) return col;
+    }
+    return -1;
 }
 
 /* A small triangle, built out of four one-pixel rows rather than a path -

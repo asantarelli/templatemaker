@@ -27,6 +27,7 @@ Main PROCEDURE
       d2g_VHit(LONG h,LONG x,LONG y),LONG,NAME('_d2g_VHit')
       d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
       d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
+      d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
       d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
     END
   END
@@ -99,6 +100,7 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
         d2g_Cell(g, i, 4, cell)
       END
       d2g_ScrollY(g, 11)                                      ! half a row: the top record is sliced
+      d2g_FilterBtns(g, 1)
       d2g_SortMark(g, 1, 1)                                   ! Town, ascending
       d2g_ScrollX(g, 170)                                     ! scrolled sideways, under the frozen pair
       d2g_PaintNow(g)

@@ -616,6 +616,33 @@ going in and again coming out, which left the fields a pixel short of where they
 
     PROP-PASS was 200,300,160,140 now 200,300,160,140 grp=300
 
+## Excel's drop-down on every heading
+
+**Excel-style drop-down button on every heading** puts a boxed arrow at the right of each heading, the
+way Excel's autofilter does, with the sort mark moved just left of it. Clicking one opens a menu:
+
+- Sort ascending, sort descending
+- Filter on the value under the selection
+- Clear this filter, clear all filters
+
+Sorting goes through the browse exactly as a heading click does. **Filtering calls the browse object's
+own `SetFilter`**, so range limits, locators and everything else the browse was given keep working —
+which is why the object has to be named on the prompts. It defaults to `BRW1`.
+
+The field name for the filter expression is read at run time with **`WHO()`**. An ABC browse queue
+labels its fields with the file fields they came from, so `WHO(Queue:Browse:1, n)` answers
+`STU:LastName` — exactly what a filter wants, and it means nothing has to be mapped by hand. That is
+the trick that makes this possible from outside the browse template.
+
+The button is drawn before the resize edge is tested, because they occupy the same few pixels and the
+button is what is visibly there.
+
+`docs/BrowseGrid-filter-button.png` shows the buttons with a sorted column beside one.
+
+**Not built yet:** Excel's checklist of distinct values. That needs a pass over the VIEW to collect
+them, and a small window to show them in. The value under the selection covers the common case in the
+meantime.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

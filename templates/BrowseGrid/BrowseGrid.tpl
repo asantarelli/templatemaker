@@ -140,6 +140,8 @@ d2g_GrpWidth(LONG h,LONG g),LONG,NAME('_d2g_GrpWidth')
 d2g_SetGrpWidth(LONG h,LONG g,LONG width),NAME('_d2g_SetGrpWidth')
 d2g_GrpColW(LONG h,LONG col),LONG,NAME('_d2g_GrpColW')
 d2g_ColGrp(LONG h,LONG col),LONG,NAME('_d2g_ColGrp')
+d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
+d2g_HitBtn(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitBtn')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
 d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align,*CSTRING title),RAW,NAME('_d2g_ColumnAt')
@@ -386,6 +388,15 @@ c LONG,AUTO
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
       #PROMPT('&Sort when a heading is clicked',CHECK),%bgSortHdr,DEFAULT(1),AT(10)
+      #PROMPT('&Excel-style drop-down button on every heading',CHECK),%bgFilterBtn,DEFAULT(0),AT(10)
+      #ENABLE(%bgFilterBtn)
+        #PROMPT('  &Browse object to filter through:',@s64),%bgBrowseObj,DEFAULT('BRW1')
+      #ENDENABLE
+      #DISPLAY('Sorting goes through the browse the same way a heading click does.')
+      #DISPLAY('Filtering calls the browse object<39>s own SetFilter, so range limits and')
+      #DISPLAY('locators keep working - which means the object has to be named here.')
+      #DISPLAY('The field name is read at run time with WHO(), because an ABC browse')
+      #DISPLAY('queue labels its fields with the file fields they came from.')
       #PROMPT('&Flatten a grouped or multi-line format',CHECK),%bgFlatten,DEFAULT(1),AT(10)
       #DISPLAY('A grouped browse puts several fields on each record, over more than one')
       #DISPLAY('line, under headings that span them. Flattened, every field becomes a')
@@ -464,6 +475,7 @@ BG:Cover:%bgObject   EQUATE(EVENT:User + 160 + %ActiveTemplateInstance)
 %bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
 %bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
+%bgObject:Filter     CSTRING(1025)                           ! what the grid has filtered on
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
 %bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
@@ -616,6 +628,9 @@ h  SIGNED,AUTO
 !  The region is on top, so it - not the LIST - is what a right-click lands on.
 !  Alerting it here is what lets that click be handed back to the browse.
   %bgObject:Rgn{PROP:Alrt,250} = MouseRightUp
+#ENDIF
+#IF(%bgFilterBtn)
+  d2g_FilterBtns(%bgObject:G,1)
 #ENDIF
   d2g_Frozen(%bgObject:G,%bgFrozen)
   d2g_Colours(%bgObject:G,BG_Rgb(%bgCBack),BG_Rgb(%bgCBand),                  |
@@ -856,6 +871,16 @@ row LONG,AUTO
 !  A heading. On the edge of a column that is a resize; anywhere else it is a
 !  request to sort by that column. Either way it never changes the selection.
   IF my < d2g_HdrHeight(%bgObject:G)
+#IF(%bgFilterBtn)
+!  The drop-down box is drawn over the right of the heading, so it is what a
+!  click there means - before the resize edge, which is in the same few pixels.
+    col = d2g_HitBtn(%bgObject:G,mx,my)
+    IF col >= 0
+      %bgObject:SortCol = col
+      DO BG:Menu:%bgObject
+      EXIT
+    END
+#ENDIF
 #IF(%bgSortHdr)
     %bgObject:SortCol = d2g_HitCol(%bgObject:G,mx)            ! remember it either way
 #ENDIF
@@ -1022,6 +1047,75 @@ i  LONG,AUTO
     END
   END
   d2g_SortMark(%bgObject:G,-1,1)                              ! sorted on a column we do not draw
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Menu:%bgObject ROUTINE
+!  Excel's column drop-down. Sorting goes through the browse exactly as a
+!  heading click does; filtering goes through ABC's own SetFilter, so range
+!  limits, locators and everything else the browse was given keep working.
+!
+!  The field name for the filter comes from WHO(): an ABC browse queue labels
+!  its fields with the file fields they came from, so WHO(Queue:Browse:1,n)
+!  answers "STU:LastName" - which is exactly what a filter expression wants,
+!  and means nothing has to be mapped by hand.
+#IF(%bgFilterBtn)
+  DATA
+pick LONG,AUTO
+fld  LONG,AUTO
+nm   CSTRING(65)
+val  CSTRING(129)
+  CODE
+  fld = %bgObject:Fld[%bgObject:SortCol + 1]
+  IF ~fld THEN EXIT.
+  nm  = CLIP(WHO(%bgQueue,fld))
+  GET(%bgQueue,CHOICE(%bgList))
+  IF ERRORCODE()
+    val = ''
+  ELSE
+    val = CLIP(LEFT(WHAT(%bgQueue,fld)))
+  END
+  pick = POPUP('Sort &Ascending|Sort &Descending|-|' |
+             & '&Filter on {{' & CLIP(val) & '}|Clear this &filter|-|Clear &all filters')
+  CASE pick
+  OF 1
+  OROF 2
+    %bgObject:SortDir = CHOOSE(pick = 1, 1, -1)
+    %bgObject:SortOn  = 0                                     ! so BG:Sort does not flip it back
+    DO BG:Sort:%bgObject
+    IF pick = 2                                               ! ABC toggles: ask twice for descending
+      %bgObject:SortOn = 0
+      DO BG:Sort:%bgObject
+    END
+  OF 4
+    IF nm AND val
+      %bgObject:Filter = CLIP(nm) & ' = ' & '''' & CLIP(val) & ''''
+      DO BG:Filter:%bgObject
+    END
+  OF 5
+  OROF 7
+    %bgObject:Filter = ''
+    DO BG:Filter:%bgObject
+  END
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Filter:%bgObject ROUTINE
+!  Hand the filter to the browse itself. Nothing else can do it: the records
+!  come out of the VIEW, and only the browse object knows how to re-read them.
+#IF(%bgFilterBtn)
+  CODE
+#IF(%bgBrowseObj)
+  %bgBrowseObj.SetFilter(%bgObject:Filter)
+  %bgBrowseObj.ResetSort(1)
+  DO BG:Fill:%bgObject
+#ELSE
+  MESSAGE('This grid has no browse object named on its prompts, so it cannot ' |
+        & 'filter. Put the browse<39>s object name - BRW1, usually - in ' |
+        & '<39>Browse object to filter through<39>.','BrowseGrid',ICON:Exclamation)
+#ENDIF
 #ELSE
   EXIT
 #ENDIF
