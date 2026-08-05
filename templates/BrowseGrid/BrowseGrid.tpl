@@ -363,6 +363,7 @@ c LONG,AUTO
   #TAB('&Browse')
     #BOXED('Which browse')
       #PROMPT('&Disable this grid',CHECK),%bgDisable,DEFAULT(0),AT(10)
+      #PROMPT('Show grid &diagnostics in the window title',CHECK),%bgDiag,DEFAULT(0),AT(10)
       #PROMPT('&Object name:',@s64),%bgObject,REQ,DEFAULT('Grid' & %ActiveTemplateInstance)
       #PROMPT('&LIST control to take over:',CONTROL),%bgList,REQ
       #PROMPT('Browse &queue:',@s64),%bgQueue,REQ,DEFAULT('Queue:Browse:1')
@@ -1253,6 +1254,18 @@ total LONG,AUTO
   END
 #IF(%bgSortHdr)
   DO BG:Mark:%bgObject
+#ENDIF
+#IF(%bgDiag)
+!  Everything the grid is working from, in the window title. When a browse
+!  draws nothing there is no way to tell from the outside whether the queue was
+!  empty, the rows were too tall to fit, or the columns never got read - and
+!  those want different fixes.
+  0{PROP:Text} = 'BG q=' & total & ' cols=' & %bgObject:Cols                   |
+               & ' lines=' & %bgObject:Lines & ' rowh=' & d2g_RowH(%bgObject:G) |
+               & ' need=' & d2g_RowNeed(%bgObject:G)                            |
+               & ' page=' & d2g_PageSize(%bgObject:G) & ' fit=' & fit           |
+               & ' draw=' & rows & ' lh=' & %bgList{PROP:LineHeight}            |
+               & ' items=' & %bgList{PROP:Items}
 #ENDIF
   d2g_Total(%bgObject:G,total)
   %bgObject:Sel = sel                                         ! the browse owns the selection
