@@ -175,6 +175,18 @@ typedef struct {
     int   colX[G_COLS];         /* where the column sits across the record  */
     int   colLine[G_COLS];      /* and which line of it                     */
     int   colGrp[G_COLS];       /* which group it belongs to                */
+    /* Where the field sat inside its group when the format was read, and how
+       wide the group was then. Resizing recomputes from THESE, never from the
+       last result: scaling the current numbers again and again is destructive,
+       and integer arithmetic drives them to nothing. Squeeze a group small
+       enough that way and every offset rounds to zero, and growing it back
+       multiplies zero by a ratio - still zero, so the fields stay piled up on
+       the left.
+       Keeping the ORIGINAL numbers rather than a proportion of them also means
+       no double rounding: back at the width it started from, the arithmetic is
+       exact rather than a pixel short. */
+    int   colOx[G_COLS], colOw[G_COLS];
+    int   grpOw[G_COLS];
     int   lines;                /* lines per record, 1 for an ordinary one  */
 
     int   wrap;                 /* let long text run onto another line?     */
@@ -830,8 +842,9 @@ void d2g_Group(int h, int gi, int x, int width, const char* title) {
     Grid* c = slot(h);
     int   k;
     if (!c || gi < 0 || gi >= G_COLS) return;
-    c->grpX[gi] = x;
-    c->grpW[gi] = width;
+    c->grpX[gi]  = x;
+    c->grpW[gi]  = width;
+    c->grpOw[gi] = width;               /* what the fields inside were sized against */
     for (k = 0; k < G_TEXT - 1 && title[k]; k++) c->grpTitle[gi][k] = title[k];
     c->grpTitle[gi][k] = 0;
 }
@@ -848,6 +861,8 @@ void d2g_ColumnAt(int h, int col, int grp, int line, int x, int width, int align
     c->colX[col]     = x;
     c->colW[col]     = width;
     c->colAlign[col] = align;
+    c->colOx[col] = (grp >= 0 && grp < G_COLS) ? (x - c->grpX[grp]) : 0;
+    c->colOw[col] = width;
     /* Its OWN heading, if it has one. In a grouped format most of the words in
        the header belong to the columns, not the groups - "Last Name", "Major",
        "Grad Year" are the columns', and only "Address" and "Telephone" are
@@ -1005,15 +1020,18 @@ void d2g_SetGrpWidth(int h, int g, int w) {
     old = c->grpW[g];
     if (old < 1) return;
     gx = c->grpX[g];
-    /* the fields inside keep their share of it */
-    for (i = 0; i < c->cols; i++) {
-        if (c->colGrp[i] != g) continue;
-        c->colX[i] = gx + (c->colX[i] - gx) * w / old;
-        c->colW[i] = c->colW[i] * w / old;
-        if (c->colW[i] < 8) c->colW[i] = 8;
-    }
     delta = w - old;
     c->grpW[g] = w;
+    /* Rebuilt from the proportions the format was read with, not from where
+       the fields happen to be now - so shrinking and growing again lands back
+       where it started instead of collapsing everything onto the left. */
+    if (c->grpOw[g] < 1) c->grpOw[g] = old;
+    for (i = 0; i < c->cols; i++) {
+        if (c->colGrp[i] != g) continue;
+        c->colX[i] = gx + c->colOx[i] * w / c->grpOw[g];
+        c->colW[i] = c->colOw[i] * w / c->grpOw[g];
+        if (c->colW[i] < 8) c->colW[i] = 8;
+    }
     for (i = g + 1; i < c->grps; i++) c->grpX[i] += delta;     /* everything right moves */
     for (i = 0; i < c->cols; i++) if (c->colGrp[i] > g) c->colX[i] += delta;
 }

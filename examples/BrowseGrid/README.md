@@ -599,6 +599,23 @@ The grid keeps the record height. The LIST is given one line of it. Reading the 
 the same correction — the LIST's own line height has to be multiplied **up** by the lines in a record
 before it means anything to the grid.
 
+## Resizing a group has to be reversible
+
+Dragging a group narrow and then wide again piled every field up on the left, overwriting each other.
+
+Each drag scaled the **current** numbers, and integer arithmetic drives them to nothing: squeeze a
+group far enough and the offsets round to zero, then growing it back multiplies zero by a ratio, which
+is still zero. The layout was destroyed by the first drag and there was nothing left to restore.
+
+Each field now keeps the offset and width it was **read** with, and the group keeps the width those
+were measured against. Every resize recomputes from those, never from the last result. Storing the
+original numbers rather than a proportion of them also avoids rounding twice — a proportion truncates
+going in and again coming out, which left the fields a pixel short of where they started.
+
+`proptest.clw` squeezes a 300-wide group down to 60 and back:
+
+    PROP-PASS was 200,300,160,140 now 200,300,160,140 grp=300
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
