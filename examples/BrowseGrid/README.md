@@ -662,6 +662,17 @@ Turning them on is a TXA round trip:
     ClarionCL -win -au -ai app.app out.txa      # import
     ClarionCL -win -au -ag app.app              # and generate
 
+## POPUP counts its separators
+
+Filtering did nothing, and *clearing* a filter applied one — on the value that had been selected
+earlier. The menu was numbered wrong: `POPUP` counts a `-` as an item, so with two separators in the
+string every choice after the first was one or two higher than it looked. "Filter on" was item **3**
+and matched no case at all; "Clear this filter" was item **4**, which is where the filter code was. So
+clearing filtered, filtering did nothing, and the mark never appeared because the branch that sets it
+never ran.
+
+The menu has no separators now and the cases are numbered as they read.
+
 ## A filter does not take hold until the browse has re-read
 
 Filtering appeared to do nothing until something else was clicked, and clearing a filter appeared not
@@ -703,7 +714,11 @@ separate sort mark is gone wherever the button is drawn. The button *is* the sta
 | `˅` U+02C5 | not sorted — this opens a menu |
 | `▲` U+25B2 | sorted ascending |
 | `▼` U+25BC | sorted descending |
-| the button filled | filtered, whatever the sort is doing |
+| a funnel, U+E71C, on a filled button | filtered |
+
+The funnel is out of Windows' own icon font — Segoe MDL2 Assets on 10, Segoe Fluent Icons on 11, the
+same code point in both. If neither resolves, DirectWrite falls back and the **filled button** still
+says it is filtered, so nothing depends on that font being found.
 
 They are **characters**, not icons and not shapes hand-built out of one-pixel rows, which is what they
 were at first. Rows meant a fixed pixel size that ignored Ctrl-wheel and looked crude next to the text

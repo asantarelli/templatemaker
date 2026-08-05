@@ -646,6 +646,8 @@ h  SIGNED,AUTO
 #ENDIF
 #IF(%bgFilterBtn)
   d2g_FilterBtns(%bgObject:G,1)
+  %bgObject:FilterCol = -1                                    ! 0 is a real column, not "none"
+  d2g_FilterOn(%bgObject:G,-1)
 #ENDIF
   d2g_Frozen(%bgObject:G,%bgFrozen)
   d2g_Colours(%bgObject:G,BG_Rgb(%bgCBack),BG_Rgb(%bgCBand),                  |
@@ -1095,8 +1097,12 @@ val  CSTRING(129)
   ELSE
     val = CLIP(LEFT(WHAT(%bgQueue,fld)))
   END
-  pick = POPUP('Sort &Ascending|Sort &Descending|-|' |
-             & '&Filter on {{' & CLIP(val) & '}|Clear this &filter|-|Clear &all filters')
+!  NO SEPARATORS. POPUP counts a '-' as an item, so with two of them in here
+!  every choice after the first was numbered one or two higher than it looked -
+!  "Filter on" was item 3 and matched nothing, and "Clear this filter" was item
+!  4, which is why CLEARING a filter is what applied one.
+  pick = POPUP('Sort &Ascending|Sort &Descending|' |
+             & '&Filter on {{' & CLIP(val) & '}|Clear this &filter|Clear &all filters')
   CASE pick
   OF 1                                                        ! ascending
     lc = %bgObject:Col[%bgObject:SortCol + 1]
@@ -1117,7 +1123,7 @@ val  CSTRING(129)
     ELSIF %bgObject:SortDir > 0
       DO BG:Sort:%bgObject
     END
-  OF 4
+  OF 3                                                        ! filter on this value
     IF nm AND val
       %bgObject:Filter = CLIP(nm) & ' = ' & '''' & CLIP(val) & ''''
       %bgObject:FilterCol = %bgObject:SortCol
@@ -1125,8 +1131,8 @@ val  CSTRING(129)
       d2g_PaintNow(%bgObject:G)                               ! say so NOW, not when the data lands
       DO BG:Filter:%bgObject
     END
-  OF 5
-  OROF 7
+  OF 4
+  OROF 5                                                      ! clear this one, or all of them
     %bgObject:Filter    = ''
     %bgObject:FilterCol = -1
     d2g_FilterOn(%bgObject:G,-1)

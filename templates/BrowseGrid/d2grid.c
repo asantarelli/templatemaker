@@ -124,6 +124,7 @@ typedef struct {
     void* rt;                   /* ID2D1HwndRenderTarget */
     void* fmt;                  /* IDWriteTextFormat - the body font   */
     void* fmtHdr;               /* ... and the header font             */
+    void* fmtIcon;              /* Windows' icon font, for the funnel  */
     void* brush;                /* one brush, recoloured as it goes    */
     WNDPROC oldProc;
 
@@ -220,7 +221,7 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
 static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill,
-                      int dir);
+                      int dir, int filt);
 static void glyph(Grid* c, unsigned short ch, float l, float t, float r, float b,
                   unsigned int rgb, void* fmt);
 
@@ -230,6 +231,7 @@ static void glyph(Grid* c, unsigned short ch, float l, float t, float r, float b
 #define D2G_G_MENU  0x02C5      /* a thin arrowhead: this opens a menu */
 #define D2G_G_ASC   0x25B2      /* a solid triangle, pointing up       */
 #define D2G_G_DESC  0x25BC      /* ...and pointing down                */
+#define D2G_G_FILT  0xE71C      /* the funnel, out of Windows' own icon font */
 #define D2G_BTNW 15         /* the drop-down box on a heading, as Excel draws it */
 
 /* ---- the two factories --------------------------------------------------- */
@@ -533,7 +535,7 @@ static void d2g_Draw(Grid* c) {
                     }
                     scol = sdir;
                     filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
-                              fcol ? c->cSelBack : c->cHdrBack, scol);
+                              fcol ? c->cSelBack : c->cHdrBack, scol, fcol);
                 }
                 line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
             }
@@ -561,7 +563,8 @@ static void d2g_Draw(Grid* c) {
             if (c->btns)
                 filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
                           (col == c->filterCol) ? c->cSelBack : c->cHdrBack,
-                          (col == c->sortCol) ? c->sortDir : 0);
+                          (col == c->sortCol) ? c->sortDir : 0,
+                          col == c->filterCol);
             else if (col == c->sortCol)
                 sortMark(c, cr, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
@@ -602,7 +605,8 @@ static void d2g_Draw(Grid* c) {
                 if (c->btns)
                     filterBtn(c, cre, (float)(c->hdrH / 2), c->cHdrText,
                               (col == c->filterCol) ? c->cSelBack : c->cHdrBack,
-                              (col == c->sortCol) ? c->sortDir : 0);
+                              (col == c->sortCol) ? c->sortDir : 0,
+                              col == c->filterCol);
                 else if (col == c->sortCol)
                     sortMark(c, cre, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             }
@@ -669,6 +673,11 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     if (!d2g_MakeTarget(c)) { c->used = 0; return 0; }
     c->fmt     = d2g_Font(face, (float)pt, 0);
     c->fmtHdr  = d2g_Font(face, (float)pt, 1);
+    /* Segoe MDL2 Assets is on Windows 10, Segoe Fluent Icons on 11; whichever
+       resolves, the funnel is at the same code point. If neither is there
+       DirectWrite falls back and the filled button still says it is filtered,
+       so nothing depends on this being found. */
+    c->fmtIcon = d2g_Font("Segoe MDL2 Assets", (float)pt, 0);
     if (!c->fmt || !c->fmtHdr) { c->used = 0; return 0; }
     c->wrap = 0; c->wrapLines = 1;
     { int k; for (k = 0; k < 63 && face[k]; k++) c->face[k] = face[k]; c->face[k] = 0; }
@@ -684,6 +693,7 @@ void d2g_Detach(int h) {
     if (c->oldProc && IsWindow(c->hwnd))
         SetWindowLongA(c->hwnd, GWL_WNDPROC, (long)c->oldProc);
     if (c->brush)  ((unsigned long (WINAPI*)(void*))VT(c->brush)[2])(c->brush);
+    if (c->fmtIcon)((unsigned long (WINAPI*)(void*))VT(c->fmtIcon)[2])(c->fmtIcon);
     if (c->fmt)    ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
     if (c->fmtHdr) ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
     if (c->rt)     ((unsigned long (WINAPI*)(void*))VT(c->rt)[2])(c->rt);
@@ -959,7 +969,7 @@ void d2g_FilterOn(int h, int col) {
    Drawn out of one-pixel rows rather than a path, because there is no geometry
    sink in this binding. */
 static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill,
-                      int dir) {
+                      int dir, int filt) {
     float l = right - (float)D2G_BTNW - 2.0f;
     float t = midY - 7.0f;
     float r = right - 2.0f;
@@ -971,8 +981,12 @@ static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsi
     line(c, r - 0.5f, t, r - 0.5f, b, line_);
     line(c, l, t + 0.5f, r, t + 0.5f, line_);
     line(c, l, b - 0.5f, r, b - 0.5f, line_);
-    glyph(c, (unsigned short)(!dir ? D2G_G_MENU : (dir > 0 ? D2G_G_ASC : D2G_G_DESC)),
-          l, t, r, b, line_, c->fmt);
+    if (filt && c->fmtIcon) {
+        glyph(c, D2G_G_FILT, l, t, r, b, line_, c->fmtIcon);
+    } else {
+        glyph(c, (unsigned short)(!dir ? D2G_G_MENU : (dir > 0 ? D2G_G_ASC : D2G_G_DESC)),
+              l, t, r, b, line_, c->fmt);
+    }
     (void)i; (void)cx;
 }
 
