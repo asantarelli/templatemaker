@@ -474,14 +474,25 @@ static void d2g_Draw(Grid* c) {
     clip.r = (float)r.right; clip.b = (float)c->hdrH;
     ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
     if (c->grps) {
-        for (col = c->frozen; col < c->grps; col++) {
+        int hLine = (c->lines > 1) ? (c->hdrH / c->lines) : c->hdrH;
+        for (col = c->frozen; col < c->grps; col++) {          /* the group, spanning */
             cl = (float)(c->grpX[col] - c->scrollX);
             cr = cl + c->grpW[col];
             if (cr > (float)frozenW && cl < (float)r.right) {
                 text(c, c->grpTitle[col], cl + 4.0f, 2.0f, cr - 4.0f, (float)c->hdrH,
-                     c->cHdrText, 2, c->fmtHdr, 0);              /* centred over its fields */
+                     c->cHdrText, 2, c->fmtHdr, 0);
                 line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
             }
+        }
+        for (col = 0; col < c->cols; col++) {                  /* and each column's own */
+            float hy;
+            if (c->colGrp[col] < c->frozen) continue;
+            cl = (float)(c->colX[col] - c->scrollX);
+            cr = cl + c->colW[col];
+            hy = (float)(c->colLine[col] * hLine);
+            if (cr > (float)frozenW && cl < (float)r.right)
+                text(c, c->colTitle[col], cl + 4.0f, hy + 2.0f, cr - 4.0f, hy + (float)hLine,
+                     c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
         }
     }
     x = -c->scrollX;
@@ -505,11 +516,20 @@ static void d2g_Draw(Grid* c) {
         clip.l = 0.0f; clip.t = 0.0f; clip.r = (float)frozenW; clip.b = (float)c->hdrH;
         ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
         if (c->grps) {
+            int hLine = (c->lines > 1) ? (c->hdrH / c->lines) : c->hdrH;
             for (col = 0; col < c->frozen && col < c->grps; col++) {
                 float ge = (float)(c->grpX[col] + c->grpW[col]);
                 text(c, c->grpTitle[col], (float)c->grpX[col] + 4.0f, 2.0f, ge - 4.0f,
                      (float)c->hdrH, c->cHdrText, 2, c->fmtHdr, 0);
                 line(c, ge - 0.5f, 0.0f, ge - 0.5f, (float)c->hdrH, c->cGrid);
+            }
+            for (col = 0; col < c->cols; col++) {
+                float hy;
+                if (c->colGrp[col] >= c->frozen) continue;
+                hy = (float)(c->colLine[col] * hLine);
+                text(c, c->colTitle[col], (float)c->colX[col] + 4.0f, hy + 2.0f,
+                     (float)(c->colX[col] + c->colW[col]) - 4.0f, hy + (float)hLine,
+                     c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
             }
         }
         fx = 0;
@@ -784,6 +804,7 @@ void d2g_Lines(int h, int n) {
     if (!c || n < 1 || n > 8) return;
     c->lines = n;
     c->rowH  = D2G_ROWH(c);
+    c->hdrH  = D2G_HDRFOR(c->pt) * n;          /* the headings stack the same way */
 }
 
 /* Long text runs onto another line instead of being cut off, and every row
@@ -817,15 +838,23 @@ void d2g_Group(int h, int gi, int x, int width, const char* title) {
 
 /* A column that says where it goes: which group, which line of the record, how
    far across, how wide. The title is the group's, so it is not repeated here. */
-void d2g_ColumnAt(int h, int col, int grp, int line, int x, int width, int align) {
+void d2g_ColumnAt(int h, int col, int grp, int line, int x, int width, int align,
+                  const char* title) {
     Grid* c = slot(h);
+    int   k;
     if (!c || col < 0 || col >= G_COLS) return;
     c->colGrp[col]   = grp;
     c->colLine[col]  = line;
     c->colX[col]     = x;
     c->colW[col]     = width;
     c->colAlign[col] = align;
-    c->colTitle[col][0] = 0;
+    /* Its OWN heading, if it has one. In a grouped format most of the words in
+       the header belong to the columns, not the groups - "Last Name", "Major",
+       "Grad Year" are the columns', and only "Address" and "Telephone" are
+       their groups'. Drawing group headings alone leaves the first group blank,
+       which is exactly what it did. */
+    for (k = 0; k < G_TEXT - 1 && title && title[k]; k++) c->colTitle[col][k] = title[k];
+    c->colTitle[col][k] = 0;
 }
 
 void d2g_SortMark(int h, int col, int dir) {

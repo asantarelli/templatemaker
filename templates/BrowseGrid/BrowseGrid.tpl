@@ -137,7 +137,7 @@ d2g_Lines(LONG h,LONG n),NAME('_d2g_Lines')
 d2g_Wrap(LONG h,LONG on,LONG lines),NAME('_d2g_Wrap')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
-d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align),NAME('_d2g_ColumnAt')
+d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align,*CSTRING title),RAW,NAME('_d2g_ColumnAt')
 d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
@@ -782,7 +782,13 @@ head CSTRING(65)
     IF p THEN algn = 1.
     p = %bgList{PROPLIST:Center,c}
     IF p THEN algn = 2.
-    d2g_ColumnAt(%bgObject:G,n,g,ln,gx + xo,wid * 2,algn)
+!  Its own heading, which in a grouped format is where most of the words are.
+    head = CLIP(%bgList{PROPLIST:Header,c})
+    LOOP p = 1 TO LEN(head)
+      IF head[p] = '|' THEN head[p] = ' '.
+    END
+    head = CLIP(LEFT(head))
+    d2g_ColumnAt(%bgObject:G,n,g,ln,gx + xo,wid * 2,algn,head)
     xo += wid * 2
     IF grp AND %bgList{PROPLIST:LastOnLine,c}                 ! the record wraps here
       ln += 1
@@ -905,8 +911,12 @@ need LONG,AUTO
 !  is what made big rows come out short. The engine clamps it too, but the
 !  clamped value is what has to go back to the LIST, or the browse still loads
 !  to a height nothing is drawn at.
+!  d2g_RowNeed already counts the lines in a record and the lines a wrapped
+!  cell may use. Multiplying by the line count again here made a row as tall as
+!  its lines SQUARED - and on a four-line format that is taller than the whole
+!  browse, so ABC worked out that nothing fitted, loaded no records, and the
+!  grid had nothing whatever to draw.
   need = d2g_RowNeed(%bgObject:G)
-  IF %bgObject:Lines > 1 THEN need = need * %bgObject:Lines.  ! a record is that many lines tall
 #IF(%bgRowH > 0)
 !  A row height was asked for, so the BROWSE is the one that gives way.
   lh = %bgRowH

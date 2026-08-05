@@ -568,6 +568,22 @@ height).
 
  is the harness with a narrow Address column, wrapping onto a second line.
 
+## A grouped browse that showed nothing at all
+
+Two faults, and the first is why the grid came up empty.
+
+**The row height was being squared.** `d2g_RowNeed` already counts the lines in a record and the lines
+a wrapped cell may use; `BG:Rows` then multiplied by the line count *again*. On a four-line format that
+makes one line taller than the whole browse, so ABC worked out that no records fitted, loaded none, and
+the grid had nothing whatever to draw.
+
+**And the headings were only the groups'.** In a real grouped format most of the words in the header
+belong to the **columns** — "Last Name", "Major", "Grad Year" are the columns' own headings, and only
+"Address" and "Telephone" are their groups'. Drawing group headings alone left the first group blank,
+which is exactly what it did. `d2g_ColumnAt` now carries the column's own heading, the header is as
+many lines tall as the record, and each column's heading is drawn on the line its field sits on — the
+header mirrors the row.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes
