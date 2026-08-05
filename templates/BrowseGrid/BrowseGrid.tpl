@@ -484,6 +484,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
 %bgObject:Filters    LONG                                    ! how many columns are filtered
+%bgObject:Hidden     LONG                                    ! LIST columns sitting at zero width
 %bgObject:ColFilt    CSTRING(161),DIM(32)                    ! one filter per column, ANDed together
 %bgObject:Fills      LONG                                    ! how many times it has been refilled
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
@@ -784,6 +785,14 @@ ghead CSTRING(65)
   BREAK
   END
   %bgObject:Cols = n
+  %bgObject:Hidden = 0
+  LOOP c = 1 TO 512                                           ! for the diagnostics line
+    ex = %bgList{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK.
+    fld = %bgList{PROPLIST:FieldNo,c}
+    IF ~fld THEN CYCLE.
+    IF %bgList{PROPLIST:Width,c} < 1 THEN %bgObject:Hidden += 1.
+  END
   %bgObject:Lines = lines                                     ! 1 = an ordinary flat browse
   d2g_Columns(%bgObject:G,n)
 #IF(%bgFlatten = 0)
@@ -1686,8 +1695,11 @@ val CSTRING(32)
   LOOP c = 1 TO 512
     ex = %bgList{PROPLIST:Exists,c}
     IF ~ex THEN BREAK.
+!  A stored 0 means "this column was hidden" and has to be honoured, not
+!  skipped - skipping it is what made hiding a column last only until the
+!  window was next opened.
     val = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','w' & c))
-    IF val AND val <> '0'
+    IF val
       %bgList{PROPLIST:Width,c} = val
     END
   END
@@ -1724,10 +1736,25 @@ BG:Remember:%bgObject ROUTINE
 !  Written at Kill, so it costs nothing until the window closes.
 #IF(%bgRemember)
   DATA
-i LONG,AUTO
+i   LONG,AUTO
+c   LONG,AUTO
+ex  LONG,AUTO
+fld LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
-  LOOP i = 1 TO %bgObject:Cols
+!  EVERY column, not only the ones the grid is drawing. A hidden column is not
+!  in the grid's list at all, so writing only those left its old width sitting
+!  in the file - and BG:Recall put it back on the next open, which is a hidden
+!  column coming back from the dead. Zero is a width too, and has to be stored
+!  like one.
+  LOOP c = 1 TO 512
+    ex = %bgList{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK.
+    fld = %bgList{PROPLIST:FieldNo,c}
+    IF ~fld THEN CYCLE.
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,%bgList{PROPLIST:Width,c})
+  END
+  LOOP i = 1 TO %bgObject:Cols                                ! the drawn ones, at grid precision
     IF ~%bgObject:Col[i] THEN CYCLE.
     INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & %bgObject:Col[i], |
                   d2g_ColWidth(%bgObject:G,i - 1) / 2)
@@ -1978,7 +2005,7 @@ total LONG,AUTO
 !  empty, the rows were too tall to fit, or the columns never got read - and
 !  those want different fixes.
   0{PROP:Text} = 'BG q=' & total & ' fill=' & %bgObject:Fills                   |
-               & ' filt=' & %bgObject:Filters                                    |
+               & ' filt=' & %bgObject:Filters & ' hid=' & %bgObject:Hidden        |
                & ' cols=' & %bgObject:Cols                                      |
                & ' lines=' & %bgObject:Lines & ' rowh=' & d2g_RowH(%bgObject:G) |
                & ' need=' & d2g_RowNeed(%bgObject:G)                            |

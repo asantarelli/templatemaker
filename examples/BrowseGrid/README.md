@@ -750,8 +750,14 @@ worse than no list at all.
 width is already invisible to Clarion and `BG:Columns` already skips those — so the chooser only has to
 set widths and read them back, and nothing in the grid needed teaching about hidden columns.
 
-The width a column had is remembered when it is hidden, so unhiding puts it back where it was rather
-than at some default. That falls out of the layout store keying on **LIST column number**: a column the
+**A hidden column has to be stored as hidden.** `BG:Remember` wrote a width for every column the *grid*
+was drawing — and a hidden column is not one of those, so its old width stayed in the file and
+`BG:Recall` put it straight back on the next open. Hiding lasted exactly as long as the window did. It
+now writes every LIST column, and `BG:Recall` honours a stored `0` instead of skipping it. Zero is a
+width too.
+
+The width a column had before it was hidden is kept separately, so unhiding puts it back where it was
+rather than at some default. That falls out of the layout store keying on **LIST column number**: a column the
 grid is not drawing still has somewhere to keep its width.
 
 ## Excel's checklist of values
