@@ -688,6 +688,11 @@ glance:
 draw *in* them. That is what the diagnostics prompt is for: an empty grid looks identical whether the
 queue was empty, the rows were too tall, or the columns were all gone, and those want different fixes.
 
+And then the rescue itself took the program down on startup — it finished with `DO BG:Columns` from
+**inside** `BG:Columns`. That is not a recursive call in Clarion: a ROUTINE holds one return address, so
+calling it from within itself loses the way back. The read is a two-pass `LOOP` now, and the rescue
+`CYCLE`s rather than calling anything.
+
 Three things came out of it. The chooser **refuses** to hide the last column. `BG:Columns`, if it ever
 finds nothing to show, **puts the widths back** from what they were before they went and reads again,
 so a grid can always be got back to whatever put it in that state. And **Reset layout** on the heading

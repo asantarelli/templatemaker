@@ -707,9 +707,15 @@ algn  LONG,AUTO
 p     LONG,AUTO
 grp   LONG,AUTO
 lines LONG,AUTO
+pass  LONG,AUTO
 head  CSTRING(65)
 ghead CSTRING(65)
   CODE
+!  Two passes, not two calls. A ROUTINE that does DO on itself is not a
+!  recursive call in Clarion - a routine holds one return address, so calling it
+!  from inside itself loses the way back and takes the program down with it.
+!  That is what the rescue below did on the first window it was needed on.
+  LOOP pass = 1 TO 2
   n = 0
   lines = 1
   LOOP c = 1 TO 512
@@ -756,12 +762,12 @@ ghead CSTRING(65)
     d2g_Column(%bgObject:G,n,wid * 2,algn,head)               ! LIST widths are dialog units
     n += 1
   END
-!  NOTHING VISIBLE. Every column came back zero-width, which means something
-!  hid them all - the column chooser could, until it learned not to. An empty
-!  grid is unusable and, worse, gives the user nothing to click on to undo it,
-!  so the widths are put back from what they were before they went and the
-!  columns read again. A grid can always be got back to.
-  IF ~n
+!  NOTHING VISIBLE. Every column came back zero-width, which means something hid
+!  them all - the column chooser could, until it learned not to. An empty grid is
+!  unusable and, worse, leaves nothing to click on to undo it, so the widths are
+!  put back from what they were before they went and the loop goes round once
+!  more. A grid can always be got back to.
+  IF ~n AND pass = 1
     LOOP c = 1 TO 512
       ex = %bgList{PROPLIST:Exists,c}
       IF ~ex THEN BREAK.
@@ -771,8 +777,9 @@ ghead CSTRING(65)
       %bgList{PROPLIST:Width,c} = CHOOSE(head <> '' AND head <> '0', head, 40)
       INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,'')
     END
-    DO BG:Columns:%bgObject                                   ! once, with widths that exist
-    EXIT
+    CYCLE                                                     ! read them again, once
+  END
+  BREAK
   END
   %bgObject:Cols = n
   %bgObject:Lines = lines                                     ! 1 = an ordinary flat browse
