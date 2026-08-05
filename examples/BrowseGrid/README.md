@@ -700,10 +700,19 @@ separate sort mark is gone wherever the button is drawn. The button *is* the sta
 
 | | |
 |---|---|
-| a thin chevron | not sorted — this opens a menu |
-| a solid triangle pointing up | sorted ascending |
-| a solid triangle pointing down | sorted descending |
+| `˅` U+02C5 | not sorted — this opens a menu |
+| `▲` U+25B2 | sorted ascending |
+| `▼` U+25BC | sorted descending |
 | the button filled | filtered, whatever the sort is doing |
+
+They are **characters**, not icons and not shapes hand-built out of one-pixel rows, which is what they
+were at first. Rows meant a fixed pixel size that ignored Ctrl-wheel and looked crude next to the text
+beside it; a character scales with the type and reads as an icon because it *is* one — the font's.
+
+They cannot go through `text()`, which converts from ANSI on the way in and would lose anything above
+127, so `glyph()` takes a code point and hands DirectWrite the UTF-16 directly. DirectWrite falls back
+to another font by itself when the chosen one has no glyph, so these draw whatever font the grid was
+given.
 
 A grouped heading reads the state of whichever of its fields carries it, since the button belongs to
 the group. The filter mark is re-applied on every fill, because a refill would otherwise wipe it.

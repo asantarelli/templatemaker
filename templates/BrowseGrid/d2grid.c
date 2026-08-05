@@ -221,6 +221,15 @@ static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
 static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill,
                       int dir);
+static void glyph(Grid* c, unsigned short ch, float l, float t, float r, float b,
+                  unsigned int rgb, void* fmt);
+
+/* What the button says, as characters rather than shapes hand-built out of
+   one-pixel rows. They scale with the type and read as icons because they are
+   icons - the font's, not ours. */
+#define D2G_G_MENU  0x02C5      /* a thin arrowhead: this opens a menu */
+#define D2G_G_ASC   0x25B2      /* a solid triangle, pointing up       */
+#define D2G_G_DESC  0x25BC      /* ...and pointing down                */
 #define D2G_BTNW 15         /* the drop-down box on a heading, as Excel draws it */
 
 /* ---- the two factories --------------------------------------------------- */
@@ -333,6 +342,23 @@ static void line(Grid* c, float x1, float y1, float x2, float y2, unsigned int r
     /* DrawLine - slot 15. Two POINT_2F by value = four floats on the stack. */
     ((void (WINAPI*)(void*, float, float, float, float, void*, float, void*))
      VT(c->rt)[15])(c->rt, x1, y1, x2, y2, c->brush, 1.0f, 0);
+}
+
+/* One character, given by code point rather than by string. The glyphs on a
+   heading are not ASCII, and text() converts from ANSI on the way in, which
+   would lose them. DirectWrite falls back to another font by itself if the
+   chosen one has no glyph, so these draw on any Windows worth supporting. */
+static void glyph(Grid* c, unsigned short ch, float l, float t, float r, float b,
+                  unsigned int rgb, void* fmt) {
+    WCHAR w[2];
+    RECTF rc;
+    w[0] = (WCHAR)ch; w[1] = 0;
+    rc.l = l; rc.t = t; rc.r = r; rc.b = b;
+    setColour(c, rgb);
+    ((HRESULT (WINAPI*)(void*, int))VT(fmt)[3])(fmt, DW_CENTER);
+    ((HRESULT (WINAPI*)(void*, int))VT(fmt)[5])(fmt, DW_NO_WRAP);
+    ((void (WINAPI*)(void*, const WCHAR*, unsigned, void*, const RECTF*, void*, int, int))
+     VT(c->rt)[27])(c->rt, w, 1, fmt, &rc, c->brush, 0, 0);
 }
 
 static void text(Grid* c, const char* s, float l, float t, float r, float b,
@@ -945,19 +971,9 @@ static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsi
     line(c, r - 0.5f, t, r - 0.5f, b, line_);
     line(c, l, t + 0.5f, r, t + 0.5f, line_);
     line(c, l, b - 0.5f, r, b - 0.5f, line_);
-    if (!dir) {                                     /* a chevron - just a menu */
-        for (i = 0; i < 3; i++) {
-            float y = midY - 1.0f + (float)i;
-            fillRect(c, cx - 3.0f + (float)i, y, cx - 2.0f + (float)i, y + 1.0f, line_);
-            fillRect(c, cx + 2.0f - (float)i, y, cx + 3.0f - (float)i, y + 1.0f, line_);
-        }
-        return;
-    }
-    for (i = 0; i < 4; i++) {                       /* solid: which way it is sorted */
-        float w = (dir > 0) ? (float)(1 + i * 2) : (float)(7 - i * 2);
-        float y = midY - 2.0f + (float)i;
-        fillRect(c, cx - w / 2.0f, y, cx + w / 2.0f, y + 1.0f, line_);
-    }
+    glyph(c, (unsigned short)(!dir ? D2G_G_MENU : (dir > 0 ? D2G_G_ASC : D2G_G_DESC)),
+          l, t, r, b, line_, c->fmt);
+    (void)i; (void)cx;
 }
 
 /* which heading's button is under the pointer, -1 for none */
