@@ -219,7 +219,8 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
 #define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
-static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill);
+static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill,
+                      int dir);
 #define D2G_BTNW 15         /* the drop-down box on a heading, as Excel draws it */
 
 /* ---- the two factories --------------------------------------------------- */
@@ -498,8 +499,16 @@ static void d2g_Draw(Grid* c) {
                 text(c, c->grpTitle[col], cl + 4.0f, 2.0f,
                      cr - (c->btns ? (float)(D2G_BTNW + 6) : 4.0f), (float)c->hdrH,
                      c->cHdrText, 2, c->fmtHdr, 0);
-                if (c->btns) filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
-                          (col == c->filterCol) ? c->cSelBack : c->cHdrBack);
+                if (c->btns) {
+                    int scol, sdir = 0, fcol = 0, i;
+                    for (i = 0; i < c->cols; i++) if (c->colGrp[i] == col) {
+                        if (i == c->sortCol)   sdir = c->sortDir;
+                        if (i == c->filterCol) fcol = 1;
+                    }
+                    scol = sdir;
+                    filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
+                              fcol ? c->cSelBack : c->cHdrBack, scol);
+                }
                 line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
             }
         }
@@ -520,14 +529,15 @@ static void d2g_Draw(Grid* c) {
         cr = cl + c->colW[col];
         if (col >= c->frozen && cr > (float)frozenW && cl < (float)r.right) {
             float bw = c->btns ? (float)(D2G_BTNW + 4) : 0.0f;
-            float tr = cr - bw - ((col == c->sortCol) ? 14.0f : 4.0f);
+            float tr = cr - bw - ((!c->btns && col == c->sortCol) ? 14.0f : 4.0f);
             text(c, c->colTitle[col], cl + 4.0f, 2.0f, tr, (float)c->hdrH,
                  c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
-            if (col == c->sortCol)
-                sortMark(c, cr - bw, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             if (c->btns)
                 filterBtn(c, cr, (float)(c->hdrH / 2), c->cHdrText,
-                          (col == c->filterCol) ? c->cSelBack : c->cHdrBack);
+                          (col == c->filterCol) ? c->cSelBack : c->cHdrBack,
+                          (col == c->sortCol) ? c->sortDir : 0);
+            else if (col == c->sortCol)
+                sortMark(c, cr, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             line(c, cr - 0.5f, 0.0f, cr - 0.5f, (float)c->hdrH, c->cGrid);
         }
         x += c->colW[col];
@@ -561,13 +571,14 @@ static void d2g_Draw(Grid* c) {
             {
                 float bw = c->btns ? (float)(D2G_BTNW + 4) : 0.0f;
                 text(c, c->colTitle[col], (float)fx + 4.0f, 2.0f,
-                     cre - bw - ((col == c->sortCol) ? 14.0f : 4.0f), (float)c->hdrH,
+                     cre - bw - ((!c->btns && col == c->sortCol) ? 14.0f : 4.0f), (float)c->hdrH,
                      c->cHdrText, c->colAlign[col], c->fmtHdr, 0);
-                if (col == c->sortCol)
-                    sortMark(c, cre - bw, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
                 if (c->btns)
                     filterBtn(c, cre, (float)(c->hdrH / 2), c->cHdrText,
-                              (col == c->filterCol) ? c->cSelBack : c->cHdrBack);
+                              (col == c->filterCol) ? c->cSelBack : c->cHdrBack,
+                              (col == c->sortCol) ? c->sortDir : 0);
+                else if (col == c->sortCol)
+                    sortMark(c, cre, (float)(c->hdrH / 2) - 2.0f, c->sortDir, c->cHdrText);
             }
             fx += c->colW[col];
             line(c, (float)fx - 0.5f, 0.0f, (float)fx - 0.5f, (float)c->hdrH, c->cGrid);
@@ -909,10 +920,20 @@ void d2g_FilterOn(int h, int col) {
     if (c) c->filterCol = col;
 }
 
-/* Excel's little boxed arrow at the right of a heading. A bordered square with
-   a solid triangle pointing down - drawn, like the sort mark, out of rows
-   rather than a path, because there is no geometry sink in this binding. */
-static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill) {
+/* Excel's little boxed arrow at the right of a heading, and the one place the
+   column says what it is doing. There is no second sort arrow beside the title
+   any more - two arrows in the same corner meaning different things is worse
+   than one that means something.
+
+      not sorted    a thin chevron: this opens a menu
+      ascending     a solid triangle pointing up
+      descending    a solid triangle pointing down
+      filtered      the button filled, whatever the sort is doing
+
+   Drawn out of one-pixel rows rather than a path, because there is no geometry
+   sink in this binding. */
+static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill,
+                      int dir) {
     float l = right - (float)D2G_BTNW - 2.0f;
     float t = midY - 7.0f;
     float r = right - 2.0f;
@@ -924,9 +945,17 @@ static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsi
     line(c, r - 0.5f, t, r - 0.5f, b, line_);
     line(c, l, t + 0.5f, r, t + 0.5f, line_);
     line(c, l, b - 0.5f, r, b - 0.5f, line_);
-    for (i = 0; i < 4; i++) {                       /* the arrow, pointing down */
-        float w = (float)(7 - i * 2);
-        float y = midY - 1.0f + (float)i;
+    if (!dir) {                                     /* a chevron - just a menu */
+        for (i = 0; i < 3; i++) {
+            float y = midY - 1.0f + (float)i;
+            fillRect(c, cx - 3.0f + (float)i, y, cx - 2.0f + (float)i, y + 1.0f, line_);
+            fillRect(c, cx + 2.0f - (float)i, y, cx + 3.0f - (float)i, y + 1.0f, line_);
+        }
+        return;
+    }
+    for (i = 0; i < 4; i++) {                       /* solid: which way it is sorted */
+        float w = (dir > 0) ? (float)(1 + i * 2) : (float)(7 - i * 2);
+        float y = midY - 2.0f + (float)i;
         fillRect(c, cx - w / 2.0f, y, cx + w / 2.0f, y + 1.0f, line_);
     }
 }

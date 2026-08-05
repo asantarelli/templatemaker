@@ -678,12 +678,23 @@ So the filter is applied and then the browse is asked to go to the top of the ne
 event — `POST(EVENT:ScrollTop, list)`. ABC re-reads, calls `Reset` when it has, and the `Reset` embed
 fills the grid, by which time there is something to fill it from.
 
-## The heading has to show what it is doing
+## One button, saying everything
 
-A filtered column's button is filled with the selection colour, so the header says which column is
-filtered rather than leaving it to be remembered. It is re-applied on every fill, because a refill
-would otherwise wipe it. Excel draws a funnel; a filled button reads the same at this size without a
-second icon built out of one-pixel rows.
+Two arrows in the same corner meaning different things is worse than one that means something, so the
+separate sort mark is gone wherever the button is drawn. The button *is* the state:
+
+| | |
+|---|---|
+| a thin chevron | not sorted — this opens a menu |
+| a solid triangle pointing up | sorted ascending |
+| a solid triangle pointing down | sorted descending |
+| the button filled | filtered, whatever the sort is doing |
+
+A grouped heading reads the state of whichever of its fields carries it, since the button belongs to
+the group. The filter mark is re-applied on every fill, because a refill would otherwise wipe it.
+
+With the buttons switched **off**, the old sort mark beside the title comes back — there is nowhere
+else for it to go.
 
 ## Still to come
 
