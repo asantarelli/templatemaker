@@ -676,6 +676,35 @@ brackets, with the range limits in front (`ABFILE.CLW:2613`). An empty expressio
 rather than leaving an empty bracket, so setting every column on every apply is both safe and
 idempotent, and there is nothing to concatenate here any more.
 
+## A child of the browse, not a sibling of it
+
+The grid used to be a procedure extension sitting beside the browse in the Extensions tree. It is a
+**`#CONTROL` with `REQ(BrowseBox)`** now, which puts it *under* the browse, beside "Update a Record from
+Browse Box" — the same mechanism ABC uses for its own child templates.
+
+That is not tidiness. A procedure extension has to be **told** which LIST it belongs to, and on a window
+with two browses the developer has to get that right and keep it right. A child belongs to one browse by
+construction, and three things that were prompts or guesses come free with it:
+
+| | |
+|---|---|
+| the browse object | `BRW` & `%ActiveTemplateParentInstance` |
+| its queue | `Queue:Browse:` & the same |
+| its LIST | asked for at run time — `BRW1.ILC.GetControl()` |
+
+The object name matters most: it was a prompt defaulting to `BRW1` that simply failed to compile if the
+developer had renamed the object. Now it cannot be wrong.
+
+Two things worth knowing if you write one of these. A child template needs **no `CONTROLS` block** — the
+region is still created over the LIST at run time, and a child is not obliged to drop a control on the
+window. And `#PREPARE` runs when the prompts are *loaded*, not when code is generated, so a `#SET` there
+never reaches the emitted source; the parent instance is substituted straight into the emitted lines
+instead.
+
+`#AT(%BrowserMethodCodeSection, %ActiveTemplateParentInstance, 'ResetQueue', …)` is now available too —
+an embed **inside the browse object**, firing exactly when the queue has been rebuilt. That is the
+correct hook for refilling the grid, and it is what the posted-refill machinery has been standing in for.
+
 ## A grid you cannot get stuck in
 
 The column chooser shipped able to hide **every** column, which leaves a grid drawing banded stripes

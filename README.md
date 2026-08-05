@@ -454,8 +454,10 @@ the window title), the GPU canvas (it draws the test card into a run-time REGION
 [`examples/allImageRead/`](examples/allImageRead/).
 
 ### `templates/BrowseGrid/` — **take over any ABC browse** and draw it with Direct2D
-A browse that does not look like 1995, **without touching the browse**. Drop the extension on a procedure,
-point it at the `LIST`, and the grid draws the rows instead: antialiased text through DirectWrite, banded
+A browse that does not look like 1995, **without touching the browse**. Add it **under the BrowseBox**
+in the Extensions tree — it is a child control template, `REQ(BrowseBox)`, so it belongs to one browse by
+construction and needs telling nothing: the LIST, the queue and the browse object all come from its
+parent. The grid draws the rows instead: antialiased text through DirectWrite, banded
 rows, frozen columns, a header that sorts, and column widths you can drag. The `BrowseBox` keeps doing all
 the work it always did — the VIEW, the queue, the locator, range limits, the popup, Insert/Change/Delete —
 so **nothing about the browse's behaviour changes**, only what you look at. One `.tpl` plus `d2grid.c`,
