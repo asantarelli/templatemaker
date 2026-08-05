@@ -584,6 +584,19 @@ which is exactly what it did. `d2g_ColumnAt` now carries the column's own headin
 many lines tall as the record, and each column's heading is drawn on the line its field sits on — the
 header mirrors the row.
 
+## PROP:LineHeight is one LINE, not one record
+
+A grouped browse drew exactly **one** record, and scrolled one record at a time — which is a much more
+useful symptom than a blank grid, because it says the queue held one.
+
+`PROP:LineHeight` is the height of a **line**, and on a multi-line format the LIST multiplies it by the
+lines in the record itself. Handing it the whole record height therefore told the browse each record
+was lines-times-taller than it really is: it worked out that one fitted, and loaded one.
+
+The grid keeps the record height. The LIST is given one line of it. Reading the other way round needed
+the same correction — the LIST's own line height has to be multiplied **up** by the lines in a record
+before it means anything to the grid.
+
 ## Still to come
 
 Smooth scrolling end to end. The engine scrolls by pixels already; the Clarion side currently pushes

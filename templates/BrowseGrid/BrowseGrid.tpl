@@ -923,11 +923,20 @@ need LONG,AUTO
   lh = %bgRowH
 #ELSE
 !  Nothing was asked for: take the browse's own line height...
-  lh = %bgList{PROP:LineHeight}
+  lh = %bgList{PROP:LineHeight} * %bgObject:Lines             ! which is per LINE, not per record
 #ENDIF
   IF lh < need THEN lh = need.                                ! ...but never squash the type
   d2g_RowHeight(%bgObject:G,lh)
-  %bgList{PROP:LineHeight} = lh                               ! and both sides agree on it
+!  PROP:LineHeight is the height of one LINE, not of one record. On a
+!  multi-line format the LIST multiplies it by the lines in the record itself,
+!  so handing it the whole record height meant the browse thought each record
+!  was lines-times-taller than it is, worked out that one fitted, and loaded
+!  one. The grid keeps the record height; the LIST is given one line of it.
+  IF %bgObject:Lines > 1
+    %bgList{PROP:LineHeight} = lh / %bgObject:Lines
+  ELSE
+    %bgList{PROP:LineHeight} = lh
+  END
   0{PROP:Pixels} = sp
 
 BG:Conceal:%bgObject ROUTINE
