@@ -756,6 +756,24 @@ ghead CSTRING(65)
     d2g_Column(%bgObject:G,n,wid * 2,algn,head)               ! LIST widths are dialog units
     n += 1
   END
+!  NOTHING VISIBLE. Every column came back zero-width, which means something
+!  hid them all - the column chooser could, until it learned not to. An empty
+!  grid is unusable and, worse, gives the user nothing to click on to undo it,
+!  so the widths are put back from what they were before they went and the
+!  columns read again. A grid can always be got back to.
+  IF ~n
+    LOOP c = 1 TO 512
+      ex = %bgList{PROPLIST:Exists,c}
+      IF ~ex THEN BREAK.
+      fld = %bgList{PROPLIST:FieldNo,c}
+      IF ~fld THEN CYCLE.
+      head = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','h' & c))
+      %bgList{PROPLIST:Width,c} = CHOOSE(head <> '' AND head <> '0', head, 40)
+      INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,'')
+    END
+    DO BG:Columns:%bgObject                                   ! once, with widths that exist
+    EXIT
+  END
   %bgObject:Cols = n
   %bgObject:Lines = lines                                     ! 1 = an ordinary flat browse
   d2g_Columns(%bgObject:G,n)
@@ -1120,7 +1138,7 @@ val  CSTRING(129)
 !  4, which is why CLEARING a filter is what applied one.
   pick = POPUP('Sort &Ascending|Sort &Descending|' |
              & '&Filter on {{' & CLIP(val) & '}|Filter &by value...|' |
-             & 'Clear this &filter|Clear all f&ilters|&Columns...')
+             & 'Clear this &filter|Clear all f&ilters|&Columns...|&Reset layout')
   CASE pick
   OF 1                                                        ! ascending
     lc = %bgObject:Col[%bgObject:SortCol + 1]
@@ -1167,6 +1185,8 @@ val  CSTRING(129)
     DO BG:Filter:%bgObject
   OF 7                                                        ! which columns to show
     DO BG:Chooser:%bgObject
+  OF 8                                                        ! put everything back
+    DO BG:Reset:%bgObject
   END
 #ELSE
   EXIT
@@ -1286,6 +1306,43 @@ g  LONG,AUTO
   DO BG:Place:%bgObject
   d2g_Resize(%bgObject:G)
   d2g_PaintNow(%bgObject:G)
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Reset:%bgObject ROUTINE
+!  Throw away everything this grid remembers and read the browse again as it was
+!  designed. Anything that can be got into a state has to have a way out of it,
+!  and hunting through an INI file is not one.
+#IF(%bgRemember)
+  DATA
+c   LONG,AUTO
+ex  LONG,AUTO
+fld LONG,AUTO
+was CSTRING(32)
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  LOOP c = 1 TO 512
+    ex = %bgList{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK.
+    fld = %bgList{PROPLIST:FieldNo,c}
+    IF ~fld THEN CYCLE.
+    was = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','h' & c))
+    IF was AND was <> '0'                                     ! it was hidden: put it back
+      %bgList{PROPLIST:Width,c} = was
+    END
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,'')
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','h' & c,'')
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','f' & c,'')
+  END
+  LOOP c = 1 TO 32
+    %bgObject:ColFilt[c] = ''
+  END
+  d2g_FilterOn(%bgObject:G,-1,0)
+  DO BG:Columns:%bgObject
+  DO BG:Rows:%bgObject
+  d2g_Resize(%bgObject:G)
+  DO BG:Filter:%bgObject
 #ELSE
   EXIT
 #ENDIF
@@ -1414,6 +1471,7 @@ BG:Chooser:%bgObject ROUTINE
 #IF(%bgChooser)
   DATA
 ChQ  QUEUE
+Mark   STRING(4)                                              ! plain text, so it is unmistakable
 On     BYTE
 Name   STRING(64)
 Col    LONG
@@ -1421,7 +1479,7 @@ Wid    LONG
      END
 ChW  WINDOW('Columns'),AT(,,164,208),GRAY,SYSTEM,FONT('Segoe UI',9)
        LIST,AT(6,6,152,168),USE(?ChList),FROM(ChQ),                            |
-            FORMAT('12C~ ~L(2)@p p@120L(2)~Column~@s64@')
+            FORMAT('16C~Show~@s4@120L(2)~Column~@s64@')
        BUTTON('&OK'),AT(58,180,48,16),USE(?ChOk),DEFAULT
        BUTTON('&Cancel'),AT(110,180,48,16),USE(?ChCancel)
      END
@@ -1451,6 +1509,7 @@ p    LONG,AUTO
     IF ~ChQ.Name THEN ChQ.Name = 'Column ' & c.
     ChQ.Col  = c
     ChQ.On   = CHOOSE(wid > 0, 1, 0)
+    ChQ.Mark = CHOOSE(ChQ.On = 1, ' X', '')
     IF wid > 0
       ChQ.Wid = wid
     ELSE                                                      ! hidden: what was it before?
@@ -1466,11 +1525,21 @@ p    LONG,AUTO
     OF ?ChList
       GET(ChQ,CHOICE(?ChList))
       IF ~ERRORCODE()
-        ChQ.On = 1 - ChQ.On                                   ! the tick is the whole point
+        ChQ.On   = 1 - ChQ.On                                 ! the tick is the whole point
+        ChQ.Mark = CHOOSE(ChQ.On = 1, ' X', '')
         PUT(ChQ)
         DISPLAY(?ChList)
       END
     OF ?ChOk
+      wid = 0
+      LOOP p = 1 TO RECORDS(ChQ)                              ! is anything left to look at?
+        GET(ChQ,p)
+        IF ChQ.On THEN wid += 1.
+      END
+      IF ~wid
+        MESSAGE('A grid has to show at least one column.','Columns',ICON:Exclamation)
+        CYCLE
+      END
       LOOP p = 1 TO RECORDS(ChQ)
         GET(ChQ,p)
         IF ChQ.On

@@ -676,6 +676,28 @@ brackets, with the range limits in front (`ABFILE.CLW:2613`). An empty expressio
 rather than leaving an empty bracket, so setting every column on every apply is both safe and
 idempotent, and there is nothing to concatenate here any more.
 
+## A grid you cannot get stuck in
+
+The column chooser shipped able to hide **every** column, which leaves a grid drawing banded stripes
+and nothing else — and, worse, nothing to click on to undo it. The diagnostics line said it in one
+glance:
+
+    BG q=4 fill=136 filt=0 cols=0 lines=1 rowh=38 ... draw=4 ... items=4
+
+`q=4` and `draw=4` — the queue was fine and four rows were being drawn. `cols=0` — there was nothing to
+draw *in* them. That is what the diagnostics prompt is for: an empty grid looks identical whether the
+queue was empty, the rows were too tall, or the columns were all gone, and those want different fixes.
+
+Three things came out of it. The chooser **refuses** to hide the last column. `BG:Columns`, if it ever
+finds nothing to show, **puts the widths back** from what they were before they went and reads again,
+so a grid can always be got back to whatever put it in that state. And **Reset layout** on the heading
+menu throws away everything the grid remembers — widths, hidden columns, filters — and reads the browse
+as it was designed. Anything that can be got into a state needs a way out of it, and hunting through an
+INI file is not one.
+
+The ticks are plain text now (`X` in a *Show* column) rather than a picture-token checkbox, because a
+checkbox nobody can see is what makes hiding everything an easy mistake.
+
 ## Which columns to show
 
 **Columns…** on the heading menu. Hiding a column is not a grid idea at all — a LIST column of zero
