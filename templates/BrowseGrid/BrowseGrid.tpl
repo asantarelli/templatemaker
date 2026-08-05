@@ -479,6 +479,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
 %bgObject:Filter     CSTRING(1025)                           ! what the grid has filtered on
 %bgObject:FilterCol  LONG                                    ! and which column it is on
+%bgObject:Fills      LONG                                    ! how many times it has been refilled
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
 %bgObject:SortDir    LONG                                    ! 1 up, -1 down
 %bgObject:RzArmed    BYTE                                    ! on an edge, but has it MOVED yet?
@@ -1120,7 +1121,8 @@ val  CSTRING(129)
     IF nm AND val
       %bgObject:Filter = CLIP(nm) & ' = ' & '''' & CLIP(val) & ''''
       %bgObject:FilterCol = %bgObject:SortCol
-      d2g_FilterOn(%bgObject:G,%bgObject:SortCol)             ! the button says so
+      d2g_FilterOn(%bgObject:G,%bgObject:SortCol)
+      d2g_PaintNow(%bgObject:G)                               ! say so NOW, not when the data lands
       DO BG:Filter:%bgObject
     END
   OF 5
@@ -1128,6 +1130,7 @@ val  CSTRING(129)
     %bgObject:Filter    = ''
     %bgObject:FilterCol = -1
     d2g_FilterOn(%bgObject:G,-1)
+    d2g_PaintNow(%bgObject:G)
     DO BG:Filter:%bgObject
   END
 #ELSE
@@ -1432,6 +1435,7 @@ sel   LONG,AUTO
 total LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
+  %bgObject:Fills += 1                                        ! for the diagnostics line
   total = RECORDS(%bgQueue)
   fit   = d2g_PageSize(%bgObject:G) + 1
   sel   = CHOICE(%bgList)
@@ -1474,7 +1478,10 @@ total LONG,AUTO
 !  draws nothing there is no way to tell from the outside whether the queue was
 !  empty, the rows were too tall to fit, or the columns never got read - and
 !  those want different fixes.
-  0{PROP:Text} = 'BG q=' & total & ' cols=' & %bgObject:Cols                   |
+  0{PROP:Text} = 'BG q=' & total & ' fill=' & %bgObject:Fills                   |
+               & ' fcol=' & %bgObject:FilterCol                                 |
+               & ' filt=' & CHOOSE(%bgObject:Filter <> '','Y','n')              |
+               & ' cols=' & %bgObject:Cols                                      |
                & ' lines=' & %bgObject:Lines & ' rowh=' & d2g_RowH(%bgObject:G) |
                & ' need=' & d2g_RowNeed(%bgObject:G)                            |
                & ' page=' & d2g_PageSize(%bgObject:G) & ' fit=' & fit           |
