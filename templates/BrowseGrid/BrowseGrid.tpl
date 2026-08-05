@@ -389,6 +389,9 @@ c LONG,AUTO
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
       #PROMPT('&Sort when a heading is clicked',CHECK),%bgSortHdr,DEFAULT(1),AT(10)
+      #PROMPT('&Remember this grid<39>s layout between runs',CHECK),%bgRemember,DEFAULT(1),AT(10)
+      #DISPLAY('Column widths and filters, through the application<39>s own INIMgr, under a')
+      #DISPLAY('section named for this procedure and this grid. Nothing else stores it.')
       #PROMPT('&Excel-style drop-down button on every heading',CHECK),%bgFilterBtn,DEFAULT(0),AT(10)
       #ENABLE(%bgFilterBtn)
         #PROMPT('  &Browse object to filter through:',@s64),%bgBrowseObj,DEFAULT('BRW1')
@@ -477,7 +480,7 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
 %bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
-%bgObject:Filter     CSTRING(1025)                           ! what the grid has filtered on
+%bgObject:Filters    LONG                                    ! how many columns are filtered
 %bgObject:ColFilt    CSTRING(161),DIM(32)                    ! one filter per column, ANDed together
 %bgObject:Fills      LONG                                    ! how many times it has been refilled
 %bgObject:SortOn     LONG                                    ! LIST column the mark is on, 0 none
@@ -584,6 +587,9 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'Kill','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
+#IF(%bgRemember)
+  DO BG:Remember:%bgObject                                    ! before anything is taken down
+#ENDIF
   DO BG:Reveal:%bgObject
   IF %bgObject:Barred
     BG_DropBars(%bgObject:Rgn{PROP:Handle})
@@ -619,7 +625,13 @@ h  SIGNED,AUTO
     HIDE(%bgObject:Rgn)                                       ! could not start: leave the LIST alone
     EXIT
   END
+#IF(%bgRemember)
+  DO BG:Recall:%bgObject                                      ! widths, before they are read
+#ENDIF
   DO BG:Columns:%bgObject
+#IF(%bgRemember)
+  DO BG:RecallF:%bgObject                                     ! and filters, once columns are known
+#ENDIF
   DO BG:Conceal:%bgObject                                     ! only now the grid can be seen
 !  The LIST is neither hidden nor moved: it stays exactly where it is, filling
 !  its queue, counting its visible rows and holding the selection, and the
@@ -1160,17 +1172,21 @@ BG:Filter:%bgObject ROUTINE
   DATA
 i LONG,AUTO
   CODE
-!  Every column's filter, ANDed. One string is what goes to the browse - ABC
-!  keeps a single expression per ID - so the columns are kept apart here and
-!  joined only on the way out.
-  %bgObject:Filter = ''
+!  A filter ID OF OUR OWN, one per column. Two reasons, and the first is not
+!  cosmetic: SetFilter with no ID uses '5 Standard', which is the ID the
+!  BrowseBox template itself uses for the filter the developer set on the browse
+!  (ABBROWSE.TPW:1120). Filtering from the grid was therefore throwing that
+!  filter away, and clearing ours left the browse permanently unfiltered.
+!
+!  The second is that ABC already does the joining. ApplyFilter walks every ID
+!  it holds and ANDs them, each in its own brackets, with the range limits in
+!  front (ABFILE.CLW:2613) - so there is nothing to concatenate here, and an
+!  empty expression DELETES that ID rather than leaving an empty bracket.
+!  Setting all of them every time is therefore both safe and idempotent.
+  %bgObject:Filters = 0
   LOOP i = 1 TO %bgObject:Cols
-    IF ~%bgObject:ColFilt[i] THEN CYCLE.
-    IF %bgObject:Filter
-      %bgObject:Filter = CLIP(%bgObject:Filter) & ' AND ' & CLIP(%bgObject:ColFilt[i])
-    ELSE
-      %bgObject:Filter = CLIP(%bgObject:ColFilt[i])
-    END
+    %bgBrowseObj.SetFilter(%bgObject:ColFilt[i],'BrowseGrid:' & i)
+    IF %bgObject:ColFilt[i] THEN %bgObject:Filters += 1.
   END
 !  No DATA section here, so no CODE statement either - a ROUTINE only accepts
 !  CODE after a DATA block, and this one emitted a bare one the moment the
@@ -1187,7 +1203,6 @@ i LONG,AUTO
 !  So: apply it, then ask the browse to go to the top of the new set through
 !  its own event. ABC re-reads, calls Reset when it has, and the Reset embed
 !  fills the grid - by which time there is something to fill it from.
-  %bgBrowseObj.SetFilter(%bgObject:Filter)
   %bgBrowseObj.ResetSort(1)
   POST(EVENT:ScrollTop,%bgList)
   POST(BG:Refill:%bgObject)                                   ! and refresh once it has landed
@@ -1263,6 +1278,73 @@ g  LONG,AUTO
   DO BG:Place:%bgObject
   d2g_Resize(%bgObject:G)
   d2g_PaintNow(%bgObject:G)
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Recall:%bgObject ROUTINE
+!  Put remembered column widths back on the LIST BEFORE the grid reads them, so
+!  there is one path that decides a width and the grid does not have to be told
+!  twice. Keyed by LIST column number rather than by grid column, because a
+!  hidden column is not in the grid's list at all and its width would otherwise
+!  have nowhere to come back to.
+#IF(%bgRemember)
+  DATA
+c   LONG,AUTO
+ex  LONG,AUTO
+val CSTRING(32)
+  CODE
+  LOOP c = 1 TO 512
+    ex = %bgList{PROPLIST:Exists,c}
+    IF ~ex THEN BREAK.
+    val = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','w' & c))
+    IF val AND val <> '0'
+      %bgList{PROPLIST:Width,c} = val
+    END
+  END
+#ELSE
+  EXIT
+#ENDIF
+
+BG:RecallF:%bgObject ROUTINE
+!  ...and the filters, which need the columns read first because they are kept
+!  per grid column and marked on the heading.
+#IF(%bgRemember)
+  DATA
+i   LONG,AUTO
+any LONG,AUTO
+val CSTRING(161)
+  CODE
+  LOOP i = 1 TO %bgObject:Cols
+    val = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','f' & %bgObject:Col[i]))
+    IF ~val THEN CYCLE.
+    %bgObject:ColFilt[i] = val
+    any += 1
+#IF(%bgFilterBtn)
+    d2g_FilterOn(%bgObject:G,i - 1,1)
+#ENDIF
+  END
+  IF any
+    DO BG:Filter:%bgObject
+  END
+#ELSE
+  EXIT
+#ENDIF
+
+BG:Remember:%bgObject ROUTINE
+!  Written at Kill, so it costs nothing until the window closes.
+#IF(%bgRemember)
+  DATA
+i LONG,AUTO
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  LOOP i = 1 TO %bgObject:Cols
+    IF ~%bgObject:Col[i] THEN CYCLE.
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & %bgObject:Col[i], |
+                  d2g_ColWidth(%bgObject:G,i - 1) / 2)
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','f' & %bgObject:Col[i], |
+                  %bgObject:ColFilt[i])
+  END
 #ELSE
   EXIT
 #ENDIF
@@ -1509,7 +1591,7 @@ total LONG,AUTO
 !  empty, the rows were too tall to fit, or the columns never got read - and
 !  those want different fixes.
   0{PROP:Text} = 'BG q=' & total & ' fill=' & %bgObject:Fills                   |
-               & ' filt=' & CHOOSE(%bgObject:Filter <> '','Y','n')              |
+               & ' filt=' & %bgObject:Filters                                    |
                & ' cols=' & %bgObject:Cols                                      |
                & ' lines=' & %bgObject:Lines & ' rowh=' & d2g_RowH(%bgObject:G) |
                & ' need=' & d2g_RowNeed(%bgObject:G)                            |

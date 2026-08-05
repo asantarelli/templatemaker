@@ -662,6 +662,35 @@ Turning them on is a TXA round trip:
     ClarionCL -win -au -ai app.app out.txa      # import
     ClarionCL -win -au -ag app.app              # and generate
 
+## The grid was throwing the browse's own filter away
+
+`SetFilter` with no ID uses `'5 Standard'` — and that is the ID the **BrowseBox template itself** uses
+for the filter the developer set on the browse (`ABBROWSE.TPW:1120`). Filtering from the grid was
+therefore discarding it, and clearing a grid filter left the browse permanently unfiltered for the rest
+of the run. On a browse with a designed filter that is not a cosmetic bug: it shows records the
+procedure was written never to show.
+
+Each column now has **an ID of its own**, `BrowseGrid:<n>`, and the developer's `'5 Standard'` is left
+alone. ABC does the joining: `ApplyFilter` walks every ID it holds and ANDs them, each in its own
+brackets, with the range limits in front (`ABFILE.CLW:2613`). An empty expression **deletes** that ID
+rather than leaving an empty bracket, so setting every column on every apply is both safe and
+idempotent, and there is nothing to concatenate here any more.
+
+## The layout is remembered
+
+Column widths and filters are kept between runs, through the application's **own `INIMgr`** — no new
+storage, no new file, and it lands wherever that application already puts its settings. The section is
+named for the procedure and the grid (`BrowseGrid:BrowseStudents:Grid1`), so two grids on one window do
+not tread on each other.
+
+Widths are put back **before** `BG:Columns` reads them, so one path decides a width and the grid is
+never told twice. They are keyed by **LIST column number** rather than by grid column, because a hidden
+column is not in the grid's list at all and its width would otherwise have nowhere to come back to —
+which is what makes the column chooser possible without a second store.
+
+Filters are restored after the columns are known, since they are held per grid column and marked on the
+heading. Saving happens at Kill, so it costs nothing until the window closes.
+
 ## A filter per column, added together
 
 Filtering a second column made the first column's funnel disappear — and the glyph was telling the
