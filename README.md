@@ -482,8 +482,9 @@ value under the selection, and offers **Excel's checklist of every value in the 
 `EVALUATE()`, since the field is known only by the name `WHO()` gives back. Filters are **per column and
 added together**: filter three columns and all three are in force, all three say so, and each clears on
 its own. **Columns…** shows and hides columns (a zero-width LIST column, so the grid needed no new
-idea), and **column widths and filters are remembered between runs** through the application's own
-`INIMgr`. Sorting goes through the browse exactly as a heading click does, and filtering
+idea), and **column widths are remembered between runs** through the application's own `INIMgr`
+(widths only — a stored filter is an expression, and one that will not parse is a run-time error at
+window open, which is not a thing to keep in a settings file). Sorting goes through the browse exactly as a heading click does, and filtering
 calls the browse object's own `SetFilter`, so range limits and locators keep working. The field name for the
 filter is read at run time with **`WHO()`** — an ABC browse queue labels its fields with the file fields they
 came from, so `WHO(Queue:Browse:1,n)` answers `STU:LastName` and nothing has to be mapped by hand.

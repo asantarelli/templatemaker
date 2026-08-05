@@ -746,8 +746,17 @@ never told twice. They are keyed by **LIST column number** rather than by grid c
 column is not in the grid's list at all and its width would otherwise have nowhere to come back to —
 which is what makes the column chooser possible without a second store.
 
-Filters are restored after the columns are known, since they are held per grid column and marked on the
-heading. Saving happens at Kill, so it costs nothing until the window closes.
+**Filters are deliberately not kept.** Widths are safe to put back — the worst a bad one can do is look
+wrong. A filter is not: it is handed to ABC as an *expression*, and an expression that will not parse is
+a run-time error at window open, before there is anything on screen to explain it. A filter stored by an
+earlier version of this template therefore killed the application every time the window opened, and went
+on doing it through every rebuild, because it lived in the INI file rather than in the program. Any that
+were stored are purged on the next open.
+
+It was the wrong idea on its own merits, too. Someone opening a browse expects to see the records, not
+yesterday's filter with no indication of why three quarters of the file is missing.
+
+Saving happens at Kill, so it costs nothing until the window closes.
 
 ## A filter per column, added together
 

@@ -1599,25 +1599,25 @@ val CSTRING(32)
 #ENDIF
 
 BG:RecallF:%bgObject ROUTINE
-!  ...and the filters, which need the columns read first because they are kept
-!  per grid column and marked on the heading.
+!  Filters are NOT restored, and any that were stored are thrown away here.
+!
+!  Widths are safe to put back: the worst a bad one can do is look wrong. A
+!  filter is not. It is handed to ABC as an expression, and an expression that
+!  will not parse is a run-time error - at window open, before there is anything
+!  on screen to explain it. A filter stored by an earlier version of this
+!  template therefore killed the application every time the window opened, and
+!  went on doing it through every rebuild, because it was in the INI file and
+!  not in the program.
+!
+!  Restoring them was also the wrong idea on its own merits. Someone who opens
+!  a browse expects to see the records, not yesterday's filter with no
+!  indication of why three quarters of the file is missing.
 #IF(%bgRemember)
   DATA
-i   LONG,AUTO
-any LONG,AUTO
-val CSTRING(161)
+i LONG,AUTO
   CODE
-  LOOP i = 1 TO %bgObject:Cols
-    val = CLIP(INIMgr.Fetch('BrowseGrid:%Procedure:%bgObject','f' & %bgObject:Col[i]))
-    IF ~val THEN CYCLE.
-    %bgObject:ColFilt[i] = val
-    any += 1
-#IF(%bgFilterBtn)
-    d2g_FilterOn(%bgObject:G,i - 1,1)
-#ENDIF
-  END
-  IF any
-    DO BG:Filter:%bgObject
+  LOOP i = 1 TO 512
+    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','f' & i,'')
   END
 #ELSE
   EXIT
@@ -1634,8 +1634,6 @@ i LONG,AUTO
     IF ~%bgObject:Col[i] THEN CYCLE.
     INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & %bgObject:Col[i], |
                   d2g_ColWidth(%bgObject:G,i - 1) / 2)
-    INIMgr.Update('BrowseGrid:%Procedure:%bgObject','f' & %bgObject:Col[i], |
-                  %bgObject:ColFilt[i])
   END
 #ELSE
   EXIT
