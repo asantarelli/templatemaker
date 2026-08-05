@@ -1407,12 +1407,13 @@ BG:Values:%bgObject ROUTINE
 #IF(%bgFilterBtn AND %bgFile)
   DATA
 VQ   QUEUE
-On     BYTE
-Val    STRING(64)
+Mark   STRING(4)                                              ! shown - see the note on ChQ
+Val    STRING(64)                                             ! shown
+On     BYTE                                                   ! not shown
      END
 VW   WINDOW('Values'),AT(,,164,224),GRAY,SYSTEM,FONT('Segoe UI',9)
        LIST,AT(6,6,152,166),USE(?VList),FROM(VQ),                              |
-            FORMAT('12C~ ~L(2)@p p@120L(2)~Value~@s64@')
+            FORMAT('20C~Keep~@s4@126L(2)~Value~@s64@'),ALRT(SpaceKey)
        BUTTON('&All'),AT(6,176,34,14),USE(?VAll)
        BUTTON('&None'),AT(44,176,34,14),USE(?VNone)
        BUTTON('&OK'),AT(58,196,48,16),USE(?VOk),DEFAULT
@@ -1439,8 +1440,9 @@ off  LONG,AUTO
     VQ.Val = v
     GET(VQ,+VQ.Val)                                           ! sorted, so this dedupes as it goes
     IF ERRORCODE()
-      VQ.Val = v
-      VQ.On  = 1
+      VQ.Val  = v
+      VQ.On   = 1
+      VQ.Mark = ' X'
       ADD(VQ,+VQ.Val)
       IF RECORDS(VQ) >= BG:MaxVals THEN BREAK.
     END
@@ -1452,11 +1454,22 @@ off  LONG,AUTO
   OPEN(VW)
   VW{PROP:Text} = 'Values in ' & CLIP(nm)
   ACCEPT
+  IF EVENT() = EVENT:AlertKey AND KEYCODE() = SpaceKey AND FIELD() = ?VList
+    GET(VQ,CHOICE(?VList))
+    IF ~ERRORCODE()
+      VQ.On   = 1 - VQ.On
+      VQ.Mark = CHOOSE(VQ.On = 1, ' X', '')
+      PUT(VQ)
+      DISPLAY(?VList)
+    END
+    CYCLE
+  END
     CASE ACCEPTED()
     OF ?VList
       GET(VQ,CHOICE(?VList))
       IF ~ERRORCODE()
-        VQ.On = 1 - VQ.On
+        VQ.On   = 1 - VQ.On
+        VQ.Mark = CHOOSE(VQ.On = 1, ' X', '')
         PUT(VQ)
         DISPLAY(?VList)
       END
@@ -1464,7 +1477,8 @@ off  LONG,AUTO
     OROF ?VNone
       LOOP i = 1 TO RECORDS(VQ)
         GET(VQ,i)
-        VQ.On = CHOOSE(ACCEPTED() = ?VAll, 1, 0)
+        VQ.On   = CHOOSE(ACCEPTED() = ?VAll, 1, 0)
+        VQ.Mark = CHOOSE(VQ.On = 1, ' X', '')
         PUT(VQ)
       END
       DISPLAY(?VList)
@@ -1515,10 +1529,14 @@ BG:Chooser:%bgObject ROUTINE
 !  keys on LIST column number.
 #IF(%bgChooser)
   DATA
+!  ORDER MATTERS. A LIST with FROM(queue) hands its format columns the queue's
+!  fields in the order they are declared - there is no naming of one to the
+!  other - so the fields that are shown have to come first. Declared as
+!  Mark, On, Name the second column showed On, which is why every row read "1".
 ChQ  QUEUE
-Mark   STRING(4)                                              ! plain text, so it is unmistakable
-On     BYTE
-Name   STRING(64)
+Mark   STRING(4)                                              ! shown: plain text, unmistakable
+Name   STRING(64)                                             ! shown
+On     BYTE                                                   ! and the rest are not
 Col    LONG
 Wid    LONG
      END

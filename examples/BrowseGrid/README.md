@@ -736,6 +736,11 @@ heading of their own — the group's stands over the lot — so the list came ou
 because an ABC browse queue labels its fields with the file fields they came from. It is the same thing
 that lets the grid build a filter expression, and it should have been the first answer here too.
 
+**And every row read "1".** A LIST with `FROM(queue)` hands its format columns the queue's fields **in
+the order they are declared** — there is no naming of one to the other. The queue was `Mark, On, Name`,
+so the second column showed `On`, which is 1 for every visible column. The fields that are displayed
+have to be declared first. The same mistake was sitting in the value checklist beside it.
+
 **And nothing happened when you clicked.** A Clarion LIST only raises `ACCEPTED` on a double click or
 Enter, so single clicks fell through and the dialog looked inert. Space toggles the highlighted row now,
 and there are **Show**, **Hide**, **All** and **None** buttons — a list that appears to ignore you is
