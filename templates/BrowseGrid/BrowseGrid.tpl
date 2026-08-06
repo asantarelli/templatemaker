@@ -2088,12 +2088,23 @@ i     LONG,AUTO
 col   LONG,AUTO
 rows  LONG,AUTO
 fit   LONG,AUTO
+sp    LONG,AUTO
+dx    SIGNED,AUTO
+dy    SIGNED,AUTO
+dw    SIGNED,AUTO
+dh    SIGNED,AUTO
 first LONG,AUTO
 sel   LONG,AUTO
 total LONG,AUTO
   CODE
   IF ~%bgObject:G THEN EXIT.
   %bgObject:Fills += 1                                        ! for the diagnostics line
+!  Keep the region ON the LIST, every time. Chasing the one right moment to
+!  place it has now been wrong three times - at Init the resizer has not run, at
+!  OpenWindow it may not have either, and a window restored to a remembered size
+!  need not raise EVENT:Sized at all. A fill already happens whenever anything
+!  changes, and following the LIST costs a GETPOSITION and a SETPOSITION.
+  DO BG:Place:%bgObject
   total = RECORDS(%bgQueue)
   fit   = d2g_PageSize(%bgObject:G) + 1
   sel   = CHOICE(%bgList)
@@ -2132,6 +2143,10 @@ total LONG,AUTO
   DO BG:Mark:%bgObject
 #ENDIF
 #IF(%bgDiag)
+  sp = 0{PROP:Pixels}
+  0{PROP:Pixels} = 1
+  GETPOSITION(%bgList,dx,dy,dw,dh)                            ! where the LIST really is
+  0{PROP:Pixels} = sp
 !  Everything the grid is working from, in the window title. When a browse
 !  draws nothing there is no way to tell from the outside whether the queue was
 !  empty, the rows were too tall to fit, or the columns never got read - and
@@ -2143,7 +2158,8 @@ total LONG,AUTO
                & ' need=' & d2g_RowNeed(%bgObject:G)                            |
                & ' page=' & d2g_PageSize(%bgObject:G) & ' fit=' & fit           |
                & ' draw=' & rows & ' lh=' & %bgList{PROP:LineHeight}            |
-               & ' items=' & %bgList{PROP:Items}
+               & ' items=' & %bgList{PROP:Items}                               |
+               & ' L=' & dx & ',' & dy & ',' & dw & ',' & dh
 #ENDIF
   d2g_Total(%bgObject:G,total)
   %bgObject:Sel = sel                                         ! the browse owns the selection
