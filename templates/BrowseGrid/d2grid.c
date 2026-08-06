@@ -1131,6 +1131,24 @@ int d2g_FontSize(int h, int pt) {
     /* set outright, not through d2g_RowHeight - that clamps against the size
        the type needs, and here the type is what just changed. Going through it
        would let the rows grow and never come back down. */
+    /* The columns come with it. Growing the type without growing the columns
+       is not a bigger grid, it is the same grid with the words too large for
+       it: every cell wraps or clips and the headings run into each other. A
+       zoom scales the layout, so the widths, the group boxes and every field's
+       place inside its group are all taken along - including the originals a
+       group resize measures against, or the next drag would undo this. */
+    if (c->pt > 0 && pt != c->pt) {
+        int k, was = c->pt;
+        for (k = 0; k < G_COLS; k++) {
+            c->colW[k]  = c->colW[k]  * pt / was;
+            c->colX[k]  = c->colX[k]  * pt / was;
+            c->colOx[k] = c->colOx[k] * pt / was;
+            c->colOw[k] = c->colOw[k] * pt / was;
+            c->grpX[k]  = c->grpX[k]  * pt / was;
+            c->grpW[k]  = c->grpW[k]  * pt / was;
+            c->grpOw[k] = c->grpOw[k] * pt / was;
+        }
+    }
     c->pt   = pt;
     c->rowH = D2G_ROWH(c);                      /* the same rule d2g_Attach uses */
     c->hdrH = D2G_HDRFOR(pt);

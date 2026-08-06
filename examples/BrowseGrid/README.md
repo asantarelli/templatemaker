@@ -459,6 +459,18 @@ to 16, then shrink to 9:
 
 ## Ctrl and the roller resize the type
 
+Growing the type without growing the columns is not a bigger grid — it is the same grid with the words
+too large for it. Every cell wraps or clips and the headings run into one another. So a zoom scales the
+**layout**: the column widths, the group boxes, and every field's place inside its group, including the
+original measurements a group resize works from, or the next drag would undo it.
+
+`gridtest.clw` checks it survives the round trip:
+
+    GridTest grew=33 shrank=19 col 150>300>150
+
+A 150-pixel column doubles at 18 point and comes back to exactly 150 at 9.
+
+
 The same wheel hook checks for `MK_CONTROL` and rebuilds the text formats a point larger or smaller,
 6 to 32. The rows grow with the font by the same rule `d2g_Attach` uses, so the LIST is handed the new
 line height and the browse reloads — a bigger font fits fewer records, and both sides have to agree on

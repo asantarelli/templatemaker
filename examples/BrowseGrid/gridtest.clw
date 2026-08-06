@@ -27,6 +27,7 @@ Main PROCEDURE
       d2g_VHit(LONG h,LONG x,LONG y),LONG,NAME('_d2g_VHit')
       d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
       d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
+      d2g_ColWidth(LONG h,LONG col),LONG,NAME('_d2g_ColWidth')
       d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
       d2g_FilterOn(LONG h,LONG col,LONG on),NAME('_d2g_FilterOn')
       d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
@@ -54,6 +55,9 @@ page    LONG
 ticks   LONG
 big     LONG
 small   LONG
+w9      LONG
+w18     LONG
+wback   LONG
 towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   Dundee   ')
   CODE
   OPEN(Win)
@@ -73,11 +77,14 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       title = 'Status'    ; d2g_Column(g, 4, 120, 0, title)
       d2g_Frozen(g, 2)
 !     Grow, squash, then shrink again - the rows must come back DOWN
+      w9  = d2g_ColWidth(g, 0)                                ! Customer at 9 point
       d2g_FontSize(g, 18)
+      w18 = d2g_ColWidth(g, 0)                                ! ...and at 18
       d2g_RowHeight(g, 16)                                    ! the LIST tries to squash it
       big = d2g_RowH(g)
       d2g_FontSize(g, 9)                                      ! Ctrl-wheel the other way
       small = d2g_RowH(g)
+      wback = d2g_ColWidth(g, 0)                              ! and back where it started?
       d2g_VBar(g, 1, 40, 12)                                  ! the drawn thumb, 40 pct down                                        ! two columns stay put
       d2g_RowHeight(g, 22)
       d2g_Total(g, 5000)
@@ -107,7 +114,7 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       d2g_SortMark(g, 1, 1)                                   ! Town, ascending
       d2g_ScrollX(g, 0)                                     ! scrolled sideways, under the frozen pair
       d2g_PaintNow(g)
-      Win{PROP:Text} = 'GridTest grew=' & big & ' shrank=' & small |
+      Win{PROP:Text} = 'GridTest grew=' & big & ' shrank=' & small & ' col ' & w9 & '>' & w18 & '>' & wback |
                      & ' rows=' & page & ' pagesize=' & d2g_PageSize(g)
     END
   END
