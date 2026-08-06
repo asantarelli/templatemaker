@@ -598,7 +598,21 @@ which is exactly what it did. `d2g_ColumnAt` now carries the column's own headin
 many lines tall as the record, and each column's heading is drawn on the line its field sits on — the
 header mirrors the row.
 
-## PROP:LineHeight is one LINE, not one record
+## PROP:LineHeight is one LINE, not one record — in both places
+
+Zooming a multi-line browse left **one** record on screen and nothing else. The title said it:
+`rowh=108 lh=66 items=1`.
+
+`PROP:LineHeight` is the height of a line, and on a multi-line format the LIST multiplies it by the
+lines in a record. `BG:Rows` divides by the line count for exactly that reason — but the **font path had
+its own copy of the calculation** and never got the fix, so after a zoom the LIST was told a whole
+three-line record was one line, worked out that a record was three times taller again, and loaded a
+single one.
+
+Two copies of one rule, and only one of them corrected. The font path divides now, and asks `BG:Items`
+to reload to the new page size while it is there.
+
+## The original fault, for the record
 
 A grouped browse drew exactly **one** record, and scrolled one record at a time — which is a much more
 useful symptom than a blank grid, because it says the queue held one.

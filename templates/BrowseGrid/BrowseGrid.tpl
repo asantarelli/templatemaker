@@ -2094,8 +2094,18 @@ sp LONG,AUTO
 !  LIST is told, never the other way round.
     sp = 0{PROP:Pixels}
     0{PROP:Pixels} = 1
-    %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G)           ! whatever the font just made it
+!  PER LINE, not per record - the same rule BG:Rows follows. This line had its
+!  own copy of the calculation and so never got that fix: after a zoom the LIST
+!  was told a whole three-line record was ONE line, worked out that a record was
+!  three times taller again, and loaded a single one. Which is exactly what
+!  zooming a multi-line browse looked like - every row but the first vanishing.
+    IF %bgObject:Lines > 1
+      %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G) / %bgObject:Lines
+    ELSE
+      %bgList{PROP:LineHeight} = d2g_RowH(%bgObject:G)
+    END
     0{PROP:Pixels} = sp
+    DO BG:Items:%bgObject                                     ! and load to the new page size
     DO BG:Fill:%bgObject
     EXIT
   END
