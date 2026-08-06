@@ -1004,13 +1004,14 @@ The two sides count differently. ABC decides how many to load from the LIST's he
 height; the grid decides how many it can draw from the region's height and its row height. They are
 close but not equal — the two headings are different sizes, for one — and the gap shows.
 
-Rather than guess at the difference it is measured. Whatever the LIST reserves for its own heading is
-`height - items × lineHeight`, and that stays true whatever else changes, so the height it needs in
-order to hold `fit` rows is that plus `fit` line heights. The LIST is then stretched or shrunk to
-exactly that. It is invisible, so being a different size from the region costs nothing and is never
-seen — and the browse loads to the grid's page instead of its own.
+It is done through the **line height**, not the geometry. ABC divides the LIST's height by its line
+height to decide how many records fit, so asking for `fit` of them is arithmetic on a number nobody can
+see: `newLineHeight = items × lineHeight / fit`.
 
-Re-applied after every resize, because the window resizer puts the LIST back to its designed height.
+Stretching the LIST taller was the first attempt and it worked — until `BG:Place` started following the
+LIST on every fill, at which point the grid inherited the stretch and ran off the bottom of the window
+and over the buttons. Two mechanisms feeding each other, each correct alone. **The lesson is not "pick
+the other one" but "do not make geometry the lever twice."**
 
 ## Still to come
 

@@ -1159,6 +1159,7 @@ y     SIGNED,AUTO
 w     SIGNED,AUTO
 h     SIGNED,AUTO
 lh    LONG,AUTO
+newlh LONG,AUTO
 items LONG,AUTO
 fit   LONG,AUTO
   CODE
@@ -1168,9 +1169,19 @@ fit   LONG,AUTO
   lh    = %bgList{PROP:LineHeight}
   items = %bgList{PROP:Items}
   fit   = d2g_PageSize(%bgObject:G)
+!  Through the LINE HEIGHT, not the geometry. Stretching the LIST taller was
+!  the obvious way to make ABC load more records, and it worked - until the
+!  region started following the LIST on every fill, at which point the grid
+!  inherited the stretch and ran off the bottom of the window and over the
+!  buttons. Two mechanisms feeding each other.
+!
+!  The line height reaches the same answer and touches nothing anyone can see:
+!  ABC divides the LIST height by it to decide how many records fit, so asking
+!  for  of them is arithmetic on a number that is already invisible.
   IF lh > 0 AND items > 0 AND fit > 0 AND fit <> items
-    GETPOSITION(%bgList,x,y,w,h)
-    SETPOSITION(%bgList,x,y,w,h + (fit - items) * lh)
+    newlh = items * lh / fit
+    IF newlh < 2 THEN newlh = 2.
+    %bgList{PROP:LineHeight} = newlh
   END
   0{PROP:Pixels} = sp
 
