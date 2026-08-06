@@ -539,6 +539,10 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 #!
 #AT(%WindowManagerMethodCodeSection,'TakeWindowEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
   CASE EVENT()
+  OF EVENT:OpenWindow
+!  The window is up and everything has been given its real place, which is the
+!  first moment the LIST can be measured for where it truly is.
+    POST(BG:Resized:%bgObject)
   OF EVENT:Sized
 !  Do NOT move the region here. The window resizer is working on this same
 !  event, and on this window it runs after us - so the LIST has not been given
@@ -710,6 +714,13 @@ h  SIGNED,AUTO
               BG_Rgb(%bgCHdrBack),BG_Rgb(%bgCHdrText),                         |
               BG_Rgb(%bgCSelBack),BG_Rgb(%bgCSelText))
   DO BG:Fill:%bgObject
+!  ...and then place it again once the window has finished opening. At Init the
+!  LIST is still where the DESIGNER put it: the window resizer has not run, and
+!  on a window that opens maximised or restores to a remembered size it is about
+!  to move. Placing the region now and leaving it there is what put the grid
+!  over the buttons until the window was resized by hand. Posting means the
+!  second placement happens after everything else has settled.
+  POST(BG:Resized:%bgObject)
 
 BG:Place:%bgObject ROUTINE
 !  Sit the region exactly on the LIST and keep it on top. The LIST is not moved

@@ -980,6 +980,20 @@ field centred in a box twice the height of its text. **Wrapping no longer stacks
 lines** — it is for a flat browse, where a cell has one line and needs more. A grouped record has
 already been told exactly how many lines it wants.
 
+## The first draw is in the wrong place
+
+The grid came up covering the buttons and running off the window, and a manual resize put it right.
+
+`BG:Place` measures the LIST and puts the region over it — and at `Init` the LIST is still where the
+**designer** put it. The window resizer has not run yet, and on a window that opens maximised, or
+restores to a remembered size, the LIST is about to move. Placing the region then and leaving it there
+is the whole fault.
+
+`EVENT:Sized` already deferred its work for exactly this reason. Now the first placement is deferred
+too: `BG:Setup` ends by posting its own resize event, and `EVENT:OpenWindow` posts one as well — the
+first moment everything has been given its real place. Resizing by hand worked because it was the only
+thing that ever asked for a second placement.
+
 ## Empty grid under the rows
 
 A browse would draw its records and then leave a blank banded row and a stretch of background beneath
