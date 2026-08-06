@@ -157,6 +157,15 @@ typedef struct {
     int   vPos;                 /* 0..100, the browse's own scale           */
     int   vPct;                 /* how much of the trough the thumb takes   */
 
+    /* ---- how the bars look ------------------------------------------------
+       0 Windows  the horizontal one is Windows' own, the vertical one drawn
+       1 Slim     both drawn, thin and flat, taking their width from the rows
+       2 Overlay  both drawn, thinner, ON TOP of the rows and only while the
+                  pointer is over the grid - so nothing is taken from the data */
+    int   barStyle;
+    int   hBar, hPos, hPage, hTotal;   /* the drawn horizontal one           */
+    int   barsShow;                    /* overlay: is the pointer over us?   */
+
     char  face[64];             /* kept so the font can be rebuilt bigger   */
     int   pt;
 
@@ -228,6 +237,9 @@ static long WINAPI d2g_WndProc(HWND h, UINT msg, UINT wp, long lp);
                      (((c)->lines > 1) ? 1 : (c)->wrapLines))
 #define D2G_HDRFOR(pt) ((pt) * 3 / 2 + 8)
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen);
+static void d2g_HGeom(Grid* c, int* left, int* len, int* tLeft, int* tLen);
+static int  barThick(Grid* c);
+static int  barTakes(Grid* c);
 static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb);
 static void filterBtn(Grid* c, float right, float midY, unsigned int line_, unsigned int fill,
                       int dir, int filt);
@@ -409,8 +421,9 @@ static void d2g_Draw(Grid* c) {
 
     if (!c->rt && !d2g_MakeTarget(c)) return;
     GetClientRect(c->hwnd, &r);
-    barW = c->vBar ? D2G_BARW : 0;
-    r.right -= barW;                       /* the columns stop at the scrollbar */
+    barW = c->vBar ? barTakes(c) : 0;
+    r.right  -= barW;                      /* the columns stop at the scrollbar */
+    r.bottom -= c->hBar ? barTakes(c) : 0; /* and the rows stop above one       */
 
     lineH = (c->lines > 1) ? (c->rowH / c->lines) : c->rowH;
     frozenW = 0;
@@ -628,15 +641,38 @@ static void d2g_Draw(Grid* c) {
     }
     line(c, 0.0f, (float)c->hdrH - 0.5f, (float)r.right, (float)c->hdrH - 0.5f, c->cGrid);
 
-    /* ---- our own vertical scrollbar, drawn last ------------------------- */
-    if (barW) {
-        int top, len, tTop, tLen;
-        float bl = (float)r.right, br = (float)(r.right + barW);
-        d2g_VGeom(c, &top, &len, &tTop, &tLen);
-        fillRect(c, bl, 0.0f, br, (float)(r.bottom), c->cBand);        /* the trough */
-        line(c, bl + 0.5f, 0.0f, bl + 0.5f, (float)r.bottom, c->cGrid);
-        fillRect(c, bl + 3.0f, (float)tTop + 2.0f,
-                    br - 3.0f, (float)(tTop + tLen) - 2.0f, c->cHdrBack);  /* the thumb */
+    /* ---- the scrollbars, drawn last so nothing paints over them ---------
+       An overlay is drawn ON TOP of the rows rather than beside them, so it
+       measures against the full client area, takes no width from the data, and
+       appears only while the pointer is over the grid. */
+    {
+        RECT  full;
+        int   thick = barThick(c);
+        int   over  = (c->barStyle == 2);
+        int   vis   = (!over || c->barsShow);
+        GetClientRect(c->hwnd, &full);
+        if (c->vBar && vis) {
+            int   top, len, tTop, tLen;
+            float bl = (float)(full.right - thick), br = (float)full.right;
+            d2g_VGeom(c, &top, &len, &tTop, &tLen);
+            if (!over) {
+                fillRect(c, bl, 0.0f, br, (float)full.bottom, c->cBand);
+                line(c, bl + 0.5f, 0.0f, bl + 0.5f, (float)full.bottom, c->cGrid);
+            }
+            fillRect(c, bl + 2.0f, (float)tTop + 2.0f,
+                        br - 2.0f, (float)(tTop + tLen) - 2.0f, c->cHdrBack);
+        }
+        if (c->hBar && vis) {
+            int   left, len, tLeft, tLen;
+            float bt = (float)(full.bottom - thick), bb = (float)full.bottom;
+            d2g_HGeom(c, &left, &len, &tLeft, &tLen);
+            if (!over) {
+                fillRect(c, 0.0f, bt, (float)full.right, bb, c->cBand);
+                line(c, 0.0f, bt + 0.5f, (float)full.right, bt + 0.5f, c->cGrid);
+            }
+            fillRect(c, (float)tLeft + 2.0f, bt + 2.0f,
+                        (float)(tLeft + tLen) - 2.0f, bb - 2.0f, c->cHdrBack);
+        }
     }
 
     if (((HRESULT (WINAPI*)(void*, void*, void*))VT(c->rt)[49])(c->rt, 0, 0) < 0) {
@@ -674,6 +710,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c->sortCol = -1; c->sortDir = 1;
     { int k; for (k = 0; k < G_COLS; k++) c->colFilt[k] = 0; }
     c->grps = 0; c->lines = 1; c->wrapLines = 1; c->btns = 0;
+    c->barStyle = 0; c->hBar = 0; c->barsShow = 0;
     c->cols = 0; c->frozen = 0; c->visRows = 0; c->firstRow = 0;
     c->totalRows = 0; c->selRow = -1; c->scrollX = 0;
     c->rowH = D2G_ROWFOR(pt); c->hdrH = D2G_HDRFOR(pt);
@@ -835,7 +872,7 @@ int d2g_ViewWidth(int h) {
     RECT  r;
     if (!c || !IsWindow(c->hwnd)) return 0;
     GetClientRect(c->hwnd, &r);
-    if (c->vBar) r.right -= D2G_BARW;
+    if (c->vBar) r.right -= barTakes(c);
     return (int)(r.right - r.left);
 }
 
@@ -1046,6 +1083,96 @@ static void sortMark(Grid* c, float right, float top, int dir, unsigned int rgb)
 }
 
 /* ---- our own vertical scrollbar ---------------------------------------- */
+/* How thick a drawn bar is, and how much room it takes OUT of the rows. An
+   overlay takes none - that is the whole point of it - so the two are not the
+   same question and are not answered by the same function. */
+static int barThick(Grid* c) {
+    if (c->barStyle == 2) return 8;
+    if (c->barStyle == 1) return 10;
+    return D2G_BARW;
+}
+
+static int barTakes(Grid* c) { return (c->barStyle == 2) ? 0 : barThick(c); }
+
+void d2g_BarStyle(int h, int style) {
+    Grid* c = slot(h);
+    if (!c || style < 0 || style > 2) return;
+    c->barStyle = style;
+}
+
+/* Overlay only: the bars are shown while the pointer is over the grid. */
+void d2g_BarsShow(int h, int on) {
+    Grid* c = slot(h);
+    if (!c) return;
+    if (c->barsShow == (on ? 1 : 0)) return;
+    c->barsShow = on ? 1 : 0;
+    if (c->barStyle == 2) InvalidateRect(c->hwnd, 0, 0);
+}
+
+/* The drawn horizontal bar. Sideways is the grid's own business either way -
+   this only changes who paints the furniture. */
+void d2g_HBar(int h, int show, int pos, int page, int total) {
+    Grid* c = slot(h);
+    if (!c) return;
+    c->hBar   = show ? 1 : 0;
+    c->hPos   = pos < 0 ? 0 : pos;
+    c->hPage  = page < 1 ? 1 : page;
+    c->hTotal = total < 1 ? 1 : total;
+    if (c->hPos > c->hTotal - c->hPage) c->hPos = c->hTotal - c->hPage;
+    if (c->hPos < 0) c->hPos = 0;
+}
+
+static void d2g_HGeom(Grid* c, int* left, int* len, int* tLeft, int* tLen) {
+    RECT r;
+    int  l, tl, room;
+    GetClientRect(c->hwnd, &r);
+    l = (r.right - r.left) - (c->vBar ? barTakes(c) : 0);
+    if (l < 0) l = 0;
+    tl = (c->hTotal > 0) ? (l * c->hPage / c->hTotal) : l;
+    if (tl < 24) tl = 24;
+    if (tl > l)  tl = l;
+    room = c->hTotal - c->hPage;
+    *left = 0; *len = l; *tLen = tl;
+    *tLeft = (room > 0) ? (l - tl) * c->hPos / room : 0;
+}
+
+/* 0 none, 4 on the thumb, 5 to the left of it, 6 to the right */
+int d2g_HitHBar(int h, int x, int y) {
+    Grid* c = slot(h);
+    RECT  r;
+    int   left, len, tLeft, tLen, top;
+    if (!c || !c->hBar) return 0;
+    if (c->barStyle == 2 && !c->barsShow) return 0;
+    GetClientRect(c->hwnd, &r);
+    top = (r.bottom - r.top) - barThick(c);
+    if (y < top) return 0;
+    d2g_HGeom(c, &left, &len, &tLeft, &tLen);
+    if (x < tLeft) return 5;
+    if (x < tLeft + tLen) return 4;
+    return 6;
+}
+
+int d2g_HGrab(int h, int x) {
+    Grid* c = slot(h);
+    int   left, len, tLeft, tLen;
+    if (!c || !c->hBar) return 0;
+    d2g_HGeom(c, &left, &len, &tLeft, &tLen);
+    return x - tLeft;
+}
+
+int d2g_HDrag(int h, int x, int grab) {
+    Grid* c = slot(h);
+    int   left, len, tLeft, tLen, room, pos;
+    if (!c || !c->hBar) return 0;
+    d2g_HGeom(c, &left, &len, &tLeft, &tLen);
+    room = len - tLen;
+    if (room < 1) return 0;
+    pos = (x - grab) * (c->hTotal - c->hPage) / room;
+    if (pos < 0) pos = 0;
+    if (pos > c->hTotal - c->hPage) pos = c->hTotal - c->hPage;
+    return pos;
+}
+
 void d2g_VBar(int h, int show, int pos, int pct) {
     Grid* c = slot(h);
     if (!c) return;
@@ -1054,7 +1181,7 @@ void d2g_VBar(int h, int show, int pos, int pct) {
     c->vPct = pct < 4 ? 4 : (pct > 100 ? 100 : pct);
 }
 
-int d2g_VBarW(int h) { Grid* c = slot(h); return (c && c->vBar) ? D2G_BARW : 0; }
+int d2g_VBarW(int h) { Grid* c = slot(h); return (c && c->vBar) ? barTakes(c) : 0; }
 
 /* where the trough runs, and where the thumb sits inside it */
 static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen) {
@@ -1062,7 +1189,7 @@ static void d2g_VGeom(Grid* c, int* top, int* len, int* tTop, int* tLen) {
     int  t, l, tl;
     GetClientRect(c->hwnd, &r);
     t  = c->hdrH;
-    l  = (r.bottom - r.top) - t;
+    l  = (r.bottom - r.top) - t - (c->hBar ? barTakes(c) : 0);
     if (l < 0) l = 0;
     tl = l * c->vPct / 100;
     if (tl < 24) tl = 24;
@@ -1078,7 +1205,8 @@ int d2g_VHit(int h, int x, int y) {
     int   top, len, tTop, tLen;
     if (!c || !c->vBar) return 0;
     GetClientRect(c->hwnd, &r);
-    if (x < r.right - D2G_BARW) return 0;
+    if (c->barStyle == 2 && !c->barsShow) return 0;
+    if (x < r.right - barThick(c)) return 0;
     d2g_VGeom(c, &top, &len, &tTop, &tLen);
     if (y < top) return 0;
     if (y < tTop) return 2;

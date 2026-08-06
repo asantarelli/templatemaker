@@ -28,6 +28,9 @@ Main PROCEDURE
       d2g_FontSize(LONG h,LONG pt),LONG,PROC,NAME('_d2g_FontSize')
       d2g_RowNeed(LONG h),LONG,NAME('_d2g_RowNeed')
       d2g_ColWidth(LONG h,LONG col),LONG,NAME('_d2g_ColWidth')
+      d2g_BarStyle(LONG h,LONG style),NAME('_d2g_BarStyle')
+      d2g_HBar(LONG h,LONG show,LONG pos,LONG page,LONG total),NAME('_d2g_HBar')
+      d2g_BarsShow(LONG h,LONG on),NAME('_d2g_BarsShow')
       d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
       d2g_FilterOn(LONG h,LONG col,LONG on),NAME('_d2g_FilterOn')
       d2g_SortMark(LONG h,LONG col,LONG dir),NAME('_d2g_SortMark')
@@ -85,6 +88,8 @@ towns   STRING('Leeds    Bristol  Madrid   Oporto   Cardiff  Bergen   Toledo   D
       d2g_FontSize(g, 9)                                      ! Ctrl-wheel the other way
       small = d2g_RowH(g)
       wback = d2g_ColWidth(g, 0)                              ! and back where it started?
+      d2g_BarStyle(g, 1)                                      ! Slim
+      d2g_HBar(g, 1, 120, 400, 900)
       d2g_VBar(g, 1, 40, 12)                                  ! the drawn thumb, 40 pct down                                        ! two columns stay put
       d2g_RowHeight(g, 22)
       d2g_Total(g, 5000)

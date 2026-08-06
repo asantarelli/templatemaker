@@ -145,6 +145,12 @@ d2g_ColGrp(LONG h,LONG col),LONG,NAME('_d2g_ColGrp')
 d2g_FilterBtns(LONG h,LONG on),NAME('_d2g_FilterBtns')
 d2g_HitBtn(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitBtn')
 d2g_FilterOn(LONG h,LONG col,LONG on),NAME('_d2g_FilterOn')
+d2g_BarStyle(LONG h,LONG style),NAME('_d2g_BarStyle')
+d2g_BarsShow(LONG h,LONG on),NAME('_d2g_BarsShow')
+d2g_HBar(LONG h,LONG show,LONG pos,LONG page,LONG total),NAME('_d2g_HBar')
+d2g_HitHBar(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitHBar')
+d2g_HGrab(LONG h,LONG x),LONG,NAME('_d2g_HGrab')
+d2g_HDrag(LONG h,LONG x,LONG grab),LONG,NAME('_d2g_HDrag')
 d2g_Groups(LONG h,LONG n),NAME('_d2g_Groups')
 d2g_Group(LONG h,LONG gi,LONG x,LONG width,*CSTRING title),RAW,NAME('_d2g_Group')
 d2g_ColumnAt(LONG h,LONG col,LONG grp,LONG line,LONG x,LONG width,LONG align,*CSTRING title),RAW,NAME('_d2g_ColumnAt')
@@ -152,7 +158,7 @@ d2g_ViewWidth(LONG h),LONG,NAME('_d2g_ViewWidth')
     END
 BG_Rgb(LONG),ULONG
 BG_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
-BG_HookBars(LONG),BYTE,PROC
+BG_HookBars(LONG,LONG),BYTE,PROC
 BG_DropBars(LONG),LONG,PROC
 BG_SetBar(LONG,LONG,LONG,LONG,LONG)
 BG_BarPos(LONG,LONG),LONG
@@ -177,7 +183,7 @@ bgApi_PostMessage(ULONG hWnd,ULONG msg,ULONG wParam,LONG lParam),LONG,PASCAL,PRO
 !  the control is subclassed for the two scroll messages. The address of the
 !  callback is taken HERE, in the module that defines it - taken in a member
 !  module it is an import thunk, not the procedure.
-BG_HookBars PROCEDURE(LONG pHwnd)
+BG_HookBars PROCEDURE(LONG pHwnd,LONG pStyle)
 prop CSTRING('BrowseGridBarProc')
 old  LONG,AUTO
 sty  LONG,AUTO
@@ -189,8 +195,13 @@ sty  LONG,AUTO
 !  message loop of its own, and moving the browse needs records, which needs
 !  ACCEPT, which that loop is holding up. Sideways needed nothing from the
 !  browse so it could be done inside the loop; downwards cannot be.
-  sty = bgApi_GetWindowLong(pHwnd,BG:GwlStyle)
-  bgApi_SetWindowLong(pHwnd,BG:GwlStyle,BOR(sty,BG:HScrollStyle))
+!  The subclass goes on whatever the style, because the roller comes through it
+!  too. The SCROLLBAR only goes on for the Windows style - the other two draw
+!  their own, and a Windows bar underneath would take width for nothing.
+  IF pStyle = 0
+    sty = bgApi_GetWindowLong(pHwnd,BG:GwlStyle)
+    bgApi_SetWindowLong(pHwnd,BG:GwlStyle,BOR(sty,BG:HScrollStyle))
+  END
   bgApi_SetWindowPos(pHwnd,0,0,0,0,0,BOR(BOR(BOR(BG:FrameChanged,BG:NoMove),BG:NoSize),BG:NoZOrder))
   old = bgApi_SetWindowLong(pHwnd,BG:GwlWndProc,ADDRESS(BG_BarProc))
   IF ~old THEN RETURN 0.
@@ -387,6 +398,13 @@ c LONG,AUTO
       #DISPLAY('the user has resized or reordered.')
       #PROMPT('&Frozen columns (stay put when scrolled sideways):',SPIN(@n2,0,8,1)),%bgFrozen,DEFAULT(0)
       #PROMPT('&Scrollbars on the grid',CHECK),%bgBars,DEFAULT(1),AT(10)
+      #ENABLE(%bgBars)
+        #PROMPT('  &Style:',DROP('Windows|Slim|Overlay')),%bgBarStyle,DEFAULT('Windows')
+      #ENDENABLE
+      #DISPLAY('Windows - the sideways bar is Windows<39> own, the downward one drawn.')
+      #DISPLAY('Slim    - both drawn, thin and flat, in the grid<39>s own colours.')
+      #DISPLAY('Overlay - both drawn over the rows and only while the pointer is on')
+      #DISPLAY('          the grid, so the data keeps the whole width.')
       #PROMPT('Let the user &resize columns by dragging',CHECK),%bgSizeable,DEFAULT(1),AT(10)
       #PROMPT('Hand a right-click back to the &browse popup',CHECK),%bgPopup,DEFAULT(1),AT(10)
       #PROMPT('Scroll with the mouse &wheel',CHECK),%bgWheel,DEFAULT(1),AT(10)
@@ -480,6 +498,8 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bgObject:RzCur      BYTE                                    ! is the sizing cursor showing?
 %bgObject:VDrag      BYTE                                    ! is the thumb being dragged?
 %bgObject:VGrab      LONG                                    ! and where it was taken hold of
+%bgObject:HDrag      BYTE                                    ! the sideways thumb, being dragged
+%bgObject:HGrab      LONG
 %bgObject:SortCol    LONG                                    ! heading just clicked, for BG:Sort
 %bgObject:RzGrp      BYTE                                    ! is a GROUP being dragged, not a column?
 %bgObject:GrpCol     LONG,DIM(32)                            ! a LIST column in each group
@@ -582,6 +602,12 @@ BG:Refill:%bgObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
         DO BG:Right:%bgObject
       END
 #ENDIF
+#IF(%bgBarStyle = 'Overlay')
+    OF EVENT:MouseIn
+      d2g_BarsShow(%bgObject:G,1)
+    OF EVENT:MouseOut
+      d2g_BarsShow(%bgObject:G,0)
+#ENDIF
 #IF(%bgSizeable)
     OF EVENT:MouseMove
       DO BG:Sizing:%bgObject
@@ -654,7 +680,11 @@ h  SIGNED,AUTO
   d2g_HeaderHeight(%bgObject:G,%bgHdrH)
 #ENDIF
 #IF(%bgBars OR %bgWheel)
-  IF BG_HookBars(%bgObject:Rgn{PROP:Handle})                  ! the roller comes through here too
+#IF(%bgBarStyle = 'Windows')
+  IF BG_HookBars(%bgObject:Rgn{PROP:Handle},0)                ! the roller comes through here too
+#ELSE
+  IF BG_HookBars(%bgObject:Rgn{PROP:Handle},1)                ! drawn bars: hooked only for the roller
+#ENDIF
     %bgObject:Barred = 1
   END
 #ENDIF
@@ -662,6 +692,13 @@ h  SIGNED,AUTO
 !  The region is on top, so it - not the LIST - is what a right-click lands on.
 !  Alerting it here is what lets that click be handed back to the browse.
   %bgObject:Rgn{PROP:Alrt,250} = MouseRightUp
+#ENDIF
+#IF(%bgBarStyle = 'Slim')
+  d2g_BarStyle(%bgObject:G,1)
+#ELSIF(%bgBarStyle = 'Overlay')
+  d2g_BarStyle(%bgObject:G,2)
+#ELSE
+  d2g_BarStyle(%bgObject:G,0)
 #ENDIF
 #IF(%bgFilterBtn)
   d2g_FilterBtns(%bgObject:G,1)
@@ -938,6 +975,27 @@ row LONG,AUTO
   0{PROP:Pixels} = sp
 !  The scrollbar first: it is drawn over everything else, so it is clicked
 !  before everything else.
+#IF(%bgBarStyle <> 'Windows')
+  CASE d2g_HitHBar(%bgObject:G,mx,my)                         ! the drawn sideways bar
+  OF 4
+    %bgObject:HDrag = 1
+    %bgObject:HGrab = d2g_HGrab(%bgObject:G,mx)
+    EXIT
+  OF 5
+    %bgObject:ScrollX = %bgObject:ScrollX - d2g_ViewWidth(%bgObject:G)
+    IF %bgObject:ScrollX < 0 THEN %bgObject:ScrollX = 0.
+    d2g_ScrollX(%bgObject:G,%bgObject:ScrollX)
+    DO BG:Bars:%bgObject
+    d2g_PaintNow(%bgObject:G)
+    EXIT
+  OF 6
+    %bgObject:ScrollX = %bgObject:ScrollX + d2g_ViewWidth(%bgObject:G)
+    d2g_ScrollX(%bgObject:G,%bgObject:ScrollX)
+    DO BG:Bars:%bgObject
+    d2g_PaintNow(%bgObject:G)
+    EXIT
+  END
+#ENDIF
   CASE d2g_VHit(%bgObject:G,mx,my)
   OF 1
     %bgObject:VDrag = 1
@@ -1865,6 +1923,19 @@ vp  LONG,AUTO
   mx = MOUSEX() - rx
   my = MOUSEY() - ry
   0{PROP:Pixels} = sp
+#IF(%bgBarStyle <> 'Windows')
+  IF %bgObject:HDrag
+    IF bgApi_GetAsyncKeyState(BG:VkLButton) >= 0
+      %bgObject:HDrag = 0
+      EXIT
+    END
+    %bgObject:ScrollX = d2g_HDrag(%bgObject:G,mx,%bgObject:HGrab)
+    d2g_ScrollX(%bgObject:G,%bgObject:ScrollX)
+    DO BG:Bars:%bgObject
+    d2g_PaintNow(%bgObject:G)                                 ! sideways is ours: instant
+    EXIT
+  END
+#ENDIF
   IF %bgObject:VDrag
 !  THIS is what Windows' own scrollbar could not do. There is no modal loop
 !  here - it is an ordinary mouse move - so ACCEPT runs, the browse is told to
@@ -1940,6 +2011,7 @@ BG:SizeEnd:%bgObject ROUTINE
 c LONG,AUTO
   CODE
   %bgObject:VDrag = 0
+  %bgObject:HDrag = 0
   IF ~%bgObject:RzCol THEN EXIT.
   IF %bgObject:RzArmed
 !  It never moved, so it was a click on the heading after all - and a click on
@@ -2171,10 +2243,18 @@ fRecs LONG,AUTO
   IF tot <= view
     %bgObject:ScrollX = 0
     d2g_ScrollX(%bgObject:G,0)
+#IF(%bgBarStyle = 'Windows')
     BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbHorz,0,1,1)     ! nothing to scroll: no bar
+#ELSE
+    d2g_HBar(%bgObject:G,0,0,1,1)
+#ENDIF
   ELSE
     IF %bgObject:ScrollX > tot - view THEN %bgObject:ScrollX = tot - view.
+#IF(%bgBarStyle = 'Windows')
     BG_SetBar(%bgObject:Rgn{PROP:Handle},BG:SbHorz,%bgObject:ScrollX,view,tot)
+#ELSE
+    d2g_HBar(%bgObject:G,1,%bgObject:ScrollX,view,tot)
+#ENDIF
   END
 !  Down: NOT ours. The browse knows where it is in the file and keeps that in
 !  the LIST's own PROP:VScrollPos, nought to a hundred - the same approximate

@@ -222,6 +222,31 @@ behave as they always did.
 The keystroke is sent on a POSTed event rather than immediately, because `SELECT()` does not take
 effect until the next ACCEPT cycle — sent in the same breath it would still be sitting on the region.
 
+## Three kinds of scrollbar
+
+**Style** on the extension: *Windows*, *Slim* or *Overlay*.
+
+| | |
+|---|---|
+| **Windows** | the sideways bar is Windows' own, the downward one drawn. What the grid shipped with. |
+| **Slim** | both drawn, thin and flat, in the grid's own colours, no arrow buttons. |
+| **Overlay** | both drawn **over** the rows, thinner still, and only while the pointer is on the grid — the data keeps the whole width. |
+
+The vertical bar was always drawn, so this only adds a drawn **horizontal** one, which costs nothing:
+scrolling sideways was already the grid's own business either way (see below) — the style only decides
+who paints the furniture.
+
+Two things fall out of the overlay that are worth stating. It **reserves no width**, so `barTakes()` and
+`barThick()` are deliberately separate questions — how thick to draw, and how much to take out of the
+rows, stop being the same number. And it is hover-driven (`EVENT:MouseIn`/`MouseOut` →
+`d2g_BarsShow`) rather than timed: a fade needs a timer, and taking a window's `TIMER` for scrollbar
+chrome is not a trade worth making.
+
+The subclass on the region stays on for every style, because the **mouse wheel** comes through it too;
+only the `WS_HSCROLL` bit is conditional.
+
+`docs/BrowseGrid-slim-bars.png` is the harness in Slim.
+
 ## Scrolling sideways has to happen inside Windows' own loop
 
 Drag the horizontal thumb and the columns did not move until you let go, which is no use when the

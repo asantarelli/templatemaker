@@ -488,7 +488,9 @@ window open, which is not a thing to keep in a settings file). Sorting goes thro
 calls the browse object's own `SetFilter`, so range limits and locators keep working. The field name for the
 filter is read at run time with **`WHO()`** — an ABC browse queue labels its fields with the file fields they
 came from, so `WHO(Queue:Browse:1,n)` answers `STU:LastName` and nothing has to be mapped by hand.
-**The rest of it.** Scrollbars — sideways is Windows' own and **tracks live**, because scrolling sideways
+**The rest of it.** Scrollbars come in three styles — **Windows**, **Slim** (both drawn, thin and flat)
+and **Overlay** (drawn over the rows, only while the pointer is on the grid, so the data keeps the whole
+width). Sideways is Windows' own in the first of those and **tracks live**, because scrolling sideways
 needs nothing from the browse and can be done inside Windows' modal drag loop; downwards is **drawn by the
 grid**, because moving the browse needs records, records need ABC, and ABC needs `ACCEPT`, which that loop is
 holding up. Mouse wheel scrolls, **Ctrl+wheel resizes the type** (6 to 32 point, with the rows and the LIST's
