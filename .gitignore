@@ -152,6 +152,22 @@ docs/stimreport*
 **/StimBridge*
 **/stimbridge*
 
+# clarionwpf (WPF hosted on a Clarion window via HwndSource) - PRIVATE work in
+# progress, local-only for now: never push the template, its classes, its bridge
+# sources, its binaries, its XAML, its demo or its docs
+templates/clarionwpf/
+templates/clarionWPF/
+examples/clarionwpf/
+examples/clarionWPF/
+docs/clarionwpf*
+docs/clarionWPF*
+**/clarionwpf.*
+**/clarionWPF.*
+**/WpfBridge*
+**/wpfbridge*
+**/WpfViewClass.*
+**/wpflink.c
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
