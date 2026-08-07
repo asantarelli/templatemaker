@@ -127,10 +127,49 @@ docs/xSearch*
 **/xsearch.inc
 **/xsearch.trn*
 
+# AJEStimulsoftNew - the COM-free rework of the client's third-party AJE
+# Stimulsoft template. CLIENT WORK plus a third party's source: never push any
+# of it, including the untouched originals kept for diffing.
+templates/AJEStimulsoftNew/
+templates/ajestimulsoftnew/
+examples/AJEStimulsoftNew/
+docs/AJEStimulsoft*
+docs/ajestimulsoft*
+**/AJEStimulSoft*
+**/AJEUtilityClass*
+**/StimulSoftWrapper*
+
+# stimReport (Stimulsoft bridge) - CLIENT WORK, local-only, never push the
+# template, its bridge sources, its binaries, its demo or its docs
+templates/stimReport/
+templates/stimreport/
+examples/stimReport/
+examples/stimreport/
+docs/stimReport*
+docs/stimreport*
+**/stimReport.*
+**/stimreport.*
+**/StimBridge*
+**/stimbridge*
+
 # graficaBarra ReportClear demo output (regenerate by running the exe)
 examples/graficaBarra/*.wmf
 examples/graficaBarra/rpt*.png
 examples/graficaBarra/ReportClear.log
+
+# comlessCalendar (native Windows month calendar with no COM/OCX) - PRIVATE
+# work in progress, local-only for now: never push the template, its class, its
+# C shim, its demo or its docs
+templates/comlessCalendar/
+templates/comlesscalendar/
+examples/comlessCalendar/
+examples/comlesscalendar/
+docs/comlessCalendar*
+docs/comlesscalendar*
+**/comlessCalendar.*
+**/comlesscalendar.*
+**/ComlessCalendarClass.*
+**/cmcal.c
 
 # demo runtime leftovers (saved views, modes, build logs - regenerated on every run)
 examples/**/*Demo.INI
