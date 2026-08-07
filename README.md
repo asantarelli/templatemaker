@@ -578,7 +578,12 @@ its pages out as metafiles: `ReportClear` paints, clears and repaints into one p
 and logs a control census (the count never moves — a chart is ink, not controls). Full docs — prompts, class API, run-time
 control — in [`docs/graficaBarra-template.html`](docs/graficaBarra-template.html); a bilingual (English +
 Spanish) developer's reference with worked example code is in
-[`docs/graficaBarra-reference.html`](docs/graficaBarra-reference.html).
+[`docs/graficaBarra-reference.html`](docs/graficaBarra-reference.html). For driving the class from your own
+code there is a full **class guide** in [`docs/graficaBarra-classes.html`](docs/graficaBarra-classes.html) —
+bilingual, written from the source: every property and every method (including the internal painters and
+primitives) with signatures and line references, the 48 × 8 data grid field by field, the ordering rules that
+fail silently, `Paint` traced step by step, the scale/pie/legend algorithms, the colour rules, hand-coded
+examples for windows, reports, multi-chart bands and dashboards, and a table of known quirks with workarounds.
 
 *Upgrading from v1?* Nothing to redo: `Chart:Column` is the default and the v1 API (`AddBar`, `ClearBars`,
 `SetRange`, `Draw`, `Paint`) and prompts are unchanged, so existing charts generate and draw as before —
