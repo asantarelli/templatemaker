@@ -182,6 +182,7 @@ d2g_FilterBtns(LONG h,LONG n),NAME('_d2g_FilterBtns')
 d2g_FilterOn(LONG h,LONG col,LONG n),NAME('_d2g_FilterOn')
 d2g_HitBtn(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitBtn')
 d2g_Carry(LONG h,LONG col,LONG x),NAME('_d2g_Carry')
+d2g_Wrap(LONG h,LONG n,LONG lines),NAME('_d2g_Wrap')
     END
 BGL_Rgb(LONG),ULONG
 BGL_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
@@ -639,6 +640,14 @@ c LONG,AUTO
       #PROMPT('&Size (points):',SPIN(@n3,6,24,1)),%bglSize,DEFAULT(9)
       #PROMPT('&Row height (pixels, 0 = follow the browse):',SPIN(@n3,0,80,1)),%bglRowH,DEFAULT(0)
       #PROMPT('&Header height (pixels, 0 = from the font):',SPIN(@n3,0,80,1)),%bglHdrH,DEFAULT(0)
+      #PROMPT('&Wrap text that is too long for its column',CHECK),%bglWrap,DEFAULT(0),AT(10)
+      #ENABLE(%bglWrap)
+        #PROMPT('  &Lines a cell may use:',SPIN(@n1,2,4,1)),%bglWrapLines,DEFAULT(2)
+      #ENDENABLE
+      #DISPLAY('Every row grows to hold the allowed lines - all rows stay ONE')
+      #DISPLAY('height, so paging, the thumb and the browse''s page size simply')
+      #DISPLAY('follow. The wrapping itself is DirectWrite''s; a cell shows up')
+      #DISPLAY('to 128 characters.')
     #ENDBOXED
     #BOXED('Colours')
       #PROMPT('&Background:',COLOR),%bglCBack,DEFAULT(00FFFFFFH)
@@ -678,7 +687,9 @@ BGL:Refill:%bglObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bglObject:Col        LONG,DIM(32)                            ! LIST column behind each grid one
 %bglObject:Pic        STRING(32),DIM(32)                      ! and its picture, if it has one
 %bglObject:Face       CSTRING(33)
-%bglObject:Cell       CSTRING(65)
+%bglObject:Cell       CSTRING(129)                            ! G_TEXT's size: shorter cut long text at
+                                                              ! 64 chars, which looks exactly like text
+                                                              ! that refuses to wrap
 %bglObject:Sel        LONG
 %bglObject:Clipped    BYTE                                    ! has the LIST been made invisible?
 %bglObject:Fills      LONG                                    ! how many times it has been refilled
@@ -1031,6 +1042,14 @@ BGL:Setup:%bglObject ROUTINE
     EXIT
   END
   DO BGL:Conceal:%bglObject                                   ! only now the grid can be seen
+#IF(%bglWrap)
+!  Wrapping goes on BEFORE the row heights are agreed: d2g_Wrap grows the
+!  grid's own row height, d2g_RowNeed answers the taller number from here on,
+!  and BGL:Rows carries it into the LIST's line height - so the browse loads
+!  exactly as many records as the taller page can show, and nothing else has
+!  to know the rows changed size.
+  d2g_Wrap(%bglObject:G,1,%bglWrapLines)
+#ENDIF
   DO BGL:Rows:%bglObject
   DO BGL:Items:%bglObject                                     ! load what there is room to draw
 #IF(%bglHdrH > 0)
