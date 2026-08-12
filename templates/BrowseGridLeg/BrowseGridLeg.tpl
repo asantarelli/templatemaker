@@ -188,6 +188,8 @@ d2g_RowsFit(LONG h),LONG,NAME('_d2g_RowsFit')
 d2g_FitUpTo(LONG h,LONG k),LONG,NAME('_d2g_FitUpTo')
 d2g_PageMax(LONG h),LONG,NAME('_d2g_PageMax')
 d2g_TailGap(LONG h),LONG,NAME('_d2g_TailGap')
+d2g_FirstRow(LONG h),LONG,NAME('_d2g_FirstRow')
+d2g_Sizing(LONG h,LONG n),NAME('_d2g_Sizing')
     END
 BGL_Rgb(LONG),ULONG
 BGL_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
@@ -737,6 +739,9 @@ BGL:Refill:%bglObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bglObject:LoadMS     LONG                                    ! file-loaded: how long the last load took, ms
 #IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
 %bglObject:BtmFix     BYTE                                    ! bottom-anchor pass: 0 normal, 1 probing, 2 landing
+%bglObject:BtmTop     LONG                                    ! Top the last landing settled on...
+%bglObject:BtmN       LONG                                    ! ...at this Count; 0 = no landing stands
+%bglObject:MeasN      LONG                                    ! Count the grid's window was pushed from
 #ENDIF
 %bglObject:Expr       CSTRING(1025)                           ! criteria filter for the VIEW, '' = none
 %bglObject:FBtn       LONG                                    ! the filter-bar button, 0 = none placed
@@ -833,6 +838,10 @@ BGLK:%bglObject       QUEUE,PRE()                             ! decorate-sort-un
       IF %bglObject:G
         DO BGL:Place:%bglObject
         d2g_Resize(%bglObject:G)
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+        %bglObject:BtmN = 0                                   ! new client height: a landing that ended at the
+                                                              ! old bottom may leave a strip under the new one
+#ENDIF
         DO BGL:Items:%bglObject
 #IF(%bglSortField)
         IF ~%bglObject:DefDone
@@ -1238,6 +1247,7 @@ need LONG,AUTO
 !  stays with the grid; PROP:Items only matters to update-refill paths that
 !  reload anyway.
   %bglList{PROP:LineHeight} = lh / %bglWrapLines
+  %bglObject:BtmN = 0                                         ! new heights: the old landing means nothing
 #ELSE
   %bglList{PROP:LineHeight} = lh
 #ENDIF
@@ -1329,6 +1339,9 @@ t LONG,AUTO
 f CSTRING(2100)
   CODE
   IF ~%bglObject:G THEN EXIT.
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+  %bglObject:BtmN = 0                                         ! new records: the old landing means nothing
+#ENDIF
   SETCURSOR(Cursor:Wait)
   t = CLOCK()
   FREE(%bglQueue)
@@ -1485,6 +1498,13 @@ fld LONG,AUTO
 txt CSTRING(64)
   CODE
   FREE(BGLF:%bglObject)
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+  %bglObject:BtmN  = 0                                        ! new visible set: the old landing means nothing
+  %bglObject:MeasN = -1                                       ! and the measured heights are the OLD records' -
+                                                              ! a re-sort keeps Count, Top and firstRow all equal,
+                                                              ! so this is the only guard term that can notice.
+                                                              ! -1, not 0: an empty browse compares equal at 0.
+#ENDIF
 !  NOT CLIPped: a trailing space is a real search character. With "Iskor" and
 !  "Is kol" in the file, "is " has to narrow to "Is kol" alone - clipping the
 !  text here made the space do nothing until the next letter arrived. FiltText
@@ -1816,6 +1836,10 @@ c LONG,AUTO
     EXIT
   END
   c = %bglObject:Col[%bglObject:RzCol]
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+  d2g_Sizing(%bglObject:G,0)                                  ! the drag is over: measuring may resume
+  %bglObject:BtmN = 0                                         ! new widths: the old landing means nothing
+#ENDIF
   IF c
     %bglList{PROPLIST:Width,c} = d2g_ColWidth(%bglObject:G,%bglObject:RzCol - 1) / 2
 !  Changing a LIST's format makes it redraw itself, and it comes back OVER the
@@ -1983,23 +2007,39 @@ fitB LONG,AUTO
 #IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
 !  Variable rows: "on screen" is what MEASURED as fitting, not the conservative
 !  page - judging by the page yanked any clicked row below it up the screen,
-!  because the click was ruled invisible and anchored. The grid still holds the
-!  window the last fill pushed, so both answers below are measured on exactly
-!  the rows being looked at.
-  fitN = d2g_RowsFit(%bglObject:G)
-  IF fitN < page THEN fitN = page.                            ! never worse than certain
-  IF %bglObject:Sel < %bglObject:Top
-    %bglObject:Top = %bglObject:Sel                           ! scrolled off the top
-  ELSIF %bglObject:Sel > %bglObject:Top + fitN - 1
+!  because the click was ruled invisible and anchored.
+!
+!  But measured answers are only about the window the last fill PUSHED. Top
+!  and that window drift apart in exactly two places - the Clamp above just
+!  moved Top, or a reload/filter changed the record set with no fill between
+!  (BGL:Load runs Map then Anchor) - and then RowsFit and FitUpTo would be
+!  walking the heights of the wrong records, placing the selection a row or
+!  two adrift. The grid says which record its window starts at and the fill
+!  stamps which Count it pushed from; either disagreeing means the measured
+!  branch is blind, and the conservative page - always safe, merely farther -
+!  takes over for this one placement.
+  IF d2g_FirstRow(%bglObject:G) <> %bglObject:Top OR %bglObject:MeasN <> %bglObject:Count
+    IF %bglObject:Sel < %bglObject:Top
+      %bglObject:Top = %bglObject:Sel
+    ELSIF %bglObject:Sel > %bglObject:Top + page - 1
+      %bglObject:Top = %bglObject:Sel - page + 1
+    END
+  ELSE
+    fitN = d2g_RowsFit(%bglObject:G)
+    IF fitN < page THEN fitN = page.                          ! never worse than certain
+    IF %bglObject:Sel < %bglObject:Top
+      %bglObject:Top = %bglObject:Sel                         ! scrolled off the top
+    ELSIF %bglObject:Sel > %bglObject:Top + fitN - 1
 !  Off the bottom - scroll the LEAST that brings it whole into view, walked
 !  backwards from the selection over the measured heights. Outside the pushed
 !  window there is nothing to measure, so the conservative jump stands in;
 !  Sel is certain to be visible either way, only the distance differs.
-    fitB = d2g_FitUpTo(%bglObject:G,%bglObject:Sel - %bglObject:Top)
-    IF fitB > 0
-      %bglObject:Top = %bglObject:Sel - fitB + 1
-    ELSE
-      %bglObject:Top = %bglObject:Sel - page + 1
+      fitB = d2g_FitUpTo(%bglObject:G,%bglObject:Sel - %bglObject:Top)
+      IF fitB > 0
+        %bglObject:Top = %bglObject:Sel - fitB + 1
+      ELSE
+        %bglObject:Top = %bglObject:Sel - page + 1
+      END
     END
   END
 #ELSE
@@ -2221,6 +2261,9 @@ dlh   LONG,AUTO
   END
 #ENDIF
   d2g_Page(%bglObject:G,first,rows)
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+  %bglObject:MeasN = total                                    ! the Count this window was pushed from
+#ENDIF
   LOOP i = 1 TO rows
 #IF(%bglLoad = 'File loaded')
 !  Through the MAP when a search is on: the map says which queue rows are
@@ -2364,18 +2407,28 @@ fitB LONG,AUTO
   CASE %bglObject:BtmFix
   OF 2                                                        ! the anchored fill, back round: done
     %bglObject:BtmFix = 0
+    %bglObject:BtmTop = %bglObject:Top                        ! remember the landing: a wrapped row just
+    %bglObject:BtmN   = %bglObject:Count                      ! above the window keeps a gap >= one base
+                                                              ! line, and without the stamp every fill at
+                                                              ! the tail would probe and re-land HERE
   OF 1                                                        ! the probe is in: land exactly
     fitB = d2g_FitUpTo(%bglObject:G,%bglObject:Count - %bglObject:Top - 1)
-    IF fitB < 1 THEN fitB = 1.
+    IF fitB < 1                                               ! nothing measurable: give the probe up and
+      %bglObject:BtmFix = 0                                   ! leave Top where it stands - a wrong guess
+      EXIT                                                    ! here is a one-record screen
+    END
     IF %bglObject:Count - fitB <> %bglObject:Top
       %bglObject:BtmFix = 2
       %bglObject:Top    = %bglObject:Count - fitB
       DO BGL:Fill:%bglObject
     ELSE
       %bglObject:BtmFix = 0                                   ! the probe already stood right
+      %bglObject:BtmTop = %bglObject:Top
+      %bglObject:BtmN   = %bglObject:Count
     END
   ELSE                                                        ! an ordinary fill: is the tail short?
     IF %bglObject:Top <= 0 THEN EXIT.                         ! it all fits already
+    IF %bglObject:BtmN AND %bglObject:Top = %bglObject:BtmTop AND %bglObject:Count = %bglObject:BtmN THEN EXIT.  ! standing on the last landing
     IF %bglObject:Count - %bglObject:Top > d2g_PageMax(%bglObject:G) + 1 THEN EXIT.  ! nowhere near the end
     IF d2g_FitUpTo(%bglObject:G,%bglObject:Count - %bglObject:Top - 1) < %bglObject:Count - %bglObject:Top THEN EXIT.  ! rows below the fold: not at the bottom
     IF ~d2g_TailGap(%bglObject:G) THEN EXIT.                  ! the tail touches the bottom: anchored already
@@ -2667,6 +2720,12 @@ wid LONG,AUTO
     END
     wid = %bglObject:RzW + mx - %bglObject:RzX
     IF wid < 16 THEN wid = 16.                                 ! never drag it away entirely
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+!  Hold the measuring for the duration of the drag: this branch repaints on
+!  every mouse move, and re-measuring a page of cells per move is exactly the
+!  work the cache exists to avoid. BGL:SizeEnd lets it go again.
+    d2g_Sizing(%bglObject:G,1)
+#ENDIF
     d2g_SetWidth(%bglObject:G,%bglObject:RzCol - 1,wid)
     DO BGL:Bars:%bglObject                                     ! the columns are a different width now
     d2g_PaintNow(%bglObject:G)
@@ -3367,6 +3426,7 @@ page LONG,AUTO
     0{PROP:Pixels} = 1
 #IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
     %bglList{PROP:LineHeight} = d2g_RowH(%bglObject:G) / %bglWrapLines
+    %bglObject:BtmN = 0                                       ! new type, new heights: the landing is stale
 #ELSE
     %bglList{PROP:LineHeight} = d2g_RowH(%bglObject:G)
 #ENDIF

@@ -229,6 +229,7 @@ typedef struct {
     int   varRows;              /* grow rows only as needed?                */
     int   rowLines[G_VIS];      /* measured lines per visible row, >= 1     */
     int   linesDirty;           /* cells or widths changed since measuring  */
+    int   noMeasure;            /* a column drag is live: hold the measuring */
 } Grid;
 
 #define D2G_BARW 15
@@ -447,7 +448,9 @@ static int measureLines(Grid* c, const char* s, int width) {
        by value, the same two-floats-on-the-stack shape DrawLine uses. */
     if (((HRESULT (WINAPI*)(void*, const WCHAR*, unsigned, void*, float, float, void**))
          VT(g_dw)[18])(g_dw, w, (unsigned)n, c->fmt, (float)width, 100000.0f, &lay) < 0
-        || !lay) return 1;
+        || !lay) return c->wrapLines;   /* cannot measure: fail TALL. The draw
+           still wraps this cell, and a row sized short would let line two
+           paint over the row below - overlap that reads as corruption. */
     ((HRESULT (WINAPI*)(void*, int))VT(lay)[5])(lay, DW_WRAP);   /* SetWordWrapping */
     tm.lineCount = 1;
     /* IDWriteTextLayout::GetMetrics - slot 60 */
@@ -457,19 +460,29 @@ static int measureLines(Grid* c, const char* s, int width) {
     return (int)tm.lineCount;
 }
 
+/* Is this grid drawing rows of different heights right now? One question,
+   asked the same way everywhere geometry is computed - the draw, the hit
+   test, the scroll and the measure all have to agree or a click lands on
+   the wrong row. */
+static int varOn(Grid* c) {
+    return c->wrap && c->varRows && !c->grps && c->wrapLines > 1;
+}
+
 /* The row heights variable mode draws from: every pushed cell measured at its
    column's width, the worst cell setting its row, clamped to the wrap
    allowance. Runs when the page or the widths have changed - never per paint,
    because a layout per cell is real work and a paint happens on every mouse
    move. Cells are measured at the width text() draws them at, four pixels of
-   padding off each side. */
+   padding off each side. While a column edge is being dragged the measuring
+   is held off entirely (noMeasure) - a drag paints on every mouse move, and
+   the flag stays dirty so the button-up repaint measures once. */
 static void d2g_Measure(Grid* c) {
     int i, col, m, n;
-    if (!c->linesDirty) return;
+    if (!c->linesDirty || c->noMeasure) return;
     c->linesDirty = 0;
     for (i = 0; i < c->visRows; i++) {
         m = 1;
-        if (c->wrap && c->varRows && !c->grps && c->wrapLines > 1) {
+        if (varOn(c)) {
             for (col = 0; col < c->cols; col++) {
                 if (c->colW[col] <= 16 || !c->cell[i][col][0]) continue;
                 n = measureLines(c, c->cell[i][col], c->colW[col] - 8);
@@ -479,13 +492,6 @@ static void d2g_Measure(Grid* c) {
         }
         c->rowLines[i] = m;
     }
-}
-
-/* Is this grid drawing rows of different heights right now? One question,
-   asked the same way everywhere geometry is computed - the draw, the hit
-   test and the scroll all have to agree or a click lands on the wrong row. */
-static int varOn(Grid* c) {
-    return c->wrap && c->varRows && !c->grps && c->wrapLines > 1;
 }
 
 /* How tall visible row i is. Uniform mode: the one height every row has.
@@ -548,9 +554,10 @@ static void d2g_Draw(Grid* c) {
     rowY = c->hdrH - c->scrollY;
     for (i = 0; i < rowsDrawn; i++) {
         unsigned int back, fore;
+        int rh = rowHAt(c, i);
         top = (float)rowY;
-        bot = top + (float)rowHAt(c, i);
-        rowY += rowHAt(c, i);
+        bot = top + (float)rh;
+        rowY += rh;
         if (bot < (float)c->hdrH) continue;
         if (top > (float)r.bottom) break;
         absRow = c->firstRow + i;
@@ -866,7 +873,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c->fmtIcon = d2g_Font("Segoe MDL2 Assets", (float)pt, 0);
     if (!c->fmt || !c->fmtHdr) { c->used = 0; return 0; }
     c->wrap = 0; c->wrapLines = 1;
-    c->varRows = 0; c->linesDirty = 0;
+    c->varRows = 0; c->linesDirty = 0; c->noMeasure = 0;
     { int k; for (k = 0; k < 63 && face[k]; k++) c->face[k] = face[k]; c->face[k] = 0; }
     c->pt = pt;
     c->oldProc = (WNDPROC)GetWindowLongA((HWND)hwnd, GWL_WNDPROC);
@@ -902,6 +909,7 @@ void d2g_Column(int h, int col, int width, int align, const char* title) {
     if (!c || col < 0 || col >= G_COLS) return;
     c->colW[col] = width < 8 ? 8 : width;
     c->colAlign[col] = align;
+    c->linesDirty = 1;              /* every other colW writer marks the cache */
     for (i = 0; i < G_TEXT - 1 && title && title[i]; i++) c->colTitle[col][i] = title[i];
     c->colTitle[col][i] = 0;
 }
@@ -1028,8 +1036,11 @@ int d2g_PageSize(int h) {
     /* In variable mode this is the CONSERVATIVE answer - rowH is the full
        wrap allowance, so this many rows fit even if every one of them wraps
        to the limit. The rows that measured shorter leave room for more;
-       d2g_RowsFit says how many actually made it. */
-    return (int)((r.bottom - r.top - c->hdrH) / c->rowH);
+       d2g_RowsFit says how many actually made it. The horizontal bar comes
+       off the same way it does in the draw and the measured answers - five
+       functions, ONE view bottom, or "fits" means different things to the
+       page arithmetic and the anchor judging against it. */
+    return (int)((r.bottom - r.top - c->hdrH - (c->hBar ? barTakes(c) : 0)) / c->rowH);
 }
 
 /* The other end of the same answer: how many rows fit if NONE of them wrap -
@@ -1041,12 +1052,18 @@ int d2g_PageSize(int h) {
 int d2g_PageMax(int h) {
     Grid* c = slot(h);
     RECT  r;
-    int   base;
+    int   base, n;
     if (!c || !IsWindow(c->hwnd)) return 0;
     base = varOn(c) ? (c->rowH / c->wrapLines) : c->rowH;
     if (base < 1) return 0;
     GetClientRect(c->hwnd, &r);
-    return (r.bottom - r.top - c->hdrH) / base;
+    n = (r.bottom - r.top - c->hdrH - (c->hBar ? barTakes(c) : 0)) / base;
+    /* Capped just under what a page push can hold: the fill pushes this + 1,
+       and the bottom-anchor probe fills a window this + 1 deep then walks it
+       backwards from its LAST row. Let it exceed the pushed window and the
+       walk's index is past visRows, the walk answers 0, and the anchor lands
+       on a screen showing one record. */
+    return (n < G_VIS) ? n : G_VIS - 1;
 }
 
 /* How many of the pushed rows fit whole below the header, at the heights they
@@ -1114,7 +1131,7 @@ int d2g_FitUpTo(int h, int k) {
 /* which row and column a point landed on; row is absolute, -1 for the header */
 int d2g_HitRow(int h, int y) {
     Grid* c = slot(h);
-    if (!c) return -1;
+    if (!c || c->rowH < 1) return -1;    /* the divisor, guarded like PageSize's */
     if (y < c->hdrH) return -1;
     /* variable heights: walk the same numbers the draw accumulated. Below the
        last drawn row the uniform arithmetic takes over, so a click in the
@@ -1180,6 +1197,22 @@ void d2g_Wrap(int h, int on, int lines) {
     c->wrapLines = on ? lines : 1;
     c->rowH      = D2G_ROWH(c);
     c->linesDirty = 1;
+}
+
+/* Which record is drawn at the top - the anchor's proof that the heights it
+   is about to walk belong to the rows it is placing. The Clarion side's Top
+   and the grid's window drift apart in exactly two places (a clamp moving
+   Top, a reload changing the record set), and both are its cue to fall back
+   to the conservative page instead of measuring the wrong rows. */
+int d2g_FirstRow(int h) { Grid* c = slot(h); return c ? c->firstRow : -1; }
+
+/* A column drag is starting (or ending). Held-off measuring, see d2g_Measure:
+   the drag repaints on every mouse move and a layout per cell per move is
+   exactly the work the cache exists to avoid. */
+void d2g_Sizing(int h, int on) {
+    Grid* c = slot(h);
+    if (!c) return;
+    c->noMeasure = on ? 1 : 0;
 }
 
 /* Grow each row only as far as its own text needs, instead of every row
