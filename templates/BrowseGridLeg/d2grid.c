@@ -30,6 +30,9 @@
  *                           49 EndDraw 58 Resize
  *    ID2D1SolidColorBrush    2 Release   8 SetColor
  *    IDWriteFactory          2 Release  15 CreateTextFormat
+ *                           18 CreateTextLayout
+ *    IDWriteTextLayout       2 Release   5 SetWordWrapping (TextFormat's, inherited)
+ *                           60 GetMetrics
  *
  *  ABI notes:
  *    - 32-bit, stdcall (Clacpp spells it `pascal`).
@@ -85,6 +88,10 @@ typedef struct { int format; int alphaMode; }        PIXFMT;
 typedef struct { int type; PIXFMT pf; float dpiX, dpiY;
                  int usage; int minLevel; }          RTPROPS;
 typedef struct { HWND hwnd; SIZEU size; int present; } HRTPROPS;
+/* DWRITE_TEXT_METRICS, for IDWriteTextLayout::GetMetrics - seven floats and
+   two UINT32s, of which lineCount, the last, is the only one wanted here. */
+typedef struct { float left, top, width, widthTrail, height, layoutW, layoutH;
+                 UINT bidi, lineCount; } DWTM;
 
 #define DXGI_B8G8R8A8_UNORM  87
 #define ALPHA_IGNORE          3
@@ -212,6 +219,16 @@ typedef struct {
 
     int   wrap;                 /* let long text run onto another line?     */
     int   wrapLines;            /* how many lines a cell is allowed         */
+
+    /* ---- variable-height rows --------------------------------------------
+       With wrap alone every row carries the full allowance, wrapped or not.
+       varRows grows a row only as far as its own text needs: the rows the
+       page pushes in are MEASURED - DirectWrite says how many lines each
+       cell takes at its column's width - and the worst cell sets the row.
+       Flat browses only; a grouped format has said what it wants. */
+    int   varRows;              /* grow rows only as needed?                */
+    int   rowLines[G_VIS];      /* measured lines per visible row, >= 1     */
+    int   linesDirty;           /* cells or widths changed since measuring  */
 } Grid;
 
 #define D2G_BARW 15
@@ -413,6 +430,74 @@ static void text(Grid* c, const char* s, float l, float t, float r, float b,
      VT(c->rt)[27])(c->rt, w, (unsigned)n, fmt, &rc, c->brush, 0, 0);
 }
 
+/* How many lines this text takes at this width - DirectWrite's answer, not a
+   guess from character counts. A layout is built, asked and released; the
+   wrapping is set on the LAYOUT rather than the format, because the layout
+   copied whatever state the last draw left the format in. */
+static int measureLines(Grid* c, const char* s, int width) {
+    WCHAR w[G_TEXT * 2];
+    void* lay = 0;
+    DWTM  tm;
+    int   n = 0;
+    if (!s || !s[0] || width < 8 || !g_dw || !c->fmt) return 1;
+    wide(s, w, G_TEXT * 2);
+    while (w[n]) n++;
+    if (!n) return 1;
+    /* IDWriteFactory::CreateTextLayout - slot 18. maxWidth and maxHeight go
+       by value, the same two-floats-on-the-stack shape DrawLine uses. */
+    if (((HRESULT (WINAPI*)(void*, const WCHAR*, unsigned, void*, float, float, void**))
+         VT(g_dw)[18])(g_dw, w, (unsigned)n, c->fmt, (float)width, 100000.0f, &lay) < 0
+        || !lay) return 1;
+    ((HRESULT (WINAPI*)(void*, int))VT(lay)[5])(lay, DW_WRAP);   /* SetWordWrapping */
+    tm.lineCount = 1;
+    /* IDWriteTextLayout::GetMetrics - slot 60 */
+    if (((HRESULT (WINAPI*)(void*, DWTM*))VT(lay)[60])(lay, &tm) < 0 || tm.lineCount < 1)
+        tm.lineCount = 1;
+    ((unsigned long (WINAPI*)(void*))VT(lay)[2])(lay);           /* Release */
+    return (int)tm.lineCount;
+}
+
+/* The row heights variable mode draws from: every pushed cell measured at its
+   column's width, the worst cell setting its row, clamped to the wrap
+   allowance. Runs when the page or the widths have changed - never per paint,
+   because a layout per cell is real work and a paint happens on every mouse
+   move. Cells are measured at the width text() draws them at, four pixels of
+   padding off each side. */
+static void d2g_Measure(Grid* c) {
+    int i, col, m, n;
+    if (!c->linesDirty) return;
+    c->linesDirty = 0;
+    for (i = 0; i < c->visRows; i++) {
+        m = 1;
+        if (c->wrap && c->varRows && !c->grps && c->wrapLines > 1) {
+            for (col = 0; col < c->cols; col++) {
+                if (c->colW[col] <= 16 || !c->cell[i][col][0]) continue;
+                n = measureLines(c, c->cell[i][col], c->colW[col] - 8);
+                if (n > m) m = n;
+                if (m >= c->wrapLines) { m = c->wrapLines; break; }   /* cannot get taller */
+            }
+        }
+        c->rowLines[i] = m;
+    }
+}
+
+/* Is this grid drawing rows of different heights right now? One question,
+   asked the same way everywhere geometry is computed - the draw, the hit
+   test and the scroll all have to agree or a click lands on the wrong row. */
+static int varOn(Grid* c) {
+    return c->wrap && c->varRows && !c->grps && c->wrapLines > 1;
+}
+
+/* How tall visible row i is. Uniform mode: the one height every row has.
+   Variable mode: the wrap allowance divided back into lines - so a developer
+   who asked for taller rows keeps them taller - times the lines this row
+   measured. */
+static int rowHAt(Grid* c, int i) {
+    if (!varOn(c)) return c->rowH;
+    return (c->rowH / c->wrapLines) *
+           ((i >= 0 && i < c->visRows && c->rowLines[i] >= 1) ? c->rowLines[i] : 1);
+}
+
 /* ---- the paint -----------------------------------------------------------
    Frozen columns are drawn LAST, on top, and the scrolling ones are clipped to
    the right of them. Drawn in plain left-to-right order the scrolling columns
@@ -422,10 +507,11 @@ static void text(Grid* c, const char* s, float l, float t, float r, float b,
 static void d2g_Draw(Grid* c) {
     RECT  r;
     RECTF clip;
-    int   i, col, x, fx, rowsDrawn, absRow, frozenW, barW, lineH;
+    int   i, col, x, fx, rowsDrawn, absRow, frozenW, barW, lineH, rowY;
     float top, bot, cl, cr;
 
     if (!c->rt && !d2g_MakeTarget(c)) return;
+    d2g_Measure(c);                    /* row heights first; cheap when clean */
     GetClientRect(c->hwnd, &r);
     barW = c->vBar ? barTakes(c) : 0;
     r.right  -= barW;                      /* the columns stop at the scrollbar */
@@ -455,11 +541,16 @@ static void d2g_Draw(Grid* c) {
     clip.r = (float)r.right; clip.b = (float)r.bottom;
     ((void (WINAPI*)(void*, const RECTF*, int))VT(c->rt)[45])(c->rt, &clip, AA_ALIASED);
 
+    /* Where each row starts is the sum of the heights above it - which is the
+       same i * rowH it always was until variable mode makes the heights
+       differ, so the one accumulation serves both. */
     rowsDrawn = c->visRows;
+    rowY = c->hdrH - c->scrollY;
     for (i = 0; i < rowsDrawn; i++) {
         unsigned int back, fore;
-        top = (float)(c->hdrH + i * c->rowH - c->scrollY);
-        bot = top + c->rowH;
+        top = (float)rowY;
+        bot = top + (float)rowHAt(c, i);
+        rowY += rowHAt(c, i);
         if (bot < (float)c->hdrH) continue;
         if (top > (float)r.bottom) break;
         absRow = c->firstRow + i;
@@ -775,6 +866,7 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     c->fmtIcon = d2g_Font("Segoe MDL2 Assets", (float)pt, 0);
     if (!c->fmt || !c->fmtHdr) { c->used = 0; return 0; }
     c->wrap = 0; c->wrapLines = 1;
+    c->varRows = 0; c->linesDirty = 0;
     { int k; for (k = 0; k < 63 && face[k]; k++) c->face[k] = face[k]; c->face[k] = 0; }
     c->pt = pt;
     c->oldProc = (WNDPROC)GetWindowLongA((HWND)hwnd, GWL_WNDPROC);
@@ -840,7 +932,8 @@ void d2g_HeaderHeight(int h,int px){
 void d2g_Total(int h, int n)       { Grid* c = slot(h); if (c) c->totalRows = n; }
 void d2g_Select(int h, int row)    { Grid* c = slot(h); if (c) c->selRow = row; }
 void d2g_ScrollX(int h, int x)     { Grid* c = slot(h); if (c) c->scrollX = x < 0 ? 0 : x; }
-void d2g_ScrollY(int h, int y)     { Grid* c = slot(h); if (c) c->scrollY = y < 0 ? 0 : y; }
+void d2g_ScrollY(int h, int y)     { Grid* c = slot(h);
+                                     if (c) c->scrollY = (y < 0 || varOn(c)) ? 0 : y; }
 int  d2g_RowH(int h)               { Grid* c = slot(h); return c ? c->rowH : 0; }
 int  d2g_HeaderH(int h)            { Grid* c = slot(h); return c ? c->hdrH : 0; }
 
@@ -862,6 +955,7 @@ void d2g_Page(int h, int firstRow, int rows) {
     if (rows > G_VIS) rows = G_VIS;
     c->firstRow = firstRow;
     c->visRows  = rows;
+    c->linesDirty = 1;
 }
 
 void d2g_Cell(int h, int visRow, int col, const char* s) {
@@ -870,6 +964,7 @@ void d2g_Cell(int h, int visRow, int col, const char* s) {
     if (!c || visRow < 0 || visRow >= G_VIS || col < 0 || col >= G_COLS) return;
     for (i = 0; i < G_TEXT - 1 && s && s[i]; i++) c->cell[visRow][col][i] = s[i];
     c->cell[visRow][col][i] = 0;
+    c->linesDirty = 1;
 }
 
 void d2g_Repaint(int h) { Grid* c = slot(h); if (c) InvalidateRect(c->hwnd, 0, 0); }
@@ -930,7 +1025,90 @@ int d2g_PageSize(int h) {
     if (!c || !IsWindow(c->hwnd)) return 0;
     GetClientRect(c->hwnd, &r);
     if (c->rowH < 1) return 0;
+    /* In variable mode this is the CONSERVATIVE answer - rowH is the full
+       wrap allowance, so this many rows fit even if every one of them wraps
+       to the limit. The rows that measured shorter leave room for more;
+       d2g_RowsFit says how many actually made it. */
     return (int)((r.bottom - r.top - c->hdrH) / c->rowH);
+}
+
+/* The other end of the same answer: how many rows fit if NONE of them wrap -
+   the most records a fill could ever need to push. Computed against the base
+   line directly, NOT as PageSize times the allowance: PageSize already
+   floor-divided by the full allowance, and multiplying the floor back up
+   loses up to a wrap-allowance of base rows - which sat at the bottom of the
+   view as a blank strip whenever the visible rows happened not to wrap. */
+int d2g_PageMax(int h) {
+    Grid* c = slot(h);
+    RECT  r;
+    int   base;
+    if (!c || !IsWindow(c->hwnd)) return 0;
+    base = varOn(c) ? (c->rowH / c->wrapLines) : c->rowH;
+    if (base < 1) return 0;
+    GetClientRect(c->hwnd, &r);
+    return (r.bottom - r.top - c->hdrH) / base;
+}
+
+/* How many of the pushed rows fit whole below the header, at the heights they
+   measured. The Clarion side fills with the conservative page, asks this, and
+   knows how far the page really reached - what Anchor needs to place the top
+   record so a selection stays on screen. */
+int d2g_RowsFit(int h) {
+    Grid* c = slot(h);
+    RECT  r;
+    int   i, at, viewB;
+    if (!c || !IsWindow(c->hwnd)) return 0;
+    GetClientRect(c->hwnd, &r);
+    viewB = r.bottom - (c->hBar ? barTakes(c) : 0);
+    d2g_Measure(c);
+    at = c->hdrH;
+    for (i = 0; i < c->visRows; i++) {
+        at += rowHAt(c, i);
+        if (at > viewB) break;               /* this one does not fit whole */
+    }
+    return i;
+}
+
+/* Is there room below the last pushed row for at least one more BASE line?
+   The bottom anchor asks before probing deeper - a probe costs a refill, and
+   a tail already touching the bottom has nothing to gain from one. */
+int d2g_TailGap(int h) {
+    Grid* c = slot(h);
+    RECT  r;
+    int   i, at, viewB, base;
+    if (!c || !IsWindow(c->hwnd)) return 0;
+    GetClientRect(c->hwnd, &r);
+    viewB = r.bottom - (c->hBar ? barTakes(c) : 0);
+    base  = varOn(c) ? (c->rowH / c->wrapLines) : c->rowH;
+    if (base < 1) return 0;
+    d2g_Measure(c);
+    at = c->hdrH;
+    for (i = 0; i < c->visRows; i++) at += rowHAt(c, i);
+    return (viewB - at >= base) ? 1 : 0;
+}
+
+/* How many pushed rows fit whole ENDING at visible row k - measured backwards,
+   k first. The smallest scroll that brings row k fully into view keeps
+   exactly this many rows: anchoring with anything less measured - a
+   conservative page, a forward count - either over-scrolls, which is a click
+   yanking the row it landed on up the screen, or under-scrolls, which is a
+   selection still below the fold. 0 when k is not a pushed row, and the
+   caller falls back to the conservative jump. */
+int d2g_FitUpTo(int h, int k) {
+    Grid* c = slot(h);
+    RECT  r;
+    int   i, at, viewB;
+    if (!c || !IsWindow(c->hwnd)) return 0;
+    if (k < 0 || k >= c->visRows) return 0;
+    GetClientRect(c->hwnd, &r);
+    viewB = r.bottom - (c->hBar ? barTakes(c) : 0);
+    d2g_Measure(c);
+    at = c->hdrH;
+    for (i = k; i >= 0; i--) {
+        at += rowHAt(c, i);
+        if (at > viewB) break;               /* this one pushes k off screen */
+    }
+    return k - i;
 }
 
 /* which row and column a point landed on; row is absolute, -1 for the header */
@@ -938,6 +1116,18 @@ int d2g_HitRow(int h, int y) {
     Grid* c = slot(h);
     if (!c) return -1;
     if (y < c->hdrH) return -1;
+    /* variable heights: walk the same numbers the draw accumulated. Below the
+       last drawn row the uniform arithmetic takes over, so a click in the
+       empty space answers a row past the data the way it always has. */
+    if (varOn(c)) {
+        int i, at = c->hdrH;               /* scrollY is 0 in variable mode */
+        d2g_Measure(c);
+        for (i = 0; i < c->visRows; i++) {
+            at += rowHAt(c, i);
+            if (y < at) return c->firstRow + i;
+        }
+        return c->firstRow + c->visRows + (y - at) / c->rowH;
+    }
     return c->firstRow + (int)((y - c->hdrH + c->scrollY) / c->rowH);
 }
 
@@ -989,6 +1179,18 @@ void d2g_Wrap(int h, int on, int lines) {
     c->wrap      = on ? 1 : 0;
     c->wrapLines = on ? lines : 1;
     c->rowH      = D2G_ROWH(c);
+    c->linesDirty = 1;
+}
+
+/* Grow each row only as far as its own text needs, instead of every row
+   carrying the whole wrap allowance. Means nothing without wrap on; the
+   Clarion side only offers it to a file-loaded, flat browse. */
+void d2g_VarRows(int h, int on) {
+    Grid* c = slot(h);
+    if (!c) return;
+    c->varRows    = on ? 1 : 0;
+    c->linesDirty = 1;
+    if (on) c->scrollY = 0;            /* variable mode scrolls whole rows */
 }
 
 void d2g_Groups(int h, int n) {
@@ -1337,6 +1539,7 @@ int d2g_FontSize(int h, int pt) {
     c->rowH = D2G_ROWH(c);                      /* the same rule d2g_Attach uses */
     c->hdrH = D2G_HDRFOR(pt);
     c->pt = pt;
+    c->linesDirty = 1;                          /* new type, new line counts */
     InvalidateRect(c->hwnd, 0, 0);
     return c->pt;
 }
@@ -1421,6 +1624,7 @@ void d2g_SetWidth(int h, int col, int w) {
     Grid* c = slot(h);
     if (!c || col < 0 || col >= c->cols) return;
     c->colW[col] = w < 16 ? 16 : w;
+    c->linesDirty = 1;
 }
 
 int d2g_HitCol(int h, int x) {

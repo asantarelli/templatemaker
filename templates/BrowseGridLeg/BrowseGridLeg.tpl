@@ -183,6 +183,11 @@ d2g_FilterOn(LONG h,LONG col,LONG n),NAME('_d2g_FilterOn')
 d2g_HitBtn(LONG h,LONG x,LONG y),LONG,NAME('_d2g_HitBtn')
 d2g_Carry(LONG h,LONG col,LONG x),NAME('_d2g_Carry')
 d2g_Wrap(LONG h,LONG n,LONG lines),NAME('_d2g_Wrap')
+d2g_VarRows(LONG h,LONG n),NAME('_d2g_VarRows')
+d2g_RowsFit(LONG h),LONG,NAME('_d2g_RowsFit')
+d2g_FitUpTo(LONG h,LONG k),LONG,NAME('_d2g_FitUpTo')
+d2g_PageMax(LONG h),LONG,NAME('_d2g_PageMax')
+d2g_TailGap(LONG h),LONG,NAME('_d2g_TailGap')
     END
 BGL_Rgb(LONG),ULONG
 BGL_BarProc(ULONG,ULONG,ULONG,LONG),LONG,PASCAL
@@ -643,11 +648,19 @@ c LONG,AUTO
       #PROMPT('&Wrap text that is too long for its column',CHECK),%bglWrap,DEFAULT(0),AT(10)
       #ENABLE(%bglWrap)
         #PROMPT('  &Lines a cell may use:',SPIN(@n1,2,4,1)),%bglWrapLines,DEFAULT(2)
+        #ENABLE(%bglLoad = 'File loaded')
+          #PROMPT('  &Grow rows only as needed',CHECK),%bglVarRows,DEFAULT(0),AT(10)
+        #ENDENABLE
       #ENDENABLE
       #DISPLAY('Every row grows to hold the allowed lines - all rows stay ONE')
       #DISPLAY('height, so paging, the thumb and the browse''s page size simply')
       #DISPLAY('follow. The wrapping itself is DirectWrite''s; a cell shows up')
       #DISPLAY('to 128 characters.')
+      #DISPLAY('')
+      #DISPLAY('Grow rows only as needed keeps each row at ONE line unless its')
+      #DISPLAY('own text wraps - the grid measures every cell and the tallest')
+      #DISPLAY('one sets its row. File loaded only: the page size becomes')
+      #DISPLAY('content-dependent, and only that mode owns its paging outright.')
     #ENDBOXED
     #BOXED('Colours')
       #PROMPT('&Background:',COLOR),%bglCBack,DEFAULT(00FFFFFFH)
@@ -722,6 +735,9 @@ BGL:Refill:%bglObject  EQUATE(EVENT:User + 120 + %ActiveTemplateInstance)
 %bglObject:VOpen      BYTE                                    ! file-loaded: has the view been primed open once?
 %bglObject:Full       LONG                                    ! file-loaded: records in the WHOLE queue
 %bglObject:LoadMS     LONG                                    ! file-loaded: how long the last load took, ms
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+%bglObject:BtmFix     BYTE                                    ! bottom-anchor pass: 0 normal, 1 probing, 2 landing
+#ENDIF
 %bglObject:Expr       CSTRING(1025)                           ! criteria filter for the VIEW, '' = none
 %bglObject:FBtn       LONG                                    ! the filter-bar button, 0 = none placed
 #IF(%bglChooser)
@@ -1049,6 +1065,13 @@ BGL:Setup:%bglObject ROUTINE
 !  exactly as many records as the taller page can show, and nothing else has
 !  to know the rows changed size.
   d2g_Wrap(%bglObject:G,1,%bglWrapLines)
+#IF(%bglVarRows AND %bglLoad = 'File loaded')
+!  ...and rows grow only as far as their own text needs. The grid measures the
+!  pushed cells and draws each row at one line unless it wrapped; the row
+!  height d2g_RowNeed answers stays the full allowance - it is the worst case
+!  the paging arithmetic below leans on.
+  d2g_VarRows(%bglObject:G,1)
+#ENDIF
 #ENDIF
   DO BGL:Rows:%bglObject
   DO BGL:Items:%bglObject                                     ! load what there is room to draw
@@ -1208,7 +1231,16 @@ need LONG,AUTO
 #ENDIF
   IF lh < need THEN lh = need.                                ! but never squash the type
   d2g_RowHeight(%bglObject:G,lh)
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+!  Variable rows: the LIST is synced at the BASE height - one line's worth -
+!  because most rows will BE one line, and the grid divides the same lh by the
+!  same count, so the two sides land on the same number. The full allowance
+!  stays with the grid; PROP:Items only matters to update-refill paths that
+!  reload anyway.
+  %bglList{PROP:LineHeight} = lh / %bglWrapLines
+#ELSE
   %bglList{PROP:LineHeight} = lh
+#ENDIF
   0{PROP:Pixels} = sp
 
 BGL:Items:%bglObject ROUTINE
@@ -1229,7 +1261,15 @@ newlh LONG,AUTO
   0{PROP:Pixels} = 1
   lh    = %bglList{PROP:LineHeight}
   items = %bglList{PROP:Items}
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+!  Variable rows: aim the browse at the OPTIMISTIC page - the rows it can show
+!  when none of them wrap - so an update-refill loads enough records to fill
+!  the screen whatever the mix turns out to be. d2g_PageMax for the same
+!  reason BGL:Fill uses it: PageSize times the allowance rounds short.
+  fit   = d2g_PageMax(%bglObject:G)
+#ELSE
   fit   = d2g_PageSize(%bglObject:G)
+#ENDIF
   IF lh > 0 AND items > 0 AND fit > 0 AND fit <> items
     newlh = items * lh / fit
     IF newlh < 2 THEN newlh = 2.
@@ -1931,16 +1971,44 @@ BGL:Anchor:%bglObject ROUTINE
 #IF(%bglLoad = 'File loaded')
   DATA
 page LONG,AUTO
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+fitN LONG,AUTO
+fitB LONG,AUTO
+#ENDIF
   CODE
   IF ~%bglObject:G THEN EXIT.
   DO BGL:Clamp:%bglObject
   page = d2g_PageSize(%bglObject:G)
   IF page < 1 THEN page = 1.
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+!  Variable rows: "on screen" is what MEASURED as fitting, not the conservative
+!  page - judging by the page yanked any clicked row below it up the screen,
+!  because the click was ruled invisible and anchored. The grid still holds the
+!  window the last fill pushed, so both answers below are measured on exactly
+!  the rows being looked at.
+  fitN = d2g_RowsFit(%bglObject:G)
+  IF fitN < page THEN fitN = page.                            ! never worse than certain
+  IF %bglObject:Sel < %bglObject:Top
+    %bglObject:Top = %bglObject:Sel                           ! scrolled off the top
+  ELSIF %bglObject:Sel > %bglObject:Top + fitN - 1
+!  Off the bottom - scroll the LEAST that brings it whole into view, walked
+!  backwards from the selection over the measured heights. Outside the pushed
+!  window there is nothing to measure, so the conservative jump stands in;
+!  Sel is certain to be visible either way, only the distance differs.
+    fitB = d2g_FitUpTo(%bglObject:G,%bglObject:Sel - %bglObject:Top)
+    IF fitB > 0
+      %bglObject:Top = %bglObject:Sel - fitB + 1
+    ELSE
+      %bglObject:Top = %bglObject:Sel - page + 1
+    END
+  END
+#ELSE
   IF %bglObject:Sel < %bglObject:Top
     %bglObject:Top = %bglObject:Sel                           ! scrolled off the top
   ELSIF %bglObject:Sel > %bglObject:Top + page - 1
     %bglObject:Top = %bglObject:Sel - page + 1                ! ...or off the bottom
   END
+#ENDIF
   DO BGL:Clamp:%bglObject
 #ELSE
   EXIT
@@ -2117,7 +2185,19 @@ dlh   LONG,AUTO
   total = %bglObject:Count
   DO BGL:Clamp:%bglObject                                     ! bounds only - never chase the selection
   first = %bglObject:Top
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+!  Variable rows: push the OPTIMISTIC page - every row the screen could show if
+!  none of them wrapped - and let the draw stop where the pixels run out. The
+!  conservative d2g_PageSize still governs Clamp, Anchor and the keys, so a
+!  selection is never anchored past what is certain to fit; pushing more here
+!  only keeps the bottom of the view filled when rows measure short.
+!  d2g_PageMax, not PageSize times the allowance: the floor in PageSize
+!  multiplied back up came out short, and the deficit stood at the bottom of
+!  the view as a blank strip whenever the visible rows happened not to wrap.
+  fit   = d2g_PageMax(%bglObject:G) + 1
+#ELSE
   fit   = d2g_PageSize(%bglObject:G) + 1
+#ENDIF
   rows  = total - first
   IF rows > fit THEN rows = fit.
   IF rows < 0 THEN rows = 0.
@@ -2189,6 +2269,9 @@ dlh   LONG,AUTO
                & ' rowh=' & d2g_RowH(%bglObject:G)                              |
                & ' need=' & d2g_RowNeed(%bglObject:G)                           |
                & ' page=' & d2g_PageSize(%bglObject:G) & ' fit=' & fit          |
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+               & ' rfit=' & d2g_RowsFit(%bglObject:G)                           |
+#ENDIF
                & ' first=' & first & ' draw=' & rows & ' lh=' & dlh             |
                & ' items=' & %bglList{PROP:Items} & ' sel=' & sel               |
 #IF(%bglLoad = 'File loaded')
@@ -2255,6 +2338,55 @@ dlh   LONG,AUTO
 #ENDIF
   DO BGL:Bars:%bglObject                                      ! resize both thumbs to what is showing
   d2g_Repaint(%bglObject:G)
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+  DO BGL:Bottom:%bglObject                                    ! LAST - it may fill again
+#ENDIF
+
+BGL:Bottom:%bglObject ROUTINE
+!  BOTTOM-ANCHOR, the way a Clarion browse ends: the last screen is FULL and
+!  ends at the last record. With rows of different heights the conservative
+!  clamp has to stop Top early - it cannot know the tail's heights before
+!  their cells are pushed - so a fill that reached the last record can leave
+!  room to spare below it. And the fill's own window starts AT Top, so there
+!  is nothing above it measured to pull in: the anchor takes a PROBE. Fill the
+!  deepest window that could possibly end the file (pass 1), walk its measured
+!  heights backwards from the last record for where the full last screen
+!  starts, fill THERE (pass 2), and stop (pass 3). BtmFix carries which pass
+!  this is; it only ever steps 0-1-2-0, so the fills cannot cycle whatever the
+!  heights measure. Called as the last thing a fill does, so the re-entered
+!  fill tramples nothing behind it; the selection stays visible because every
+!  row from the anchored Top to the end just measured as fitting.
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+  DATA
+fitB LONG,AUTO
+  CODE
+  IF ~%bglObject:G THEN EXIT.
+  CASE %bglObject:BtmFix
+  OF 2                                                        ! the anchored fill, back round: done
+    %bglObject:BtmFix = 0
+  OF 1                                                        ! the probe is in: land exactly
+    fitB = d2g_FitUpTo(%bglObject:G,%bglObject:Count - %bglObject:Top - 1)
+    IF fitB < 1 THEN fitB = 1.
+    IF %bglObject:Count - fitB <> %bglObject:Top
+      %bglObject:BtmFix = 2
+      %bglObject:Top    = %bglObject:Count - fitB
+      DO BGL:Fill:%bglObject
+    ELSE
+      %bglObject:BtmFix = 0                                   ! the probe already stood right
+    END
+  ELSE                                                        ! an ordinary fill: is the tail short?
+    IF %bglObject:Top <= 0 THEN EXIT.                         ! it all fits already
+    IF %bglObject:Count - %bglObject:Top > d2g_PageMax(%bglObject:G) + 1 THEN EXIT.  ! nowhere near the end
+    IF d2g_FitUpTo(%bglObject:G,%bglObject:Count - %bglObject:Top - 1) < %bglObject:Count - %bglObject:Top THEN EXIT.  ! rows below the fold: not at the bottom
+    IF ~d2g_TailGap(%bglObject:G) THEN EXIT.                  ! the tail touches the bottom: anchored already
+    %bglObject:BtmFix = 1
+    %bglObject:Top    = %bglObject:Count - d2g_PageMax(%bglObject:G) - 1
+    IF %bglObject:Top < 0 THEN %bglObject:Top = 0.
+    DO BGL:Fill:%bglObject
+  END
+#ELSE
+  EXIT
+#ENDIF
 
 BGL:Hit:%bglObject ROUTINE
 !  A click picks a row. The browse still owns the selection: it is told which
@@ -3233,7 +3365,11 @@ page LONG,AUTO
 !  never come down. When the type changes size the grid is the authority.
     sp = 0{PROP:Pixels}
     0{PROP:Pixels} = 1
+#IF(%bglWrap AND %bglVarRows AND %bglLoad = 'File loaded')
+    %bglList{PROP:LineHeight} = d2g_RowH(%bglObject:G) / %bglWrapLines
+#ELSE
     %bglList{PROP:LineHeight} = d2g_RowH(%bglObject:G)
+#ENDIF
     0{PROP:Pixels} = sp
     DO BGL:Items:%bglObject                                   ! and load to the new page size
     DO BGL:Fill:%bglObject

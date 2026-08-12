@@ -29,6 +29,13 @@ Beyond the port, this version adds features the ABC original does not have:
   marker; widths, visibility and order all remembered per user in an INI
 - **Double-click opens the Change form**, routed through the browse's own
   `AlertKey` machinery
+- **Word wrap with variable-height rows** — long cells wrap onto extra lines
+  (DirectWrite's own wrapping, up to a per-cell line allowance), and with
+  "grow rows only as needed" each row is measured (`CreateTextLayout` +
+  `GetMetrics`) and takes only the lines its own text needs; paging works from
+  a conservative page size while fills push the measured optimum, and the last
+  screen bottom-anchors at the final record the way a stock browse does
+  (file-loaded only)
 
 ## Files
 
