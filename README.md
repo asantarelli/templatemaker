@@ -113,6 +113,10 @@ templates/                      # ready-to-register Clarion templates
   BrowseGrid/                   #   take over any ABC browse and draw it with Direct2D (see below)
     BrowseGrid.tpl              #     the extension: one prompt sheet, no class to ship
     d2grid.c                    #     the grid: Direct2D + DirectWrite, bound at run time
+  BrowseGridLeg/                #   the same grid for the Legacy (CW20) chain (see below)
+    BrowseGridLeg.tpl           #     global + procedure extensions, search box, filter bar
+    d2grid.c                    #     the grid, plus filter buttons and drag-reorder
+    README.md                   #     what the port adds over the ABC original
   weatherWidget/                #   a weather card when your program starts (see below)
     MyWeatherClass.inc          #     the widget (settings, the reading, EN/ES strings)
     MyWeatherClass.clw          #     the implementation (curl + JSON + the drawn card)
@@ -504,6 +508,37 @@ at run time by harnesses rather than argued: column-edge hit testing (`edgetest`
 concealment (`novis` — `winvis 1>0 | PROP:Hide 0>0 | recs 20`), group resizing being reversible
 (`proptest` — `PROP-PASS was 200,300,160,140 now 200,300,160,140`), and the row-height clamp
 (`GridTest grew=33 shrank=19`). See [`examples/BrowseGrid/`](examples/BrowseGrid/).
+
+### `templates/BrowseGridLeg/` — the same grid for the **Legacy (CW20)** chain
+BrowseGrid ported to the Legacy template family, and grown up on the way. The browse engine underneath is
+untouched — file access, sort orders, range limits, locators and the update round-trip stay the generated
+Legacy browse's own — while the `LIST` is concealed and the Direct2D grid draws in its place, exactly as the
+ABC version does. It attaches with `FAMILY('CW20')`, and it is a `#CONTROL`-free extension suite, because the
+Legacy chain has no ABC objects to hang one on.
+**What the port adds over the original.** A **file-loaded mode** reads the whole view into the queue once
+(5,000 SQLite records in ~10ms), which buys an exact scrollbar thumb, instant in-memory sorts and live
+thumb-drag scrolling; page-loaded mode is still there, and the two are split by `#IF(%bglLoad = 'File loaded')`
+throughout. A **live search box** narrows the list browser-style as you type, case-blind, with type-to-search
+straight from the list. A **criteria filter bar** — a full-width, self-describing button — is driven by
+[myFilter](templates/myFilter)'s `MyFilterClass` used unchanged (it is pure Clarion): build conditions per
+field, save filters by name, apply them from the button's menu. It applies through `PROP:Filter` on the view,
+so it filters on joined files' fields too.
+**And the rest.** Excel-style value menus on the headings, case-blind header-click sorting
+(decorate–sort–undecorate — the queue `SORT` string form is case-sensitive and the comparison-function form
+is a silent no-op), column drag-resize, a right-click column chooser, and **drag-to-reorder** with a ghost
+heading chip and an insertion marker — widths, visibility and order all remembered per user in an INI.
+Double-click opens the Change form through the browse's own `AlertKey` machinery. **Word wrap gives
+variable-height rows**: each row is measured with `CreateTextLayout` + `GetMetrics` and takes only the lines
+its own text needs, paging works from a conservative page size while fills push the measured optimum, and the last
+screen bottom-anchors at the final record the way a stock browse does.
+Needs `d2grid.c` on the redirection path, and `MyFilterClass.inc`/`.clw` from
+[`templates/myFilter/`](templates/myFilter) if you use the filter bar. Tested against Clarion 12 with the
+TopSpeed and SQLite drivers on browses of 5,000 and 10,000 records; the SQLite conversion notes (padded CHAR
+storage, the optimistic-concurrency WHERE clause, POSITION drift after a Change, error 37 from CLOSE on a
+never-opened view) live as comments at the relevant spots in the template. See
+[`templates/BrowseGridLeg/README.md`](templates/BrowseGridLeg/README.md), and
+[the Legacy chain reference](skills/clarion-template/reference/legacy-cw20.md) for the porting rules it
+demonstrates.
 
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,
