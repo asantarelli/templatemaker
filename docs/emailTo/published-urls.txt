@@ -1,0 +1,7 @@
+# The four volumes, as published.  Each volume is its own page at its own
+# address, so a relative filename never reaches the next one - the generator
+# writes these absolute URLs into every cross-volume link.
+getting-started.html   = https://claude.ai/code/artifact/9a35a14f-4479-46c6-b03d-66da4186438c
+programmers-guide.html = https://claude.ai/code/artifact/b00929bb-198c-4afb-b303-22bbfdfd06b0
+template-guide.html    = https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01
+reference.html         = https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5

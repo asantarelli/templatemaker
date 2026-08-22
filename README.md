@@ -1227,6 +1227,16 @@ confirmed the multi-DLL category writes `_emailToLinkMode_` / `_emailToDllMode_`
 attribute, and `EmailNetClass.clw` pulls in the C through its `PRAGMA`. A hand-coded project with no template
 must define `_emailToLinkMode_=>1;_emailToDllMode_=>0` itself — `examples/emailTo/emailToDemo.cwproj` shows how.
 
+**The manual** is four linked volumes, built by `docs/emailTo/build-docs.py`. The reference volume is
+generated from the `.inc` files, so its signatures cannot drift from the build, and the build fails if a
+nav entry lands on no heading, a heading sits in no nav, or any of the 164 public members lacks a worked
+line of code.
+
+- [Getting Started](https://claude.ai/code/artifact/9a35a14f-4479-46c6-b03d-66da4186438c) — install, the smallest thing that sends, the demo
+- [Programmer's Guide](https://claude.ai/code/artifact/b00929bb-198c-4afb-b303-22bbfdfd06b0) — the object model, MIME, OAuth2, and a Clarion notes chapter
+- [Template Guide](https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01) — every template, tab and prompt, and the code it writes
+- [Reference](https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5) — every class, method, property and equate
+
 **The five templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control — drag
 onto a window; compose, send straight away, or open setup), plus the `emailToSend`, `emailToCompose` and
 `emailToSetup` code templates for any embed.
