@@ -122,6 +122,14 @@ templates/                      # ready-to-register Clarion templates
     MyWeatherClass.clw          #     the implementation (curl + JSON + the drawn card)
     weatherWidget.tpl           #     global extension + code template
     weatherWidget.zip           #     the three files above, zipped for easy distribution
+  emailTo/                      #   send e-mail: SMTP/TLS, OAuth2, REST APIs (see below)
+    EmailNetClass.inc/.clw      #     transport: sockets, TLS, HTTPS, DPAPI (wraps emailc.c)
+    EmailMsgClass.inc/.clw      #     the message: MIME, base64, quoted-printable, UTF-8
+    EmailToClass.inc/.clw       #     the sender: accounts, SMTP, OAuth2, REST, the windows
+    emailc.c                    #     Winsock + SCHANNEL + WinHTTP + SHA-256 (Clacpp-compiled)
+    emailTo.tpl                 #     global + button + three code templates
+    EmailTables.txt             #     the settings-table structure, for your dictionary
+    emailTo.zip                 #     all of the above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 installer/                      # builds the installer + a portable single-file exe
 README.md
@@ -1136,6 +1144,92 @@ hand-coded project that omits the `_myWeatherLinkMode_` / `_myWeatherDllMode_` p
 import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
+
+### `templates/emailTo/` — send e-mail: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs
+Add **emailTo - Global** to an application and every procedure in it can send mail. Drag **emailTo - E-mail
+button** onto a window for a wired-up button, or drop the **Send an e-mail here** code template into any embed
+— the end of a report, a menu item, a batch process. One line does it from hand-written code:
+
+```clarion
+IF NOT Mailer.SendSimple('bob@acme.com', 'Your invoice', 'It is attached.', 'INV-1042.pdf')
+   MESSAGE(Mailer.LastErrorText)
+END
+```
+
+**Four ways to send, one message.** `EmailMsgClass` builds the MIME once and each transport delivers those
+same bytes its own way: **SMTP** (plain, STARTTLS or implicit TLS, signing in with `AUTH LOGIN`, `AUTH PLAIN`
+or **OAuth2 `XOAUTH2`**); the **Gmail API**; **Microsoft Graph** — the only route many locked-down Microsoft
+365 tenants still permit; and a **provider API key** for SendGrid, Mailgun, Resend, Brevo, Postmark or
+Mailjet, which needs no OAuth and no consent screen at all. Fourteen provider presets fill in host, port,
+security and sign-in method, so the only things left to type are the address and the credential.
+
+**No DLL, no .NET, no OpenSSL.** Everything is pure Clarion except one bundled C file, `emailc.c`, compiled
+into your `.EXE` by Clarion's own C compiler through `PRAGMA('compile(emailc.c)')`. It exists because Clarion
+cannot do four things for itself: **TCP sockets**, the **SCHANNEL TLS handshake**, **WinHTTP** and **DPAPI**.
+MIME, base64, quoted-printable, the SMTP conversation, OAuth2 with PKCE, JSON and every provider preset are
+Clarion source you can read and step through. `ws2_32`, `secur32`, `winhttp` and `crypt32` are all parts of
+Windows and are bound at **run time**, so there is no import library, nothing to redistribute, and a machine
+missing one gives a clean error code instead of failing to start.
+
+**OAuth2 that a desktop app can actually use.** Press **Sign in…** in the setup window and emailTo invents a
+PKCE verifier, hashes it (SHA-256, ours), opens the user's own browser at the provider's consent screen and
+listens on `http://127.0.0.1:<a free port>/` for the redirect — then swaps the returned code for an access
+and refresh token. It checks the `state` value before trusting the reply, and only a **desktop client ID** is
+needed, which is not a secret: nothing confidential is compiled into your program. Microsoft public clients
+correctly send **no** client secret; Google gets `access_type=offline&prompt=consent` so a refresh token
+actually comes back. After that, sending refreshes the token silently — the user never sees the browser again.
+
+**Accents survive.** A Clarion `STRING` holds Windows-1252 bytes, so left alone `Factura Número` arrives as
+mojibake. The subject, the display names, the bodies and the attachment file names are transcoded to **UTF-8**
+and labelled as such, with headers wrapped in **RFC 2047** encoded words split on character boundaries — never
+mid-character — and bodies in quoted-printable. A plain English note still goes out as readable `7bit` text,
+because the encoder only reaches for quoted-printable when the content, or a 998-byte line, actually needs it.
+`CharSet = ETChs:Ansi` sends the raw bytes labelled `windows-1252` instead.
+
+**It builds the smallest MIME that carries what you gave it.** Text only is `text/plain`; text and HTML is
+`multipart/alternative`; add an inline image (`<img src="cid:logo">`) and it becomes
+`multipart/related( alternative, image )`; add a file and the lot is wrapped in `multipart/mixed`. A plain
+note does not arrive as a four-part tree. Attachments stream through a doubling buffer, so a 10 MB PDF is
+base64-ed in linear time rather than the quadratic crawl `s = s & more` would give you.
+
+**Where the settings live is your decision.** `LoadAccount` and `SaveAccount` are `VIRTUAL`. Out of the box
+they read and write an INI beside the `.EXE`. Nominate a **table** on the global extension's Table tab — pick
+the key, map a column onto each account field — and the template **generates** the code that reads it at
+start-up and writes it back when the setup window saves, so accounts live in your own data with your own
+backup and security around them. `EmailTables.txt` ships the structure ready to paste into a dictionary.
+
+**The four secrets are encrypted at rest.** Password, client secret, refresh token and API key go through
+`Seal()`: **DPAPI** encrypts them for the current Windows user, then base64 makes the result safe for a text
+column. A settings row copied to another machine, or read by another Windows user, decrypts to nothing. A
+value typed into the column by hand in plain text still works — `Unseal()` recognises it is not one of its own
+and hands it back unchanged.
+
+**A setup window your end users can drive.** Provider, server, port, security, user name and password on one
+tab; **Sign in…** and the API key on another; a **Test account** button that connects, negotiates TLS and
+authenticates **without sending anything to anybody**; and a **Log** tab showing the entire conversation —
+with passwords and tokens masked, so a customer can e-mail you the log of a failed send without e-mailing you
+their password. Everything the user reads comes from one virtual `Txt(id)` method, in **English and Spanish**.
+
+**How it was verified.** The network layer was proved against the live servers before anything was built on
+it: an implicit-TLS handshake to `smtp.gmail.com:465`, a `STARTTLS` upgrade on `:587`, HTTPS to Google's and
+Microsoft's token endpoints, SHA-256 against the RFC test vector and a DPAPI round trip. That flushed out a
+real defect — Google's SMTP asks for an *optional client certificate*, and SCHANNEL answers
+`SEC_I_INCOMPLETE_CREDENTIALS`; the fix is to re-issue the same token so the handshake completes anonymously,
+and without it every Gmail connection dies at `0x00090320`. A complete send — EHLO, AUTH LOGIN, envelope,
+DATA, dot-stuffing, QUIT — was then run against a local SMTP sink and the delivered message compared byte for
+byte: **Bcc in the envelope but not in the headers**, a body line consisting of a single full stop correctly
+doubled on the wire, UTF-8 headers intact and the attachment decoding back to its original bytes. Finally a
+real ABC application was generated from the templates with `ClarionCL` and **compiled and linked**, which also
+confirmed the multi-DLL category writes `_emailToLinkMode_` / `_emailToDllMode_` exactly as the classes expect.
+
+**Files** (copy to the redirection path, all ANSI): `EmailNetClass.inc/.clw`, `EmailMsgClass.inc/.clw`,
+`EmailToClass.inc/.clw`, `emailc.c`. The `.clw` files pull themselves into the build through their `LINK`
+attribute, and `EmailNetClass.clw` pulls in the C through its `PRAGMA`. A hand-coded project with no template
+must define `_emailToLinkMode_=>1;_emailToDllMode_=>0` itself — `examples/emailTo/emailToDemo.cwproj` shows how.
+
+**The five templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control — drag
+onto a window; compose, send straight away, or open setup), plus the `emailToSend`, `emailToCompose` and
+`emailToSetup` code templates for any embed.
 
 ## Install
 
