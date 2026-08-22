@@ -1728,7 +1728,7 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
              ENTRY(@s128),AT(92,92,150,10),USE(LocTenant)
              STRING('(Microsoft only: common, organizations, or your tenant GUID)'),AT(92,105),USE(?TenantNote),FONT(,7)
              BUTTON('Sign in...'),AT(92,122,90,14),USE(?SignIn)
-             STRING(''),AT(190,126,152,10),USE(LocTokenInfo),FONT(,8)
+             STRING(@s128),AT(190,126,152,10),USE(LocTokenInfo),FONT(,8)
              LINE,AT(10,146,332,0),USE(?Line3),COLOR(COLOR:Silver)
              PROMPT('API key:'),AT(10,156),USE(?PrApiKey)
              ENTRY(@s255),AT(92,154,250,10),USE(LocApiKey),PASSWORD
@@ -1747,11 +1747,11 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
              STRING('your own network. It disables the protection TLS gives you.'),AT(92,89),USE(?VerifyNote2),FONT(,7)
            END
            TAB('Log'),USE(?TabLog)
-             LIST,AT(10,22,332,182),USE(?ListLog),FROM(LogQ),FORMAT('320L(2)@s512@'),VSCROLL,HSCROLL,FONT('Consolas',8)
+             LIST,AT(10,22,332,182),USE(?ListLog),FROM(LogQ),FORMAT('320L(2)@s255@'),VSCROLL,HSCROLL,FONT('Consolas',8)
            END
          END
          BUTTON('Test account'),AT(6,224,72,16),USE(?Test)
-         STRING(''),AT(84,228,150,10),USE(LocStatus),FONT(,8)
+         STRING(@s128),AT(84,228,150,10),USE(LocStatus),FONT(,8)
          BUTTON('Save'),AT(240,224,52,16),USE(?Ok),DEFAULT
          BUTTON('Cancel'),AT(296,224,52,16),USE(?CancelBtn),STD(STD:Close)
        END

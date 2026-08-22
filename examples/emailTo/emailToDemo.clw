@@ -64,7 +64,7 @@ Window WINDOW('emailTo demo'),AT(,,300,224),GRAY,SYSTEM,FONT('Segoe UI',9),CENTE
          STRING('emailTo'),AT(10,8),USE(?Title),FONT('Segoe UI',14,,FONT:bold)
          STRING('Send e-mail from Clarion - SMTP/TLS, OAuth2, REST'),AT(10,26),USE(?Sub),FONT(,8),COLOR(COLOR:Gray)
          LINE,AT(10,40,280,0),USE(?Line1),COLOR(COLOR:Silver)
-         STRING(''),AT(10,48,280,10),USE(LocAccount),FONT(,8)
+         STRING(@s199),AT(10,48,280,10),USE(LocAccount),FONT(,8)
          BUTTON('&Account setup...'),AT(10,64,90,16),USE(?Setup)
          BUTTON('&Write a message...'),AT(106,64,90,16),USE(?Compose)
          BUTTON('Send a &test'),AT(202,64,88,16),USE(?TestSend)
@@ -73,9 +73,9 @@ Window WINDOW('emailTo demo'),AT(,,300,224),GRAY,SYSTEM,FONT('Segoe UI',9),CENTE
          ENTRY(@s255),AT(76,96,214,10),USE(LocTo)
          PROMPT('Subject:'),AT(10,114),USE(?PrSubject)
          ENTRY(@s255),AT(76,112,214,10),USE(LocSubject)
-         STRING(''),AT(10,130,280,10),USE(LocStatus),FONT(,8)
+         STRING(@s128),AT(10,130,280,10),USE(LocStatus),FONT(,8)
          GROUP('Conversation'),AT(6,142,288,58),USE(?Grp),BOXED
-           LIST,AT(12,154,276,42),USE(?ListLog),FROM(LogQ),FORMAT('268L(2)@s512@'),VSCROLL,HSCROLL,FONT('Consolas',7)
+           LIST,AT(12,154,276,42),USE(?ListLog),FROM(LogQ),FORMAT('268L(2)@s255@'),VSCROLL,HSCROLL,FONT('Consolas',7)
          END
          BUTTON('Close'),AT(240,204,52,16),USE(?CloseBtn),STD(STD:Close)
        END
