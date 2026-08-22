@@ -1227,15 +1227,17 @@ confirmed the multi-DLL category writes `_emailToLinkMode_` / `_emailToDllMode_`
 attribute, and `EmailNetClass.clw` pulls in the C through its `PRAGMA`. A hand-coded project with no template
 must define `_emailToLinkMode_=>1;_emailToDllMode_=>0` itself — `examples/emailTo/emailToDemo.cwproj` shows how.
 
-**The manual** is four linked volumes, built by `docs/emailTo/build-docs.py`. The reference volume is
+**The manual** is four linked volumes in English and Spanish — eight pages — built by `docs/emailTo/build-docs.py`. The reference volume is
 generated from the `.inc` files, so its signatures cannot drift from the build, and the build fails if a
 nav entry lands on no heading, a heading sits in no nav, or any of the 164 public members lacks a worked
-line of code.
+line of code, or an English one-liner has gained no Spanish twin.
 
-- [Getting Started](https://claude.ai/code/artifact/9a35a14f-4479-46c6-b03d-66da4186438c) — install, the smallest thing that sends, the demo
-- [Programmer's Guide](https://claude.ai/code/artifact/b00929bb-198c-4afb-b303-22bbfdfd06b0) — the object model, MIME, OAuth2, and a Clarion notes chapter
-- [Template Guide](https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01) — every template, tab and prompt, and the code it writes
-- [Reference](https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5) — every class, method, property and equate
+| Volume | English | Español |
+|---|---|---|
+| 1 — install, the smallest thing that sends, OAuth2 setup, the demo | [Getting Started](https://claude.ai/code/artifact/9a35a14f-4479-46c6-b03d-66da4186438c) | [Primeros pasos](https://claude.ai/code/artifact/f96f229b-5344-499a-a9a7-f070e3d4343c) |
+| 2 — the object model, MIME, OAuth2, and a Clarion notes chapter | [Programmer's Guide](https://claude.ai/code/artifact/b00929bb-198c-4afb-b303-22bbfdfd06b0) | [Guía del programador](https://claude.ai/code/artifact/f3e1c134-eca6-4292-9831-bf57d763f05f) |
+| 3 — every template, tab and prompt, and the code it writes | [Template Guide](https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01) | [Guía de plantillas](https://claude.ai/code/artifact/07f9ecdf-232b-4cbd-8d20-f423561f3ba0) |
+| 4 — every class, method, property and equate | [Reference](https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5) | [Referencia](https://claude.ai/code/artifact/108af66d-ecbe-4a5b-bada-cb3500c741b6) |
 
 **The five templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control — drag
 onto a window; compose, send straight away, or open setup), plus the `emailToSend`, `emailToCompose` and

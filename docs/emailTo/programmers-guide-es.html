@@ -1,4 +1,4 @@
-<meta charset="utf-8"><title>emailTo Programmer&#x27;s Guide</title>
+<meta charset="utf-8"><title>emailTo Guía del programador</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -196,17 +196,17 @@ code.mem{font:500 13.5px/1 "IBM Plex Mono",monospace; color:var(--accent);
 <div class="wrap">
 <nav class="side">
   <p class="brand"><b>emailTo</b></p>
-<a class="langsw" href="https://claude.ai/code/artifact/f3e1c134-eca6-4292-9831-bf57d763f05f" hreflang="es">Espa&ntilde;ol</a><ul class="vols"><li><a href="https://claude.ai/code/artifact/9a35a14f-4479-46c6-b03d-66da4186438c">1. Getting Started<small>Install it and send the first message</small></a></li><li><a href="#" class="here">2. Programmer&#x27;s Guide<small>How it works, and how to make it do things</small></a></li><li><a href="https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01">3. Template Guide<small>Every template, tab, prompt and embed</small></a></li><li><a href="https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5">4. Reference<small>Every class, method, property and equate</small></a></li></ul><p class="nav__g">How it fits together</p><ul class="nav__l"><li><a href="#model">The object model</a></li><li><a href="#account">The account</a></li></ul><p class="nav__g">Building a message</p><ul class="nav__l"><li><a href="#composing">Composing a message</a></li><li><a href="#accents">Accents, and why they survive</a></li></ul><p class="nav__g">Getting it out</p><ul class="nav__l"><li><a href="#transports">Choosing a transport</a></li><li><a href="#oauth">OAuth2, end to end</a></li></ul><p class="nav__g">Keeping it</p><ul class="nav__l"><li><a href="#settings">Where the settings live</a></li><li><a href="#secrets">Secrets at rest</a></li><li><a href="#errors">Errors, and the log</a></li><li><a href="#deriving">Making it do something else</a></li></ul><p class="nav__g">Clarion notes</p><ul class="nav__l"><li><a href="#notes">Clarion notes</a></li><li><a href="#note-clear">A method named Clear breaks CLEAR() everywhere</a></li><li><a href="#note-string">A STRING bound to a variable needs a picture</a></li><li><a href="#note-picture">No Clarion picture is wider than @s255</a></li><li><a href="#note-map">A MEMBER module with no MAP loses the built-ins</a></li><li><a href="#note-return">A method returning STRING cannot free its own buffer</a></li><li><a href="#note-crlf">Clarion source must be CRLF</a></li><li><a href="#note-schannel">SCHANNEL asks for a client certificate you do not have</a></li><li><a href="#note-dot">The lone full stop</a></li></ul>
+<a class="langsw" href="https://claude.ai/code/artifact/b00929bb-198c-4afb-b303-22bbfdfd06b0" hreflang="en">English</a><ul class="vols"><li><a href="https://claude.ai/code/artifact/f96f229b-5344-499a-a9a7-f070e3d4343c">1. Primeros pasos<small>Instalarlo y enviar el primer mensaje</small></a></li><li><a href="#">2. Guía del programador<small>Cómo funciona, y cómo hacer que haga cosas</small></a></li><li><a href="https://claude.ai/code/artifact/07f9ecdf-232b-4cbd-8d20-f423561f3ba0">3. Guía de plantillas<small>Cada plantilla, pestaña, campo y embed</small></a></li><li><a href="https://claude.ai/code/artifact/108af66d-ecbe-4a5b-bada-cb3500c741b6">4. Referencia<small>Cada clase, método, propiedad y equate</small></a></li></ul><p class="nav__g">Cómo encaja</p><ul class="nav__l"><li><a href="#model">El modelo de objetos</a></li><li><a href="#account">La cuenta</a></li></ul><p class="nav__g">Armar un mensaje</p><ul class="nav__l"><li><a href="#composing">Armar un mensaje</a></li><li><a href="#accents">Los acentos, y por qué sobreviven</a></li></ul><p class="nav__g">Sacarlo</p><ul class="nav__l"><li><a href="#transports">Elegir un transporte</a></li><li><a href="#oauth">OAuth2, de principio a fin</a></li></ul><p class="nav__g">Conservarlo</p><ul class="nav__l"><li><a href="#settings">Dónde vive la configuración</a></li><li><a href="#secrets">Los secretos guardados</a></li><li><a href="#errors">Los errores, y el registro</a></li><li><a href="#deriving">Hacer que haga otra cosa</a></li></ul><p class="nav__g">Notas de Clarion</p><ul class="nav__l"><li><a href="#notes">Notas de Clarion</a></li><li><a href="#note-clear">Un método llamado Clear rompe CLEAR() en todas partes</a></li><li><a href="#note-string">Un STRING ligado a una variable necesita una picture</a></li><li><a href="#note-picture">Ninguna picture de Clarion pasa de @s255</a></li><li><a href="#note-map">Un módulo MEMBER sin MAP pierde las intrínsecas</a></li><li><a href="#note-return">Un método que devuelve STRING no puede liberar su propio buffer</a></li><li><a href="#note-crlf">Las fuentes de Clarion tienen que ser CRLF</a></li><li><a href="#note-schannel">SCHANNEL pide un certificado de cliente que usted no tiene</a></li><li><a href="#note-dot">El punto solitario</a></li></ul>
 </nav>
 <main class="main">
   <header class="hero"><div class="inner">
-    <p class="eyebrow">Volume 2</p>
-    <h1>Programmer&#x27;s Guide</h1>
-    <p class="sub">What the three classes own, how a message becomes MIME, how OAuth2 actually runs, and the Clarion behaviour that bit us on the way.</p>
-    <div class="chips"><span class="chip">Object model</span><span class="chip">MIME</span><span class="chip">OAuth2 + PKCE</span><span class="chip">Clarion notes</span></div>
+    <p class="eyebrow">Volumen 2</p>
+    <h1>Guía del programador</h1>
+    <p class="sub">Qué posee cada una de las tres clases, cómo un mensaje se vuelve MIME, cómo corre OAuth2 de verdad, y el comportamiento de Clarion con el que tropezamos en el camino.</p>
+    <div class="chips"><span class="chip">Modelo de objetos</span><span class="chip">MIME</span><span class="chip">OAuth2 + PKCE</span><span class="chip">Notas de Clarion</span></div>
   </div></header>
-  <div class="inner"><h2 id="model">The object model</h2>
-<p>One object is yours. Everything under it is built and freed for you.</p>
+  <div class="inner"><h2 id="model">El modelo de objetos</h2>
+<p>Un objeto es suyo. Todo lo que cuelga de él se construye y se libera solo.</p>
 <pre class="code" data-lang="clarion"><code>Mailer  EmailToClass          ! you declare this one
 
   !  and it builds, at Construct:
@@ -216,16 +216,16 @@ code.mem{font:500 13.5px/1 "IBM Plex Mono",monospace; color:var(--accent);
   !
   !  EmailOAuthClass only BORROWS Net and a second message object; it frees
   !  neither.  One owner, one Destruct, no double-dispose.</code></pre>
-<p>The split is deliberate and it is the reason emailTo needs no third-party library. <b>EmailNetClass</b> is the only place that touches C: sockets, the SCHANNEL handshake, WinHTTP, DPAPI, SHA-256. <b>EmailMsgClass</b> is pure Clarion and knows nothing about networks &mdash; it turns fields into an RFC 5322 document. <b>EmailToClass</b> joins them: it owns an account and knows four ways to deliver the bytes the message class produced.</p>
-<aside class="note"><p class="note__t">Why the message class does not know about sockets</p><div class="note__b"><p>Because all four transports want the same bytes. SMTP writes them after <code>DATA</code>, the Gmail API base64url-encodes them into a JSON field, Graph posts them as base64 text, Mailgun uploads them as a file. Build the MIME once and every transport is a thin wrapper.</p></div></aside>
-<h2 id="account">The account</h2>
-<p><code>Mailer.Acc</code> is a <code>GROUP</code>, and it is the contract between the class and wherever you keep your settings. The template maps one table column onto each field. The fields that matter most:</p>
-<div class="tw"><table class=""><thead><tr><th>Field</th><th>What it decides</th></tr></thead><tbody><tr><td><code>Transport</code></td><td>SMTP, Gmail API, Graph, or a provider API key.</td></tr><tr><td><code>Provider</code></td><td>Which preset filled the rest in, and which API shape to speak.</td></tr><tr><td><code>Host</code> / <code>Port</code> / <code>Security</code></td><td>The SMTP connection.</td></tr><tr><td><code>AuthMode</code></td><td>Nothing, AUTH LOGIN, AUTH PLAIN, or an OAuth2 token.</td></tr><tr><td><code>UserName</code> / <code>Password</code></td><td>The credential, when it is a password.</td></tr><tr><td><code>ClientId</code> / <code>TenantId</code></td><td>The registered application, when it is OAuth2.</td></tr><tr><td><code>RefreshToken</code></td><td>What makes the second send need no browser.</td></tr><tr><td><code>ApiKey</code> / <code>ApiDomain</code></td><td>SendGrid, Mailgun, Resend, Brevo, Postmark, Mailjet.</td></tr><tr><td><code>VerifyCert</code></td><td>Leave it at 1 unless the server is yours and self-signed.</td></tr></tbody></table></div>
-<p><code>SetProvider</code> fills in host, port, security and sign-in for fourteen providers, so an account is usually three lines: the provider, the address and the credential.</p>
-<h2 id="composing">Composing a message</h2>
-<p>Recipients come in one at a time with <code>AddTo</code> / <code>AddCc</code> / <code>AddBcc</code>, or all at once with <code>AddList</code>, which takes the way people actually type them &mdash; separated by <code>;</code> or <code>,</code>, with any amount of stray space.</p>
-<p><b>Bcc behaves properly.</b> A Bcc address is added to the envelope as an extra <code>RCPT TO</code> and is deliberately <em>not</em> written into the headers, so the other recipients never see it.</p>
-<p>Bodies are set with <code>SetText</code> and <code>SetHtml</code>, appended with <code>AddText</code> and <code>AddHtml</code>. Attachments come from disk with <code>Attach</code>, from memory with <code>AttachData</code>, and an image the HTML refers to goes in with <code>AttachInline</code>:</p>
+<p>La separación es deliberada, y es la razón por la que emailTo no necesita ninguna librería de terceros. <b>EmailNetClass</b> es lo único que toca C: sockets, el handshake de SCHANNEL, WinHTTP, DPAPI, SHA-256. <b>EmailMsgClass</b> es Clarion puro y no sabe nada de redes: convierte campos en un documento RFC 5322. <b>EmailToClass</b> une los dos: tiene una cuenta y sabe cuatro maneras de entregar los bytes que produjo la clase del mensaje.</p>
+<aside class="note"><p class="note__t">Por qué la clase del mensaje no sabe de sockets</p><div class="note__b"><p>Porque los cuatro transportes quieren los mismos bytes. SMTP los escribe después de <code>DATA</code>, la API de Gmail los codifica en base64url dentro de un campo JSON, Graph los publica como texto en base64, y Mailgun los sube como archivo. Se construye el MIME una vez y cada transporte es una envoltura delgada.</p></div></aside>
+<h2 id="account">La cuenta</h2>
+<p><code>Mailer.Acc</code> es un <code>GROUP</code>, y es el contrato entre la clase y donde sea que usted guarde su configuración. La plantilla asigna una columna de tabla a cada campo. Los que más importan:</p>
+<div class="tw"><table class=""><thead><tr><th>Campo</th><th>Qué decide</th></tr></thead><tbody><tr><td><code>Transport</code></td><td>SMTP, API de Gmail, Graph, o una clave API del proveedor.</td></tr><tr><td><code>Provider</code></td><td>Qué preajuste llenó lo demás, y qué forma de API hablar.</td></tr><tr><td><code>Host</code> / <code>Port</code> / <code>Security</code></td><td>La conexión SMTP.</td></tr><tr><td><code>AuthMode</code></td><td>Nada, AUTH LOGIN, AUTH PLAIN, o un token OAuth2.</td></tr><tr><td><code>UserName</code> / <code>Password</code></td><td>La credencial, cuando es una contraseña.</td></tr><tr><td><code>ClientId</code> / <code>TenantId</code></td><td>La aplicación registrada, cuando es OAuth2.</td></tr><tr><td><code>RefreshToken</code></td><td>Lo que hace que el segundo envío no necesite navegador.</td></tr><tr><td><code>ApiKey</code> / <code>ApiDomain</code></td><td>SendGrid, Mailgun, Resend, Brevo, Postmark, Mailjet.</td></tr><tr><td><code>VerifyCert</code></td><td>Déjelo en 1 salvo que el servidor sea suyo y con certificado propio.</td></tr></tbody></table></div>
+<p><code>SetProvider</code> llena servidor, puerto, seguridad y autenticación para catorce proveedores, así que una cuenta suelen ser tres líneas: el proveedor, la dirección y la credencial.</p>
+<h2 id="composing">Armar un mensaje</h2>
+<p>Los destinatarios entran de uno en uno con <code>AddTo</code> / <code>AddCc</code> / <code>AddBcc</code>, o todos juntos con <code>AddList</code>, que acepta la forma en que la gente los escribe de verdad: separados por <code>;</code> o <code>,</code>, con los espacios de más que sean.</p>
+<p><b>La copia oculta se comporta como debe.</b> Una dirección en Bcc se agrega al sobre como un <code>RCPT TO</code> más y deliberadamente <em>no</em> se escribe en los encabezados, así que los demás destinatarios nunca la ven.</p>
+<p>Los cuerpos se fijan con <code>SetText</code> y <code>SetHtml</code>, y se amplían con <code>AddText</code> y <code>AddHtml</code>. Los adjuntos vienen del disco con <code>Attach</code>, de memoria con <code>AttachData</code>, y una imagen a la que se refiere el HTML entra con <code>AttachInline</code>:</p>
 <pre class="code" data-lang="clarion"><code>  Mailer.Msg.ClearAll()
   Mailer.Msg.AddTo(Cus:Email)
   Mailer.Msg.SetSubject(&#x27;Your statement&#x27;)
@@ -234,17 +234,17 @@ code.mem{font:500 13.5px/1 "IBM Plex Mono",monospace; color:var(--accent);
   Mailer.Msg.AttachInline(&#x27;C:\art\logo.png&#x27;, &#x27;logo&#x27;)
   Mailer.Msg.Attach(&#x27;C:\stmt\&#x27; &amp; CLIP(Cus:Id) &amp; &#x27;.pdf&#x27;)
   Mailer.Send(Mailer.Msg)</code></pre>
-<h2 id="accents">Accents, and why they survive</h2>
-<p>A Clarion <code>STRING</code> holds Windows-1252 bytes. Sent as-is, <i>Factura N&uacute;mero</i> arrives as mojibake, because nothing told the reader what those bytes meant.</p>
-<p>emailTo transcodes the subject, the display names, the bodies and the attachment file names to <b>UTF-8</b> and labels them. Headers are wrapped in RFC 2047 encoded words split on character boundaries &mdash; never through the middle of a character &mdash; and bodies go out quoted-printable. A plain English note is still sent as readable <code>7bit</code> text, because the encoder only reaches for quoted-printable when the content, or a 998-byte line, actually needs it.</p>
-<pre class="code code--use" data-lang="use"><code>Mailer.Msg.CharSet = ETChs:Ansi   ! send the raw bytes labelled windows-1252 instead</code></pre>
-<h2 id="transports">Choosing a transport</h2>
-<div class="tw"><table class=""><thead><tr><th>Transport</th><th>When it is the right one</th></tr></thead><tbody><tr><td><code>ETTrn:Smtp</code></td><td>Almost always. Any server, any provider that still allows a password or supports XOAUTH2.</td></tr><tr><td><code>ETTrn:GmailApi</code></td><td>A Google account where you would rather not enable SMTP at all. Needs OAuth2.</td></tr><tr><td><code>ETTrn:GraphApi</code></td><td>Microsoft 365 tenants that have SMTP AUTH disabled &mdash; increasingly, all of them.</td></tr><tr><td><code>ETTrn:ApiKey</code></td><td>A deployed application that must just send, on a network where port 587 may be blocked.</td></tr></tbody></table></div>
-<p>Switching is one field. The message, the attachments and the error handling are identical:</p>
+<h2 id="accents">Los acentos, y por qué sobreviven</h2>
+<p>Un <code>STRING</code> de Clarion guarda bytes Windows-1252. Enviado tal cual, <i>Factura Número</i> llega hecho un desastre, porque nada le dijo al lector qué significaban esos bytes.</p>
+<p>emailTo convierte el asunto, los nombres visibles, los cuerpos y los nombres de archivo adjuntos a <b>UTF-8</b> y los etiqueta. Los encabezados se envuelven en palabras codificadas RFC 2047 partidas en los límites de carácter &mdash; nunca a la mitad de uno &mdash; y los cuerpos salen en quoted-printable. Una nota sencilla en inglés sigue saliendo como texto <code>7bit</code> legible, porque el codificador sólo recurre a quoted-printable cuando el contenido, o una línea de 998 bytes, de verdad lo necesita.</p>
+<pre class="code code--use" data-lang="use"><code>Mailer.Msg.CharSet = ETChs:Ansi   ! mandar los bytes crudos como windows-1252</code></pre>
+<h2 id="transports">Elegir un transporte</h2>
+<div class="tw"><table class=""><thead><tr><th>Transporte</th><th>Cuándo es el correcto</th></tr></thead><tbody><tr><td><code>ETTrn:Smtp</code></td><td>Casi siempre. Cualquier servidor, cualquier proveedor que todavía acepte una contraseña o que soporte XOAUTH2.</td></tr><tr><td><code>ETTrn:GmailApi</code></td><td>Una cuenta de Google donde prefiere no habilitar SMTP. Requiere OAuth2.</td></tr><tr><td><code>ETTrn:GraphApi</code></td><td>Inquilinos de Microsoft 365 con SMTP AUTH deshabilitado, que cada vez son más.</td></tr><tr><td><code>ETTrn:ApiKey</code></td><td>Una aplicación desplegada que sólo tiene que enviar, en una red donde el puerto 587 puede estar bloqueado.</td></tr></tbody></table></div>
+<p>Cambiar es un campo. El mensaje, los adjuntos y el manejo de errores son idénticos:</p>
 <pre class="code code--use" data-lang="use"><code>Mailer.Acc.Transport = ETTrn:GraphApi</code></pre>
-<h2 id="oauth">OAuth2, end to end</h2>
-<p>Google and Microsoft no longer accept an ordinary password from a desktop program. The flow emailTo runs is the authorisation-code flow with PKCE, which is the one they document for native applications:</p>
-<ol class="b"><li>Invent a random <b>verifier</b> and hash it with SHA-256 into a <b>challenge</b>.</li><li>Open a listener on <code>http://127.0.0.1:&lt;a free port&gt;/</code> &mdash; before the browser, so no redirect can be missed.</li><li>Open the user&rsquo;s own browser at the provider&rsquo;s consent screen, carrying the challenge and a random <b>state</b>.</li><li>Catch the redirect, check the state matches, and swap the returned code plus the verifier for an <b>access token</b> and a <b>refresh token</b>.</li></ol>
+<h2 id="oauth">OAuth2, de principio a fin</h2>
+<p>Google y Microsoft ya no aceptan una contraseña común desde un programa de escritorio. El flujo que corre emailTo es el de código de autorización con PKCE, que es el que ellos documentan para aplicaciones nativas:</p>
+<ol class="b"><li>Inventar un <b>verificador</b> al azar y sacarle SHA-256 para obtener un <b>desafío</b>.</li><li>Abrir un escucha en <code>http://127.0.0.1:&lt;un puerto libre&gt;/</code>, antes que el navegador, para que no se pierda ninguna redirección.</li><li>Abrir el navegador del propio usuario en la pantalla de consentimiento del proveedor, llevando el desafío y un <b>state</b> al azar.</li><li>Atrapar la redirección, comprobar que el state coincide, y cambiar el código devuelto más el verificador por un <b>token de acceso</b> y un <b>token de refresco</b>.</li></ol>
 <pre class="code" data-lang="clarion"><code>  Mailer.Acc.Provider  = ETPrv:Office365
   Mailer.Acc.Transport = ETTrn:GraphApi
   Mailer.Acc.ClientId  = &#x27;11111111-2222-3333-4444-555555555555&#x27;
@@ -256,11 +256,11 @@ code.mem{font:500 13.5px/1 "IBM Plex Mono",monospace; color:var(--accent);
   ELSE
     MESSAGE(CLIP(Mailer.LastErrorText))
   END</code></pre>
-<aside class="note note--tip"><p class="note__t">A desktop client ID is not a secret</p><div class="note__b"><p>That is what PKCE is for. Microsoft public clients must send <em>no</em> client secret at all, and emailTo only sends one when the account actually has one. Nothing confidential is compiled into your <code>.EXE</code>.</p><p>Register at <b>console.cloud.google.com</b> &rarr; Credentials &rarr; OAuth client ID &rarr; <b>Desktop app</b>, or <b>portal.azure.com</b> &rarr; App registrations &rarr; <b>Public client</b> with redirect <code>http://localhost</code>.</p></div></aside>
-<p>After the first consent nobody sees a browser again. <code>EnsureToken</code> runs before every send: if the access token is still good it does nothing, if it has expired it spends the refresh token silently, and only when there is no refresh token left does it ask the user to sign in.</p>
-<aside class="note note--warn"><p class="note__t">Google only issues a refresh token when asked properly</p><div class="note__b"><p>It needs <code>access_type=offline</code> <em>and</em> <code>prompt=consent</code>, and without them the second send fails with no obvious cause. emailTo sends both. Microsoft instead <b>rotates</b> the refresh token on every use, so the new one has to be stored each time &mdash; which is why <code>Refresh</code> writes it back.</p></div></aside>
-<h2 id="settings">Where the settings live</h2>
-<p><code>LoadAccount</code> and <code>SaveAccount</code> are <code>VIRTUAL</code>. Out of the box they read and write an INI beside the <code>.EXE</code>, which is enough for a demo and for a single-user program. Nominate a table on the global extension and the template overrides them with code shaped like this:</p>
+<aside class="note note--tip"><p class="note__t">Un ID de cliente de escritorio no es un secreto</p><div class="note__b"><p>Para eso es PKCE. Los clientes públicos de Microsoft no deben mandar <em>ningún</em> secreto de cliente, y emailTo sólo manda uno cuando la cuenta realmente lo tiene. En su <code>.EXE</code> no queda compilado nada confidencial.</p><p>Regístrelo en <b>console.cloud.google.com</b> &rarr; Credenciales &rarr; ID de cliente de OAuth &rarr; <b>Aplicación de escritorio</b>, o en <b>portal.azure.com</b> &rarr; Registros de aplicaciones &rarr; <b>Cliente público</b> con redirección <code>http://localhost</code>.</p></div></aside>
+<p>Después del primer consentimiento nadie vuelve a ver un navegador. <code>EnsureToken</code> corre antes de cada envío: si el token de acceso todavía sirve no hace nada, si venció gasta el token de refresco en silencio, y sólo cuando ya no queda token de refresco le pide al usuario que inicie sesión.</p>
+<aside class="note note--warn"><p class="note__t">Google sólo emite token de refresco si se le pide bien</p><div class="note__b"><p>Necesita <code>access_type=offline</code> <em>y</em> <code>prompt=consent</code>, y sin ellos el segundo envío falla sin causa aparente. emailTo manda los dos. Microsoft en cambio <b>rota</b> el token de refresco en cada uso, así que hay que guardar el nuevo cada vez, que es por lo que <code>Refresh</code> lo vuelve a escribir.</p></div></aside>
+<h2 id="settings">Dónde vive la configuración</h2>
+<p><code>LoadAccount</code> y <code>SaveAccount</code> son <code>VIRTUAL</code>. De fábrica leen y escriben un INI junto al <code>.EXE</code>, que alcanza para una demostración y para un programa de un solo usuario. Señale una tabla en la extensión global y la plantilla los reemplaza con código de esta forma:</p>
 <pre class="code" data-lang="clarion"><code>Mailer.LoadAccount PROCEDURE(&lt;STRING pName&gt;)
   CODE
   IF NOT OMITTED(pName) AND CLIP(pName)
@@ -280,19 +280,19 @@ code.mem{font:500 13.5px/1 "IBM Plex Mono",monospace; color:var(--accent);
   ! ... one line per mapped column ...
   Access:MailAcct.Close()
   RETURN 1</code></pre>
-<p>Both methods open and close the file around their own work through the ABC FileManager, whose <code>Open</code> and <code>Close</code> are reference-counted &mdash; so it is safe whether or not the table is already open elsewhere in the program.</p>
-<h2 id="secrets">Secrets at rest</h2>
-<p>Four fields are never stored in the clear: the password, the client secret, the refresh token and the API key. Each goes through <code>Seal()</code> &mdash; DPAPI encrypts it for the current Windows user, then base64 makes the result safe for a text column.</p>
+<p>Los dos métodos abren y cierran el archivo alrededor de su propio trabajo con el FileManager de ABC, cuyos <code>Open</code> y <code>Close</code> llevan cuenta de referencias, así que da igual si la tabla ya estaba abierta en otra parte del programa.</p>
+<h2 id="secrets">Los secretos guardados</h2>
+<p>Cuatro campos nunca se guardan en claro: la contraseña, el secreto de cliente, el token de refresco y la clave API. Cada uno pasa por <code>Seal()</code>: DPAPI lo cifra para el usuario actual de Windows, y luego base64 deja el resultado apto para una columna de texto.</p>
 <pre class="code code--use" data-lang="use"><code>Set:Password = Mailer.Seal(Loc:Typed)      ! &#x27;dpapi:AQAAANCMnd8BFdERjHoAwE...&#x27;</code></pre>
-<p>A row copied to another machine, or read by another Windows user, decrypts to nothing. Size those columns generously: the stored value is three to four times longer than what was typed.</p>
-<aside class="note"><p class="note__t">A password typed straight into the column still works</p><div class="note__b"><p><code>Unseal()</code> recognises a value that is not one of its own and hands it back unchanged, which makes seeding a test row easy. A machine with no DPAPI gets a <code>plain:</code> prefix instead, so nobody mistakes it for encrypted.</p></div></aside>
-<h2 id="errors">Errors, and the log</h2>
-<p>Every public method answers <code>1</code> for worked and <code>0</code> for failed, and leaves the reason in <code>LastErrorText</code> as a sentence you can show a user. <code>LastServerReply</code> holds the last thing the server actually said, which is usually more specific than anything emailTo could invent.</p>
+<p>Una fila copiada a otra máquina, o leída por otro usuario de Windows, se descifra en nada. Dele tamaño de sobra a esas columnas: el valor guardado es tres o cuatro veces más largo que lo que se escribió.</p>
+<aside class="note"><p class="note__t">Una contraseña escrita a mano en la columna igual funciona</p><div class="note__b"><p><code>Unseal()</code> reconoce un valor que no es de los suyos y lo devuelve tal cual, lo que hace fácil sembrar una fila de prueba. Una máquina sin DPAPI recibe un prefijo <code>plain:</code>, para que nadie lo confunda con algo cifrado.</p></div></aside>
+<h2 id="errors">Los errores, y el registro</h2>
+<p>Todo método público contesta <code>1</code> si funcionó y <code>0</code> si no, y deja el motivo en <code>LastErrorText</code> como una frase que se le puede mostrar al usuario. <code>LastServerReply</code> guarda lo último que dijo el servidor, que casi siempre es más específico que cualquier cosa que emailTo pudiera inventar.</p>
 <pre class="code code--use" data-lang="use"><code>IF NOT Mailer.Send(Mailer.Msg) THEN Mailer.ShowError().</code></pre>
-<p>With <code>Trace</code> on, the whole conversation is kept in <code>Mailer.Net.TraceQ</code> and shown on the Log tab of the setup window. Credentials are masked before they reach it, so a customer can send you the log of a failed send without sending you their password.</p>
-<aside class="note note--danger"><p class="note__t">A LIST cannot be pointed at TraceQ directly</p><div class="note__b"><p><code>TraceQ</code> is a queue <em>reference</em>, and <code>FROM(Mailer.Net.TraceQ)</code> binds the control to the reference variable rather than to the queue. The window then faults on its first paint. Copy into a real local <code>QUEUE</code> for display &mdash; the demo and the setup window both do.</p></div></aside>
-<h2 id="deriving">Making it do something else</h2>
-<p>The methods worth overriding are marked <code>VIRTUAL</code>: <code>Txt</code> for a third language, <code>LoadAccount</code> / <code>SaveAccount</code> for your own store, and the four <code>Send*</code> methods for logging, throttling or a retry policy.</p>
+<p>Con <code>Trace</code> encendido, toda la conversación queda en <code>Mailer.Net.TraceQ</code> y se muestra en la pestaña Registro de la ventana de configuración. Las credenciales se ocultan antes de llegar ahí, así que un cliente puede mandarle el registro de un envío fallido sin mandarle su contraseña.</p>
+<aside class="note note--danger"><p class="note__t">Un LIST no se puede apuntar directo a TraceQ</p><div class="note__b"><p><code>TraceQ</code> es una <em>referencia</em> a cola, y <code>FROM(Mailer.Net.TraceQ)</code> liga el control a la variable de referencia en vez de a la cola. La ventana entonces truena en su primer dibujado. Copie a una <code>QUEUE</code> local de verdad para mostrarla, como hacen la demostración y la ventana de configuración.</p></div></aside>
+<h2 id="deriving">Hacer que haga otra cosa</h2>
+<p>Los métodos que vale la pena sobrescribir están marcados <code>VIRTUAL</code>: <code>Txt</code> para un tercer idioma, <code>LoadAccount</code> / <code>SaveAccount</code> para su propio almacén, y los cuatro métodos <code>Send*</code> para bitácora, limitación de ritmo o una política de reintentos.</p>
 <pre class="code" data-lang="clarion"><code>MyMailer  CLASS(EmailToClass)
 Txt         PROCEDURE(LONG pId),STRING,DERIVED
 SendSmtp    PROCEDURE(EmailMsgClass pMsg),BYTE,PROC,DERIVED
@@ -314,10 +314,10 @@ Ok  BYTE
   Ok = PARENT.SendSmtp(pMsg)
   Log:Sent = Ok; Log:Reason = SELF.LastErrorText; ADD(SendLog)
   RETURN Ok</code></pre>
-<h2 id="notes">Clarion notes</h2>
-<p>These are not emailTo behaviours &mdash; they belong to Clarion. Each one cost real time to find while this was being built, and each is the kind of thing that is invisible until it bites.</p>
-<h3 id="note-clear">A method named Clear breaks CLEAR() everywhere</h3>
-<p>A class member whose label matches a Clarion intrinsic redefines that intrinsic for <em>every module that includes the file</em>. The compiler says <code>Redefining system intrinsic: CLEAR</code> at the include, and then <code>CLEAR(SomeVariable)</code> in code that has nothing to do with your class stops compiling.</p>
+<h2 id="notes">Notas de Clarion</h2>
+<p>Esto no son comportamientos de emailTo: son de Clarion. Cada uno costó tiempo real de encontrar mientras se construía esto, y cada uno es de esos que no se ven hasta que muerden.</p>
+<h3 id="note-clear">Un método llamado Clear rompe CLEAR() en todas partes</h3>
+<p>Un miembro de clase cuya etiqueta coincide con una intrínseca de Clarion redefine esa intrínseca para <em>cada módulo que incluya el archivo</em>. El compilador dice <code>Redefining system intrinsic: CLEAR</code> en el include, y después <code>CLEAR(UnaVariable)</code> en código que no tiene nada que ver con su clase deja de compilar.</p>
 <pre class="code" data-lang="clarion"><code>!  In the CLASS declaration:
 ClearAll             PROCEDURE       ! correct
 !  Clear              PROCEDURE      ! WRONG - redefines the CLEAR intrinsic
@@ -325,28 +325,28 @@ ClearAll             PROCEDURE       ! correct
 !  With a method called Clear, this line, in code that has nothing to do
 !  with e-mail, stops compiling:
   CLEAR(GlobalRequest)               ! error: No matching prototype available</code></pre>
-<p>This is why the buffer and message classes have <code>ClearAll</code>. <code>RESET</code>, <code>ADD</code>, <code>LEN</code> and <code>FREE</code> are the other names to keep away from.</p>
-<h3 id="note-string">A STRING bound to a variable needs a picture</h3>
-<p>Written with a literal instead, the control survives on its own &mdash; and then faults inside <code>OPEN(Window)</code> as soon as the same window also holds a <code>LIST</code>. Nothing is drawn, so there is no clue on screen about which control is at fault.</p>
+<p>Por eso las clases de buffer y de mensaje tienen <code>ClearAll</code>. <code>RESET</code>, <code>ADD</code>, <code>LEN</code> y <code>FREE</code> son los otros nombres de los que hay que alejarse.</p>
+<h3 id="note-string">Un STRING ligado a una variable necesita una picture</h3>
+<p>Escrito con un literal en su lugar, el control sobrevive solo, y luego truena dentro de <code>OPEN(Window)</code> en cuanto la misma ventana tiene también un <code>LIST</code>. No se dibuja nada, así que en pantalla no hay ninguna pista de qué control tiene la culpa.</p>
 <pre class="code" data-lang="clarion"><code>!  WRONG - a literal, on a control bound to a variable.  Survives on its own,
 !  faults inside OPEN(Window) as soon as the window also holds a LIST.
          STRING(&#x27;&#x27;),AT(10,130,280,10),USE(LocStatus),FONT(,8)
 
 !  RIGHT - a picture wide enough for the variable
          STRING(@s128),AT(10,130,280,10),USE(LocStatus),FONT(,8)</code></pre>
-<p>The way to find one like this is to open variants of the window with one control removed at a time: the variant that opens names the culprit. Here two removals fixed it &mdash; the LIST, or the bound STRINGs &mdash; which is what said it was the combination rather than either one.</p>
-<h3 id="note-picture">No Clarion picture is wider than @s255</h3>
-<p><code>ENTRY(@s512)</code> is a compile error &mdash; <code>Invalid picture token</code>. In a <code>FORMAT</code> string it is worse, because <code>FORMAT</code> is just text to the compiler and nothing is reported at all. Keep list formats at <code>@s255</code> and give the entry a wider variable if you need one.</p>
-<h3 id="note-map">A MEMBER module with no MAP loses the built-ins</h3>
-<p>A module-level <code>MAP</code> is what folds in <code>BUILTINS.CLW</code>. Without one &mdash; even an empty one &mdash; <code>CLIP</code>, <code>CHOOSE</code> and the rest come back as <code>Unknown function label</code>, dozens of times, which reads like a corrupt include rather than a missing four lines.</p>
+<p>La forma de encontrar uno así es abrir variantes de la ventana quitando un control cada vez: la variante que sí abre señala al culpable. Aquí lo arreglaban dos supresiones distintas &mdash; el LIST, o los STRING ligados &mdash; que es lo que dijo que era la combinación y no uno de los dos.</p>
+<h3 id="note-picture">Ninguna picture de Clarion pasa de @s255</h3>
+<p><code>ENTRY(@s512)</code> es error de compilación: <code>Invalid picture token</code>. En una cadena <code>FORMAT</code> es peor, porque <code>FORMAT</code> para el compilador es sólo texto y no se reporta nada. Deje los formatos de lista en <code>@s255</code> y dele una variable más ancha al ENTRY si la necesita.</p>
+<h3 id="note-map">Un módulo MEMBER sin MAP pierde las intrínsecas</h3>
+<p>Un <code>MAP</code> a nivel de módulo es lo que trae <code>BUILTINS.CLW</code>. Sin uno &mdash; aunque esté vacío &mdash; <code>CLIP</code>, <code>CHOOSE</code> y las demás vuelven como <code>Unknown function label</code>, decenas de veces, que se lee como un include corrupto y no como cuatro líneas que faltan.</p>
 <pre class="code" data-lang="clarion"><code>  MEMBER
 
   INCLUDE(&#x27;EmailToClass.INC&#x27;),ONCE
 
   MAP
   END</code></pre>
-<h3 id="note-return">A method returning STRING cannot free its own buffer</h3>
-<p>The copy happens at the <code>RETURN</code>, so anything disposed first is gone before the caller sees it. The buffer has to outlive the return, which means it belongs to the object &mdash; and each encoder needs its own, because they nest.</p>
+<h3 id="note-return">Un método que devuelve STRING no puede liberar su propio buffer</h3>
+<p>La copia ocurre en el <code>RETURN</code>, así que cualquier cosa que se libere antes ya no está cuando el llamador la ve. El buffer tiene que sobrevivir al retorno, y eso quiere decir que es del objeto; y cada codificador necesita el suyo, porque se anidan.</p>
 <pre class="code" data-lang="clarion"><code>!  A method that returns a STRING cannot free the buffer it built the answer
 !  in: the copy happens at the RETURN.  So the buffer belongs to the object.
 EmailMsgClass.Base64 PROCEDURE(STRING pRaw)
@@ -358,14 +358,14 @@ EmailMsgClass.Base64 PROCEDURE(STRING pRaw)
 !  And each encoder gets its OWN buffer, because they nest: the inner result
 !  is still live while the outer call reads it.
   pOut.Add(SELF.QuotedPrintable(SELF.Utf8(pBody.Value())))</code></pre>
-<h3 id="note-crlf">Clarion source must be CRLF</h3>
-<p>An LF-only include mis-parses as <code>Illegal data type: &lt;CLASS&gt;</code> at the <em>declaration</em>, with nothing flagged inside the include. Note that <code>sed -i</code> strips the CR and writes LF, so a one-line edit is enough to break a file that compiled a minute earlier.</p>
-<h3 id="note-schannel">SCHANNEL asks for a client certificate you do not have</h3>
-<p>Google&rsquo;s SMTP, and Office 365, request an <em>optional</em> client certificate. With no certificate in the credential, <code>InitializeSecurityContext</code> returns <code>SEC_I_INCOMPLETE_CREDENTIALS</code> (<code>0x00090320</code>) rather than continuing, and the handshake stops. The fix is to re-issue the same token &mdash; loop again without reading more data &mdash; and the handshake completes anonymously. Without it every connection to Gmail fails.</p>
-<h3 id="note-dot">The lone full stop</h3>
-<p>In SMTP, a line consisting of a single <code>.</code> ends the message. A body line that legitimately starts with a full stop must therefore be sent with two, and the receiving server removes one. Get this wrong and a message is silently truncated at the first such line &mdash; which is exactly the kind of thing that never shows up in testing and then happens to a customer.</p>
-<div class="next"><a href="https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01"><b>Template Guide &rarr;</b><span>Every template, tab, prompt and embed</span></a><a href="https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5"><b>Reference &rarr;</b><span>Every class, method, property and equate</span></a><a href="https://claude.ai/code/artifact/9a35a14f-4479-46c6-b03d-66da4186438c"><b>Getting Started &rarr;</b><span>Install it and send the first message</span></a></div>
-    <footer>emailTo &mdash; four volumes. The reference is generated from <code>EmailNetClass.inc</code>, <code>EmailMsgClass.inc</code> and <code>EmailToClass.inc</code>, so its signatures are the ones in the build.</footer>
+<h3 id="note-crlf">Las fuentes de Clarion tienen que ser CRLF</h3>
+<p>Un include sólo con LF se interpreta mal como <code>Illegal data type: &lt;CLASS&gt;</code> en la <em>declaración</em>, sin marcar nada dentro del include. Ojo con que <code>sed -i</code> quita el CR y escribe LF, así que una edición de una línea basta para romper un archivo que compilaba hace un minuto.</p>
+<h3 id="note-schannel">SCHANNEL pide un certificado de cliente que usted no tiene</h3>
+<p>El SMTP de Google, y Office 365, piden un certificado de cliente <em>opcional</em>. Sin certificado en la credencial, <code>InitializeSecurityContext</code> devuelve <code>SEC_I_INCOMPLETE_CREDENTIALS</code> (<code>0x00090320</code>) en vez de continuar, y el handshake se detiene. La solución es volver a emitir el mismo token &mdash; repetir sin leer más datos &mdash; y el handshake termina de forma anónima. Sin eso, toda conexión a Gmail falla.</p>
+<h3 id="note-dot">El punto solitario</h3>
+<p>En SMTP, una línea que sólo tiene un <code>.</code> termina el mensaje. Una línea del cuerpo que legítimamente empiece con punto tiene entonces que mandarse con dos, y el servidor que recibe quita uno. Si esto sale mal, un mensaje se corta en silencio en la primera línea de ésas, que es justo la clase de cosa que nunca aparece en pruebas y luego le pasa a un cliente.</p>
+<div class="next"><a href="https://claude.ai/code/artifact/07f9ecdf-232b-4cbd-8d20-f423561f3ba0"><b>Guía de plantillas &rarr;</b><span>Cada plantilla, pestaña, campo y embed</span></a><a href="https://claude.ai/code/artifact/108af66d-ecbe-4a5b-bada-cb3500c741b6"><b>Referencia &rarr;</b><span>Cada clase, método, propiedad y equate</span></a><a href="https://claude.ai/code/artifact/f96f229b-5344-499a-a9a7-f070e3d4343c"><b>Primeros pasos &rarr;</b><span>Instalarlo y enviar el primer mensaje</span></a></div>
+    <footer>emailTo &mdash; cuatro vol&uacute;menes. La referencia se genera a partir de <code>EmailNetClass.inc</code>, <code>EmailMsgClass.inc</code> y <code>EmailToClass.inc</code>, de modo que sus firmas son las que est&aacute;n en la compilaci&oacute;n.</footer>
   </div>
 </main>
 </div>
