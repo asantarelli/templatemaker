@@ -203,11 +203,23 @@ LastError            LONG
 LastErrorText        CSTRING(513)
 AuthUrl              CSTRING(513)
 TokenUrl             CSTRING(513)
+LastAuthUrl          CSTRING(2049)                 ! the consent address actually opened -
+                                                   !   paste it into a browser by hand when a
+                                                   !   sign-in fails and the provider will say
+                                                   !   exactly what it objects to
+
 RedirectPort         LONG                          ! 0 = ask Windows for a free port
+RedirectHost         CSTRING(65)                   ! blank = 127.0.0.1 for Google,
+                                                   !   localhost for Microsoft.  It has to
+                                                   !   match what you registered, and the
+                                                   !   two providers document different
+                                                   !   ones - the listener answers on both.
 WaitSeconds          LONG                          ! how long to leave the browser open
 
 Init                 PROCEDURE(EmailNetClass pNet,EmailMsgClass pMsg)
 SetEndpoints         PROCEDURE(*EmailAccountGroup pAcc)
+RedirectUri          PROCEDURE(*EmailAccountGroup pAcc,LONG pPort),STRING
+BuildAuthUrl         PROCEDURE(*EmailAccountGroup pAcc,LONG pPort,STRING pChallenge,STRING pState),STRING
 Authorize            PROCEDURE(*EmailAccountGroup pAcc),BYTE,PROC
 Refresh              PROCEDURE(*EmailAccountGroup pAcc),BYTE,PROC
 EnsureToken          PROCEDURE(*EmailAccountGroup pAcc),BYTE,PROC

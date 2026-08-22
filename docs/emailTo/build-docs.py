@@ -247,6 +247,23 @@ S_ATTACH = """
 """
 
 
+S_OAUTHRUN = """
+  Mailer.SetProvider(ETPrv:Office365)         ! or ETPrv:Gmail, or ETPrv:Outlook
+  Mailer.Acc.Transport = ETTrn:GraphApi       ! or ETTrn:Smtp with AuthMode XOAUTH2
+  Mailer.Acc.ClientId  = '11111111-2222-3333-4444-555555555555'
+  Mailer.Acc.TenantId  = 'common'
+  Mailer.Acc.UserName  = 'you@company.com'
+  Mailer.Acc.FromAddr  = 'you@company.com'
+
+  IF Mailer.Authorize()                       ! browser opens, user consents
+    Mailer.SaveAccount()                      ! keeps the refresh token, sealed
+    MESSAGE('Signed in.')
+  ELSE
+    MESSAGE(CLIP(Mailer.LastErrorText))
+  END
+"""
+
+
 def build_getting_started():
     B = []
     add = B.append
@@ -343,6 +360,90 @@ def build_getting_started():
           '<code>multipart/related</code>; a file attachment wraps the lot in '
           '<code>multipart/mixed</code>. A plain note does not arrive as a four-part tree.'))
 
+    add(h2('oauthsetup', 'Setting up OAuth2, step by step'))
+    add(p('This is the part that stops people, and almost always for one of two reasons: '
+          'the redirect URI does not match, or the application was registered as the '
+          'wrong type. Both are fixed at the provider, not in your code.'))
+
+    add(h3('oauth-google', 'Google'))
+    add('<ol class="b">'
+        '<li>Go to <b>console.cloud.google.com</b> and pick or create a project.</li>'
+        '<li><b>APIs &amp; Services &rarr; OAuth consent screen.</b> Choose '
+        '<b>External</b>, fill in the app name and your e-mail, and save. While it is in '
+        '<b>Testing</b>, add your own address under <b>Test users</b> &mdash; a project in '
+        'testing will refuse anybody who is not on that list.</li>'
+        '<li>Add the scope you actually need: <code>https://mail.google.com/</code> for '
+        'SMTP, or <code>https://www.googleapis.com/auth/gmail.send</code> for the Gmail '
+        'API.</li>'
+        '<li><b>Credentials &rarr; Create credentials &rarr; OAuth client ID</b>, and set '
+        'Application type to <b>Desktop app</b>. Not Web application &mdash; a web client '
+        'will not accept a loopback redirect.</li>'
+        '<li>Copy the <b>Client ID</b> into the Sign-in tab. Google may also show a client '
+        'secret; paste it if there is one, leave it blank if there is not. Neither is '
+        'sensitive here, because the flow is PKCE.</li>'
+        '</ol>')
+    add(note('note', 'You do not register a redirect URI for a Google desktop client',
+             '<p>Desktop clients may use any loopback port, so there is nothing to type. '
+             'emailTo sends <code>http://127.0.0.1:&lt;port&gt;</code>, which is the form '
+             'Google documents.</p>'))
+
+    add(h3('oauth-microsoft', 'Microsoft &mdash; Outlook.com and Microsoft 365'))
+    add('<ol class="b">'
+        '<li>Go to <b>portal.azure.com &rarr; App registrations &rarr; New '
+        'registration</b>.</li>'
+        '<li>For supported account types pick <b>Accounts in any organizational directory '
+        'and personal Microsoft accounts</b> if you want both work and Outlook.com; that '
+        'is the one that matches a Tenant of <code>common</code>.</li>'
+        '<li>Under <b>Redirect URI</b> choose the platform <b>Mobile and desktop '
+        'applications</b> and tick <code>http://localhost</code>. This is the step people '
+        'miss &mdash; leave the platform as Web and the sign-in is refused with a redirect '
+        'URI error.</li>'
+        '<li><b>Authentication &rarr; Allow public client flows &rarr; Yes.</b></li>'
+        '<li><b>API permissions &rarr; Add a permission &rarr; Microsoft Graph &rarr; '
+        'Delegated</b>. Add <code>Mail.Send</code> and <code>offline_access</code> for '
+        'Graph, or <code>SMTP.Send</code> and <code>offline_access</code> for SMTP.</li>'
+        '<li>Copy the <b>Application (client) ID</b> into the Sign-in tab. Leave the client '
+        'secret <b>blank</b> &mdash; a public client that sends one is rejected.</li>'
+        '</ol>')
+    add(note('warn', 'Match the redirect host to what you registered',
+             '<p>Because Azure offers <code>http://localhost</code> and Google documents '
+             '<code>http://127.0.0.1</code>, emailTo sends whichever one suits the '
+             'provider you picked. It listens on <b>both</b> loopbacks either way, so a '
+             'browser that resolves <code>localhost</code> to <code>::1</code> &mdash; '
+             'which is what Windows does first &mdash; still arrives. If you registered '
+             'something different, say so:</p>'
+             '<p><code>Mailer.OAuth.RedirectHost = \'127.0.0.1\'</code></p>'))
+
+    add(h3('oauth-run', 'Running it'))
+    add(p('Set the account to use OAuth, then press <b>Sign in&hellip;</b> in the setup '
+          'window &mdash; or call it yourself:'))
+    add(code(S_OAUTHRUN))
+    add(p('Your browser opens at the provider. Sign in, agree to the permissions, and the '
+          'page comes back saying you can close the tab. That is the whole of it: from '
+          'then on the refresh token is stored and nobody sees a browser again.'))
+    add(note('tip', 'When it fails, read the URL',
+             '<p>The exact address that was opened is kept in '
+             '<code>Mailer.OAuth.LastAuthUrl</code>, and it is written to the log. Paste '
+             'it into a browser by hand and the provider will tell you precisely what it '
+             'objects to &mdash; which beats guessing from a generic failure.</p>'))
+    add(table(['What the provider says', 'What to change'], [
+        ['<code>redirect_uri_mismatch</code>',
+         'Google: the client is a Web application, not a Desktop app. Microsoft: the '
+         'platform is Web, not Mobile and desktop.'],
+        ['<code>invalid_client</code> / The OAuth client was not found',
+         'The Client ID is wrong, or belongs to a different project or tenant.'],
+        ['<code>unauthorized_client</code>',
+         'Microsoft: <b>Allow public client flows</b> is still No.'],
+        ['<code>access_denied</code>, and you are a test user',
+         'Google: your address is not in Test users on the consent screen.'],
+        ['Sign-in works, the second send asks again',
+         'No refresh token was issued. Google needs the consent screen re-approved; '
+         'emailTo already sends <code>access_type=offline&amp;prompt=consent</code>.'],
+        ['The browser opens and nothing ever comes back',
+         'Something is holding the loopback port. Pin one with '
+         '<code>Mailer.OAuth.RedirectPort</code> and allow it through the firewall.'],
+    ]))
+
     add(h2('demo', 'The demo'))
     add(p('<code>examples/emailTo/emailToDemo.clw</code> is the hand-coded equivalent of '
           'what the templates generate: a window with <b>Account setup</b>, '
@@ -385,6 +486,10 @@ def build_getting_started():
                             ('handcoded', 'Building it by hand'),
                             ('fromappgen', 'The same thing from AppGen'),
                             ('attachments', 'A message with more in it')]),
+        ('OAuth2', [('oauthsetup', 'Setting up OAuth2'),
+                    ('oauth-google', 'Google'),
+                    ('oauth-microsoft', 'Microsoft'),
+                    ('oauth-run', 'Running it')]),
         ('Then', [('demo', 'The demo'), ('firstrun', 'When the first send does not work')]),
     ]
     return page('getting-started.html', 'emailTo Getting Started', 'Volume 1',

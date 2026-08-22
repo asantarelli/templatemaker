@@ -74,6 +74,63 @@ tenant CSTRING(129)
     SELF.TokenUrl = ''
   END
 
+!  The address the provider redirects back to.  It must match the redirect URI
+!  registered with the provider EXACTLY, and the two of them document different
+!  ones: Google's desktop guidance is the literal loopback address, while the
+!  Azure portal offers "http://localhost" as its desktop preset.  So the host
+!  follows the provider unless you have set RedirectHost yourself.
+!
+!  Either way the listener answers on both loopbacks - see et_oauth_listen.
+EmailOAuthClass.RedirectUri PROCEDURE(*EmailAccountGroup pAcc,LONG pPort)
+host CSTRING(65)
+  CODE
+  host = CLIP(SELF.RedirectHost)
+  IF NOT host
+    CASE pAcc.Provider
+    OF ETPrv:Outlook OROF ETPrv:Office365
+      host = 'localhost'
+    ELSE
+      host = '127.0.0.1'
+    END
+  END
+  RETURN 'http://' & CLIP(host) & ':' & pPort
+
+!  The consent-screen address.  Split out from Authorize so it can be built and
+!  read without opening a browser - which is the only way to check it against
+!  what the provider expects.
+EmailOAuthClass.BuildAuthUrl PROCEDURE(*EmailAccountGroup pAcc,LONG pPort,STRING pChallenge,STRING pState)
+url  &EmailBufClass
+res  CSTRING(2049)
+  CODE
+  SELF.SetEndpoints(pAcc)
+  IF NOT SELF.AuthUrl THEN RETURN ''.
+  url &= NEW(EmailBufClass)
+  url.Add(CLIP(SELF.AuthUrl))
+  url.Add('?response_type=code')
+  url.Add('&client_id=' & SELF.UrlEncode(pAcc.ClientId))
+  url.Add('&redirect_uri=' & SELF.UrlEncode(SELF.RedirectUri(pAcc, pPort)))
+  url.Add('&scope=' & SELF.UrlEncode(SELF.DefaultScope(pAcc)))
+  url.Add('&state=' & SELF.UrlEncode(pState))
+  url.Add('&code_challenge=' & CLIP(pChallenge))
+  url.Add('&code_challenge_method=S256')
+  CASE pAcc.Provider
+  OF ETPrv:Gmail
+    !  Google returns a refresh token only when BOTH of these are present, and
+    !  only on the first consent unless prompt=consent forces it again.
+    url.Add('&access_type=offline&prompt=consent')
+    IF CLIP(pAcc.UserName)
+      url.Add('&login_hint=' & SELF.UrlEncode(pAcc.UserName))
+    END
+  OF ETPrv:Outlook OROF ETPrv:Office365
+    url.Add('&response_mode=query')
+    IF CLIP(pAcc.UserName)
+      url.Add('&login_hint=' & SELF.UrlEncode(pAcc.UserName))
+    END
+  END
+  res = url.Value()
+  DISPOSE(url)
+  RETURN CLIP(res)
+
 EmailOAuthClass.DefaultScope PROCEDURE(*EmailAccountGroup pAcc)
   CODE
   IF CLIP(pAcc.Scope) THEN RETURN CLIP(pAcc.Scope).
@@ -247,12 +304,10 @@ challenge  CSTRING(129)
 state      CSTRING(65)
 listenId   LONG
 port       LONG
-url        &EmailBufClass
 body       &EmailBufClass
 query      CSTRING(4097)
 code       CSTRING(2049)
 status     LONG
-scope      CSTRING(513)
   CODE
   SELF.SetEndpoints(pAcc)
   IF NOT SELF.AuthUrl
@@ -275,37 +330,13 @@ scope      CSTRING(513)
                        CLIP(SELF.Net.LastErrorText))
   END
 
-  scope = SELF.DefaultScope(pAcc)
-  url  &= NEW(EmailBufClass)
-  url.Add(CLIP(SELF.AuthUrl))
-  url.Add('?response_type=code')
-  url.Add('&client_id=' & SELF.UrlEncode(pAcc.ClientId))
-  url.Add('&redirect_uri=' & SELF.UrlEncode('http://127.0.0.1:' & port & '/'))
-  url.Add('&scope=' & SELF.UrlEncode(scope))
-  url.Add('&state=' & SELF.UrlEncode(state))
-  url.Add('&code_challenge=' & CLIP(challenge))
-  url.Add('&code_challenge_method=S256')
-  CASE pAcc.Provider
-  OF ETPrv:Gmail
-    !  Google only returns a refresh token when both of these are present, and
-    !  only on the FIRST consent unless prompt=consent forces it again.
-    url.Add('&access_type=offline&prompt=consent')
-    IF CLIP(pAcc.UserName)
-      url.Add('&login_hint=' & SELF.UrlEncode(pAcc.UserName))
-    END
-  OF ETPrv:Outlook OROF ETPrv:Office365
-    url.Add('&response_mode=query')
-    IF CLIP(pAcc.UserName)
-      url.Add('&login_hint=' & SELF.UrlEncode(pAcc.UserName))
-    END
-  END
+  SELF.LastAuthUrl = SELF.BuildAuthUrl(pAcc, port, challenge, state)
+  SELF.Net.AddTrace('--- consent: ' & CLIP(SELF.LastAuthUrl))
 
-  IF NOT SELF.Net.OpenUrl(url.Value())
-    DISPOSE(url)
+  IF NOT SELF.Net.OpenUrl(SELF.LastAuthUrl)
     SELF.Net.OAuthStop(listenId)
     RETURN SELF.SetErr(ETSend:Consent, 'Could not open the browser for the sign-in page.')
   END
-  DISPOSE(url)
 
   query = SELF.Net.OAuthWait(listenId, SELF.WaitSeconds, ET_ConsentOk)
   SELF.Net.OAuthStop(listenId)
@@ -330,7 +361,7 @@ scope      CSTRING(513)
   body &= NEW(EmailBufClass)
   body.Add('grant_type=authorization_code')
   body.Add('&code=' & SELF.UrlEncode(code))
-  body.Add('&redirect_uri=' & SELF.UrlEncode('http://127.0.0.1:' & port & '/'))
+  body.Add('&redirect_uri=' & SELF.UrlEncode(SELF.RedirectUri(pAcc, port)))
   body.Add('&client_id=' & SELF.UrlEncode(pAcc.ClientId))
   body.Add('&code_verifier=' & CLIP(verifier))
   IF CLIP(pAcc.ClientSecret)

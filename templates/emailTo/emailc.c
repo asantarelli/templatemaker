@@ -123,6 +123,13 @@ static HMODULE h_shell32  = (HMODULE)NULLP;
 /* ---- ws2_32 ------------------------------------------------------------ */
 struct SOCKADDR   { WORD sa_family; char sa_data[26]; };
 struct SOCKADDRIN { short sin_family; WORD sin_port; DWORD sin_addr; char sin_zero[8]; };
+struct SOCKADDRIN6 { short sin6_family; WORD sin6_port; DWORD sin6_flowinfo;
+                     BYTE sin6_addr[16]; DWORD sin6_scope_id; };
+
+#define ET_AF_INET       2
+#define ET_AF_INET6     23            /* AF_INET6 is 23 on Windows, not the 10 Linux uses */
+#define ET_IPPROTO_IPV6 41
+#define ET_IPV6_V6ONLY  27
 struct ADDRINFOA {
   int    ai_flags;  int ai_family; int ai_socktype; int ai_protocol;
   UINT   ai_addrlen;
@@ -399,6 +406,7 @@ static void sha256_bytes(const BYTE *msg, int len, BYTE *out32)
 struct ET_CONN {
   int    used;
   SOCKET sock;
+  SOCKET sock6;                     /* the OAuth listener's IPv6 twin, else INVALID */
   int    tls;                       /* 1 once the handshake has completed */
   int    eof;                       /* peer closed and the buffers are drained */
   int    lasterr;                   /* the SSPI / winsock code, for diagnostics */
@@ -431,8 +439,9 @@ static int et_newslot(void)
   for (i = 0; i < ET_MAXCONN; i++) {
     if (!g_conn[i].used) {
       memset(&g_conn[i], 0, sizeof(struct ET_CONN));
-      g_conn[i].used = 1;
-      g_conn[i].sock = INVALID_SOCKET;
+      g_conn[i].used  = 1;
+      g_conn[i].sock  = INVALID_SOCKET;
+      g_conn[i].sock6 = INVALID_SOCKET;
       g_conn[i].timeout_ms = 30000;
       g_conn[i].enc   = (char *)malloc(ET_ENCCAP);
       g_conn[i].plain = (char *)malloc(ET_PLAINCAP);
@@ -912,6 +921,7 @@ void et_close(int id)
   }
   if (c->haveCred && p_FreeCred) p_FreeCred(&c->hCred);
   if (c->sock != INVALID_SOCKET && p_closesocket) p_closesocket(c->sock);
+  if (c->sock6 != INVALID_SOCKET && p_closesocket) p_closesocket(c->sock6);
   if (c->enc)   free(c->enc);
   if (c->plain) free(c->plain);
   memset(c, 0, sizeof(struct ET_CONN));
@@ -1167,20 +1177,35 @@ done:
 /* Returns the length of the query string (everything after the "?"), 0 on
    timeout, or a negative ET_E_ code.  `port` 0 asks the OS to pick a free
    port, which is then written back through *actualport.                   */
+/*  Listen on BOTH loopbacks, on the same port.
+ *
+ *  This is not belt-and-braces.  Windows resolves "localhost" to ::1 FIRST, so
+ *  a browser sent to http://localhost:<port> arrives over IPv6 and an
+ *  IPv4-only listener never hears it - the sign-in simply hangs until it times
+ *  out.  And the redirect URI is not ours to choose: Azure offers
+ *  "http://localhost" as its desktop preset while Google documents
+ *  "http://127.0.0.1".  Binding both means either registration works.
+ *
+ *  Both sockets bind the LOOPBACK address, never the wildcard.  A dual-stack
+ *  wildcard socket would take IPv4 and IPv6 on one handle, but it would also
+ *  be listening to the whole network - not a trade worth making for one
+ *  redirect that arrives from this machine.
+ */
 int et_oauth_listen(int port, int *actualport)
 {
-  struct SOCKADDRIN sa;
-  SOCKET s;
-  int    len, rc, id;
+  struct SOCKADDRIN  sa;
+  struct SOCKADDRIN6 sa6;
+  SOCKET s, s6;
+  int    len, rc, id, off = 0;
 
   rc = et_load_ws2();
   if (rc != ET_OK) return rc;
 
-  s = p_socket(2 /*AF_INET*/, 1 /*SOCK_STREAM*/, 6);
+  s = p_socket(ET_AF_INET, 1 /*SOCK_STREAM*/, 6);
   if (s == INVALID_SOCKET) return ET_E_BIND;
 
   memset(&sa, 0, sizeof(sa));
-  sa.sin_family = 2;
+  sa.sin_family = ET_AF_INET;
   sa.sin_port   = p_htons((WORD)port);
   sa.sin_addr   = 0x0100007fUL;          /* 127.0.0.1, network byte order */
 
@@ -1198,9 +1223,32 @@ int et_oauth_listen(int port, int *actualport)
     *actualport = port;
   }
 
+  /*  Now ::1, on whatever port the first bind landed on.  If this fails we
+   *  carry on with IPv4 alone rather than refusing to sign in at all - that is
+   *  still the right answer for a 127.0.0.1 redirect. */
+  s6 = p_socket(ET_AF_INET6, 1, 6);
+  if (s6 != INVALID_SOCKET) {
+    if (p_setsockopt)
+      p_setsockopt(s6, ET_IPPROTO_IPV6, ET_IPV6_V6ONLY, (const char *)&off, 4);
+    memset(&sa6, 0, sizeof(sa6));
+    sa6.sin6_family   = ET_AF_INET6;
+    sa6.sin6_port     = p_htons((WORD)*actualport);
+    sa6.sin6_addr[15] = 1;               /* ::1 */
+    if (p_bind(s6, (const struct SOCKADDR *)&sa6, (int)sizeof(sa6)) != 0 ||
+        p_listen(s6, 1) != 0) {
+      p_closesocket(s6);
+      s6 = INVALID_SOCKET;
+    }
+  }
+
   id = et_newslot();
-  if (id < 0) { p_closesocket(s); return id; }
-  g_conn[id-1].sock = s;
+  if (id < 0) {
+    p_closesocket(s);
+    if (s6 != INVALID_SOCKET) p_closesocket(s6);
+    return id;
+  }
+  g_conn[id-1].sock  = s;
+  g_conn[id-1].sock6 = s6;
   g_conn[id-1].timeout_ms = 300000;      /* five minutes to finish signing in */
   return id;
 }
@@ -1219,11 +1267,16 @@ int et_oauth_wait(int id, char *query, int cap, int timeout_ms, const char *repl
 
   if (!c) return ET_E_BADID;
 
+  /*  Watch both loopbacks and take whichever one the browser actually used. */
   fds.fd_count = 1; fds.fd_array[0] = c->sock;
+  if (c->sock6 != INVALID_SOCKET) { fds.fd_array[1] = c->sock6; fds.fd_count = 2; }
   tv.tv_sec = timeout_ms / 1000; tv.tv_usec = (timeout_ms % 1000) * 1000;
   if (p_select(0, &fds, (struct FDSET *)NULLP, (struct FDSET *)NULLP, &tv) <= 0) return 0;
 
-  cs = p_accept(c->sock, (struct SOCKADDR *)NULLP, (int *)NULLP);
+  /*  select() rewrites fd_array with just the ready sockets, so whatever is
+   *  left in slot 0 is the one to accept on. */
+  cs = p_accept(fds.fd_count ? fds.fd_array[0] : c->sock,
+                (struct SOCKADDR *)NULLP, (int *)NULLP);
   if (cs == INVALID_SOCKET) return ET_E_ACCEPT;
 
   n = p_recv(cs, req, (int)sizeof(req) - 1, 0);
