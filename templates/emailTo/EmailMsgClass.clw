@@ -153,6 +153,7 @@ EmailMsgClass.Construct PROCEDURE
   SELF.JsnBuf   &= NEW(EmailBufClass)
   SELF.ListBuf  &= NEW(EmailBufClass)
   SELF.CharSet   = ETChs:Utf8
+  SELF.OwnMessageId = 1
   SELF.Priority  = ETPri:Normal
   SELF.MaxSize   = 0
   DO BuildCp1252
@@ -1199,7 +1200,10 @@ dom     CSTRING(129)
     SELF.Mime.AddLine('Reply-To: ' & CLIP(SELF.ReplyTo))
   END
   SELF.Mime.AddLine('Subject: ' & SELF.EncodeHeader(SELF.Subject))
-  IF NOT SELF.MessageId
+  IF NOT SELF.OwnMessageId AND NOT SELF.MessageId
+    !  Nothing to write: the provider will put its own on, and an id minted in
+    !  a domain we do not control is worse than no id at all.
+  ELSIF NOT SELF.MessageId
     dom = ''
     LOOP i = 1 TO LEN(CLIP(SELF.FromAddr))
       IF SELF.FromAddr[i] = '@'
@@ -1214,7 +1218,9 @@ dom     CSTRING(129)
                      FORMAT(GetTickCount(), @n010) & '.' & FORMAT(ET_Serial, @n05) & |
                      '@' & CLIP(dom) & '>'
   END
-  SELF.Mime.AddLine('Message-ID: ' & CLIP(SELF.MessageId))
+  IF SELF.MessageId
+    SELF.Mime.AddLine('Message-ID: ' & CLIP(SELF.MessageId))
+  END
   SELF.Mime.AddLine('MIME-Version: 1.0')
   SELF.Mime.AddLine('X-Mailer: emailTo for Clarion')
   CASE SELF.Priority

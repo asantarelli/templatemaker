@@ -130,6 +130,16 @@ BccInHeaders         BYTE                           ! 1 = write a Bcc: header in
                                                     !   strip the Bcc line before delivering.
                                                     !   EmailToClass sets it per transport.
 MessageId            CSTRING(129)                   ! generated if left empty
+OwnMessageId         BYTE                           ! 1 = write our own Message-ID (the default,
+                                                    !   and what SMTP wants - plenty of servers
+                                                    !   do not add one).  0 = leave it out and
+                                                    !   let the provider assign it, which is what
+                                                    !   the Gmail API and Graph do anyway: they
+                                                    !   discard ours.  Minting an id in a domain
+                                                    !   you do not own - <...@gmail.com> when you
+                                                    !   are not Google - is a thing a receiving
+                                                    !   server is entitled to distrust.
+                                                    !   EmailToClass sets it per transport.
 TzMinutes            LONG                           ! minutes east of UTC for the Date: header
 ! ---- the parts -----------------------------------------------------------
 AddrQ                &EmailAddrQueue

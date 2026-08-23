@@ -1440,6 +1440,13 @@ EmailToClass.Send PROCEDURE(EmailMsgClass pMsg)
   pMsg.BccInHeaders = CHOOSE(SELF.Acc.Transport = ETTrn:GmailApi OR |
                              SELF.Acc.Transport = ETTrn:GraphApi, 1, 0)
 
+  !  And who mints the Message-ID.  Over SMTP we do, because plenty of servers
+  !  will not add one.  Over the REST transports the provider assigns its own
+  !  and throws ours away, so writing one only risks claiming an id in a domain
+  !  we do not own - <...@gmail.com> when we are not Google.
+  pMsg.OwnMessageId = CHOOSE(SELF.Acc.Transport = ETTrn:GmailApi OR |
+                             SELF.Acc.Transport = ETTrn:GraphApi, 0, 1)
+
   pMsg.Mime.ClearAll()
   IF pMsg.Build() < 0
     RETURN SELF.SetErr(ETSend:Build, CLIP(pMsg.LastErrorText))

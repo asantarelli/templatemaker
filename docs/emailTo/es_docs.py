@@ -43,6 +43,7 @@ MEMBER_DOCS_ES = {
  'EmailMsgClass.CharSet':       'ETChs:Utf8 (por omisión) o ETChs:Ansi',
  'EmailMsgClass.ReadReceipt':   '1 = pedir acuse de lectura',
  'EmailMsgClass.BccInHeaders':  '1 = escribir un encabezado Bcc: en el MIME. APAGADO para SMTP, donde los destinatarios en copia oculta llegan al servidor como RCPT TO adicionales y un encabezado se los mostraría a todos. ENCENDIDO para la API de Gmail y para Graph, que toman los destinatarios DE los encabezados - no hay sobre donde ponerlos - y quitan la línea Bcc antes de entregar. EmailToClass lo fija según el transporte.',
+ 'EmailMsgClass.OwnMessageId':  '1 = escribir nuestro propio Message-ID (lo normal, y lo que quiere SMTP: muchos servidores no agregan uno). 0 = omitirlo y dejar que lo asigne el proveedor, que es lo que hacen la API de Gmail y Graph de todos modos, porque descartan el nuestro. Acuñar un id en un dominio que uno no controla - <...@gmail.com> sin ser Google - es algo que un servidor receptor tiene derecho a desconfiar. EmailToClass lo fija según el transporte.',
  'EmailMsgClass.MessageId':     'se genera si se deja vacío',
  'EmailMsgClass.TzMinutes':     'minutos al este de UTC para el encabezado Date:',
  'EmailMsgClass.Mime':          'lo que produjo Build()',
