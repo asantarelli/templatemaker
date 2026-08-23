@@ -120,6 +120,15 @@ Subject              CSTRING(1025)
 Priority             BYTE
 CharSet              BYTE                           ! ETChs:Utf8 (default) or ETChs:Ansi
 ReadReceipt          BYTE                           ! 1 = ask for a read receipt
+BccInHeaders         BYTE                           ! 1 = write a Bcc: header into the MIME.
+                                                    !   OFF for SMTP, where Bcc recipients reach
+                                                    !   the server as extra RCPT TO commands and
+                                                    !   a header would show them to everybody.
+                                                    !   ON for the Gmail API and Graph, which
+                                                    !   take the recipients FROM the headers -
+                                                    !   there is no envelope to put them in - and
+                                                    !   strip the Bcc line before delivering.
+                                                    !   EmailToClass sets it per transport.
 MessageId            CSTRING(129)                   ! generated if left empty
 TzMinutes            LONG                           ! minutes east of UTC for the Date: header
 ! ---- the parts -----------------------------------------------------------

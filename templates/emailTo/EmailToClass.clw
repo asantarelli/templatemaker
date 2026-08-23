@@ -1432,6 +1432,14 @@ EmailToClass.Send PROCEDURE(EmailMsgClass pMsg)
     pMsg.SetFrom(SELF.Acc.UserName)
   END
 
+  !  Who carries the Bcc list depends on the transport.  SMTP has an envelope
+  !  and uses it; the Gmail API and Graph have none and read the headers, so
+  !  the Bcc has to be written into the MIME for them (they strip it again).
+  !  The API-key providers get their Bcc list in the JSON, or - for Mailgun -
+  !  as separate form fields, so they want it out of the headers too.
+  pMsg.BccInHeaders = CHOOSE(SELF.Acc.Transport = ETTrn:GmailApi OR |
+                             SELF.Acc.Transport = ETTrn:GraphApi, 1, 0)
+
   pMsg.Mime.ClearAll()
   IF pMsg.Build() < 0
     RETURN SELF.SetErr(ETSend:Build, CLIP(pMsg.LastErrorText))

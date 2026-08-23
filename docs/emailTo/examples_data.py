@@ -78,6 +78,7 @@ EXAMPLES = {
 'EmailMsgClass.Priority':      "Mailer.Msg.Priority = ETPri:High                   ! X-Priority: 1 + Importance: High",
 'EmailMsgClass.CharSet':       "Mailer.Msg.CharSet = ETChs:Ansi                    ! send the raw bytes as windows-1252",
 'EmailMsgClass.ReadReceipt':   "Mailer.Msg.ReadReceipt = 1                         ! adds Disposition-Notification-To",
+'EmailMsgClass.BccInHeaders':  "Mailer.Msg.BccInHeaders = 1                        ! Send() sets this per transport for you",
 'EmailMsgClass.MessageId':     "Mailer.Msg.MessageId = '<' & Loc:Guid & '@acme.com>'   ! blank = generated for you",
 'EmailMsgClass.TzMinutes':     "Mailer.Msg.TzMinutes = -300                        ! force the Date: offset; 0 = ask Windows",
 'EmailMsgClass.AddrQ':         "LOOP i = 1 TO RECORDS(Mailer.Msg.AddrQ); GET(Mailer.Msg.AddrQ, i); Loc:To = Mailer.Msg.AddrQ.Address; END",

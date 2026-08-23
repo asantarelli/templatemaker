@@ -1165,8 +1165,23 @@ dom     CSTRING(129)
     SELF.Mime.AddLen(SELF.ListBuf.Buf, SELF.ListBuf.Len)
     SELF.Mime.Add('<13,10>')
   END
-  !  Bcc is deliberately NOT written: the whole point is that the recipients
-  !  never see it.  It reaches the server as an extra RCPT TO instead.
+  !  Bcc normally stays OUT of the headers: the whole point is that the other
+  !  recipients never see it, and over SMTP it reaches the server as an extra
+  !  RCPT TO instead.
+  !
+  !  But the REST transports have no envelope to carry it in - the Gmail API
+  !  and Microsoft Graph read the recipients out of these very headers - so
+  !  there a Bcc line is the ONLY way those people get the message, and both
+  !  providers strip it again before delivering.  Without this, a Bcc over
+  !  those transports is silently dropped: no error, no message.
+  IF SELF.BccInHeaders
+    SELF.RecipientList(ETAddr:Bcc)
+    IF SELF.ListBuf.Len > 0
+      SELF.Mime.Add('Bcc: ')
+      SELF.Mime.AddLen(SELF.ListBuf.Buf, SELF.ListBuf.Len)
+      SELF.Mime.Add('<13,10>')
+    END
+  END
   IF SELF.ReplyTo
     SELF.Mime.AddLine('Reply-To: ' & CLIP(SELF.ReplyTo))
   END
