@@ -39,6 +39,8 @@ CreateFileA            PROCEDURE(*CSTRING,ULONG,ULONG,LONG,ULONG,ULONG,LONG),LON
 GetFileSize            PROCEDURE(LONG,LONG),ULONG,PASCAL,NAME('GetFileSize')
 ReadFile               PROCEDURE(LONG,*STRING,ULONG,*ULONG,LONG),LONG,PROC,PASCAL,RAW,NAME('ReadFile')
 CloseHandle            PROCEDURE(LONG),LONG,PROC,PASCAL,NAME('CloseHandle')
+GetCurrentProcessId    PROCEDURE(),ULONG,PASCAL,NAME('GetCurrentProcessId')
+GetTickCount           PROCEDURE(),ULONG,PASCAL,NAME('GetTickCount')
     END
   END
 
@@ -57,6 +59,16 @@ ET_MonTbl  STRING('JanFebMarAprMayJunJulAugSepOctNovDec')
 !  sign, curly quotes, the em dash.  Everything else in A0h..FFh maps straight
 !  to the same Unicode code point.  0 marks the five undefined slots.
 ET_Cp1252Hi  LONG,DIM(32)
+
+!  Clarion's RANDOM is NOT seeded: every run of every program produces the
+!  same sequence, so the first Message-ID and the first MIME boundary a
+!  process makes are byte-identical to every other process's first ones.
+!  Two copies of an application sending inside the same clock tick would
+!  then emit the same Message-ID, which a mail server is entitled to treat
+!  as a duplicate and drop.  The process id fixes that: it is unique among
+!  everything running, and with the tick count and a per-process counter the
+!  three together cannot repeat.
+ET_Serial    LONG
 
 ! ============================================================================
 !  EmailBufClass
@@ -856,8 +868,9 @@ bb  LONG
 ! ============================================================================
 EmailMsgClass.Boundary PROCEDURE()
   CODE
-  RETURN '----=_emailTo_' & FORMAT(RANDOM(100000000, 999999999), @n09) & |
-         FORMAT(RANDOM(100000, 999999), @n06)
+  ET_Serial += 1
+  RETURN '----=_emailTo_' & FORMAT(GetCurrentProcessId(), @n010) & |
+         '_' & FORMAT(GetTickCount(), @n010) & '_' & FORMAT(ET_Serial, @n05)
 
 !  RFC 5322: "Sat, 22 Aug 2026 13:49:05 -0500".  The day and month names are
 !  spelled out here rather than taken from FORMAT() because those follow the
@@ -1195,8 +1208,11 @@ dom     CSTRING(129)
       END
     END
     IF NOT dom THEN dom = 'emailto.local'.
+    ET_Serial += 1
     SELF.MessageId = '<' & FORMAT(TODAY(), @n07) & '.' & FORMAT(CLOCK(), @n08) & '.' & |
-                     FORMAT(RANDOM(100000, 999999), @n06) & '@' & CLIP(dom) & '>'
+                     FORMAT(GetCurrentProcessId(), @n010) & '.' & |
+                     FORMAT(GetTickCount(), @n010) & '.' & FORMAT(ET_Serial, @n05) & |
+                     '@' & CLIP(dom) & '>'
   END
   SELF.Mime.AddLine('Message-ID: ' & CLIP(SELF.MessageId))
   SELF.Mime.AddLine('MIME-Version: 1.0')
