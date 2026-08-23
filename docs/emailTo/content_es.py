@@ -197,6 +197,48 @@ def build_getting_started():
              'igual llega. Si registró otra cosa, dígalo:</p>'
              "<p><code>Mailer.OAuth.RedirectHost = '127.0.0.1'</code></p>"))
 
+    add(h3('oauth-verify', 'Google dice &ldquo;Acceso bloqueado&rdquo;'))
+    add(p('<i>&ldquo;Acceso bloqueado: &lt;su aplicaci&oacute;n&gt; no completó el '
+          'proceso de verificación de Google.&rdquo;</i> Es la pantalla de '
+          'consentimiento la que lo rechaza, no emailTo el que falla, y tiene dos causas '
+          'que dan casi el mismo texto. Cuál de las dos es la suya la decide el '
+          '<b>estado de publicación</b> de su aplicación.'))
+    add(table(['Estado de publicación', 'Qué significa el bloqueo', 'Qué hacer'], [
+        ['<b>Testing</b> (en pruebas)',
+         'La cuenta con la que está entrando no está en la lista de usuarios de prueba. '
+         'La pantalla suele agregar &ldquo;currently being tested&hellip; '
+         'developer-approved testers&rdquo;.',
+         'Google Auth Platform &rarr; <b>Audience</b> &rarr; <b>Test users</b> &rarr; '
+         'Add users, y agregue la dirección exacta con la que inicia sesión.'],
+        ['<b>In production</b>, sin verificar, con <code>https://mail.google.com/</code>',
+         'Ése es un scope <b>restringido</b>. Sin verificar, Google lo bloquea de plano: '
+         'no hay ningún enlace <i>Advanced</i> para pasar de largo.',
+         'O vuelve a Testing con usuarios de prueba, o cambia al scope '
+         '<code>gmail.send</code>.'],
+        ['<b>In production</b>, sin verificar, con <code>gmail.send</code>',
+         'Ése es un scope <b>sensible</b>, así que sale una advertencia y no un bloqueo.',
+         'Haga clic en <b>Advanced</b> &rarr; <b>Go to &lt;su aplicaci&oacute;n&gt;</b>. '
+         'Es su propia aplicación; la advertencia es lo esperado.'],
+    ]))
+    add(note('warn', 'Publicar no es automáticamente la solución',
+             '<p>Quedarse en <b>Testing</b> tiene su propio costo: Google caduca el token '
+             'de refresco a los <b>siete días</b>, así que un inicio de sesión que '
+             'funcionaba deja de funcionar a la semana siguiente. Publicar quita eso, '
+             'pero sólo ayuda si su scope es <code>gmail.send</code>. Publique pidiendo '
+             '<code>https://mail.google.com/</code> y habrá cambiado un re-login semanal '
+             'por un muro permanente.</p>'
+             '<p>Así que si va a usar OAuth con Gmail, use el transporte <b>Gmail API</b>. '
+             'emailTo entonces pide <code>gmail.send</code>, que es el scope más estrecho '
+             'y el que sí se puede publicar sin verificar.</p>'))
+    add(note('tip', 'Para una sola cuenta de Gmail, una contraseña de aplicación evita todo esto',
+             '<p>Sin pantalla de consentimiento, sin verificación, sin caducidad a los '
+             'siete días, y sin nada que registrar. Active la verificación en dos pasos, '
+             'genere una contraseña de aplicación en '
+             '<b>myaccount.google.com/apppasswords</b>, y úsela como contraseña SMTP '
+             '&mdash; <b>quitándole los espacios</b>. OAuth se gana su lugar cuando usted '
+             'entrega la aplicación a los buzones de otras personas, o cuando un '
+             'administrador de Workspace apagó las contraseñas de aplicación.</p>'))
+
     add(h3('oauth-run', 'Cómo se ejecuta'))
     add(p('Ponga la cuenta en OAuth y presione <b>Iniciar sesión&hellip;</b> en la '
           'ventana de configuración, o llámelo usted mismo:'))
@@ -279,6 +321,7 @@ def build_getting_started():
         ('OAuth2', [('oauthsetup', 'Configurar OAuth2'),
                     ('oauth-google', 'Google'),
                     ('oauth-microsoft', 'Microsoft'),
+                    ('oauth-verify', 'Acceso bloqueado'),
                     ('oauth-run', 'Cómo se ejecuta')]),
         ('Después', [('demo', 'La demostración'),
                      ('firstrun', 'Cuando el primer envío no funciona')]),

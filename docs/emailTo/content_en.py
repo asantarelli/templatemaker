@@ -232,6 +232,47 @@ def build_getting_started():
              'something different, say so:</p>'
              '<p><code>Mailer.OAuth.RedirectHost = \'127.0.0.1\'</code></p>'))
 
+    add(h3('oauth-verify', 'Google says &ldquo;Access blocked&rdquo;'))
+    add(p('<i>&ldquo;Access blocked: &lt;your app&gt; has not completed the Google '
+          'verification process.&rdquo;</i> This is the consent screen refusing you, '
+          'not emailTo failing, and it has two causes that produce almost the same '
+          'wording. Which one you have is decided by your app&rsquo;s <b>publishing '
+          'status</b>.'))
+    add(table(['Publishing status', 'What the block means', 'What to do'], [
+        ['<b>Testing</b>',
+         'The account you are signing in with is not on the Test users list. The screen '
+         'usually adds &ldquo;currently being tested&hellip; developer-approved '
+         'testers&rdquo;.',
+         'Google Auth Platform &rarr; <b>Audience</b> &rarr; <b>Test users</b> &rarr; '
+         'Add users, and add the exact address you sign in with.'],
+        ['<b>In production</b>, unverified, with <code>https://mail.google.com/</code>',
+         'That is a <b>restricted</b> scope. Unverified, Google blocks it outright &mdash; '
+         'there is no <i>Advanced</i> link to click past.',
+         'Either go back to Testing and use Test users, or switch to the '
+         '<code>gmail.send</code> scope.'],
+        ['<b>In production</b>, unverified, with <code>gmail.send</code>',
+         'That is a <b>sensitive</b> scope, so you get a warning rather than a block.',
+         'Click <b>Advanced</b> &rarr; <b>Go to &lt;your app&gt;</b>. It is your own app; '
+         'the warning is expected.'],
+    ]))
+    add(note('warn', 'Publishing is not automatically the fix',
+             '<p>Staying in <b>Testing</b> has its own cost: Google expires a refresh '
+             'token after <b>seven days</b>, so a sign-in that worked stops working the '
+             'following week. Publishing removes that &mdash; but only helps if your '
+             'scope is <code>gmail.send</code>. Publish while asking for '
+             '<code>https://mail.google.com/</code> and you trade a weekly re-login for '
+             'a permanent wall.</p>'
+             '<p>So if you are going to use OAuth on Gmail, use the <b>Gmail API</b> '
+             'transport. emailTo then asks for <code>gmail.send</code>, which is the '
+             'narrower scope and the one you can publish unverified.</p>'))
+    add(note('tip', 'For a single Gmail account, an app password avoids all of this',
+             '<p>No consent screen, no verification, no seven-day expiry, and nothing to '
+             'register. Turn on 2-Step Verification, generate an app password at '
+             '<b>myaccount.google.com/apppasswords</b>, and use it as the SMTP password '
+             '&mdash; <b>with the spaces removed</b>. OAuth earns its keep when you are '
+             'shipping to other people&rsquo;s mailboxes, or when a Workspace admin has '
+             'turned app passwords off.</p>'))
+
     add(h3('oauth-run', 'Running it'))
     add(p('Set the account to use OAuth, then press <b>Sign in&hellip;</b> in the setup '
           'window &mdash; or call it yourself:'))
@@ -307,6 +348,7 @@ def build_getting_started():
         ('OAuth2', [('oauthsetup', 'Setting up OAuth2'),
                     ('oauth-google', 'Google'),
                     ('oauth-microsoft', 'Microsoft'),
+                    ('oauth-verify', 'Access blocked'),
                     ('oauth-run', 'Running it')]),
         ('Then', [('demo', 'The demo'), ('firstrun', 'When the first send does not work')]),
     ]
