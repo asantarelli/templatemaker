@@ -119,6 +119,7 @@ MEMBER_DOCS_ES = {
  'EmailApiClass.ArgId':        u'lo que hay detrás de {id} - el resto de las ranuras las llenan los métodos públicos antes de llamar al motor',
  'EmailApiClass.RawCall':      u'cualquier cosa para la que la matriz no tenga fila. La clave, las cabeceras y la dirección base se siguen resolviendo por usted; pPath puede ser una URL entera o sólo lo que va detrás del host',
  'EmailApiClass.AuthHeaders':  u'las cabeceras firmadas, listas para enviar',
+ 'EmailApiClass.SyncTables':   u'VIRTUAL, y la base no hace más que decirlo. La plantilla de emailTo genera una redefinición DERIVED contra las tablas que usted nombre - el mismo arreglo que EmailToClass.LoadAccount, y por la misma razón: cada aplicación de una suite multi-DLL alcanza la redefinición por la VMT del propio objeto, mientras que sólo la que posee los datos la compila',
 }
 
 FIELD_DOCS_ES = {

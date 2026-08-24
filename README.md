@@ -130,8 +130,12 @@ templates/                      # ready-to-register Clarion templates
     EmailJsonClass.inc/.clw     #     reading the reply: a JSON parser in pure Clarion
     EmailApiClass.inc/.clw      #     the management API: blocked, stats, campaigns, the window
     emailc.c                    #     Winsock + SCHANNEL + WinHTTP + SHA-256 (Clacpp-compiled)
-    emailTo.tpl                 #     global + two buttons + four code templates
-    EmailTables.txt             #     the settings-table structure, for your dictionary
+    emailTo.tpl                 #     2 app extensions + 3 buttons + 4 code templates
+    EmailTables.txt             #     the settings-table structure, written out by hand
+    emailToTables.dctx          #     the dictionary to IMPORT: 7 tables (Dictionary
+                                #       Editor > File > Import > DCTX/XML)
+    emailToTables.dct           #     the same, prebuilt, if you would rather copy tables across
+    emailToTables.txd           #     Report Writer's format - for ClarionCL /di only
     emailTo.zip                 #     all of the above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 installer/                      # builds the installer + a portable single-file exe
@@ -1198,6 +1202,24 @@ which — so `Manage()`, the ready-made tabbed window, *disables* what an accoun
 than showing an empty list. `IsBlocked()` is the one worth calling in a mailing loop: never send again to an
 address the provider is going to refuse.
 
+**And it can land all of that in your own tables.** The management window asks the provider live and keeps
+nothing, which is fine for looking but no use for a browse, a report, or a join to your customer table. So
+there is a dictionary and a sync:
+
+* **`emailToTables.dctx`** — a ready-made dictionary: `MailBlocked`, `MailStat`, `MailEvent`, `MailContact`,
+  `MailList`, `MailCampaign` and the account table. *Dictionary Editor → File → Import*, and pick the
+  **DCTX / XML** entry. (Not the `.txd` — that is Report Writer's format and the Dictionary Editor refuses it
+  outright. It ships only for `ClarionCL /di`.)
+* **`emailTo - Sync provider data into your tables`** — a *separate* application extension. Nominate the
+  tables and their keys and it generates a small object with one method, `Run`, that fills them.
+* **`emailTo - Sync mail data into your tables`** — a control template that drops a wired *Sync* button, and
+  a *Sync it all into my tables* entry on the code template for a menu item or a batch run.
+
+Columns are matched **by name**, so a table imported from the dictionary needs no mapping at all — and a
+column of your own that the template does not recognise is left alone, surviving every sync. Each row is
+looked up by its key before it is written, so running the sync twice updates rather than duplicates: the
+same eleven rows come back as eleven, not twenty-two.
+
 **No DLL, no .NET, no OpenSSL.** Everything is pure Clarion except one bundled C file, `emailc.c`, compiled
 into your `.EXE` by Clarion's own C compiler through `PRAGMA('compile(emailc.c)')`. It exists because Clarion
 cannot do four things for itself: **TCP sockets**, the **SCHANNEL TLS handshake**, **WinHTTP** and **DPAPI**.
@@ -1274,10 +1296,31 @@ line of code, or an English one-liner has gained no Spanish twin.
 | 3 — every template, tab and prompt, and the code it writes | [Template Guide](https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01) | [Guía de plantillas](https://claude.ai/code/artifact/07f9ecdf-232b-4cbd-8d20-f423561f3ba0) |
 | 4 — every class, method, property and equate | [Reference](https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5) | [Referencia](https://claude.ai/code/artifact/108af66d-ecbe-4a5b-bada-cb3500c741b6) |
 
-**The seven templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control —
+**The nine templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control —
 drag onto a window; compose, send straight away, or open setup), `emailToApiButton` (control — opens the
-management window on whichever tab you name, and hides itself when the account has no API at all), plus the
-`emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` code templates for any embed.
+management window on whichever tab you name, and hides itself when the account has no API at all),
+`emailToSync` (application — the tables to fill), `emailToSyncButton` (control — brings the provider's data
+down into them), plus the `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` code templates for
+any embed.
+
+**v1.04 (2026-08-24).** The data half: a shipped dictionary and a sync into it. Also two template defects
+this uncovered, both of which would have bitten any template that needs a table of its own:
+`#ADD(%UsedFile, …)` fills a list nothing reads — what actually makes ABC declare the table and its
+`Access:` FileManager is `#FIX(%File, …)` then `#SET(%CacheFileUsed, %True)`, and it has to happen at
+`%BeforeFileDeclarations`, a DATA embed, because by `%ProgramSetup` the declarations are already written.
+Without both, every `Access:<table>` line the template writes came back as *Unknown procedure label* on a
+line nobody typed — which is exactly what the **account** settings-table binding had been doing since v1.00,
+silently, for anyone whose table was not already in a browse.
+
+Third, and the reason the sync is its own extension rather than two more tabs on the global one: **an
+application stores the set of prompts it was built with, and AppGen does not backfill a prompt added later** —
+generation stops with `Unknown Variable` on a symbol the developer never typed. An app that never adds the new
+extension never names the new symbols, so every existing application keeps generating untouched. The
+**Provider API** tab added in v1.03 does not have that protection: upgrading an app older than v1.03 means
+opening that extension's property sheet once so the IDE writes the new prompts back (or, from a build script,
+deleting the extension and inserting it again). The General tab now says so. Verified by a harness that imports the shipped
+`.dctx`, generates an application against it, compiles it, and runs the generated sync twice against a
+stand-in provider: eleven rows into six tables, and eleven again the second time.
 
 **v1.03 (2026-08-24).** The management half. Two new classes — `EmailJsonClass`, a real JSON reader in pure
 Clarion (a sorted path index, so a 5,000-node reply answers a lookup in a dozen comparisons), and

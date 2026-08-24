@@ -20,7 +20,8 @@ from content_en import (S_HELLO, S_PROJECT, S_ATTACH, S_OAUTHRUN,      # noqa: E
                         S_OWNS, S_OAUTHFLOW, S_TABLE, S_DERIVE, S_INLINE,
                         S_CLEARTRAP, S_STRINGTRAP, S_RETSTR,
                         S_GEN_GLOBAL, S_GEN_DERIVED, S_GEN_BUTTON,
-                        S_ASK, S_SUPPORTS, S_MATRIX, S_ADDPROVIDER, S_APIEMBED)
+                        S_ASK, S_SUPPORTS, S_MATRIX, S_ADDPROVIDER, S_APIEMBED,
+                        S_SYNCGEN)
 
 
 # =====================================================================
@@ -847,7 +848,7 @@ def build_template_guide():
     B = []
     add = B.append
 
-    add(h2('five', 'Las siete plantillas'))
+    add(h2('five', 'Las ocho plantillas'))
     add(table(['Plantilla', 'Tipo', 'Para qué es'], [
         ['<b>emailTo - Global</b>', 'Extensión de aplicación',
          'Obligatoria, una vez por aplicación. Declara el objeto, fija los valores por '
@@ -867,16 +868,20 @@ def build_template_guide():
          'bloqueadas y por qué, estadísticas, actividad, contactos, campañas.'],
         ['<b>emailTo - Ask the provider</b>', 'Plantilla de código',
          'Cualquier embed: cargar la lista de bloqueados, desbloquear una o todas, '
-         'consultar una dirección, leer las estadísticas, enviar una campaña.'],
+         'consultar una dirección, leer las estadísticas, enviar una campaña, '
+         'sincronizar las tablas.'],
+        ['<b>emailTo - Sync mail data into your tables</b>', 'Plantilla de control, MULTI',
+         'Se arrastra a una ventana. Baja la lista de bloqueados, las estadísticas, '
+         'la actividad, los contactos, las listas y las campañas a sus tablas.'],
     ]))
     add(note('tip', 'Sólo la primera es obligatoria',
              '<p>Agregue <b>emailTo - Global</b> y los dos objetos existen en todas '
-             'partes. Las otras seis son comodidades que los llaman: cualquier cosa que '
+             'partes. Las otras siete son comodidades que los llaman: cualquier cosa que '
              'hagan, usted la puede hacer desde un embed escrito a mano con las mismas '
              'llamadas de una línea.</p>'))
 
     add(h2('global', 'emailTo - Global'))
-    add(p('Propiedades globales &rarr; Extensiones &rarr; Insertar. Siete pestañas.'))
+    add(p('Propiedades globales &rarr; Extensiones &rarr; Insertar. Nueve pestañas.'))
 
     add(h3('global-general', 'General'))
     add(table(['Campo', 'Por omisión', 'Qué hace'], [
@@ -921,6 +926,109 @@ def build_template_guide():
           'necesita una aplicación que se le entrega a clientes desconocidos. El '
           '<b>dominio API</b> es sólo de Mailgun; para Mailjet la clave pública va en '
           'Usuario y la privada en Clave API.'))
+
+    add(h2('global-sync', u'emailTo - Sync'))
+    add(p(u'Una extensión de aplicación APARTE &mdash; <b>emailTo - Sync '
+          u'provider data into your tables</b>, que se agrega una vez junto a la '
+          u'global. La ventana de gestión pregunta al proveedor en vivo y no '
+          u'guarda nada; ésta es la otra opción: nombre unas tablas y '
+          u'las mismas respuestas se escriben además en sus propios datos '
+          u'&mdash; así puede poner un browse ABC sobre la lista de '
+          u'bloqueados, unirla con su tabla de clientes, o hacer un informe de '
+          u'las aperturas del mes pasado sin acercarse a la red.'))
+    add(note('tip', u'Hay un diccionario ya hecho &mdash; importe el .dctx',
+             u'<p><code>emailToTables.dctx</code> viene junto a la plantilla y '
+             u'contiene las seis tablas más la tabla de la cuenta. En el editor '
+             u'de diccionario: <b>File &rarr; Import</b>, y elija la entrada '
+             u'<b>DCTX / XML</b>.</p>'
+             u'<p><b>No</b> <code>emailToTables.txd</code>. Un <code>.txd</code> '
+             u'es el formato de Report Writer y el editor de diccionario lo '
+             u'rechaza sin más &mdash; <i>"This TXD file is a Report Writer only '
+             u'format"</i>. Se entrega sólo para <code>ClarionCL /di</code>, que '
+             u'construye un diccionario entero a partir de texto en vez de '
+             u'importar dentro de uno que ya existe.</p>'))
+    add(table([u'Tabla', u'Una fila es', u'Se llena desde'], [
+        [u'<code>MailBlocked</code>', u'Una dirección que el proveedor rechaza, '
+         u'con el motivo, el código SMTP y cuándo', u'<code>GetSuppressions()</code>'],
+        [u'<code>MailStat</code>', u'Un día', u'<code>GetStats()</code>'],
+        [u'<code>MailEvent</code>', u'Algo que le pasó a un mensaje',
+         u'<code>GetEvents()</code>'],
+        [u'<code>MailContact</code>', u'Un contacto', u'<code>GetContacts()</code>'],
+        [u'<code>MailList</code>', u'Una lista de contactos y su tamaño',
+         u'<code>GetLists()</code>'],
+        [u'<code>MailCampaign</code>', u'Una campaña y su estado',
+         u'<code>GetCampaigns()</code>'],
+    ]))
+    add(p(u'Todas las tablas menos la de la cuenta llevan <code>Provider</code> '
+          u'y <code>SyncedOn</code>, de modo que un diccionario sirve para una '
+          u'aplicación que cambia de proveedor o que lleva dos cuentas.'))
+    add(table([u'Campo', u'Qué hace'], [
+        [u'Keep the provider''s data in tables',
+         u'Enciende todo esto. Apagado, aquí no se genera nada.'],
+        [u'Stamp each row with the provider and the date',
+         u'Llena <code>Provider</code> y <code>SyncedOn</code> si la tabla los '
+         u'tiene. Déjelo encendido salvo que una tabla sirva exactamente a una '
+         u'cuenta.'],
+        [u'Table / Key (seis veces)',
+         u'La tabla, y la clave que identifica una fila &mdash; esa clave es lo '
+         u'que hace que la sincronización actualice en vez de duplicar.'],
+        [u'How many days back',
+         u'Para las estadísticas y la actividad, que se piden por un rango de '
+         u'fechas y no enteras.'],
+    ]))
+    add(note('info', u'Las columnas se emparejan por NOMBRE, no una por una',
+             u'<p>Una tabla importada del diccionario que se entrega no necesita '
+             u'ningún mapeo: la plantilla recorre las columnas de la tabla que '
+             u'usted nombre y llena aquellas cuyo nombre reconoce. Una columna '
+             u'que se llame de otra manera se deja en paz &mdash; así una '
+             u'bandera suya, una nota, o un enlace a su fila de cliente '
+             u'sobreviven a cada sincronización.</p>'
+             u'<p>Eso también significa que puede apuntarla a una tabla que ya '
+             u'tiene: nombre las columnas como lo hace el diccionario y las '
+             u'llena.</p>'))
+    add(p(u'Lo que genera es un objeto pequeño propio, con un solo método, '
+          u'<code>Run</code>.'))
+    add(note('warn', u'Por qué es una extensión aparte y no otra pestaña',
+             u'<p>Una aplicación guarda el conjunto de campos con el que fue '
+             u'construida. Un campo agregado a una extensión que la aplicación '
+             u'<em>ya lleva</em> simplemente no está, y la generación se detiene '
+             u'con <code>Unknown Variable</code> sobre un símbolo que el '
+             u'programador nunca escribió &mdash; AppGen no rellena el DEFAULT '
+             u'desde la línea de comandos.</p>'
+             u'<p>Una aplicación que no agregue ESTA extensión nunca nombra esos '
+             u'símbolos, así que todas las aplicaciones existentes siguen '
+             u'generando igual que antes. Eso vale un Insert de más.</p>'
+             u'<p>La pestaña <b>API del proveedor</b>, agregada a la extensión '
+             u'global en la v1.03, no tiene esa protección: actualizar una '
+             u'aplicación anterior a la v1.03 exige abrir una vez la hoja de '
+             u'propiedades de esa extensión, para que el IDE vuelva a escribir '
+             u'los campos nuevos. Desde un script que nunca abre el IDE, borre '
+             u'la extensión y vuelva a insertarla.</p>'))
+    add(code(S_SYNCGEN))
+    add(p(u'Cada fila se busca por su clave antes de escribirla, así que correr '
+          u'la sincronización dos veces no cambia nada: una fila que ya está se '
+          u'actualiza, una nueva se agrega, y la cuenta vuelve igual. Eso es lo '
+          u'que la hace segura en un botón que cualquiera puede pulsar dos '
+          u'veces, o en un temporizador.'))
+
+    add(h2('syncbutton', u'El botón de sincronizar'))
+    add(p(u'<b>emailTo - Sync mail data into your tables</b> es una plantilla de '
+          u'control: arrástrela a una ventana y coloca un botón ya cableado que '
+          u'llama al método generado.'))
+    add(table([u'Campo', u'Qué hace'], [
+        [u'API object name', u'El objeto que declaró la extensión global.'],
+        [u'Quietly - no message when it finishes',
+         u'Apagado, informa cuántas filas bajaron y cuántas eran nuevas. '
+         u'Enciéndalo para un botón que corre sin nadie delante.'],
+        [u'Put the row count in', u'Una variable suya, para una línea de estado.'],
+        [u'Reset the browse afterwards',
+         u'Llama a <code>ResetFromFile()</code> sobre el browse que usted nombre, '
+         u'para que un browse de la tabla sincronizada muestre las filas nuevas '
+         u'sin que el usuario cierre la ventana.'],
+    ]))
+    add(p(u'Para una opción de menú o un proceso por lotes, la plantilla de '
+          u'código <b>emailTo - Ask the provider</b> tiene <i>Sync it all into my '
+          u'tables</i> entre sus operaciones.'))
 
     add(h3('global-table', 'Tabla, y Columnas de la tabla'))
     add(p('Señale una tabla y la plantilla genera <code>LoadAccount</code> y '
@@ -1172,16 +1280,18 @@ def build_template_guide():
 
     body = '\n'.join(B)
     groups = [
-        ('Panorama', [('five', 'Las siete plantillas')]),
+        ('Panorama', [('five', 'Las ocho plantillas')]),
         ('La extensión global', [('global', 'emailTo - Global'),
                                  ('global-general', 'General'),
                                  ('global-account', 'Cuenta'),
                                  ('global-signin', 'Acceso'),
                                  ('global-api', u'API del proveedor'),
+                                 ('global-sync', u'Sincronizar tablas'),
                                  ('global-table', 'Tabla'),
                                  ('global-multidll', 'Multi-DLL'),
                                  ('global-writes', 'Qué escribe')]),
         ('Lo demás', [('apibutton', u'El bot\u00f3n de cuenta de correo'),
+                      ('syncbutton', u'El bot\u00f3n de sincronizar'),
                       ('apicode', u'Preguntar desde un embed'),
                       ('button', 'El botón de correo'),
                       ('button-general', 'General'),

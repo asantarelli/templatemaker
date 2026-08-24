@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and eight provider APIs - v1.03 (2026-08-24 12:10)'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and eight provider APIs - v1.04 (2026-08-24 14:05)'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  emailTo template set  -  send e-mail from a Clarion application, four ways,
 #!  with no third-party DLL, no .NET and no OpenSSL to deploy.
@@ -85,7 +85,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
@@ -97,6 +97,23 @@
       #DISPLAY('')
       #DISPLAY('emailc.c is compiled into your EXE by Clarion''s own C')
       #DISPLAY('compiler. There is no DLL to ship and nothing to register.')
+    #ENDBOXED
+    #BOXED('Upgrading from v1.02 or earlier - do this ONCE')
+      #DISPLAY('An application stores the set of prompts it was built with. The')
+      #DISPLAY('Provider API tab was added in v1.03, so an app older than that')
+      #DISPLAY('has no value stored for those prompts, and generating it stops')
+      #DISPLAY('with:')
+      #DISPLAY('')
+      #DISPLAY('    Unknown Variable ''%ETgApi''')
+      #DISPLAY('')
+      #DISPLAY('Opening THIS property sheet is the cure: the IDE writes every')
+      #DISPLAY('prompt back, defaults included. If you are reading this, it has')
+      #DISPLAY('already happened - press OK and generate again. From a build')
+      #DISPLAY('script that never opens the IDE, delete this extension and')
+      #DISPLAY('insert it again instead.')
+      #DISPLAY('')
+      #DISPLAY('Nothing added since v1.03 does this: the sync lives in its own')
+      #DISPLAY('extension precisely so an existing app is never touched.')
     #ENDBOXED
     #BOXED('Options')
       #PROMPT('&Disable this template',CHECK),%ETgDisable,DEFAULT(0),AT(10)
@@ -292,6 +309,27 @@
 #ENDSHEET
 #!
 #!--- the three includes -------------------------------------------------------
+#!
+#!--- tell the application which of your tables we touch -----------------------
+#!  Access:<table> only exists for a table the application knows it uses, and
+#!  what makes ABPROGRM declare one is not #ADD(%UsedFile) - that fills a list
+#!  nobody reads on its own - but #FIX(%File) followed by
+#!  #SET(%CacheFileUsed, %True).  Miss it and every Access: line the template
+#!  writes comes back as "Unknown procedure label", on a line the developer
+#!  never typed.  (Corpus: wbguard.tpw:113 does exactly this for its own
+#!  security table.)
+#AT(%CustomGlobalDeclarations),WHERE(%ETgDisable=0)
+  #INSERT(%ETyRelate,%ETgFile)
+#ENDAT
+#!
+#!  %BeforeFileDeclarations, because that is the DATA embed immediately in
+#!  front of %GenerateFileDeclarations. Registering at %ProgramSetup - a CODE
+#!  embed - is too late: the declarations have already been written by then,
+#!  and the File Declaration region comes out empty.
+#AT(%BeforeFileDeclarations),WHERE(%ETgDisable=0)
+  #INSERT(%ETyUseFile,%ETgFile)
+#ENDAT
+#!
 #AT(%AfterGlobalIncludes),WHERE(%ETgDisable=0)
 #IF(%ETgApi)
 INCLUDE('EmailApiClass.INC'),ONCE                          #! pulls in all four of the others
@@ -617,6 +655,442 @@ ETFound  BYTE
   #CALL(%AddCategory(ABC),'EMAILTO')
   #CALL(%SetCategoryLocationFromPrompts(ABC),'EMAILTO','emailTo','')
 #ENDAT
+#!
+#!#############################################################################
+#!  APPLICATION EXTENSION - emailToSync
+#!#############################################################################
+#!  Bringing the provider's answers down into tables of your own.
+#!
+#!  This is a SEPARATE extension, not another tab on emailTo - Global, and the
+#!  reason is upgrades. An application stores the set of prompts it was built
+#!  with; a prompt added to an extension it already carries is simply not
+#!  there, and generation stops with "Unknown Variable" on a symbol the
+#!  developer never typed. An application that does not add THIS extension
+#!  never names these symbols, so an existing app keeps generating exactly as
+#!  it did before.
+#!
+#!  It needs emailTo - Global, with its Provider API tab switched on: the
+#!  account and the answers both come from that object.
+#!#############################################################################
+#EXTENSION(emailToSync,'emailTo - Sync provider data into your tables (add once per application)'),APPLICATION,HLP('~emailTo.htm')
+#SHEET
+  #TAB('&General')
+    #BOXED('emailTo - Sync')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
+      #DISPLAY('')
+      #DISPLAY('It needs the Global extension''s "Provider API" tab switched')
+      #DISPLAY('on - that is where the object it reads through is declared.')
+      #PROMPT('&Disable this template',CHECK),%ETyDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Sync object name:',@s64),%ETyObject,REQ,DEFAULT('MailSync')
+      #PROMPT('&API object name:',@s64),%ETyApiObject,REQ,DEFAULT('MailApi')
+      #DISPLAY('The object emailTo - Global declared on its Provider API tab.')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('S&ync tables')
+    #BOXED('Keeping what the provider knows')
+      #DISPLAY('The management window asks the provider live and keeps')
+      #DISPLAY('nothing. Nominate tables here and the same answers are also')
+      #DISPLAY('written into your own data - so you can put a browse on the')
+      #DISPLAY('blocked list, join it to your customers, or report on last')
+      #DISPLAY('month''s opens without going near the network.')
+      #DISPLAY('')
+      #DISPLAY('emailToTables.dctx (shipped beside this template) is a ready-')
+      #DISPLAY('made dictionary holding all six, plus the account table:')
+      #DISPLAY('    Dictionary Editor > File > Import, and pick the DCTX/XML')
+      #DISPLAY('    entry - NOT the TXD one, which is Report Writer''s format')
+      #DISPLAY('    and is refused with "This TXD file is a Report Writer')
+      #DISPLAY('    only format".')
+      #PROMPT('&Keep the provider''s data in tables',CHECK),%ETyOn,DEFAULT(0),AT(10)
+      #ENABLE(%ETyOn)
+        #DISPLAY('')
+        #DISPLAY('Columns are matched BY NAME against the shipped dictionary,')
+        #DISPLAY('so a table imported from it needs nothing else. A column')
+        #DISPLAY('with any other name is simply left alone.')
+        #PROMPT('Stamp each row with the &provider and the date',CHECK),%ETyStamp,DEFAULT(1),AT(10)
+        #DISPLAY('Fills Provider and SyncedOn, if the table has them. Leave')
+        #DISPLAY('this on unless one table serves exactly one account.')
+      #ENDENABLE
+    #ENDBOXED
+    #ENABLE(%ETyOn)
+      #BOXED('Blocked addresses - who the provider refuses, and why')
+        #PROMPT('&Table:',FILE),%ETyBlockedFile
+        #ENABLE(%ETyBlockedFile)
+          #PROMPT('&Key:',KEY(%ETyBlockedFile)),%ETyBlockedKey,REQ
+          #DISPLAY('The key that identifies one row. In the shipped dictionary')
+          #DISPLAY('that is MailBlocked.ByAddress (provider + address + kind).')
+        #ENDENABLE
+        #DISPLAY('Columns: Address, Kind, KindName, Reason, Code, BlockedOn,')
+        #DISPLAY('BlockedAt, Ref, Sender.')
+      #ENDBOXED
+      #BOXED('Statistics - one row per day')
+        #PROMPT('T&able:',FILE),%ETyStatFile
+        #ENABLE(%ETyStatFile)
+          #PROMPT('K&ey:',KEY(%ETyStatFile)),%ETyStatKey,REQ
+          #PROMPT('How many &days back:',@n5),%ETyStatDays,DEFAULT(30)
+        #ENDENABLE
+        #DISPLAY('Columns: StatDate, Requests, Delivered, Opens, UniqueOpens,')
+        #DISPLAY('Clicks, UniqueClicks, HardBounces, SoftBounces, Blocks,')
+        #DISPLAY('SpamReports, Unsubscribed, Invalid.')
+      #ENDBOXED
+    #ENDENABLE
+  #ENDTAB
+  #TAB('Sync tables &2')
+    #ENABLE(%ETyOn)
+      #BOXED('Activity - what happened to each message')
+        #PROMPT('&Table:',FILE),%ETyEventFile
+        #ENABLE(%ETyEventFile)
+          #PROMPT('&Key:',KEY(%ETyEventFile)),%ETyEventKey,REQ
+          #PROMPT('How many &days back:',@n5),%ETyEventDays,DEFAULT(7)
+        #ENDENABLE
+        #DISPLAY('Columns: EventDate, EventTime, Address, EventName, Reason,')
+        #DISPLAY('Subject, MessageId, Link. This is much the biggest table -')
+        #DISPLAY('a busy sender makes thousands of rows a day.')
+      #ENDBOXED
+      #BOXED('Contacts')
+        #PROMPT('Ta&ble:',FILE),%ETyContactFile
+        #ENABLE(%ETyContactFile)
+          #PROMPT('Ke&y:',KEY(%ETyContactFile)),%ETyContactKey,REQ
+        #ENDENABLE
+        #DISPLAY('Columns: ContactId, Address, Name, Blocked, Unsubscribed,')
+        #DISPLAY('CreatedOn, ListIds.')
+      #ENDBOXED
+      #BOXED('Lists')
+        #PROMPT('Tab&le:',FILE),%ETyListFile
+        #ENABLE(%ETyListFile)
+          #PROMPT('Ky:',KEY(%ETyListFile)),%ETyListKey,REQ
+        #ENDENABLE
+        #DISPLAY('Columns: ListId, Name, Members, Blocked, FolderId.')
+      #ENDBOXED
+      #BOXED('Campaigns')
+        #PROMPT('Table:',FILE),%ETyCampFile
+        #ENABLE(%ETyCampFile)
+          #PROMPT('Key:',KEY(%ETyCampFile)),%ETyCampKey,REQ
+        #ENDENABLE
+        #DISPLAY('Columns: CampaignId, Name, Subject, Status, SendDate,')
+        #DISPLAY('SendTime, Recipients, Opens, Clicks.')
+      #ENDBOXED
+    #ENDENABLE
+  #ENDTAB
+#ENDSHEET
+#!
+#AT(%CustomGlobalDeclarations),WHERE(%ETyDisable=0)
+INCLUDE('EmailApiClass.INC'),ONCE
+  #INSERT(%ETyRelate,%ETyBlockedFile)
+  #INSERT(%ETyRelate,%ETyStatFile)
+  #INSERT(%ETyRelate,%ETyEventFile)
+  #INSERT(%ETyRelate,%ETyContactFile)
+  #INSERT(%ETyRelate,%ETyListFile)
+  #INSERT(%ETyRelate,%ETyCampFile)
+#ENDAT
+#!
+#AT(%BeforeFileDeclarations),WHERE(%ETyDisable=0)
+  #INSERT(%ETyUseFile,%ETyBlockedFile)
+  #INSERT(%ETyUseFile,%ETyStatFile)
+  #INSERT(%ETyUseFile,%ETyEventFile)
+  #INSERT(%ETyUseFile,%ETyContactFile)
+  #INSERT(%ETyUseFile,%ETyListFile)
+  #INSERT(%ETyUseFile,%ETyCampFile)
+#ENDAT
+#!
+#!  A small object of its own rather than a method on the API object: that way
+#!  emailTo - Global needs no new prompt, and an application without this
+#!  extension is untouched.
+#AT(%GlobalData),WHERE(%ETyDisable=0)
+  #IF(%DefaultExternal = 'None External')
+%ETyObject             CLASS                               #<! the table sync
+Run                      PROCEDURE(BYTE pSilent=0),LONG,PROC #<! answers the rows written
+                       END
+  #ELSE
+%ETyObject             CLASS,EXTERNAL,DLL(dll_mode)        #<! it lives in the data DLL
+Run                      PROCEDURE(BYTE pSilent=0),LONG,PROC
+                       END
+  #ENDIF
+#ENDAT
+#!
+#AT(%DLLExportList),WHERE(%ETyDisable=0)
+  #IF(%DefaultExternal = 'None External' AND %ProgramExtension='DLL' AND %DefaultExport)
+  $%ETyObject                                              @?
+  #ENDIF
+#ENDAT
+#!--- the generated table sync -------------------------------------------------
+#AT(%ProgramProcedures),WHERE(%ETyDisable=0 AND %DefaultExternal = 'None External')
+
+!-----------------------------------------------------------------------------
+!  %ETyObject.Run - generated by the emailTo - Sync extension from the
+!  tables nominated on its tabs.
+!
+!  It asks the provider the same questions the Manage window asks, and writes
+!  the answers into the tables you nominated. Each row is looked up by its key
+!  first, so running it twice changes nothing: a row that is already there is
+!  updated, a new one is added. That is what makes it safe on a timer.
+!
+!  Columns are matched BY NAME against the shipped dictionary
+!  (emailToTables.dctx). A column named something else is left alone, so extra
+!  columns of your own - a flag, a note, a link to your customer row - survive
+!  every sync.
+!-----------------------------------------------------------------------------
+%ETyObject.Run PROCEDURE(BYTE pSilent)
+ETyRows   LONG                                             ! rows written, all tables
+ETyAdded  LONG                                             ! how many of those were new
+ETyN      LONG
+ETyi      LONG
+ETyBad    BYTE
+  CODE
+  ETyRows  = 0
+  ETyAdded = 0
+  ETyBad   = 0
+  #IF(%ETyBlockedFile)
+  DO ETySyncBlocked
+  #ENDIF
+  #IF(%ETyStatFile)
+  DO ETySyncStats
+  #ENDIF
+  #IF(%ETyEventFile)
+  DO ETySyncEvents
+  #ENDIF
+  #IF(%ETyContactFile)
+  DO ETySyncContacts
+  #ENDIF
+  #IF(%ETyListFile)
+  DO ETySyncLists
+  #ENDIF
+  #IF(%ETyCampFile)
+  DO ETySyncCampaigns
+  #ENDIF
+  IF NOT pSilent
+    IF ETyBad AND NOT ETyRows
+      %ETyApiObject.ShowError()
+    ELSE
+      MESSAGE(ETyRows & ' rows brought down, ' & ETyAdded & ' of them new.' & |
+              CHOOSE(ETyBad = 0, '', '<13,10><13,10>Something was refused: ' & |
+                     CLIP(%ETyApiObject.LastErrorText)), |
+              %ETyApiObject.Txt(ETATxt:Manage), CHOOSE(ETyBad = 0, ICON:Asterisk, ICON:Exclamation))
+    END
+  END
+  RETURN ETyRows
+#!
+#INSERT(%ETyOneTable,'Blocked',%ETyBlockedFile,%ETyBlockedKey,'SuppQ')
+#INSERT(%ETyOneTable,'Stats',%ETyStatFile,%ETyStatKey,'StatQ')
+#INSERT(%ETyOneTable,'Events',%ETyEventFile,%ETyEventKey,'EventQ')
+#INSERT(%ETyOneTable,'Contacts',%ETyContactFile,%ETyContactKey,'ContactQ')
+#INSERT(%ETyOneTable,'Lists',%ETyListFile,%ETyListKey,'ListQ')
+#INSERT(%ETyOneTable,'Campaigns',%ETyCampFile,%ETyCampKey,'CampaignQ')
+#ENDAT
+#!
+#GROUP(%ETyRelate,%pFile)
+#IF(NOT %pFile)
+  #RETURN
+#ENDIF
+#ADD(%UsedFile, %pFile)
+#INSERT(%AddRelatedFiles(ABC),%UsedFile,%pFile)
+#!
+#GROUP(%ETyUseFile,%pFile)
+#IF(NOT %pFile)
+  #RETURN
+#ENDIF
+#ADD(%UsedFile, %pFile)
+#FIX(%File, %pFile)
+#ASSERT(%File = %pFile, 'emailTo: cannot fix on the table %pFile - is it still in the dictionary?')
+#SET(%CacheFileUsed, %True)
+#!
+#!-----------------------------------------------------------------------------
+#!  One dataset: fetch it, then walk the queue writing each row.  The mapping
+#!  routine is emitted once and called from all three places that need it -
+#!  a failed GET leaves the record buffer undefined, so the fields have to be
+#!  laid down again after it whichever way the lookup went.
+#!-----------------------------------------------------------------------------
+#GROUP(%ETyOneTable,%pWhat,%pFile,%pKey,%pQueue)
+#IF(NOT %pFile)
+  #RETURN
+#ENDIF
+
+ETySync%pWhat ROUTINE
+  #CASE(%pWhat)
+  #OF('Blocked')
+  ETyN = %ETyApiObject.GetSuppressions(ETSup:All)
+  #OF('Stats')
+  ETyN = %ETyApiObject.GetStats(TODAY() - %ETyStatDays, TODAY())
+  #OF('Events')
+  ETyN = %ETyApiObject.GetEvents(TODAY() - %ETyEventDays, TODAY())
+  #OF('Contacts')
+  ETyN = %ETyApiObject.GetContacts()
+  #OF('Lists')
+  ETyN = %ETyApiObject.GetLists()
+  #OF('Campaigns')
+  ETyN = %ETyApiObject.GetCampaigns()
+  #ENDCASE
+  IF ETyN < 0
+    ETyBad = 1                                             ! the reason is in LastErrorText
+    EXIT
+  END
+  Access:%pFile.Open()
+  Access:%pFile.UseFile()
+  LOOP ETyi = 1 TO RECORDS(%ETyApiObject.%pQueue)
+    GET(%ETyApiObject.%pQueue, ETyi)
+    CLEAR(%pFile:Record)
+    DO ETyMap%pWhat
+    GET(%pFile, %pKey)
+    IF ERRORCODE()
+      CLEAR(%pFile:Record)
+      DO ETyMap%pWhat
+      ADD(%pFile)
+      IF NOT ERRORCODE()
+        ETyAdded += 1
+        ETyRows  += 1
+      END
+    ELSE
+      DO ETyMap%pWhat
+      PUT(%pFile)
+      IF NOT ERRORCODE() THEN ETyRows += 1.
+    END
+  END
+  Access:%pFile.Close()
+
+ETyMap%pWhat ROUTINE
+#FOR(%File),WHERE(%File = %pFile)
+  #FOR(%Field),WHERE(%FieldID <> '')
+    #INSERT(%ETyOneColumn,%pWhat,%pQueue)
+  #ENDFOR
+#ENDFOR
+#!
+#!-----------------------------------------------------------------------------
+#!  One column.  Matched by NAME, so the shipped dictionary needs no mapping
+#!  and anything else you keep in the table is untouched.
+#!-----------------------------------------------------------------------------
+#GROUP(%ETyOneColumn,%pWhat,%pQueue)
+#DECLARE(%ETyCol)
+#SET(%ETyCol,UPPER(%FieldID))
+#IF(%ETyStamp AND %ETyCol = 'PROVIDER')
+  %Field = %ETyApiObject.Mailer.Acc.Provider
+  #RETURN
+#ENDIF
+#IF(%ETyStamp AND %ETyCol = 'SYNCEDON')
+  %Field = TODAY()
+  #RETURN
+#ENDIF
+#CASE(%pWhat)
+#OF('Blocked')
+  #CASE(%ETyCol)
+  #OF('ADDRESS')
+  %Field = %ETyApiObject.%pQueue.Address
+  #OF('KIND')
+  %Field = %ETyApiObject.%pQueue.Kind
+  #OF('KINDNAME')
+  %Field = %ETyApiObject.%pQueue.KindName
+  #OF('REASON')
+  %Field = %ETyApiObject.%pQueue.Reason
+  #OF('CODE')
+  %Field = %ETyApiObject.%pQueue.Code
+  #OF('BLOCKEDON')
+  %Field = %ETyApiObject.%pQueue.WhenDate
+  #OF('BLOCKEDAT')
+  %Field = %ETyApiObject.%pQueue.WhenTime
+  #OF('REF')
+  %Field = %ETyApiObject.%pQueue.Id
+  #OF('SENDER')
+  %Field = %ETyApiObject.%pQueue.Sender
+  #ENDCASE
+#OF('Stats')
+  #CASE(%ETyCol)
+  #OF('STATDATE')
+  %Field = %ETyApiObject.%pQueue.WhenDate
+  #OF('REQUESTS')
+  %Field = %ETyApiObject.%pQueue.Requests
+  #OF('DELIVERED')
+  %Field = %ETyApiObject.%pQueue.Delivered
+  #OF('OPENS')
+  %Field = %ETyApiObject.%pQueue.Opens
+  #OF('UNIQUEOPENS')
+  %Field = %ETyApiObject.%pQueue.UniqueOpens
+  #OF('CLICKS')
+  %Field = %ETyApiObject.%pQueue.Clicks
+  #OF('UNIQUECLICKS')
+  %Field = %ETyApiObject.%pQueue.UniqueClicks
+  #OF('HARDBOUNCES')
+  %Field = %ETyApiObject.%pQueue.HardBounces
+  #OF('SOFTBOUNCES')
+  %Field = %ETyApiObject.%pQueue.SoftBounces
+  #OF('BLOCKS')
+  %Field = %ETyApiObject.%pQueue.Blocks
+  #OF('SPAMREPORTS')
+  %Field = %ETyApiObject.%pQueue.SpamReports
+  #OF('UNSUBSCRIBED')
+  %Field = %ETyApiObject.%pQueue.Unsubscribed
+  #OF('INVALID')
+  %Field = %ETyApiObject.%pQueue.Invalid
+  #ENDCASE
+#OF('Events')
+  #CASE(%ETyCol)
+  #OF('EVENTDATE')
+  %Field = %ETyApiObject.%pQueue.WhenDate
+  #OF('EVENTTIME')
+  %Field = %ETyApiObject.%pQueue.WhenTime
+  #OF('ADDRESS')
+  %Field = %ETyApiObject.%pQueue.Address
+  #OF('EVENTNAME')
+  %Field = %ETyApiObject.%pQueue.EventName
+  #OF('REASON')
+  %Field = %ETyApiObject.%pQueue.Reason
+  #OF('SUBJECT')
+  %Field = %ETyApiObject.%pQueue.Subject
+  #OF('MESSAGEID')
+  %Field = %ETyApiObject.%pQueue.MessageId
+  #OF('LINK')
+  %Field = %ETyApiObject.%pQueue.Link
+  #ENDCASE
+#OF('Contacts')
+  #CASE(%ETyCol)
+  #OF('CONTACTID')
+  %Field = %ETyApiObject.%pQueue.Id
+  #OF('ADDRESS')
+  %Field = %ETyApiObject.%pQueue.Address
+  #OF('NAME')
+  %Field = %ETyApiObject.%pQueue.Name
+  #OF('BLOCKED')
+  %Field = %ETyApiObject.%pQueue.Blocked
+  #OF('UNSUBSCRIBED')
+  %Field = %ETyApiObject.%pQueue.Unsubscribed
+  #OF('CREATEDON')
+  %Field = %ETyApiObject.%pQueue.WhenDate
+  #OF('LISTIDS')
+  %Field = %ETyApiObject.%pQueue.ListIds
+  #ENDCASE
+#OF('Lists')
+  #CASE(%ETyCol)
+  #OF('LISTID')
+  %Field = %ETyApiObject.%pQueue.Id
+  #OF('NAME')
+  %Field = %ETyApiObject.%pQueue.Name
+  #OF('MEMBERS')
+  %Field = %ETyApiObject.%pQueue.Members
+  #OF('BLOCKED')
+  %Field = %ETyApiObject.%pQueue.Blocked
+  #OF('FOLDERID')
+  %Field = %ETyApiObject.%pQueue.FolderId
+  #ENDCASE
+#OF('Campaigns')
+  #CASE(%ETyCol)
+  #OF('CAMPAIGNID')
+  %Field = %ETyApiObject.%pQueue.Id
+  #OF('NAME')
+  %Field = %ETyApiObject.%pQueue.Name
+  #OF('SUBJECT')
+  %Field = %ETyApiObject.%pQueue.Subject
+  #OF('STATUS')
+  %Field = %ETyApiObject.%pQueue.Status
+  #OF('SENDDATE')
+  %Field = %ETyApiObject.%pQueue.WhenDate
+  #OF('SENDTIME')
+  %Field = %ETyApiObject.%pQueue.WhenTime
+  #OF('RECIPIENTS')
+  %Field = %ETyApiObject.%pQueue.Recipients
+  #OF('OPENS')
+  %Field = %ETyApiObject.%pQueue.Opens
+  #OF('CLICKS')
+  %Field = %ETyApiObject.%pQueue.Clicks
+  #ENDCASE
+#ENDCASE
 #!#############################################################################
 #!  CONTROL TEMPLATE - emailToButton
 #!#############################################################################
@@ -632,7 +1106,7 @@ ETFound  BYTE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
@@ -823,7 +1297,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -934,7 +1408,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -988,7 +1462,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('This is where the END USER sets the account. The values it')
@@ -1030,7 +1504,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #PROMPT('&Disable this button',CHECK),%ETaDisable,DEFAULT(0),AT(10)
       #PROMPT('&API object name:',@s64),%ETaObject,REQ,DEFAULT('MailApi')
       #DISPLAY('The object the emailToGlobal extension declared on its')
@@ -1077,6 +1551,72 @@ INCLUDE('EmailApiClass.INC'),ONCE
   %ETaObject.Manage(%ETaTab)
 #ENDAT
 #!#############################################################################
+#!  CONTROL TEMPLATE - emailToSyncButton
+#!#############################################################################
+#!  Drag onto any window for a wired "Sync mail data" button. It calls the
+#!  Run method the emailTo - Sync extension generated, which brings the
+#!  provider's answers down into the tables nominated there.
+#!
+#!  Running it twice changes nothing: every row is looked up by its key first,
+#!  so a row already there is updated rather than duplicated. That is what
+#!  makes it safe on a button anybody can press twice.
+#!#############################################################################
+#CONTROL(emailToSyncButton,'emailTo - Sync mail data into your tables (drag onto a window)'),WINDOW,MULTI,DESCRIPTION('Sync mail data - ' & CHOOSE(%ETzSilent='1','quietly','reports what it did')),HLP('~emailTo.htm')
+  CONTROLS
+    BUTTON('&Sync mail data'),AT(,,68,14),USE(?EmailSyncBtn),TIP('Bring the blocked list, statistics and campaigns down into your tables')
+  END
+#SHEET
+  #TAB('&General')
+    #BOXED('Button')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #PROMPT('&Disable this button',CHECK),%ETzDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Sync object name:',@s64),%ETzObject,REQ,DEFAULT('MailSync')
+      #DISPLAY('The object the "emailTo - Sync provider data into your tables"')
+      #DISPLAY('extension declared. Add that extension to this application if')
+      #DISPLAY('you have not already.')
+    #ENDBOXED
+    #BOXED('What it does')
+      #DISPLAY('Calls <object>.Run(), which the emailTo - Sync extension')
+      #DISPLAY('generated from the tables nominated there.')
+      #PROMPT('&Quietly - no message when it finishes',CHECK),%ETzSilent,DEFAULT(0),AT(10)
+      #DISPLAY('Left off, it reports how many rows came down and how many')
+      #DISPLAY('were new. Turn it on for a button that runs on a timer.')
+      #PROMPT('Put the &row count in:',FIELD),%ETzResult
+    #ENDBOXED
+    #BOXED('Refreshing what is on the window')
+      #PROMPT('Reset the &browse afterwards',CHECK),%ETzReset,DEFAULT(1),AT(10)
+      #DISPLAY('Calls BRW1.ResetFromFile() so a browse of the synced table')
+      #DISPLAY('shows the new rows without the user closing the window.')
+      #PROMPT('Bro&wse object:',@s64),%ETzBrowse,DEFAULT('BRW1')
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!
+#AT(%CustomGlobalDeclarations),WHERE(%ETzDisable=0)
+INCLUDE('EmailApiClass.INC'),ONCE
+#ENDAT
+#!
+#ATSTART
+  #DECLARE(%ETzBtn)
+  #FOR(%Control),WHERE(%ControlInstance=%ActiveTemplateInstance)
+    #SET(%ETzBtn,%Control)
+  #ENDFOR
+#ENDAT
+#!
+#AT(%ControlEventHandling,%ETzBtn,'Accepted'),WHERE(%ETzDisable=0)
+  SETCURSOR(CURSOR:Wait)
+  #IF(%ETzResult)
+  %ETzResult = %ETzObject.Run(%ETzSilent)
+  #ELSE
+  %ETzObject.Run(%ETzSilent)
+  #ENDIF
+  SETCURSOR()
+  #IF(%ETzReset AND %ETzBrowse)
+  %ETzBrowse.ResetFromFile()                               ! show what just arrived
+  %ETzBrowse.ResetQueue(1)
+  #ENDIF
+#ENDAT
+#!#############################################################################
 #!  CODE TEMPLATE - emailToApi
 #!#############################################################################
 #!  One provider-API operation, from any embed. The point of this template is
@@ -1087,11 +1627,11 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&What to do')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
       #PROMPT('&API object name:',@s64),%ETpObject,REQ,DEFAULT('MailApi')
     #ENDBOXED
     #BOXED('Operation')
-      #PROMPT('&Do this:',DROP('Load the blocked addresses[1]|Unblock ONE address[2]|Unblock EVERY address[3]|Block an address[4]|Is this address blocked?[5]|Load the statistics[6]|Load the activity[7]|Load the contacts[8]|Load the lists[9]|Load the campaigns[10]|Send a campaign[11]|Export the blocked list to CSV[12]|Open the management window[13]')),%ETpOp,DEFAULT('1')
+      #PROMPT('&Do this:',DROP('Load the blocked addresses[1]|Unblock ONE address[2]|Unblock EVERY address[3]|Block an address[4]|Is this address blocked?[5]|Load the statistics[6]|Load the activity[7]|Load the contacts[8]|Load the lists[9]|Load the campaigns[10]|Send a campaign[11]|Export the blocked list to CSV[12]|Open the management window[13]|Sync it all into my tables[14]')),%ETpOp,DEFAULT('1')
       #ENABLE(%ETpOp='1' OR %ETpOp='2' OR %ETpOp='3' OR %ETpOp='4' OR %ETpOp='12')
         #PROMPT('W&hich list:',DROP('Everything[0]|Bounces[1]|Blocked[2]|Spam reports[3]|Unsubscribed[4]|Invalid[5]')),%ETpKind,DEFAULT('0')
         #DISPLAY('A provider that keeps one list for all of them answers the')
@@ -1106,6 +1646,10 @@ INCLUDE('EmailApiClass.INC'),ONCE
       #DISPLAY('Send a campaign               - the campaign id.')
       #DISPLAY('Export                        - the file to write.')
       #DISPLAY('Everything else               - not used.')
+      #DISPLAY('')
+      #DISPLAY('"Sync it all into my tables" calls MailSync.Run(), so it')
+      #DISPLAY('needs the "emailTo - Sync provider data into your tables"')
+      #DISPLAY('extension on this application, with its tables nominated.')
     #ENDBOXED
   #ENDTAB
   #TAB('&Result')
@@ -1169,6 +1713,9 @@ INCLUDE('EmailApiClass.INC'),ONCE
   #SET(%ETpCall,%ETpObject & '.SendCampaign(' & %ETpArgExpr & ')')
 #OF('12')
   #SET(%ETpCall,%ETpObject & '.ExportSuppressions(' & %ETpArgExpr & ')')
+#OF('14')
+  #!  the sync is its own object, declared by the emailTo - Sync extension
+  #SET(%ETpCall,'MailSync.Run()')
 #ELSE
   #SET(%ETpCall,%ETpObject & '.Manage()')
 #ENDCASE
@@ -1181,7 +1728,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #ELSE
   %ETpCall
 #ENDIF
-#IF(%ETpSayError AND %ETpOp<>'5' AND %ETpOp<>'13')
+#IF(%ETpSayError AND %ETpOp<>'5' AND %ETpOp<>'13' AND %ETpOp<>'14')
   !  Every call leaves its verdict in LastError, so one test covers the lot -
   !  and "no rows" is not an error, which testing the answer would get wrong.
   IF %ETpObject.LastError

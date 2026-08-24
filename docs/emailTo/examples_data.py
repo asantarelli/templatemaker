@@ -320,4 +320,5 @@ EXAMPLES = {
 'EmailApiClass.JsonStr':       "Loc:Escaped = MailApi.JsonStr(Loc:Text)            ! escaped, WITHOUT the quotes",
 'EmailApiClass.Csv':           "Loc:Field = MailApi.Csv(MailApi.SuppQ.Reason)      ! quoted, commas and all",
 'EmailApiClass.FailedText':    "Log(MailApi.FailedText())                          ! 'HTTP 401: {\"errors\":...'",
+'EmailApiClass.SyncTables':   "Loc:Rows = MailApi.SyncTables()          ! into the tables the template nominated",
 }

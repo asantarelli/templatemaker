@@ -1,6 +1,26 @@
 emailTo - the settings table
 ============================
 
+  -------------------------------------------------------------------------
+  THERE IS A READY-MADE DICTIONARY.  You do not have to build any of this by
+  hand:
+
+      emailToTables.dctx        Dictionary Editor > File > Import, and pick
+                                the DCTX / XML entry.
+
+  It holds the account table below AND the six tables the sync template
+  fills - MailBlocked, MailStat, MailEvent, MailContact, MailList and
+  MailCampaign.
+
+  NOT emailToTables.txd.  A .txd is Report Writer's format, and the
+  Dictionary Editor refuses it outright: "This TXD file is a Report Writer
+  only format".  It ships only for ClarionCL /di, which builds a whole
+  dictionary from text rather than importing into an existing one.
+
+  The rest of this file is the account structure written out, for anyone who
+  would rather add it by hand or map onto a table they already have.
+  -------------------------------------------------------------------------
+
 The emailToGlobal extension can keep the mail account in a table of your own
 instead of an INI file (Global Properties > Extensions > emailToGlobal >
 Table tab). Nominate the table, pick the key, map a column onto each account

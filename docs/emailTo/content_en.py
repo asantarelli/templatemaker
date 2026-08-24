@@ -116,6 +116,48 @@ S_APIEMBED = """
   END
 """
 
+S_SYNCGEN = """
+MailApi          CLASS(EmailApiClass)              ! the object, writing into your tables
+SyncTables         PROCEDURE(BYTE pSilent=0),LONG,PROC,DERIVED
+                 END
+
+!  ... and, generated beside it:
+
+MailApi.SyncTables PROCEDURE(BYTE pSilent)
+  CODE
+  DO ETySyncBlocked                               ! one routine per table you nominated
+  DO ETySyncStats
+  ...
+
+ETySyncBlocked ROUTINE
+  ETyN = SELF.GetSuppressions(ETSup:All)
+  IF ETyN < 0 THEN ETyBad = 1; EXIT.
+  Access:MailBlocked.Open()
+  Access:MailBlocked.UseFile()
+  LOOP ETyi = 1 TO RECORDS(SELF.SuppQ)
+    GET(SELF.SuppQ, ETyi)
+    CLEAR(MailBlocked:Record)
+    DO ETyMapBlocked
+    GET(MailBlocked, MBL:ByAddress)               ! already there?
+    IF ERRORCODE()
+      CLEAR(MailBlocked:Record); DO ETyMapBlocked
+      ADD(MailBlocked)
+    ELSE
+      DO ETyMapBlocked
+      PUT(MailBlocked)                            ! update, never duplicate
+    END
+  END
+  Access:MailBlocked.Close()
+
+ETyMapBlocked ROUTINE
+  MBL:Address   = SELF.SuppQ.Address
+  MBL:Kind      = SELF.SuppQ.Kind
+  MBL:Reason    = SELF.SuppQ.Reason
+  MBL:BlockedOn = SELF.SuppQ.WhenDate
+  MBL:Provider  = SELF.Mailer.Acc.Provider
+  MBL:SyncedOn  = TODAY()
+"""
+
 S_PROJECT = """<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <DefineConstants>_ABCDllMode_=&gt;0%3b_ABCLinkMode_=&gt;1%3b_emailToDllMode_=&gt;0%3b_emailToLinkMode_=&gt;1</DefineConstants>
@@ -1101,7 +1143,7 @@ def build_template_guide():
     B = []
     add = B.append
 
-    add(h2('five', 'The seven templates'))
+    add(h2('five', 'The eight templates'))
     add(table(['Template', 'Kind', 'What it is for'], [
         ['<b>emailTo - Global</b>', 'Application extension',
          'Required, once per app. Declares the object, sets the defaults, '
@@ -1119,7 +1161,10 @@ def build_template_guide():
          'statistics, activity, contacts, campaigns.'],
         ['<b>emailTo - Ask the provider</b>', 'Code template',
          'Any embed: load the blocked list, unblock one or all of them, check an '
-         'address, read the statistics, send a campaign.'],
+         'address, read the statistics, send a campaign, sync the tables.'],
+        ['<b>emailTo - Sync mail data into your tables</b>', 'Control template, MULTI',
+         'Drag onto a window. Brings the blocked list, statistics, activity, '
+         'contacts, lists and campaigns down into your own tables.'],
     ]))
     add(note('tip', 'Only the first one is required',
              '<p>Add <b>emailTo - Global</b> and both objects exist everywhere. The '
@@ -1127,7 +1172,7 @@ def build_template_guide():
              'can do from a hand-written embed with the same one-line calls.</p>'))
 
     add(h2('global', 'emailTo - Global'))
-    add(p('Global Properties &rarr; Extensions &rarr; Insert. Seven tabs.'))
+    add(p('Global Properties &rarr; Extensions &rarr; Insert. Nine tabs.'))
 
     add(h3('global-general', 'General'))
     add(table(['Prompt', 'Default', 'What it does'], [
@@ -1163,6 +1208,107 @@ def build_template_guide():
           'and a work one, which is what an application shipped to unknown customers '
           'needs. <b>API domain</b> is Mailgun only; for Mailjet the public key goes in '
           'User name and the private key in API key.'))
+
+    add(h2('global-sync', 'emailTo - Sync'))
+    add(p('A SEPARATE application extension &mdash; <b>emailTo - Sync provider '
+          'data into your tables</b>, added once alongside the global one. The '
+          'management window asks the provider live and keeps nothing; this is '
+          'the other option: nominate tables, and the same '
+          'answers are also written into your own data &mdash; so you can put '
+          'an ABC browse on the blocked list, join it to your customer table, '
+          'or report on last month&rsquo;s opens without going near the '
+          'network.'))
+    add(note('tip', 'There is a ready-made dictionary &mdash; import the .dctx',
+             '<p><code>emailToTables.dctx</code> ships beside the template and '
+             'holds all six tables plus the account table. In the Dictionary '
+             'Editor: <b>File &rarr; Import</b>, and pick the <b>DCTX / XML</b> '
+             'entry.</p>'
+             '<p><b>Not</b> <code>emailToTables.txd</code>. A <code>.txd</code> '
+             'is Report Writer&rsquo;s format and the Dictionary Editor refuses '
+             'it outright &mdash; <i>"This TXD file is a Report Writer only '
+             'format"</i>. It ships only for <code>ClarionCL /di</code>, which '
+             'builds a whole dictionary from text rather than importing into an '
+             'existing one.</p>'))
+    add(table(['Table', 'One row is', 'Filled from'], [
+        ['<code>MailBlocked</code>', 'An address the provider refuses, with the '
+         'reason, the SMTP code and when', '<code>GetSuppressions()</code>'],
+        ['<code>MailStat</code>', 'One day', '<code>GetStats()</code>'],
+        ['<code>MailEvent</code>', 'One thing that happened to one message',
+         '<code>GetEvents()</code>'],
+        ['<code>MailContact</code>', 'A contact', '<code>GetContacts()</code>'],
+        ['<code>MailList</code>', 'A contact list and its size',
+         '<code>GetLists()</code>'],
+        ['<code>MailCampaign</code>', 'A campaign and its status',
+         '<code>GetCampaigns()</code>'],
+    ]))
+    add(p('Every table but the account carries <code>Provider</code> and '
+          '<code>SyncedOn</code>, so one dictionary serves an application that '
+          'switches provider or keeps two accounts.'))
+    add(table(['Prompt', 'What it does'], [
+        ['Sync object name / API object name',
+         'What to call the object it declares, and the API object the global '
+         'extension declared for it to read through.'],
+        ['Keep the provider&rsquo;s data in tables',
+         'Turns the tables on. Off, nothing here generates.'],
+        ['Stamp each row with the provider and the date',
+         'Fills <code>Provider</code> and <code>SyncedOn</code> if the table has '
+         'them. Leave it on unless one table serves exactly one account.'],
+        ['Table / Key (six times)',
+         'The table, and the key that identifies one row &mdash; that key is '
+         'what makes the sync an update rather than a duplicate.'],
+        ['How many days back',
+         'For statistics and activity, which are asked for over a date range '
+         'rather than in full.'],
+    ]))
+    add(note('info', 'Columns are matched by NAME, not mapped one by one',
+             '<p>A table imported from the shipped dictionary needs no mapping '
+             'at all: the template walks the columns of whatever table you '
+             'nominate and fills the ones whose names it recognises. A column '
+             'called anything else is left alone &mdash; so a flag of your own, '
+             'a note, or a link to your customer row all survive every sync.</p>'
+             '<p>That also means you can point it at a table you already have: '
+             'name the columns as the dictionary does and it fills them.</p>'))
+    add(p('What it generates is a small object of its own with one method, '
+          '<code>Run</code>.'))
+    add(note('warn', 'Why this is a separate extension, and not another tab',
+             '<p>An application stores the set of prompts it was built with. A '
+             'prompt added to an extension the app <em>already carries</em> is '
+             'simply not there, and generating stops with <code>Unknown '
+             'Variable</code> on a symbol the developer never typed &mdash; '
+             'AppGen does not fill in the DEFAULT from the command line.</p>'
+             '<p>An app that does not add THIS extension never names these '
+             'symbols, so every existing application keeps generating exactly as '
+             'it did. That is worth one extra Insert.</p>'
+             '<p>The <b>Provider API</b> tab, added to the global extension in '
+             'v1.03, does not have that protection: upgrading an app older than '
+             "v1.03 means opening that extension's property sheet once, so the "
+             'IDE writes the new prompts back. From a build script that never '
+             'opens the IDE, delete the extension and insert it again.</p>'))
+    add(code(S_SYNCGEN))
+    add(p('Each row is looked up by its key before it is written, so running the '
+          'sync twice changes nothing: a row already there is updated, a new one '
+          'is added, and the count comes back the same. That is what makes it '
+          'safe on a button anybody can press twice, or on a timer.'))
+
+    add(h2('syncbutton', 'The sync button'))
+    add(p('<b>emailTo - Sync mail data into your tables</b> is a control '
+          'template: drag it onto a window and it drops a wired button that '
+          'calls the generated method.'))
+    add(table(['Prompt', 'What it does'], [
+        ['Sync object name', 'The object the <b>emailTo - Sync</b> extension '
+         'declared.'],
+        ['Quietly &mdash; no message when it finishes',
+         'Off, it reports how many rows came down and how many were new. On for '
+         'a button that runs unattended.'],
+        ['Put the row count in', 'A variable of yours, for a status line.'],
+        ['Reset the browse afterwards',
+         'Calls <code>ResetFromFile()</code> on the browse you name, so a browse '
+         'of the synced table shows the new rows without the user closing the '
+         'window.'],
+    ]))
+    add(p('For a menu item or a batch process instead, the <b>emailTo - Ask the '
+          'provider</b> code template has <i>Sync it all into my tables</i> as '
+          'one of its operations.'))
 
     add(h3('global-table', 'Table, and Table columns'))
     add(p('Nominate a table and the template generates <code>LoadAccount</code> and '
@@ -1383,16 +1529,18 @@ def build_template_guide():
 
     body = '\n'.join(B)
     groups = [
-        ('Overview', [('five', 'The seven templates')]),
+        ('Overview', [('five', 'The eight templates')]),
         ('The global extension', [('global', 'emailTo - Global'),
                                   ('global-general', 'General'),
                                   ('global-account', 'Account'),
                                   ('global-signin', 'Sign-in'),
                                   ('global-api', 'Provider API'),
+                                  ('global-sync', 'Sync tables'),
                                   ('global-table', 'Table'),
                                   ('global-multidll', 'Multi-DLL'),
                                   ('global-writes', 'What it writes')]),
         ('The rest', [('apibutton', 'The mail account button'),
+                      ('syncbutton', 'The sync button'),
                       ('apicode', 'Asking from an embed'),
                       ('button', 'The e-mail button'),
                       ('button-general', 'General'),
@@ -1405,7 +1553,7 @@ def build_template_guide():
                 'Template Guide',
                 'Every template, every tab, every prompt &mdash; and the code the '
                 'generator actually writes into your application.',
-                ['7 templates', 'Every prompt', 'Generated code', 'Multi-DLL'],
+                ['8 templates', 'Every prompt', 'Generated code', 'Multi-DLL'],
                 groups, body)
 
 
