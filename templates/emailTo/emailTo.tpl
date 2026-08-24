@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs - v1.01 (2026-08-23 19:12)'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs - v1.02 (2026-08-23 20:56)'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  emailTo template set  -  send e-mail from a Clarion application, four ways,
 #!  with no third-party DLL, no .NET and no OpenSSL to deploy.
@@ -59,7 +59,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
+      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
       #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
@@ -521,34 +521,63 @@ ETFound  BYTE
 #!  described here without asking. Both routes go through the same global
 #!  object, so the account, the log and the error text are shared.
 #!#############################################################################
-#CONTROL(emailToButton,'emailTo - E-mail button (drag onto a window)'),WINDOW,MULTI,DESCRIPTION('E-mail (' & %ETbAction & ')'),HLP('~emailTo.htm')
+#CONTROL(emailToButton,'emailTo - E-mail button (drag onto a window)'),WINDOW,MULTI,DESCRIPTION('E-mail button - ' & CHOOSE(%ETbAction='3','opens ACCOUNT SETUP',CHOOSE(%ETbAction='2','SENDS straight away','opens the COMPOSE window'))),HLP('~emailTo.htm')
   CONTROLS
     BUTTON('&E-mail...'),AT(,,54,14),USE(?EmailBtn),TIP('Send this by e-mail')
   END
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
+      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
       #DISPLAY('extension to this application if you have not already.')
     #ENDBOXED
-    #BOXED('What the button does')
+    #BOXED('What this button does')
       #PROMPT('&Action:',DROP('Open the compose window[1]|Send straight away, no window[2]|Open the account setup window[3]')),%ETbAction,DEFAULT('1')
       #DISPLAY('')
-      #DISPLAY('"Send straight away" is for a button that always sends the')
-      #DISPLAY('same thing - a fixed report, an alert, a receipt. Fill in the')
-      #DISPLAY('Message tab; anything you leave blank is simply omitted.')
+      #DISPLAY('Compose window     - the Message tab only PRE-FILLS what opens.')
+      #DISPLAY('Send straight away - the Message tab IS the message.')
+      #DISPLAY('Account setup      - the Message tab does not apply (greyed).')
+      #DISPLAY('')
+      #DISPLAY('All three start life labelled "E-mail..." - rename the button')
+      #DISPLAY('in the window designer so two of them tell each other apart.')
     #ENDBOXED
-    #BOXED('After it runs')
-      #ENABLE(%ETbAction='2')
+    #ENABLE(%ETbAction='2')
+      #BOXED('After it runs (send straight away only)')
         #PROMPT('Tell the user it &worked',CHECK),%ETbSayOk,DEFAULT(1),AT(10)
-      #ENDENABLE
-      #PROMPT('Show the &error if it failed',CHECK),%ETbSayError,DEFAULT(1),AT(10)
+        #PROMPT('Show the &error if it failed',CHECK),%ETbSayError,DEFAULT(1),AT(10)
+      #ENDBOXED
+    #ENDENABLE
+  #ENDTAB
+  #TAB('&Account')
+    #BOXED('The sender address and password are NOT set here')
+      #DISPLAY('This button only says WHAT to do. Who the mail comes FROM -')
+      #DISPLAY('the server, the sender address, the user name, the password,')
+      #DISPLAY('the OAuth2 client - belongs to the whole application, not to')
+      #DISPLAY('one button, so it is set in ONE place:')
+      #DISPLAY('')
+      #DISPLAY('   Application - Global Properties - Extensions')
+      #DISPLAY('      - "emailTo - Global" - Account tab')
+      #DISPLAY('')
+      #DISPLAY('Add that extension once per application. Every button and')
+      #DISPLAY('every embed in the app then shares that one account.')
+    #ENDBOXED
+    #BOXED('Letting the end user change it')
+      #DISPLAY('Give them a button with Action = "Open the account setup')
+      #DISPLAY('window". What they save there overrides the Account tab -')
+      #DISPLAY('into your settings table if you nominated one on the global')
+      #DISPLAY('extension''s Table tab, otherwise into an INI beside the EXE.')
     #ENDBOXED
   #ENDTAB
   #TAB('&Message')
+    #BOXED('')
+      #DISPLAY('This tab is only who the mail goes TO and what it says.')
+      #DISPLAY('Who it comes FROM is on the Account tab, not here.')
+      #DISPLAY('Greyed out below means this button''s Action sends nothing.')
+    #ENDBOXED
+    #ENABLE(%ETbAction<>'3')
     #BOXED('Who it goes to')
       #PROMPT('&To:',@s255),%ETbTo,DEFAULT('')
       #PROMPT('&Cc:',@s255),%ETbCc,DEFAULT('')
@@ -567,6 +596,7 @@ ETFound  BYTE
       #PROMPT('&File name:',@s255),%ETbAttach,DEFAULT('')
       #PROMPT('Take the file name from a variab&le:',FIELD),%ETbAttachVar
     #ENDBOXED
+    #ENDENABLE
   #ENDTAB
 #ENDSHEET
 #!
@@ -689,8 +719,13 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
+      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
+      #DISPLAY('')
+      #DISPLAY('The sender address, server and password are NOT set here.')
+      #DISPLAY('They are on the "emailTo - Global" extension, Account tab')
+      #DISPLAY('(Application - Global Properties - Extensions), set once')
+      #DISPLAY('for the whole application.')
     #ENDBOXED
     #BOXED('Who it goes to')
       #PROMPT('&To:',@s255),%ETcTo,DEFAULT('')
@@ -795,8 +830,13 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
+      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
+      #DISPLAY('')
+      #DISPLAY('The sender address, server and password are NOT set here.')
+      #DISPLAY('They are on the "emailTo - Global" extension, Account tab')
+      #DISPLAY('(Application - Global Properties - Extensions), set once')
+      #DISPLAY('for the whole application.')
     #ENDBOXED
     #BOXED('Pre-fill the window (all optional)')
       #PROMPT('&To:',@s255),%ETmTo,DEFAULT('')
@@ -844,8 +884,12 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
+      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
+      #DISPLAY('')
+      #DISPLAY('This is where the END USER sets the account. The values it')
+      #DISPLAY('starts from are the ones you put on the "emailTo - Global"')
+      #DISPLAY('extension, Account tab.')
     #ENDBOXED
     #BOXED('What it does')
       #DISPLAY('Opens the account window: provider, server, port, security,')

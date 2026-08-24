@@ -1250,6 +1250,16 @@ AppGen was validating against the key on the tab above. Listing a table's column
 is what all five templates now use. Every prompt sheet also carries a version and build stamp on its first
 tab, so the registered copy identifies itself.
 
+**v1.02 (2026-08-23).** Prompt clarity, after a report that two buttons on one window gave no clue which
+one carried the sender's details. The answer is neither &mdash; the account belongs to the whole application &mdash;
+but nothing said so. The control template now has an **Account** tab whose only job is to point at
+*Global Properties &rarr; Extensions &rarr; emailTo - Global &rarr; Account*; the **Message** tab greys out entirely when the
+action is *open the account setup window*, where none of it applied; the *After it runs* box greys unless the
+action is *send straight away*, the only action that used it; and the three code templates carry the same
+one-line signpost. The AppGen list also read `E-mail (1)` / `E-mail (3)` &mdash; the raw prompt number &mdash; and now
+reads `E-mail button - opens ACCOUNT SETUP`, built with `CHOOSE()` in the `DESCRIPTION` so no stored value
+moved. The code-generating half of the template is byte-identical: this release changes prompts only.
+
 ## Install
 
 Copy the two folders into your Claude Code config (`~/.claude` on macOS/Linux,
