@@ -68,6 +68,16 @@ def build_getting_started():
         ['<code>emailc.c</code>',
          'Winsock, SCHANNEL, WinHTTP, DPAPI, SHA-256.'],
     ]))
+    add(note('tip', u'Y un diccionario, si quiere guardar las respuestas',
+             u'<p><code>emailToTables.dctx</code> viene con ellas: siete tablas &mdash; '
+             u'la lista de bloqueados, las estadísticas, la actividad, los contactos, '
+             u'las listas, las campañas y la propia cuenta. Editor de diccionario &rarr; '
+             u'<b>File &rarr; Import</b>, y elija la entrada <b>DCTX / XML</b>. Sólo hace '
+             u'falta si agrega la extensión <b>emailTo - Sync</b>; enviar y la ventana de '
+             u'gestión no lo usan.</p>'
+             u'<p><b>No</b> el <code>.txd</code> que está al lado &mdash; ése es el '
+             u'formato de Report Writer, y el editor de diccionario lo dice con esas '
+             u'mismas palabras.</p>'))
     add(p('Ponga <code>emailTo.tpl</code> en '
           '<code>\\clarion12\\accessory\\template\\win</code> y regístrelo, desde el '
           'IDE o desde la línea de comandos:'))

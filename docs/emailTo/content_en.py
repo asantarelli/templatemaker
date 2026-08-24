@@ -239,6 +239,16 @@ def build_getting_started():
         ['<code>emailc.c</code>',
          'Winsock, SCHANNEL, WinHTTP, DPAPI, SHA-256.'],
     ]))
+    add(note('tip', 'And a dictionary, if you want the answers kept',
+             '<p><code>emailToTables.dctx</code> ships with them: seven tables &mdash; '
+             'the blocked list, statistics, activity, contacts, lists, campaigns, and '
+             'the account itself. Dictionary Editor &rarr; <b>File &rarr; Import</b>, and '
+             'pick the <b>DCTX / XML</b> entry. You only need it if you add the '
+             '<b>emailTo - Sync</b> extension; sending and the management window do not '
+             'use it.</p>'
+             '<p><b>Not</b> the <code>.txd</code> beside it &mdash; that is Report '
+             'Writer&rsquo;s format, and the Dictionary Editor says so in as many '
+             'words.</p>'))
     add(p('Put <code>emailTo.tpl</code> in <code>\\clarion12\\accessory\\template\\win</code> '
           'and register it &mdash; in the IDE, or from a command line:'))
     add(code('ClarionCL.exe -tr "C:\\clarion12\\accessory\\template\\win\\emailTo.tpl"', 'dos'))

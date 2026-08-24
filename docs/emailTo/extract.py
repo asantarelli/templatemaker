@@ -16,7 +16,12 @@ INCS = ['EmailNetClass.inc', 'EmailMsgClass.inc', 'EmailToClass.inc',
 
 def _read(name):
     with io.open(os.path.join(SRC, name), encoding='latin-1', newline='') as fh:
-        return fh.read().replace('\r\n', '\n')
+        text = fh.read().replace('\r\n', '\n')
+    #  Fold Clarion's line continuation away before anything is parsed. Read a
+    #  line at a time, a prototype that wraps is invisible - which is exactly
+    #  how EmailApiClass.Row, the method for adding a provider, stayed out of
+    #  the reference volume without the drift check noticing.
+    return re.sub(r'\|[ \t]*\n[ \t]*', ' ', text)
 
 
 def equates():

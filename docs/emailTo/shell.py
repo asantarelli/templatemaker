@@ -178,6 +178,31 @@ def langswitch(base):
     return '<a class="langsw" href="%s" hreflang="%s">%s</a>' % (target, code, label)
 
 
+def public_members():
+    """Every public member the sources actually declare, as "Class.Member"."""
+    out = set()
+    for c in extract.classes():
+        for kind in ('props', 'methods'):
+            for m in c.get(kind, []):
+                if not m.get('private'):
+                    out.add('%s.%s' % (c['name'], m['name']))
+    return out
+
+
+def check_examples():
+    """An example for a member that no longer exists is drift too.
+
+    The build already refused to finish when a member had no example. It said
+    nothing about the other direction, so an example outlived its method twice
+    over - and was still being counted in the "N members" chip.
+    """
+    real = public_members()
+    for key in sorted(set(EXAMPLES) - real):
+        PROBLEMS.append('examples_data.py: %s has an example but is not a '
+                        'public member of any class' % key)
+    return real
+
+
 def page(base, title, eyebrow, heading, sub, chips, groups, body, showfilter=False):
     filename = fname(base)
     titles = headings(body)

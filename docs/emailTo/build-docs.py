@@ -9,8 +9,10 @@ drift from the signature in the build.
 
 The build FAILS LOUDLY rather than warning softly. It refuses to finish if a
 nav entry points at no heading, a heading sits in no nav, a public member
-carries no worked line of code, or an English one-liner has gained no Spanish
-twin. Add a method and the build tells you the manual is behind the code.
+carries no worked line of code, an example names a member that no longer
+exists, or an English one-liner has gained no Spanish twin. Add a method and
+the build tells you the manual is behind the code; remove one and it tells you
+the manual is ahead of it.
 """
 import sys
 import os
@@ -19,7 +21,7 @@ sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from shell import PROBLEMS, EXAMPLES            # noqa: E402
+from shell import PROBLEMS, EXAMPLES, check_examples   # noqa: E402
 import lang                                     # noqa: E402
 
 BUILDS = [('en', 'English'), ('es', 'Espanol')]
@@ -47,6 +49,8 @@ if __name__ == '__main__':
             print('  %-26s %7d bytes' % (base + suffix + '.html', size))
         print('')
 
+    real = check_examples()
+
     if PROBLEMS:
         print('%d problem(s) - the manual has drifted from the code:' % len(PROBLEMS))
         for x in PROBLEMS:
@@ -54,5 +58,6 @@ if __name__ == '__main__':
         raise SystemExit(1)
 
     print('no drift, both languages: every nav entry lands on a heading, every')
-    print('heading is in a nav, all %d public members carry a worked example,' % len(EXAMPLES))
-    print('and every English one-liner has a Spanish twin.')
+    print('heading is in a nav, all %d public members carry a worked example' % len(real))
+    print('and every example names one that exists, and every English one-liner')
+    print('has a Spanish twin.')
