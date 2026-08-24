@@ -12,7 +12,11 @@
 !    ETTrn:GraphApi  https POST to graph.microsoft.com - the only route many
 !                    locked-down Microsoft 365 tenants still allow.
 !    ETTrn:ApiKey    https POST to SendGrid / Mailgun / Resend / Brevo /
-!                    Postmark with an API key.  No OAuth, no consent screen.
+!                    Postmark / Mailjet / SparkPost / MailerSend with an API
+!                    key.  No OAuth, no consent screen.  Those same providers
+!                    also answer the MANAGEMENT questions - who is blocked and
+!                    why, statistics, contacts, campaigns - through
+!                    EmailApiClass, which shares this account.
 !
 !  All four send the SAME message: EmailMsgClass builds the MIME once and each
 !  transport delivers those bytes its own way.
@@ -65,6 +69,8 @@ ETPrv:Resend       EQUATE(10)
 ETPrv:Brevo        EQUATE(11)
 ETPrv:Postmark     EQUATE(12)
 ETPrv:Mailjet      EQUATE(13)
+ETPrv:SparkPost    EQUATE(14)
+ETPrv:MailerSend   EQUATE(15)
 
 ! ---- connection security ---------------------------------------------------
 ETSec:None         EQUATE(0)                      ! plain text, port 25 - a local relay only
@@ -179,7 +185,16 @@ AccessToken          CSTRING(4097)
 TokenExpDate         DATE
 TokenExpTime         TIME
 ApiKey               CSTRING(513)
-ApiDomain            CSTRING(129)                 ! Mailgun sending domain
+ApiKey2              CSTRING(513)                 ! the SECOND credential, where a provider has
+                                                  !   one: Postmark's account token, which its
+                                                  !   senders and domains endpoints want instead
+                                                  !   of the server token
+ApiDomain            CSTRING(129)                 ! Mailgun sending domain; MailerSend domain id
+ApiRegion            CSTRING(33)                  ! 'eu' picks a provider's European endpoint
+                                                  !   (Mailgun, SparkPost); otherwise blank
+ApiBase              CSTRING(129)                 ! host, or host:port, that replaces the
+                                                  !   provider's own - a private relay, a
+                                                  !   regional endpoint, or a test double
 Timeout              LONG                         ! milliseconds; 0 = 30000
 VerifyCert           BYTE                         ! 1 = check the server certificate (default)
                    END

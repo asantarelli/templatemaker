@@ -198,3 +198,18 @@ examples/**/build.log
 # default name EmailToClass.Init() uses, and any case of it.
 emailTo.ini
 emailToDemo.ini
+
+# emailTo examples: the class sources are COPIED next to the example for a
+# local build, and the demo writes a table and a log beside the exe
+# (named one by one: git matches these case-insensitively on Windows, so
+#  Email*.clw would also swallow emailApiDemo.clw)
+examples/emailTo/EmailNetClass.*
+examples/emailTo/EmailMsgClass.*
+examples/emailTo/EmailToClass.*
+examples/emailTo/EmailJsonClass.*
+examples/emailTo/EmailApiClass.*
+examples/emailTo/emailc.c
+examples/emailTo/*.tps
+examples/emailTo/*.log
+examples/emailTo/*.csv
+examples/emailTo/*.ini

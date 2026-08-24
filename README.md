@@ -122,12 +122,15 @@ templates/                      # ready-to-register Clarion templates
     MyWeatherClass.clw          #     the implementation (curl + JSON + the drawn card)
     weatherWidget.tpl           #     global extension + code template
     weatherWidget.zip           #     the three files above, zipped for easy distribution
-  emailTo/                      #   send e-mail: SMTP/TLS, OAuth2, REST APIs (see below)
+  emailTo/                      #   send e-mail and manage the account: SMTP/TLS, OAuth2,
+                                #     eight provider APIs (see below)
     EmailNetClass.inc/.clw      #     transport: sockets, TLS, HTTPS, DPAPI (wraps emailc.c)
     EmailMsgClass.inc/.clw      #     the message: MIME, base64, quoted-printable, UTF-8
     EmailToClass.inc/.clw       #     the sender: accounts, SMTP, OAuth2, REST, the windows
+    EmailJsonClass.inc/.clw     #     reading the reply: a JSON parser in pure Clarion
+    EmailApiClass.inc/.clw      #     the management API: blocked, stats, campaigns, the window
     emailc.c                    #     Winsock + SCHANNEL + WinHTTP + SHA-256 (Clacpp-compiled)
-    emailTo.tpl                 #     global + button + three code templates
+    emailTo.tpl                 #     global + two buttons + four code templates
     EmailTables.txt             #     the settings-table structure, for your dictionary
     emailTo.zip                 #     all of the above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
@@ -1145,7 +1148,7 @@ import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
 
-### `templates/emailTo/` — send e-mail: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs
+### `templates/emailTo/` — send e-mail, and manage the account: SMTP/TLS, OAuth2 and eight provider APIs
 Add **emailTo - Global** to an application and every procedure in it can send mail. Drag **emailTo - E-mail
 button** onto a window for a wired-up button, or drop the **Send an e-mail here** code template into any embed
 — the end of a report, a menu item, a batch process. One line does it from hand-written code:
@@ -1159,9 +1162,41 @@ END
 **Four ways to send, one message.** `EmailMsgClass` builds the MIME once and each transport delivers those
 same bytes its own way: **SMTP** (plain, STARTTLS or implicit TLS, signing in with `AUTH LOGIN`, `AUTH PLAIN`
 or **OAuth2 `XOAUTH2`**); the **Gmail API**; **Microsoft Graph** — the only route many locked-down Microsoft
-365 tenants still permit; and a **provider API key** for SendGrid, Mailgun, Resend, Brevo, Postmark or
-Mailjet, which needs no OAuth and no consent screen at all. Fourteen provider presets fill in host, port,
-security and sign-in method, so the only things left to type are the address and the credential.
+365 tenants still permit; and a **provider API key** for SendGrid, Mailgun, Resend, Brevo, Postmark,
+Mailjet, SparkPost or MailerSend, which needs no OAuth and no consent screen at all. Sixteen provider presets
+fill in host, port, security and sign-in method, so the only things left to type are the address and the
+credential.
+
+**And it asks them questions too.** Sending is half of what a mail provider does. The other half is knowing
+which of your addresses it will not deliver to — the hard bounces, the spam complaints, the unsubscribes —
+and `EmailApiClass` reads that, through **one set of methods for all eight providers**:
+
+```clarion
+MailApi.Init(Mailer)                                  ! borrows the account you already set up
+IF MailApi.GetSuppressions(ETSup:All) >= 0
+   LOOP i = 1 TO RECORDS(MailApi.SuppQ)
+      GET(MailApi.SuppQ, i)
+      !  .Address  .KindName  .Reason  .WhenDate  —  the same six columns, whoever answered
+   END
+END
+MailApi.DeleteSuppression('bob@acme.com', ETSup:Bounce)   ! let one back in
+MailApi.DeleteAllSuppressions(ETSup:All)                  ! or all of them
+MailApi.Manage()                                          ! or just show them the window
+```
+
+That program is unchanged across providers that agree about almost nothing. SendGrid keeps **five** separate
+lists and pages with an offset; Brevo keeps **one** and labels each row with a reason code; Mailgun is
+per-domain and pages with a **cursor**; Postmark capitalises everything and deletes a bounce by *its own id*;
+Mailjet buries the lot in `Data`. The differences live in a **matrix** — one row per operation per provider,
+saying which verb, which address, where the array is in the reply, and which JSON member fills which column —
+so adding a provider is adding rows, and `BuildMap` is VIRTUAL if the one you want is not there yet.
+
+Beyond the block lists, the same object reads **statistics** per day, the **activity** feed (delivered,
+opened, clicked, bounced — with the reason), **contacts** and **lists**, **campaigns** (create, and send),
+**templates**, **senders**, **domains** and **webhooks**. No provider offers all of it, and `Supports()` says
+which — so `Manage()`, the ready-made tabbed window, *disables* what an account genuinely cannot do rather
+than showing an empty list. `IsBlocked()` is the one worth calling in a mailing loop: never send again to an
+address the provider is going to refuse.
 
 **No DLL, no .NET, no OpenSSL.** Everything is pure Clarion except one bundled C file, `emailc.c`, compiled
 into your `.EXE` by Clarion's own C compiler through `PRAGMA('compile(emailc.c)')`. It exists because Clarion
@@ -1229,7 +1264,7 @@ must define `_emailToLinkMode_=>1;_emailToDllMode_=>0` itself — `examples/emai
 
 **The manual** is four linked volumes in English and Spanish — eight pages — built by `docs/emailTo/build-docs.py`. The reference volume is
 generated from the `.inc` files, so its signatures cannot drift from the build, and the build fails if a
-nav entry lands on no heading, a heading sits in no nav, or any of the 164 public members lacks a worked
+nav entry lands on no heading, a heading sits in no nav, or any of the 277 public members lacks a worked
 line of code, or an English one-liner has gained no Spanish twin.
 
 | Volume | English | Español |
@@ -1239,9 +1274,20 @@ line of code, or an English one-liner has gained no Spanish twin.
 | 3 — every template, tab and prompt, and the code it writes | [Template Guide](https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01) | [Guía de plantillas](https://claude.ai/code/artifact/07f9ecdf-232b-4cbd-8d20-f423561f3ba0) |
 | 4 — every class, method, property and equate | [Reference](https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5) | [Referencia](https://claude.ai/code/artifact/108af66d-ecbe-4a5b-bada-cb3500c741b6) |
 
-**The five templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control — drag
-onto a window; compose, send straight away, or open setup), plus the `emailToSend`, `emailToCompose` and
-`emailToSetup` code templates for any embed.
+**The seven templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control —
+drag onto a window; compose, send straight away, or open setup), `emailToApiButton` (control — opens the
+management window on whichever tab you name, and hides itself when the account has no API at all), plus the
+`emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` code templates for any embed.
+
+**v1.03 (2026-08-24).** The management half. Two new classes — `EmailJsonClass`, a real JSON reader in pure
+Clarion (a sorted path index, so a 5,000-node reply answers a lookup in a dozen comparisons), and
+`EmailApiClass`, the provider matrix — plus SparkPost and MailerSend as senders, three new account fields
+(`ApiKey2` for Postmark's account token, `ApiRegion` for the European endpoints, `ApiBase` for a relay of
+your own), a **Provider API** tab on the global extension, the `emailToApiButton` control template and the
+`emailToApi` code template. Verified by 110 assertions in `apitest` — the parser, the four date shapes, URL
+and body expansion, the matrix — of which 22 run the whole engine, paging and all, against a stand-in
+provider on a local socket; by an AppGen-generated application that compiles; and by `emailBounceSync`, which
+really does read a block list and mark the matching customers in a TPS table.
 
 **v1.01 (2026-08-23).** The eighteen column prompts on the **Table** and **Table columns** tabs asked for
 `COMPONENT(%ETgFile)`. `COMPONENT()` lists the component fields of a *key*, so the `...` lookup offered

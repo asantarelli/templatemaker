@@ -551,6 +551,8 @@ EmailToClass.ProviderName PROCEDURE(BYTE pProvider)
   OF ETPrv:Brevo     ; RETURN 'Brevo'
   OF ETPrv:Postmark  ; RETURN 'Postmark'
   OF ETPrv:Mailjet   ; RETURN 'Mailjet'
+  OF ETPrv:SparkPost ; RETURN 'SparkPost'
+  OF ETPrv:MailerSend; RETURN 'MailerSend'
   END
   RETURN 'Other (SMTP)'
 
@@ -648,6 +650,19 @@ EmailToClass.SetProvider PROCEDURE(BYTE pProvider)
     SELF.Acc.Port      = 587
     SELF.Acc.Security  = ETSec:StartTls
     SELF.Acc.AuthMode  = ETAuth:Login
+  OF ETPrv:SparkPost
+    SELF.Acc.Transport = ETTrn:ApiKey
+    SELF.Acc.Host      = 'smtp.sparkpostmail.com'  ! if you switch back to SMTP
+    SELF.Acc.Port      = 587
+    SELF.Acc.Security  = ETSec:StartTls
+    SELF.Acc.AuthMode  = ETAuth:Login
+    SELF.Acc.UserName  = 'SMTP_Injection'          ! SparkPost SMTP wants this literal user name
+  OF ETPrv:MailerSend
+    SELF.Acc.Transport = ETTrn:ApiKey
+    SELF.Acc.Host      = 'smtp.mailersend.net'
+    SELF.Acc.Port      = 587
+    SELF.Acc.Security  = ETSec:StartTls
+    SELF.Acc.AuthMode  = ETAuth:Login
   ELSE
     SELF.Acc.Transport = ETTrn:Smtp
     IF NOT SELF.Acc.Port THEN SELF.Acc.Port = 587.
@@ -712,7 +727,10 @@ sec CSTRING(65)
   SELF.Acc.Scope        = GETINI(sec, 'Scope',        '', SELF.IniFile)
   SELF.Acc.RefreshToken = SELF.Unseal(GETINI(sec, 'RefreshToken', '', SELF.IniFile))
   SELF.Acc.ApiKey       = SELF.Unseal(GETINI(sec, 'ApiKey',       '', SELF.IniFile))
+  SELF.Acc.ApiKey2      = SELF.Unseal(GETINI(sec, 'ApiKey2',      '', SELF.IniFile))
   SELF.Acc.ApiDomain    = GETINI(sec, 'ApiDomain',    '', SELF.IniFile)
+  SELF.Acc.ApiRegion    = GETINI(sec, 'ApiRegion',    '', SELF.IniFile)
+  SELF.Acc.ApiBase      = GETINI(sec, 'ApiBase',      '', SELF.IniFile)
   SELF.Acc.Timeout      = GETINI(sec, 'Timeout',      30000, SELF.IniFile)
   SELF.Acc.VerifyCert   = GETINI(sec, 'VerifyCert',   1,  SELF.IniFile)
   !  The access token is deliberately NOT persisted: it is short-lived and the
@@ -746,7 +764,10 @@ sec CSTRING(65)
   PUTINI(sec, 'Scope',        CLIP(SELF.Acc.Scope),    SELF.IniFile)
   PUTINI(sec, 'RefreshToken', SELF.Seal(SELF.Acc.RefreshToken), SELF.IniFile)
   PUTINI(sec, 'ApiKey',       SELF.Seal(SELF.Acc.ApiKey), SELF.IniFile)
+  PUTINI(sec, 'ApiKey2',      SELF.Seal(SELF.Acc.ApiKey2), SELF.IniFile)
   PUTINI(sec, 'ApiDomain',    CLIP(SELF.Acc.ApiDomain), SELF.IniFile)
+  PUTINI(sec, 'ApiRegion',    CLIP(SELF.Acc.ApiRegion), SELF.IniFile)
+  PUTINI(sec, 'ApiBase',      CLIP(SELF.Acc.ApiBase),   SELF.IniFile)
   PUTINI(sec, 'Timeout',      SELF.Acc.Timeout,    SELF.IniFile)
   PUTINI(sec, 'VerifyCert',   SELF.Acc.VerifyCert, SELF.IniFile)
   RETURN 1
@@ -1087,6 +1108,12 @@ first BYTE
         out.Add(',"name":' & pMsg.JsonString(pMsg.AddrQ.DisplayName))
       END
       out.Add('}')
+    OF 'sp'                                          ! SparkPost wraps the address one deeper
+      out.Add('{"address":{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
+      IF pMsg.AddrQ.DisplayName
+        out.Add(',"name":' & pMsg.JsonString(pMsg.AddrQ.DisplayName))
+      END
+      out.Add('}}')
     OF 'mj'                                          ! Mailjet capitalises its keys
       out.Add('{"Email":' & pMsg.JsonString(pMsg.AddrQ.Address))
       IF pMsg.AddrQ.DisplayName
@@ -1280,6 +1307,60 @@ okHi   LONG
     DO MailjetAttachments
     body.Add('}]}')
 
+  OF ETPrv:SparkPost
+    url = 'https://' & CHOOSE(LOWER(CLIP(SELF.Acc.ApiRegion)) = 'eu', |
+                              'api.eu.sparkpost.com', 'api.sparkpost.com') & '/api/v1/transmissions'
+    hdr.Add('Authorization: ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
+    hdr.Add('Content-Type: application/json')
+    !  SparkPost has no separate cc / bcc: every recipient goes in one list and
+    !  the Cc: header is what makes a copy visible.  Bcc recipients are simply
+    !  in the list with no header, which is exactly what blind means.
+    body.Add('{"recipients":[')
+    body.Add(SUB(SELF.JsonRecipients(pMsg, ETAddr:To, 'sp'), 2, |
+                 LEN(CLIP(SELF.JsonRecipients(pMsg, ETAddr:To, 'sp'))) - 2))
+    DO SparkPostMore
+    body.Add('],"content":{"from":{"email":' & pMsg.JsonString(pMsg.FromAddr))
+    IF pMsg.FromName
+      body.Add(',"name":' & pMsg.JsonString(pMsg.FromName))
+    END
+    body.Add('},"subject":' & pMsg.JsonString(pMsg.Subject))
+    IF pMsg.TextBody.Len > 0
+      body.Add(',"text":' & pMsg.JsonString(pMsg.TextBody.Value()))
+    END
+    IF pMsg.HtmlBody.Len > 0
+      body.Add(',"html":' & pMsg.JsonString(pMsg.HtmlBody.Value()))
+    END
+    IF SELF.JsonRecipients(pMsg, ETAddr:Cc, 'csv')
+      body.Add(',"headers":{"CC":' & pMsg.JsonString(SELF.JsonRecipients(pMsg, ETAddr:Cc, 'csv')) & '}')
+    END
+    DO SparkPostAttachments
+    body.Add('}}')
+
+  OF ETPrv:MailerSend
+    url = 'https://api.mailersend.com/v1/email'
+    hdr.Add('Authorization: Bearer ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
+    hdr.Add('Content-Type: application/json')
+    body.Add('{"from":{"email":' & pMsg.JsonString(pMsg.FromAddr))
+    IF pMsg.FromName
+      body.Add(',"name":' & pMsg.JsonString(pMsg.FromName))
+    END
+    body.Add('},"to":' & SELF.JsonRecipients(pMsg, ETAddr:To, 'sg'))
+    IF SELF.JsonRecipients(pMsg, ETAddr:Cc, 'sg') <> '[]'
+      body.Add(',"cc":' & SELF.JsonRecipients(pMsg, ETAddr:Cc, 'sg'))
+    END
+    IF SELF.JsonRecipients(pMsg, ETAddr:Bcc, 'sg') <> '[]'
+      body.Add(',"bcc":' & SELF.JsonRecipients(pMsg, ETAddr:Bcc, 'sg'))
+    END
+    body.Add(',"subject":' & pMsg.JsonString(pMsg.Subject))
+    IF pMsg.TextBody.Len > 0
+      body.Add(',"text":' & pMsg.JsonString(pMsg.TextBody.Value()))
+    END
+    IF pMsg.HtmlBody.Len > 0
+      body.Add(',"html":' & pMsg.JsonString(pMsg.HtmlBody.Value()))
+    END
+    DO MailerSendAttachments
+    body.Add('}')
+
   OF ETPrv:Mailgun
     !  Mailgun accepts a whole MIME document, so the message goes across
     !  exactly as SMTP would have carried it - attachments and all.
@@ -1305,7 +1386,8 @@ okHi   LONG
   ELSE
     DISPOSE(body); DISPOSE(hdr)
     RETURN SELF.SetErr(ETSend:NoTransport, |
-      'The API transport does not know this provider. Choose SendGrid, Mailgun, Resend, Brevo, Postmark or Mailjet.')
+      'The API transport does not know this provider. Choose SendGrid, Mailgun, Resend, ' & |
+      'Brevo, Postmark, Mailjet, SparkPost or MailerSend.')
   END
 
   status = SELF.Net.Http('POST', url, hdr.Value(), body.Value())
@@ -1380,6 +1462,55 @@ PostmarkAttachments ROUTINE
     body.Add('","ContentType":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
     IF pMsg.AttachQ.ContentId
       body.Add(',"ContentID":' & pMsg.JsonString('cid:' & CLIP(pMsg.AttachQ.ContentId)))
+    END
+    body.Add('}')
+    DISPOSE(raw)
+  END
+  body.Add(']')
+
+!  SparkPost takes cc and bcc recipients in the same list as to.
+SparkPostMore ROUTINE
+  DATA
+r CSTRING(8193)
+  CODE
+  r = SELF.JsonRecipients(pMsg, ETAddr:Cc, 'sp')
+  IF CLIP(r) <> '[]'
+    body.Add(',' & SUB(r, 2, LEN(CLIP(r)) - 2))
+  END
+  r = SELF.JsonRecipients(pMsg, ETAddr:Bcc, 'sp')
+  IF CLIP(r) <> '[]'
+    body.Add(',' & SUB(r, 2, LEN(CLIP(r)) - 2))
+  END
+
+SparkPostAttachments ROUTINE
+  IF NOT RECORDS(pMsg.AttachQ) THEN EXIT.
+  body.Add(',"attachments":[')
+  LOOP i = 1 TO RECORDS(pMsg.AttachQ)
+    GET(pMsg.AttachQ, i)
+    IF i > 1 THEN body.Add(',').
+    DO LoadOne
+    body.Add('{"type":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
+    body.Add(',"name":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"data":"')
+    body.Add(pMsg.Base64(raw.Value()))
+    body.Add('"}')
+    DISPOSE(raw)
+  END
+  body.Add(']')
+
+MailerSendAttachments ROUTINE
+  IF NOT RECORDS(pMsg.AttachQ) THEN EXIT.
+  body.Add(',"attachments":[')
+  LOOP i = 1 TO RECORDS(pMsg.AttachQ)
+    GET(pMsg.AttachQ, i)
+    IF i > 1 THEN body.Add(',').
+    DO LoadOne
+    body.Add('{"filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
+    body.Add(pMsg.Base64(raw.Value()))
+    body.Add('"')
+    IF pMsg.AttachQ.ContentId
+      body.Add(',"disposition":"inline","id":' & pMsg.JsonString(pMsg.AttachQ.ContentId))
+    ELSE
+      body.Add(',"disposition":"attachment"')
     END
     body.Add('}')
     DISPOSE(raw)
@@ -1737,7 +1868,7 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
          SHEET,AT(4,4,344,214),USE(?Sheet)
            TAB('Account'),USE(?TabAccount)
              PROMPT('Provider:'),AT(10,24),USE(?PrProvider)
-             LIST,AT(92,22,150,10),USE(?ListProvider),DROP(14),FROM(ProviderQ),FORMAT('110L(2)@s30@')
+             LIST,AT(92,22,150,10),USE(?ListProvider),DROP(16),FROM(ProviderQ),FORMAT('110L(2)@s30@')
              PROMPT('Send using:'),AT(10,40),USE(?PrTransport)
              LIST,AT(92,38,150,10),USE(?ListTransport),DROP(6),FROM(TransportQ),FORMAT('110L(2)@s34@')
              LINE,AT(10,56,332,0),USE(?Line1),COLOR(COLOR:Silver)
@@ -1918,7 +2049,7 @@ AddProviders ROUTINE
   DATA
 p BYTE
   CODE
-  LOOP p = 0 TO 13
+  LOOP p = 0 TO 15
     ProviderQ.PName = SELF.ProviderName(p)
     ProviderQ.PId   = p
     ADD(ProviderQ)

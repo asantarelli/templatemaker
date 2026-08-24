@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs - v1.02 (2026-08-23 20:56)'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and eight provider APIs - v1.03 (2026-08-24 12:10)'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  emailTo template set  -  send e-mail from a Clarion application, four ways,
 #!  with no third-party DLL, no .NET and no OpenSSL to deploy.
@@ -8,7 +8,23 @@
 #!      Gmail API     one https POST to gmail.googleapis.com.
 #!      MS Graph      one https POST to graph.microsoft.com - the only route
 #!                    many locked-down Microsoft 365 tenants still allow.
-#!      API key       SendGrid / Mailgun / Resend / Brevo / Postmark / Mailjet.
+#!      API key       SendGrid / Mailgun / Resend / Brevo / Postmark /
+#!                    Mailjet / SparkPost / MailerSend.
+#!
+#!  AND IT ASKS THEM QUESTIONS TOO.  Sending is half of what a mail provider
+#!  does.  EmailApiClass drives the other half through the SAME account and
+#!  ONE set of methods, whichever of the eight you signed up with:
+#!
+#!      who is blocked, and WHY .... GetSuppressions()  address, kind, reason
+#!      unblock one, or all ........ DeleteSuppression() DeleteAllSuppressions()
+#!      statistics per day ......... GetStats()
+#!      what happened to a message . GetEvents()
+#!      contacts and lists ......... GetContacts() GetLists() AddContact()
+#!      campaigns .................. GetCampaigns() AddCampaign() SendCampaign()
+#!      templates, senders, domains and webhooks
+#!
+#!  Every answer arrives in the same normalised queue whoever sent it, and
+#!  Manage() is a ready-made window over the lot.
 #!
 #!  HOW IT IS BUILT.  Everything is pure Clarion except one bundled C file,
 #!  emailc.c, which is compiled into your .EXE by Clarion's own C compiler
@@ -40,6 +56,8 @@
 #!      EmailNetClass.inc   EmailNetClass.clw
 #!      EmailMsgClass.inc   EmailMsgClass.clw
 #!      EmailToClass.inc    EmailToClass.clw
+#!      EmailJsonClass.inc  EmailJsonClass.clw
+#!      EmailApiClass.inc   EmailApiClass.clw
 #!      emailc.c
 #!  The .clw files pull themselves into the build through their LINK attribute,
 #!  and EmailNetClass.clw pulls in emailc.c through its PRAGMA.
@@ -51,6 +69,14 @@
 #!    Mailer.Setup()               the account setup window
 #!    Mailer.TestAccount()         connect + sign in + hang up, sends nothing
 #!    Mailer.LastErrorText         why the last call said no
+#!
+#!  API (the second object, when the Provider API tab is switched on):
+#!    MailApi.GetSuppressions()    fills MailApi.SuppQ - who is blocked and why
+#!    MailApi.DeleteSuppression(address, kind)      let one back in
+#!    MailApi.DeleteAllSuppressions(kind)           let them all back in
+#!    MailApi.IsBlocked(address)   1 = do not bother sending
+#!    MailApi.Manage()             the whole management window
+#!    MailApi.Supports(op)         0 = this provider does not offer it
 #!-----------------------------------------------------------------------------
 #!#############################################################################
 #!  GLOBAL EXTENSION - emailToGlobal
@@ -59,14 +85,15 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
       #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
       #DISPLAY('IMPORTANT: copy these files to the redirection path (the app')
       #DISPLAY('folder, or \clarion12\libsrc\win). All must be ANSI:')
       #DISPLAY('    EmailNetClass.inc / .clw     EmailMsgClass.inc / .clw')
-      #DISPLAY('    EmailToClass.inc  / .clw     emailc.c')
+      #DISPLAY('    EmailToClass.inc  / .clw     EmailJsonClass.inc / .clw')
+      #DISPLAY('    EmailApiClass.inc / .clw     emailc.c')
       #DISPLAY('')
       #DISPLAY('emailc.c is compiled into your EXE by Clarion''s own C')
       #DISPLAY('compiler. There is no DLL to ship and nothing to register.')
@@ -89,7 +116,7 @@
       #DISPLAY('saves to an INI file beside the EXE.')
     #ENDBOXED
     #BOXED('Account')
-      #PROMPT('&Provider:',DROP('Other (SMTP)[0]|Gmail[1]|Outlook.com / Hotmail[2]|Microsoft 365[3]|Yahoo Mail[4]|iCloud Mail[5]|Zoho Mail[6]|Amazon SES[7]|SendGrid[8]|Mailgun[9]|Resend[10]|Brevo[11]|Postmark[12]|Mailjet[13]')),%ETgProvider,DEFAULT('0')
+      #PROMPT('&Provider:',DROP('Other (SMTP)[0]|Gmail[1]|Outlook.com / Hotmail[2]|Microsoft 365[3]|Yahoo Mail[4]|iCloud Mail[5]|Zoho Mail[6]|Amazon SES[7]|SendGrid[8]|Mailgun[9]|Resend[10]|Brevo[11]|Postmark[12]|Mailjet[13]|SparkPost[14]|MailerSend[15]')),%ETgProvider,DEFAULT('0')
       #PROMPT('Send &using:',DROP('SMTP server[1]|Gmail API (https)[2]|Microsoft Graph (https)[3]|Provider API key (https)[4]')),%ETgTransport,DEFAULT('1')
       #PROMPT('&From address:',@s255),%ETgFromAddr,DEFAULT('')
       #PROMPT('From &name:',@s128),%ETgFromName,DEFAULT('')
@@ -133,6 +160,40 @@
       #DISPLAY('The domain is Mailgun only - the domain you send from.')
       #DISPLAY('For Mailjet, put the PUBLIC key in User name (Account tab)')
       #DISPLAY('and the PRIVATE key here.')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('Provider &API')
+    #BOXED('Asking the provider questions')
+      #DISPLAY('The same key that sends the mail can also answer for the')
+      #DISPLAY('account: who is blocked and why, statistics, contacts,')
+      #DISPLAY('campaigns, templates, senders, domains and webhooks.')
+      #DISPLAY('')
+      #DISPLAY('Eight providers answer: SendGrid, Brevo, Mailgun, Postmark,')
+      #DISPLAY('Mailjet, Resend, SparkPost and MailerSend. Each offers a')
+      #DISPLAY('different subset, and Supports() says which - the window greys')
+      #DISPLAY('out whatever a provider genuinely cannot do.')
+      #PROMPT('&Add the management object',CHECK),%ETgApi,DEFAULT(1),AT(10)
+      #ENABLE(%ETgApi)
+        #PROMPT('&Object name:',@s64),%ETgApiObject,REQ,DEFAULT('MailApi')
+        #PROMPT('&Rows per request:',@n5),%ETgApiPageSize,DEFAULT(100)
+        #DISPLAY('How many rows to ask for at a time. The class keeps asking')
+        #DISPLAY('until the provider runs out, so this is only the page size.')
+        #PROMPT('&Stop after this many rows:',@n7),%ETgApiMaxRows,DEFAULT(5000)
+        #DISPLAY('A guard against a block list with a hundred thousand rows')
+        #DISPLAY('in it. Zero means no limit.')
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('The second credential, the region, and the base address')
+      #PROMPT('Second &key:',@s255),%ETgApiKey2,DEFAULT('')
+      #DISPLAY('Postmark only: its senders and domains endpoints want the')
+      #DISPLAY('ACCOUNT token, not the server token. Leave blank otherwise.')
+      #PROMPT('Re&gion:',@s32),%ETgApiRegion,DEFAULT('')
+      #DISPLAY('Put eu here for a Mailgun or SparkPost account created in')
+      #DISPLAY('Europe. Blank means the default endpoint.')
+      #PROMPT('&Base address:',@s128),%ETgApiBase,DEFAULT('')
+      #DISPLAY('Replaces the host - and the scheme, if you give one. For a')
+      #DISPLAY('private relay, or for pointing a test build at a stand-in.')
+      #DISPLAY('Blank is what you want in production.')
     #ENDBOXED
   #ENDTAB
   #TAB('&Table')
@@ -180,6 +241,9 @@
         #PROMPT('Re&fresh token:',FIELD(%ETgFile)),%ETgColRefresh
         #PROMPT('API &key:',FIELD(%ETgFile)),%ETgColApiKey
         #PROMPT('API &domain:',FIELD(%ETgFile)),%ETgColApiDomain
+        #PROMPT('Second ke&y:',FIELD(%ETgFile)),%ETgColApiKey2
+        #PROMPT('Re&gion:',FIELD(%ETgFile)),%ETgColApiRegion
+        #PROMPT('Base a&ddress:',FIELD(%ETgFile)),%ETgColApiBase
         #DISPLAY('')
         #DISPLAY('Password, client secret, refresh token and API key are stored')
         #DISPLAY('through Seal(): DPAPI encrypts them for the current Windows')
@@ -229,7 +293,11 @@
 #!
 #!--- the three includes -------------------------------------------------------
 #AT(%AfterGlobalIncludes),WHERE(%ETgDisable=0)
+#IF(%ETgApi)
+INCLUDE('EmailApiClass.INC'),ONCE                          #! pulls in all four of the others
+#ELSE
 INCLUDE('EmailToClass.INC'),ONCE                           #! pulls in EmailNetClass + EmailMsgClass
+#ENDIF
 #ENDAT
 #!
 #!--- the global object ---------------------------------------------------------
@@ -249,9 +317,15 @@ SaveAccount              PROCEDURE(),BYTE,PROC,DERIVED
 %ETgObject             EmailToClass                        #<! the mail object
     #ENDIF
 emailToLanguage        BYTE(%ETgLanguage)                  #<! 1 = English, 2 = Espanol
+    #IF(%ETgApi)
+%ETgApiObject          EmailApiClass                       #<! the management object
+    #ENDIF
   #ELSE
 %ETgObject             EmailToClass,EXTERNAL,DLL(dll_mode) #<! it lives in the data DLL
 emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
+    #IF(%ETgApi)
+%ETgApiObject          EmailApiClass,EXTERNAL,DLL(dll_mode)
+    #ENDIF
   #ENDIF
 #ENDAT
 #!
@@ -259,6 +333,9 @@ emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
   #IF(%DefaultExternal = 'None External' AND %ProgramExtension='DLL' AND %DefaultExport)
   $%ETgObject                                              @?
   $emailToLanguage                                         @?
+    #IF(%ETgApi)
+  $%ETgApiObject                                           @?
+    #ENDIF
   #ENDIF
 #ENDAT
 #!
@@ -311,10 +388,28 @@ emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
   #IF(%ETgApiDomain)
   %ETgObject.Acc.ApiDomain = '%ETgApiDomain'
   #ENDIF
+  #IF(%ETgApiKey2)
+  %ETgObject.Acc.ApiKey2   = '%ETgApiKey2'
+  #ENDIF
+  #IF(%ETgApiRegion)
+  %ETgObject.Acc.ApiRegion = '%ETgApiRegion'
+  #ENDIF
+  #IF(%ETgApiBase)
+  %ETgObject.Acc.ApiBase   = '%ETgApiBase'
+  #ENDIF
   #IF(%ETgFile)
   %ETgObject.LoadAccount('%ETgLoadName')                   ! whatever %ETgFile holds wins
   #ELSE
   %ETgObject.LoadAccount()                                 ! the INI beside the EXE, if there is one
+  #ENDIF
+  #IF(%ETgApi)
+  !  The management object borrows the account and the HTTPS layer above, so
+  !  there is no second copy of the key anywhere.
+  %ETgApiObject.Init(%ETgObject)
+    #IF(%ETgApiPageSize)
+  %ETgApiObject.PageSize = %ETgApiPageSize
+    #ENDIF
+  %ETgApiObject.MaxRows  = %ETgApiMaxRows
   #ENDIF
 #ENDAT
 #!
@@ -401,6 +496,15 @@ emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
   #ENDIF
   #IF(%ETgColApiDomain)
   IF CLIP(%ETgColApiDomain) THEN SELF.Acc.ApiDomain = CLIP(%ETgColApiDomain).
+  #ENDIF
+  #IF(%ETgColApiKey2)
+  IF CLIP(%ETgColApiKey2) THEN SELF.Acc.ApiKey2 = SELF.Unseal(%ETgColApiKey2).
+  #ENDIF
+  #IF(%ETgColApiRegion)
+  IF CLIP(%ETgColApiRegion) THEN SELF.Acc.ApiRegion = CLIP(%ETgColApiRegion).
+  #ENDIF
+  #IF(%ETgColApiBase)
+  IF CLIP(%ETgColApiBase) THEN SELF.Acc.ApiBase = CLIP(%ETgColApiBase).
   #ENDIF
   !  An access token is short-lived; the refresh token buys a new one.
   SELF.Acc.AccessToken  = ''
@@ -528,7 +632,7 @@ ETFound  BYTE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
@@ -719,7 +823,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -830,7 +934,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -884,7 +988,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.02  -  built 2026-08-23 20:56')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('This is where the END USER sets the account. The values it')
@@ -908,4 +1012,179 @@ INCLUDE('EmailToClass.INC'),ONCE
   %ETsResult = %ETsObject.Setup()
 #ELSE
   %ETsObject.Setup()
+#ENDIF
+#!#############################################################################
+#!  CONTROL TEMPLATE - emailToApiButton
+#!#############################################################################
+#!  Drag onto any window for a wired "Mail account..." button. It opens the
+#!  management window - blocked addresses and why, statistics, activity,
+#!  contacts, lists, campaigns, templates, senders, domains, webhooks - on
+#!  whichever tab you name. A tab this provider cannot answer is greyed out
+#!  rather than empty, so the button is safe to put on a window whoever the
+#!  end user signed up with.
+#!#############################################################################
+#CONTROL(emailToApiButton,'emailTo - Mail account button (blocked, stats, campaigns)'),WINDOW,MULTI,DESCRIPTION('Mail account button - opens on ' & CHOOSE(%ETaTab='2','BLOCKED ADDRESSES',CHOOSE(%ETaTab='7','CAMPAIGNS','tab ' & %ETaTab))),HLP('~emailTo.htm')
+  CONTROLS
+    BUTTON('&Mail account...'),AT(,,62,14),USE(?EmailApiBtn),TIP('Blocked addresses, statistics and campaigns')
+  END
+#SHEET
+  #TAB('&General')
+    #BOXED('Button')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #PROMPT('&Disable this button',CHECK),%ETaDisable,DEFAULT(0),AT(10)
+      #PROMPT('&API object name:',@s64),%ETaObject,REQ,DEFAULT('MailApi')
+      #DISPLAY('The object the emailToGlobal extension declared on its')
+      #DISPLAY('Provider API tab. Switch that on if you have not already.')
+    #ENDBOXED
+    #BOXED('Which tab it opens on')
+      #PROMPT('&Open on:',DROP('Account[1]|Blocked addresses[2]|Statistics[3]|Activity[4]|Contacts[5]|Lists[6]|Campaigns[7]|Templates[8]|Senders and domains[9]|Webhooks[10]')),%ETaTab,DEFAULT('2')
+      #DISPLAY('')
+      #DISPLAY('If this provider cannot answer that one, the window opens on')
+      #DISPLAY('the first tab it CAN answer instead of showing an empty list.')
+    #ENDBOXED
+    #BOXED('Only show the button when it will work')
+      #PROMPT('&Hide the button if the provider has no API',CHECK),%ETaHide,DEFAULT(1),AT(10)
+      #DISPLAY('An account sending over plain SMTP - a company Exchange server,')
+      #DISPLAY('Gmail with an app password - has no management API at all. With')
+      #DISPLAY('this ticked the button disappears for those accounts instead of')
+      #DISPLAY('opening a window with every tab greyed out.')
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!
+#AT(%CustomGlobalDeclarations),WHERE(%ETaDisable=0)
+INCLUDE('EmailApiClass.INC'),ONCE
+#ENDAT
+#!
+#!  Capture THIS instance's field equate: AppGen uniques the USE() when the
+#!  button is dropped more than once (?EmailApiBtn, ?EmailApiBtn:2, ...).
+#ATSTART
+  #DECLARE(%ETaBtn)
+  #FOR(%Control),WHERE(%ControlInstance=%ActiveTemplateInstance)
+    #SET(%ETaBtn,%Control)
+  #ENDFOR
+#ENDAT
+#!
+#AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8500),WHERE(%ETaDisable=0 AND %ETaHide)
+  !  Nothing to manage unless this account talks to a provider API.
+  IF NOT %ETaObject.Supports(ETOp:Suppressions) AND NOT %ETaObject.Supports(ETOp:Stats) |
+     AND NOT %ETaObject.Supports(ETOp:Account)
+    HIDE(%ETaBtn)
+  END
+#ENDAT
+#!
+#AT(%ControlEventHandling,%ETaBtn,'Accepted'),WHERE(%ETaDisable=0)
+  %ETaObject.Manage(%ETaTab)
+#ENDAT
+#!#############################################################################
+#!  CODE TEMPLATE - emailToApi
+#!#############################################################################
+#!  One provider-API operation, from any embed. The point of this template is
+#!  that the SAME prompts generate working code for eight different providers -
+#!  the class is what knows the difference.
+#!#############################################################################
+#CODE(emailToApi,'emailTo - Ask the provider (blocked, stats, campaigns) here'),HLP('~emailTo.htm')
+#SHEET
+  #TAB('&What to do')
+    #BOXED('Object')
+      #DISPLAY('emailTo v1.03  -  built 2026-08-24 12:10')
+      #PROMPT('&API object name:',@s64),%ETpObject,REQ,DEFAULT('MailApi')
+    #ENDBOXED
+    #BOXED('Operation')
+      #PROMPT('&Do this:',DROP('Load the blocked addresses[1]|Unblock ONE address[2]|Unblock EVERY address[3]|Block an address[4]|Is this address blocked?[5]|Load the statistics[6]|Load the activity[7]|Load the contacts[8]|Load the lists[9]|Load the campaigns[10]|Send a campaign[11]|Export the blocked list to CSV[12]|Open the management window[13]')),%ETpOp,DEFAULT('1')
+      #ENABLE(%ETpOp='1' OR %ETpOp='2' OR %ETpOp='3' OR %ETpOp='4' OR %ETpOp='12')
+        #PROMPT('W&hich list:',DROP('Everything[0]|Bounces[1]|Blocked[2]|Spam reports[3]|Unsubscribed[4]|Invalid[5]')),%ETpKind,DEFAULT('0')
+        #DISPLAY('A provider that keeps one list for all of them answers the')
+        #DISPLAY('same rows whichever you pick, labelled with what they are.')
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('The address, id or file name it works on')
+      #PROMPT('&Value:',@s255),%ETpArg,DEFAULT('')
+      #PROMPT('...or take it from this &variable:',FIELD),%ETpArgVar
+      #DISPLAY('')
+      #DISPLAY('Unblock / Block / Is blocked  - an e-mail address.')
+      #DISPLAY('Send a campaign               - the campaign id.')
+      #DISPLAY('Export                        - the file to write.')
+      #DISPLAY('Everything else               - not used.')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Result')
+    #BOXED('What to do with the answer')
+      #PROMPT('Put the &result in:',FIELD),%ETpResult
+      #DISPLAY('')
+      #DISPLAY('For a "Load" the result is the NUMBER of rows, or -1 if the')
+      #DISPLAY('provider said no. For everything else, 1 means it worked.')
+      #DISPLAY('')
+      #DISPLAY('The rows themselves land in the object queues, which are')
+      #DISPLAY('the same shape whoever the provider is:')
+      #DISPLAY('    <object>.SuppQ      Address, Kind, KindName, Reason,')
+      #DISPLAY('                        Code, WhenDate, WhenTime, Sender')
+      #DISPLAY('    <object>.StatQ      WhenDate, Requests, Delivered, Opens,')
+      #DISPLAY('                        Clicks, HardBounces, SpamReports...')
+      #DISPLAY('    <object>.EventQ     WhenDate, Address, EventName, Reason')
+      #DISPLAY('    <object>.ContactQ   <object>.ListQ   <object>.CampaignQ')
+    #ENDBOXED
+    #BOXED('If it fails')
+      #PROMPT('&Show the error',CHECK),%ETpSayError,DEFAULT(1),AT(10)
+      #DISPLAY('Either way the reason is left in <object>.LastErrorText, and')
+      #DISPLAY('the address it called in <object>.LastUrl.')
+    #ENDBOXED
+    #BOXED('Before you call it')
+      #DISPLAY('<object>.Supports(ETOp:Suppressions) is 0 when this provider')
+      #DISPLAY('has no such endpoint - worth testing if your end users choose')
+      #DISPLAY('their own provider.')
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!  Resolve the argument into one symbol, so the emitted call fits on one line.
+#DECLARE(%ETpArgExpr)
+#IF(%ETpArgVar)
+  #SET(%ETpArgExpr,%ETpArgVar)
+#ELSE
+  #SET(%ETpArgExpr,'''' & %ETpArg & '''')
+#ENDIF
+#DECLARE(%ETpCall)
+#CASE(%ETpOp)
+#OF('1')
+  #SET(%ETpCall,%ETpObject & '.GetSuppressions(' & %ETpKind & ')')
+#OF('2')
+  #SET(%ETpCall,%ETpObject & '.DeleteSuppression(' & %ETpArgExpr & ', ' & %ETpKind & ')')
+#OF('3')
+  #SET(%ETpCall,%ETpObject & '.DeleteAllSuppressions(' & %ETpKind & ')')
+#OF('4')
+  #SET(%ETpCall,%ETpObject & '.AddSuppression(' & %ETpArgExpr & ', ' & %ETpKind & ')')
+#OF('5')
+  #SET(%ETpCall,%ETpObject & '.IsBlocked(' & %ETpArgExpr & ')')
+#OF('6')
+  #SET(%ETpCall,%ETpObject & '.GetStats(TODAY() - 30, TODAY())')
+#OF('7')
+  #SET(%ETpCall,%ETpObject & '.GetEvents(TODAY() - 7, TODAY())')
+#OF('8')
+  #SET(%ETpCall,%ETpObject & '.GetContacts()')
+#OF('9')
+  #SET(%ETpCall,%ETpObject & '.GetLists()')
+#OF('10')
+  #SET(%ETpCall,%ETpObject & '.GetCampaigns()')
+#OF('11')
+  #SET(%ETpCall,%ETpObject & '.SendCampaign(' & %ETpArgExpr & ')')
+#OF('12')
+  #SET(%ETpCall,%ETpObject & '.ExportSuppressions(' & %ETpArgExpr & ')')
+#ELSE
+  #SET(%ETpCall,%ETpObject & '.Manage()')
+#ENDCASE
+#IF(%ETpOp='12')
+  #!  Export writes whatever is loaded, so load it first if nothing is.
+  IF NOT RECORDS(%ETpObject.SuppQ) THEN %ETpObject.GetSuppressions(%ETpKind).
+#ENDIF
+#IF(%ETpResult)
+  %ETpResult = %ETpCall
+#ELSE
+  %ETpCall
+#ENDIF
+#IF(%ETpSayError AND %ETpOp<>'5' AND %ETpOp<>'13')
+  !  Every call leaves its verdict in LastError, so one test covers the lot -
+  !  and "no rows" is not an error, which testing the answer would get wrong.
+  IF %ETpObject.LastError
+    %ETpObject.ShowError()
+  END
 #ENDIF

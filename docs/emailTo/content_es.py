@@ -19,7 +19,8 @@ from es_docs import MEMBER_DOCS_ES, FIELD_DOCS_ES, EQUATE_NOTES_ES  # noqa: E402
 from content_en import (S_HELLO, S_PROJECT, S_ATTACH, S_OAUTHRUN,      # noqa: E402
                         S_OWNS, S_OAUTHFLOW, S_TABLE, S_DERIVE, S_INLINE,
                         S_CLEARTRAP, S_STRINGTRAP, S_RETSTR,
-                        S_GEN_GLOBAL, S_GEN_DERIVED, S_GEN_BUTTON)
+                        S_GEN_GLOBAL, S_GEN_DERIVED, S_GEN_BUTTON,
+                        S_ASK, S_SUPPORTS, S_MATRIX, S_ADDPROVIDER, S_APIEMBED)
 
 
 # =====================================================================
@@ -30,8 +31,9 @@ def build_getting_started():
     add = B.append
 
     add(h2('what', 'Qué es emailTo'))
-    add(p('emailTo envía correo desde una aplicación Clarion. Son tres clases, un '
-          'archivo C incluido y cinco plantillas, y se despliega dentro de su propio '
+    add(p('emailTo envía correo desde una aplicación Clarion, y administra la cuenta '
+          'por la que lo envía. Son cinco clases, un '
+          'archivo C incluido y siete plantillas, y se despliega dentro de su propio '
           '<code>.EXE</code>: no hay DLL que distribuir, ni .NET, ni OpenSSL, ni nada '
           'que registrar en la máquina donde corra.'))
     add(p('Puede poner un mensaje en la red de cuatro maneras, y las cuatro envían el '
@@ -282,6 +284,76 @@ def build_getting_started():
          '<code>Mailer.OAuth.RedirectPort</code> y permítalo en el firewall.'],
     ]))
 
+    add(h2('ask', u'Qui\u00e9n est\u00e1 bloqueado, y por qu\u00e9'))
+    add(p(u'Enviar es la mitad de lo que hace un proveedor de correo. La otra mitad es '
+          u'mantener la lista de las direcciones a las que no va a entregar: las que '
+          u'rebotaron en firme, las de quien pulsó "esto es basura", las de quien se '
+          u'dio de baja. Si nadie la mira, esa lista se queda en su sitio web, y su '
+          u'programa sigue escribiendo a direcciones que jamás pueden llegar, que es '
+          u'exactamente lo que arruina la reputación de un remitente.'))
+    add(p(u'<code>EmailApiClass</code> la lee. Un objeto, que toma prestada la cuenta '
+          u'que usted ya configuró:'))
+    add(code(S_ASK))
+    add(p(u'Ese programa funciona sin cambios contra los ocho proveedores con API. '
+          u'Tiene que hacerlo, porque no se ponen de acuerdo en casi nada:'))
+    add(table([u'Proveedor', u'Dónde están las direcciones bloqueadas', u'Cómo es una fila'], [
+        [u'SendGrid', u'Cinco listas separadas: bounces, blocks, spam_reports, '
+                      u'unsubscribes, invalid_emails',
+         u'<code>email</code>, <code>reason</code>, un <code>created</code> unix'],
+        [u'Brevo', u'Una sola lista, <code>/smtp/blockedContacts</code>, con un CÓDIGO '
+                   u'de motivo que dice de qué tipo es',
+         u'<code>email</code>, <code>reason.message</code>, un <code>blockedAt</code> ISO'],
+        [u'Mailgun', u'Por DOMINIO, y paginada con un cursor en vez de un desplazamiento',
+         u'<code>address</code>, <code>error</code>, <code>code</code>, una fecha RFC-2822'],
+        [u'Postmark', u'Un volcado del flujo, más un <code>/bounces</code> con mucho '
+                      u'más detalle sólo para los rebotes',
+         u'<code>EmailAddress</code>, <code>SuppressionReason</code> &mdash; con mayúsculas'],
+        [u'Mailjet', u'Todo envuelto en <code>Data</code>, y todo con mayúscula inicial',
+         u'<code>ContactAlt</code>, <code>ErrorRelatedTo</code>, <code>ErrorCode</code>'],
+    ]))
+    add(p(u'Después de <code>GetSuppressions()</code> son una sola cola con las mismas '
+          u'columnas, y <code>SuppQ.Kind</code> dice de qué clase de bloqueo se trata '
+          u'realmente cada fila &mdash; deducido de las palabras del propio proveedor '
+          u'cuando éste las guarda todas juntas.'))
+    add(note('tip', u'Pregunte antes de enviar',
+             u'<p><code>IsBlocked()</code> busca en lo que cargó el último '
+             u'<code>GetSuppressions()</code>. Llamarlo en el bucle que arma un envío '
+             u'no cuesta nada y evita escribir a una dirección que el proveedor va a '
+             u'rechazar de todos modos:</p>'
+             u'<pre class="code"><code>IF MailApi.IsBlocked(CUS:EMail) THEN CYCLE.'
+             u'</code></pre>'))
+
+    add(h2('ask-more', u'El resto de la cuenta'))
+    add(p(u'El mismo objeto responde a las demás preguntas, y todas llenan una cola de '
+          u'la misma forma sea quien sea el proveedor:'))
+    add(table([u'Usted quiere', u'Llame a', u'Llena'], [
+        [u'Quién está bloqueado', u'<code>GetSuppressions(tipo)</code>', u'<code>SuppQ</code>'],
+        [u'Readmitir a uno', u'<code>DeleteSuppression(dirección, tipo)</code>', u'&mdash;'],
+        [u'Readmitirlos a todos', u'<code>DeleteAllSuppressions(tipo)</code>', u'&mdash;'],
+        [u'Estadísticas por día', u'<code>GetStats(desde, hasta)</code>', u'<code>StatQ</code>'],
+        [u'Qué pasó con un mensaje', u'<code>GetEvents(desde, hasta)</code>',
+         u'<code>EventQ</code>'],
+        [u'Contactos y listas', u'<code>GetContacts()</code> <code>GetLists()</code>',
+         u'<code>ContactQ</code> <code>ListQ</code>'],
+        [u'Campañas', u'<code>GetCampaigns()</code> <code>SendCampaign(id)</code>',
+         u'<code>CampaignQ</code>'],
+        [u'Plantillas, remitentes, dominios, webhooks',
+         u'<code>GetTemplates()</code> &hellip;', u'<code>TemplateQ</code> &hellip;'],
+        [u'Todo, en una ventana', u'<code>Manage()</code>', u'&mdash;'],
+    ]))
+    add(p(u'Ningún proveedor las ofrece todas. <code>Supports()</code> dice cuáles, de '
+          u'modo que una ventana puede deshabilitar lo que esta cuenta realmente no '
+          u'puede hacer, en vez de fallar cuando alguien lo pulsa:'))
+    add(code(S_SUPPORTS))
+    add(note('info', u'O simplemente muéstreles la ventana',
+             u'<p><code>MailApi.Manage()</code> es una ventana completa, con pestañas, '
+             u'sobre todo ello: las direcciones bloqueadas con su motivo, readmitir a '
+             u'una o a todas, exportar a CSV, estadísticas, actividad, contactos, '
+             u'listas, campañas, plantillas, remitentes, dominios y webhooks. Las '
+             u'pestañas que este proveedor no puede contestar salen deshabilitadas, no '
+             u'vacías. La plantilla de control <b>emailTo - Mail account button</b> '
+             u'coloca un botón que la abre por la pestaña que usted diga.</p>'))
+
     add(h2('demo', 'La demostración'))
     add(p('<code>examples/emailTo/emailToDemo.clw</code> es el equivalente escrito a '
           'mano de lo que generan las plantillas: una ventana con <b>Configurar '
@@ -332,6 +404,8 @@ def build_getting_started():
                     ('oauth-microsoft', 'Microsoft'),
                     ('oauth-verify', 'Acceso bloqueado'),
                     ('oauth-run', 'Cómo se ejecuta')]),
+        ('Preguntar al proveedor', [('ask', u'Qui\u00e9n est\u00e1 bloqueado, y por qu\u00e9'),
+                                    ('ask-more', u'El resto de la cuenta')]),
         ('Después', [('demo', 'La demostración'),
                      ('firstrun', 'Cuando el primer envío no funciona')]),
     ]
@@ -473,6 +547,136 @@ def build_programmers_guide():
              'de refresco en cada uso, así que hay que guardar el nuevo cada vez, que es '
              'por lo que <code>Refresh</code> lo vuelve a escribir.</p>'))
 
+    add(h2('api', u'Una clase, ocho proveedores'))
+    add(p(u'<code>EmailToClass</code> responde a una pregunta: envía esto. '
+          u'<code>EmailApiClass</code> responde a todas las demás &mdash; quién está '
+          u'bloqueado, qué pasó el mes pasado, qué contactos y campañas hay &mdash; y '
+          u'las responde igual sea cual sea el proveedor con el que usted se dio de '
+          u'alta.'))
+    add(p(u'No tiene nada propio. <code>Init(Mailer)</code> toma prestadas la cuenta y '
+          u'la capa HTTPS, así que la clave que selló la ventana de configuración es la '
+          u'que usan estas llamadas, y no hay una segunda copia de ninguna credencial '
+          u'en ninguna parte del programa.'))
+    add(code(S_ASK))
+    add(p(u'Por dentro son tres capas, y sólo la del medio sabe algo de un proveedor:'))
+    add(table([u'Capa', u'Qué es', u'¿Sabe de proveedores?'], [
+        [u'<code>BuildMap()</code>', u'La matriz. Una fila por operación y proveedor.',
+         u'Sí &mdash; y es lo único que lo sabe'],
+        [u'<code>Fetch</code> / <code>Perform</code>',
+         u'El motor: arma la dirección, la firma, sigue la paginación, analiza, mapea.',
+         u'No'],
+        [u'<code>GetXxx</code> / <code>AddXxx</code>',
+         u'Los métodos públicos. Ponen los argumentos y llaman al motor.', u'No'],
+    ]))
+
+    add(h2('api-matrix', u'La matriz'))
+    add(p(u'Añadir un proveedor es añadir filas, no escribir ramas. Una fila dice: para '
+          u'ESTE proveedor y ESTA operación, use este verbo y esta dirección, la lista '
+          u'está en esta ruta de la respuesta, y estos miembros JSON llenan estas '
+          u'columnas.'))
+    add(code(S_MATRIX))
+    add(p(u'Las piezas de una fila:'))
+    add(table([u'Pieza', u'Qué significa'], [
+        [u'<code>{scheme}{host}</code>',
+         u'La dirección del proveedor, respetando <code>ApiRegion</code> (eu) y '
+         u'<code>ApiBase</code> (lo que usted diga, esquema incluido).'],
+        [u'<code>{limit} {offset} {page}</code>',
+         u'Los llena el bucle de paginación, una y otra vez, hasta que el proveedor se '
+         u'queda sin filas.'],
+        [u'<code>{email} {id} {text} {subject} {html}</code>',
+         u'Sus datos. Codificados con % en una URL y escapados como JSON en un cuerpo '
+         u'&mdash; el motor sabe cuál de los dos está armando.'],
+        [u'<code>{ymdfrom} {isofrom} {epochfrom} {rfcfrom}</code>',
+         u'El mismo rango de fechas en las cuatro escrituras que quieren los ocho.'],
+        [u'la ruta del elemento', u'Dónde está el arreglo de filas: vacío significa que '
+         u'la respuesta ES el arreglo, <code>*</code> que la respuesta es UN elemento. '
+         u'Una ruta que resulte no estar ahí cae en el primer arreglo del documento.'],
+        [u'el mapa', u'Pares <code>Columna=origen</code>. Un origen puede ser una ruta '
+         u'(<code>reason.message</code>), ofrecer alternativas '
+         u'(<code>recipient.email|email</code>), ser un literal '
+         u'(<code>!spam report</code>) y llevar un convertidor de fecha: '
+         u'<code>#</code> unix, <code>@</code> ISO-8601, <code>%</code> RFC-2822, '
+         u'<code>$</code> un día suelto.'],
+    ]))
+    add(note('info', u'ETSup:All en una fila de lista significa algo concreto',
+             u'<p>Los proveedores parten sus listas de bloqueo de dos maneras. SendGrid '
+             u'guarda cinco separadas y cada fila se registra con su propio tipo. '
+             u'Brevo, Postmark y SparkPost guardan UNA sola y etiquetan cada entrada, '
+             u'así que su fila se registra con <code>ETSup:All</code> &mdash; y '
+             u'entonces el motor deduce el tipo real de cada fila de las palabras del '
+             u'propio proveedor (<code>hardBounce</code>, '
+             u'<code>SpamNotification</code>, <code>policy_suppression</code>) con '
+             u'<code>SuppKindOf()</code>. Pídale un tipo a cualquiera de los dos y '
+             u'recibe ese tipo.</p>'))
+
+    add(h2('api-queues', u'Las respuestas normalizadas'))
+    add(p(u'Cada lectura llena una cola que se ve igual conteste quien conteste. Ése es '
+          u'el trato completo: las diferencias se absorben en la matriz, y su código no '
+          u'llega a aprenderlas nunca.'))
+    add(table([u'Cola', u'Qué hay en una fila'], [
+        [u'<code>SuppQ</code>', u'Address, Kind, KindName, Reason, Code, WhenDate, '
+         u'WhenTime, Id, Sender, Raw'],
+        [u'<code>StatQ</code>', u'WhenDate, Requests, Delivered, Opens, UniqueOpens, '
+         u'Clicks, UniqueClicks, HardBounces, SoftBounces, Blocks, SpamReports, '
+         u'Unsubscribed, Invalid'],
+        [u'<code>EventQ</code>', u'WhenDate, WhenTime, Address, EventName, Reason, '
+         u'Subject, MessageId, Link'],
+        [u'<code>ContactQ</code> <code>ListQ</code> <code>CampaignQ</code>',
+         u'Id, Address, Name, Blocked, Unsubscribed &hellip; / Id, Name, Members '
+         u'&hellip; / Id, Name, Subject, Status &hellip;'],
+        [u'<code>TemplateQ</code> <code>SenderQ</code> <code>DomainQ</code> '
+         u'<code>HookQ</code>', u'Lo mismo para el resto de la cuenta'],
+    ]))
+    add(p(u'<code>SuppQ.Raw</code> conserva el objeto original del proveedor para esa '
+          u'fila, así que lo que la cola no tiene columna para guardar sigue estando '
+          u'ahí cuando haga falta registrar la entrada que se ve rara.'))
+    add(note('warn', u'Un LIST no puede apuntar a estas colas',
+             u'<p><code>FROM(MailApi.SuppQ)</code> compila y luego truena al primer '
+             u'dibujado: son REFERENCIAS a cola, y el control se liga a la variable de '
+             u'referencia. Copie las filas a un <code>QUEUE</code> local de verdad para '
+             u'mostrarlas &mdash; que es donde va a querer formatear las fechas de '
+             u'todos modos. <code>Manage()</code> hace exactamente eso, y la '
+             u'demostración lo enseña.</p>'))
+
+    add(h2('api-paging', u'Paginación, de tres maneras'))
+    add(p(u'Una lista de bloqueados no cabe en una página, y los ocho proveedores no se '
+          u'ponen de acuerdo en cómo recorrerla. El motor se ocupa de las tres sin que '
+          u'quien llama se entere:'))
+    add(table([u'Estilo', u'Quién', u'Qué hace el motor'], [
+        [u'límite y desplazamiento', u'SendGrid, Brevo, Mailjet, Postmark',
+         u'Vuelve a pedir con el desplazamiento avanzado, y para cuando una página '
+         u'vuelve más corta que el tamaño de página.'],
+        [u'número de página', u'SparkPost, MailerSend',
+         u'Lo mismo, contado en páginas en vez de en filas.'],
+        [u'un cursor', u'Mailgun',
+         u'Sigue la dirección que la respuesta trae en <code>paging.next</code>, y para '
+         u'cuando una página vuelve vacía.'],
+    ]))
+    add(p(u'<code>PageSize</code> dice cuántas pedir de una vez y <code>MaxRows</code> '
+          u'es la guarda &mdash; 5000 por omisión, 0 para no poner límite. Cien mil '
+          u'direcciones suprimidas es algo real en un remitente grande, y leerlas todas '
+          u'en memoria debería ser una decisión, no una sorpresa.'))
+    add(note('tip', u'Que una lista falle no pierde las demás',
+             u'<p>Pedirle todo a SendGrid son cinco peticiones. Si una falla &mdash; un '
+             u'endpoint que el plan de esa cuenta no abre, un permiso que la clave no '
+             u'tiene &mdash; las otras cuatro siguen contestando, y el fallo queda en '
+             u'<code>LastErrorText</code>. Una respuesta parcial sirve muchísimo más '
+             u'que ninguna.</p>'))
+
+    add(h2('api-add', u'Añadir un proveedor'))
+    add(p(u'<code>BuildMap</code> es VIRTUAL, así que un proveedor que la matriz de '
+          u'fábrica no conoce no obliga a tocar ningún archivo de los que emailTo '
+          u'entrega:'))
+    add(code(S_ADDPROVIDER))
+    add(p(u'Ponga <code>Acc.Provider</code> en <code>ETPrv:Custom</code> y '
+          u'<code>Acc.ApiBase</code> en el host, y todos los métodos de arriba '
+          u'funcionan contra él &mdash; incluida <code>Manage()</code>, que lee '
+          u'<code>Supports()</code> para decidir qué pestañas ofrecer.'))
+    add(p(u'Para una llamada suelta que no merece una fila, <code>RawCall()</code> '
+          u'firma la petición con esta cuenta y le devuelve el estado; la respuesta '
+          u'está en <code>Net.Body()</code>, y <code>Json</code> está ahí mismo para '
+          u'analizarla.'))
+
     add(h2('settings', 'Dónde vive la configuración'))
     add(p('<code>LoadAccount</code> y <code>SaveAccount</code> son '
           '<code>VIRTUAL</code>. De fábrica leen y escriben un INI junto al '
@@ -608,6 +812,11 @@ def build_programmers_guide():
                               ('accents', 'Los acentos')]),
         ('Sacarlo', [('transports', 'Elegir un transporte'),
                      ('oauth', 'OAuth2, de principio a fin')]),
+        ('La API del proveedor', [('api', u'Una clase, ocho proveedores'),
+                                  ('api-matrix', u'La matriz'),
+                                  ('api-queues', u'Las respuestas normalizadas'),
+                                  ('api-paging', u'Paginaci\u00f3n, de tres maneras'),
+                                  ('api-add', u'A\u00f1adir un proveedor')]),
         ('Conservarlo', [('settings', 'Dónde vive la configuración'),
                          ('secrets', 'Los secretos guardados'),
                          ('errors', 'Los errores, y el registro'),
@@ -624,7 +833,7 @@ def build_programmers_guide():
     ]
     return page('programmers-guide.html', PAGE_TITLES['programmers-guide.html'][1],
                 'Volumen 2', 'Guía del programador',
-                'Qué posee cada una de las tres clases, cómo un mensaje se vuelve MIME, '
+                'Qué posee cada una de las cinco clases, cómo un mensaje se vuelve MIME, '
                 'cómo corre OAuth2 de verdad, y el comportamiento de Clarion con el que '
                 'tropezamos en el camino.',
                 ['Modelo de objetos', 'MIME', 'OAuth2 + PKCE', 'Notas de Clarion'],
@@ -638,7 +847,7 @@ def build_template_guide():
     B = []
     add = B.append
 
-    add(h2('five', 'Las cinco plantillas'))
+    add(h2('five', 'Las siete plantillas'))
     add(table(['Plantilla', 'Tipo', 'Para qué es'], [
         ['<b>emailTo - Global</b>', 'Extensión de aplicación',
          'Obligatoria, una vez por aplicación. Declara el objeto, fija los valores por '
@@ -653,15 +862,21 @@ def build_template_guide():
          'La ventana de escribir y enviar, opcionalmente prellenada.'],
         ['<b>emailTo - Abrir la ventana de configuración aquí</b>', 'Plantilla de código',
          'La ventana de la cuenta, para un menú de configuración.'],
+        ['<b>emailTo - Mail account button</b>', 'Plantilla de control, MULTI',
+         'Se arrastra a una ventana. Abre la ventana de gestión: direcciones '
+         'bloqueadas y por qué, estadísticas, actividad, contactos, campañas.'],
+        ['<b>emailTo - Ask the provider</b>', 'Plantilla de código',
+         'Cualquier embed: cargar la lista de bloqueados, desbloquear una o todas, '
+         'consultar una dirección, leer las estadísticas, enviar una campaña.'],
     ]))
     add(note('tip', 'Sólo la primera es obligatoria',
-             '<p>Agregue <b>emailTo - Global</b> y el objeto existe en todas partes. '
-             'Las otras cuatro son comodidades que lo llaman: cualquier cosa que hagan, '
-             'usted la puede hacer desde un embed escrito a mano con las mismas '
+             '<p>Agregue <b>emailTo - Global</b> y los dos objetos existen en todas '
+             'partes. Las otras seis son comodidades que los llaman: cualquier cosa que '
+             'hagan, usted la puede hacer desde un embed escrito a mano con las mismas '
              'llamadas de una línea.</p>'))
 
     add(h2('global', 'emailTo - Global'))
-    add(p('Propiedades globales &rarr; Extensiones &rarr; Insertar. Seis pestañas.'))
+    add(p('Propiedades globales &rarr; Extensiones &rarr; Insertar. Siete pestañas.'))
 
     add(h3('global-general', 'General'))
     add(table(['Campo', 'Por omisión', 'Qué hace'], [
@@ -757,6 +972,87 @@ def build_template_guide():
              'Las demás la importan como el tipo base y de todos modos alcanzan los '
              'métodos derivados, porque los dos son <code>VIRTUAL</code> y se despachan '
              'por la VMT del propio objeto.</p>'))
+
+    add(h2('global-api', u'API del proveedor'))
+    add(p(u'La pestaña que declara el segundo objeto. La misma clave que envía el '
+          u'correo puede además contestar por la cuenta, así que aquí no hace falta '
+          u'más que un nombre.'))
+    add(table([u'Campo', u'Qué hace'], [
+        [u'Add the management object',
+         u'Declara <code>EmailApiClass</code> de forma global y le llama a '
+         u'<code>Init</code> al arrancar, justo después de que el objeto de correo '
+         u'haya cargado su cuenta. Activado por omisión.'],
+        [u'Object name', u'Cómo se llama. <code>MailApi</code>, salvo que tenga un '
+         u'motivo: las plantillas de control y de código también usan ese nombre por '
+         u'omisión.'],
+        [u'Rows per request', u'El tamaño de página. La clase sigue pidiendo hasta que '
+         u'el proveedor se queda sin filas, así que esto no es un límite, sólo cuánto '
+         u'llega de una vez.'],
+        [u'Stop after this many rows', u'La guarda: 5000 por omisión, 0 sin límite.'],
+        [u'Second key', u'Sólo Postmark necesita dos tokens: el de SERVIDOR envía y lee '
+         u'rebotes, y el de CUENTA abre remitentes y dominios. En blanco para todos los '
+         u'demás.'],
+        [u'Region', u'<code>eu</code> para una cuenta de Mailgun o SparkPost creada en '
+         u'Europa. Son servicios separados, con sus propios nombres de host y sus '
+         u'propios datos &mdash; preguntada en el endpoint por omisión, una cuenta '
+         u'europea se ve vacía en vez de equivocada.'],
+        [u'Base address', u'Reemplaza el host del proveedor, y el esquema si usted lo '
+         u'escribe. Para un relay propio, o para apuntar una compilación de prueba a un '
+         u'sustituto. En blanco en producción.'],
+    ]))
+    add(p(u'Si nombra una tabla de configuración en la pestaña Tabla, aparecen tres '
+          u'columnas más para éstos en la segunda pestaña de columnas: segunda clave '
+          u'(sellada), región y dirección base.'))
+
+    add(h2('apibutton', u'El botón de cuenta de correo'))
+    add(p(u'<b>emailTo - Mail account button</b> es una plantilla de control: arrástrela '
+          u'a cualquier ventana y coloca un botón ya cableado que abre la ventana de '
+          u'gestión.'))
+    add(table([u'Campo', u'Qué hace'], [
+        [u'API object name', u'El objeto que declaró la extensión global.'],
+        [u'Open on', u'Por qué pestaña: Cuenta, Bloqueados, Estadísticas, Actividad, '
+         u'Contactos, Listas, Campañas, Plantillas, Remitentes y dominios, o Webhooks. '
+         u'Si este proveedor no puede contestar ésa, la ventana abre por la primera que '
+         u'SÍ puede, en vez de enseñar una lista vacía.'],
+        [u'Hide the button if the provider has no API',
+         u'Una cuenta que envía por SMTP a secas &mdash; un Exchange de la empresa, '
+         u'Gmail con una contraseña de aplicación &mdash; no tiene API de gestión '
+         u'ninguna. Marcado, el botón desaparece para esas cuentas en lugar de abrir '
+         u'una ventana con todas las pestañas deshabilitadas. Es una comprobación en '
+         u'tiempo de ejecución, así que una sola compilación sirve para las dos.'],
+    ]))
+    add(p(u'Colóquela más de una vez y cada instancia se queda con su propia pestaña: '
+          u'un botón para la lista de bloqueados y otro para las campañas. La plantilla '
+          u'escribe el manejador contra el equate de campo que AppGen le haya dado a esa '
+          u'instancia.'))
+
+    add(h2('apicode', u'Preguntar desde un embed'))
+    add(p(u'<b>emailTo - Ask the provider</b> es la plantilla de código. Póngala en '
+          u'cualquier embed &mdash; un botón, una opción de menú, el final de un proceso '
+          u'&mdash; y elija la operación:'))
+    add(table([u'Campo', u'Qué hace'], [
+        [u'Do this', u'Cargar las direcciones bloqueadas, desbloquear una, '
+         u'desbloquearlas todas, bloquear una dirección, saber si una dirección está '
+         u'bloqueada, cargar las estadísticas, la actividad, los contactos, las listas '
+         u'o las campañas, enviar una campaña, exportar la lista de bloqueados a CSV, o '
+         u'abrir la ventana de gestión.'],
+        [u'Which list', u'Todo, rebotes, bloqueados, quejas de spam, bajas o no '
+         u'válidas. Un proveedor que guarda una sola lista para todas devuelve las '
+         u'mismas filas elija lo que elija, etiquetadas con lo que son de verdad.'],
+        [u'Value', u'La dirección, el id de campaña o el nombre de archivo sobre el que '
+         u'opera &mdash; escrito, o tomado de una variable en tiempo de ejecución.'],
+        [u'Put the result in', u'Para una carga, el NÚMERO de filas (o -1 si el '
+         u'proveedor dijo que no). Para lo demás, 1 significa que funcionó.'],
+        [u'Show the error', u'Muestra las palabras del propio proveedor. En cualquier '
+         u'caso quedan en <code>LastErrorText</code>, y la dirección a la que llamó en '
+         u'<code>LastUrl</code>.'],
+    ]))
+    add(p(u'Lo que escribe es corto, porque el trabajo está en la clase:'))
+    add(code(S_APIEMBED))
+    add(p(u'Las filas caen en las colas del objeto, que tienen la misma forma sea quien '
+          u'sea el proveedor &mdash; <code>SuppQ</code>, <code>StatQ</code>, '
+          u'<code>EventQ</code> y las demás. Recórralas usted, o llame a '
+          u'<code>Manage()</code> y deje que lo haga la ventana que ya viene hecha.'))
 
     add(h2('button', 'emailTo - Botón de correo'))
     add(p('Arrástrelo a cualquier ventana; póngalo más de una vez si quiere. AppGen '
@@ -876,15 +1172,18 @@ def build_template_guide():
 
     body = '\n'.join(B)
     groups = [
-        ('Panorama', [('five', 'Las cinco plantillas')]),
+        ('Panorama', [('five', 'Las siete plantillas')]),
         ('La extensión global', [('global', 'emailTo - Global'),
                                  ('global-general', 'General'),
                                  ('global-account', 'Cuenta'),
                                  ('global-signin', 'Acceso'),
+                                 ('global-api', u'API del proveedor'),
                                  ('global-table', 'Tabla'),
                                  ('global-multidll', 'Multi-DLL'),
                                  ('global-writes', 'Qué escribe')]),
-        ('Lo demás', [('button', 'El botón de correo'),
+        ('Lo demás', [('apibutton', u'El bot\u00f3n de cuenta de correo'),
+                      ('apicode', u'Preguntar desde un embed'),
+                      ('button', 'El botón de correo'),
                       ('button-general', 'General'),
                       ('button-account', 'Cuenta'),
                       ('button-message', 'Mensaje'),

@@ -81,6 +81,44 @@ MEMBER_DOCS_ES = {
  'EmailToClass.SetErr':         'lo registra Y contesta 1 = funcionó / 0 = falló, para que un '
                                 'método pueda terminar con RETURN SELF.SetErr(...)',
  'EmailToClass.EhloDomain':     'el nombre con el que nos anunciamos en el EHLO',
+ # ---- EmailJsonClass ------------------------------------------------------
+ 'EmailJsonClass.Doc':          u'nuestra propia copia del texto',
+ 'EmailJsonClass.Find':         u'número de nodo, 0 = esa ruta no existe',
+ 'EmailJsonClass.Count':        u'miembros de un objeto / elementos de un arreglo',
+ 'EmailJsonClass.Value':        u'sin escapes, con el UTF-8 pasado a Windows-1252. NO se '
+                                u'llama Val: VAL es una intrínseca de Clarion, y un método '
+                                u'con ese nombre la redefine para todos los módulos que '
+                                u'incluyan este archivo - el siguiente VAL() de la '
+                                u'aplicación deja de compilar.',
+ 'EmailJsonClass.ValueBool':    u'true / 1 / "yes" / "true" cuentan todos',
+ 'EmailJsonClass.Raw':          u'el trozo tal como llegó, objetos y arreglos incluidos - '
+                                u'útil para registrar la fila que salió mal',
+ 'EmailJsonClass.FirstArray':   u'la ruta del arreglo más externo, o vacío si no hay ninguno',
+
+ # ---- EmailApiClass -------------------------------------------------------
+ 'EmailApiClass.Mailer':        u'la cuenta y la capa HTTPS; prestadas, no propias',
+ 'EmailApiClass.Net':           u'prestada de Mailer',
+ 'EmailApiClass.Enc':           u'propia, sólo para base64',
+ 'EmailApiClass.Json':          u'propia',
+ 'EmailApiClass.Language':      u'ETLng:English / ETLng:Spanish',
+ 'EmailApiClass.Silent':        u'1 = no mostrar nunca un cuadro de mensaje',
+ 'EmailApiClass.PageSize':      u'filas por petición; 0 = 100',
+ 'EmailApiClass.MaxRows':       u'detenerse pasadas estas filas; 0 = 5000',
+ 'EmailApiClass.LastStatus':    u'el código HTTP de la última llamada',
+ 'EmailApiClass.LastUrl':       u'la dirección a la que fue, para una consulta de soporte',
+ 'EmailApiClass.ItemBase':      u'la ruta del elemento que se está mapeando - pública '
+                                u'porque un MapItem derivado la necesita',
+ 'EmailApiClass.SuppKindOf':    u'leer la palabra que el proveedor usa para un bloqueo',
+ 'EmailApiClass.IsBlocked':     u'busca en la SuppQ ya cargada',
+ 'EmailApiClass.ExportSuppressions': u'CSV, para su propio archivo',
+ 'EmailApiClass.BuildMap':      u'redefínalo para añadir o corregir una fila',
+ 'EmailApiClass.FindRow':       u'la deja en MapQ',
+ 'EmailApiClass.ExactRow':      u'una fila para ESTE tipo, no una coincidencia ampliada',
+ 'EmailApiClass.FailedText':    u'lo que dijo el proveedor, recortado para un mensaje',
+ 'EmailJsonClass.ValueLong':   u'true / false también cuentan, como 1 y 0',
+ 'EmailApiClass.ArgId':        u'lo que hay detrás de {id} - el resto de las ranuras las llenan los métodos públicos antes de llamar al motor',
+ 'EmailApiClass.RawCall':      u'cualquier cosa para la que la matriz no tenga fila. La clave, las cabeceras y la dirección base se siguen resolviendo por usted; pPath puede ser una URL entera o sólo lo que va detrás del host',
+ 'EmailApiClass.AuthHeaders':  u'las cabeceras firmadas, listas para enviar',
 }
 
 FIELD_DOCS_ES = {
@@ -118,4 +156,5 @@ EQUATE_NOTES_ES = {
  'ETAuth:Login':     'AUTH LOGIN  - usuario y contraseña, en base64',
  'ETAuth:Plain':     'AUTH PLAIN  - un solo bloque base64',
  'ETAuth:XOAuth2':   'AUTH XOAUTH2 - un token de acceso OAuth2',
+
 }
