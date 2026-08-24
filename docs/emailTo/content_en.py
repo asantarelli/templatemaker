@@ -44,6 +44,78 @@ Mailer  EmailToClass
   END
 """
 
+S_ASK = """
+  PROGRAM
+
+  INCLUDE('EmailApiClass.INC'),ONCE
+
+  MAP
+  END
+
+Mailer   EmailToClass
+MailApi  EmailApiClass
+i        LONG
+
+  CODE
+  Mailer.Init(PATH() & '\\mail.ini')
+  Mailer.LoadAccount()                        ! the key you stored in Setup
+  MailApi.Init(Mailer)                        ! borrows that account - no second copy
+
+  IF MailApi.GetSuppressions(ETSup:All) < 0
+    MESSAGE(CLIP(MailApi.LastErrorText))
+  ELSE
+    LOOP i = 1 TO RECORDS(MailApi.SuppQ)
+      GET(MailApi.SuppQ, i)
+      !  MailApi.SuppQ.Address   who
+      !  MailApi.SuppQ.KindName  bounce / blocked / spam report / unsubscribed
+      !  MailApi.SuppQ.Reason    what the receiving server actually said
+      !  MailApi.SuppQ.WhenDate  when
+    END
+  END
+"""
+
+S_SUPPORTS = """
+  IF NOT MailApi.Supports(ETOp:Campaigns)
+    DISABLE(?Campaigns)                       ! Mailgun has no campaign API at all
+  END
+  IF NOT MailApi.Supports(ETOp:Suppressions)
+    DISABLE(?Blocked)                         ! Resend keeps no block list
+  END
+"""
+
+S_MATRIX = """
+  SELF.Row(ETPrv:SendGrid, ETOp:Suppressions, ETSup:Bounce, 'GET', |
+           '{scheme}{host}/v3/suppression/bounces?limit={limit}&offset={offset}', '', |
+           'Address=email;Reason=reason;Id=status;When=#created')
+
+  SELF.Row(ETPrv:Brevo, ETOp:Suppressions, ETSup:All, 'GET', |
+           '{scheme}{host}/v3/smtp/blockedContacts?limit={limit}&offset={offset}', |
+           'contacts', |
+           'Address=email;Reason=reason.message;KindText=reason.code;When=@blockedAt')
+"""
+
+S_ADDPROVIDER = """
+MyApiClass  CLASS(EmailApiClass)
+BuildMap      PROCEDURE(),DERIVED
+            END
+
+MyApiClass.BuildMap PROCEDURE()
+  CODE
+  PARENT.BuildMap()                           ! keep the eight that are already there
+  SELF.Row(ETPrv:Custom, ETOp:Suppressions, ETSup:All, 'GET', |
+           '{scheme}{host}/api/blocked?page={page}', 'rows', |
+           'Address=addr;Reason=why;When=@stamp')
+  SELF.Row(ETPrv:Custom, ETOp:SuppDelete, ETSup:All, 'DELETE', |
+           '{scheme}{host}/api/blocked/{email}')
+"""
+
+S_APIEMBED = """
+  Loc:Rows = MailApi.GetSuppressions(0)
+  IF MailApi.LastError
+    MailApi.ShowError()
+  END
+"""
+
 S_PROJECT = """<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <DefineConstants>_ABCDllMode_=&gt;0%3b_ABCLinkMode_=&gt;1%3b_emailToDllMode_=&gt;0%3b_emailToLinkMode_=&gt;1</DefineConstants>
@@ -87,14 +159,19 @@ def build_getting_started():
     add = B.append
 
     add(h2('what', 'What emailTo is'))
-    add(p('emailTo sends e-mail from a Clarion application. It is three classes, one '
-          'bundled C file and five templates, and it deploys as part of your '
-          '<code>.EXE</code> &mdash; there is no DLL to ship, no .NET, no OpenSSL and '
-          'nothing to register on the machine it runs on.'))
+    add(p('emailTo sends e-mail from a Clarion application, and manages the account '
+          'it sends through. It is five classes, one bundled C file and seven '
+          'templates, and it deploys as part of your <code>.EXE</code> &mdash; there is '
+          'no DLL to ship, no .NET, no OpenSSL and nothing to register on the machine '
+          'it runs on.'))
     add(p('It can put a message on the wire four ways, and they all send the same '
           'message: <b>SMTP</b> over plain, STARTTLS or implicit TLS; the <b>Gmail '
           'API</b>; <b>Microsoft Graph</b>; or a provider <b>API key</b> for SendGrid, '
-          'Mailgun, Resend, Brevo, Postmark and Mailjet.'))
+          'Mailgun, Resend, Brevo, Postmark, Mailjet, SparkPost and MailerSend.'))
+    add(p('Those eight API providers answer questions as well as taking messages, and '
+          'the same account asks them: <b>who is blocked and why</b>, what the last '
+          'month looked like, which contacts and campaigns exist. One set of methods '
+          'covers all eight &mdash; see <a href="#ask">Who is blocked, and why</a>.'))
     add(table(['You have', 'Use', 'What you need'], [
         ['A Gmail account', 'SMTP + app password', 'Two-factor on, then an app password'],
         ['Outlook.com or Hotmail', 'SMTP + OAuth2', 'A desktop client ID from Azure'],
@@ -104,7 +181,7 @@ def build_getting_started():
     ]))
 
     add(h2('install', 'Install'))
-    add(p('Copy these seven files to a folder on the Clarion redirection path &mdash; '
+    add(p('Copy these eleven files to a folder on the Clarion redirection path &mdash; '
           'the application folder, or <code>\\clarion12\\accessory\\libsrc\\win</code>:'))
     add(table(['File', 'What it is'], [
         ['<code>EmailNetClass.inc</code> / <code>.clw</code>',
@@ -113,6 +190,10 @@ def build_getting_started():
          'The message and its MIME. Pure Clarion.'],
         ['<code>EmailToClass.inc</code> / <code>.clw</code>',
          'Accounts, the four transports, OAuth2, the windows.'],
+        ['<code>EmailJsonClass.inc</code> / <code>.clw</code>',
+         'Reading what a provider answers. Pure Clarion.'],
+        ['<code>EmailApiClass.inc</code> / <code>.clw</code>',
+         'The management API: blocked, statistics, campaigns.'],
         ['<code>emailc.c</code>',
          'Winsock, SCHANNEL, WinHTTP, DPAPI, SHA-256.'],
     ]))
@@ -312,6 +393,75 @@ def build_getting_started():
          '<code>Mailer.OAuth.RedirectPort</code> and allow it through the firewall.'],
     ]))
 
+    add(h2('ask', 'Who is blocked, and why'))
+    add(p('Sending is half of what a mail provider does. The other half is keeping a '
+          'list of the addresses it will not deliver to &mdash; the ones that hard '
+          'bounced, the people who pressed "this is junk", the ones who unsubscribed. '
+          'Left alone that list stays on their web site, and your program keeps mailing '
+          'addresses that can never arrive, which is exactly what ruins a sending '
+          'reputation.'))
+    add(p('<code>EmailApiClass</code> reads it. One object, borrowing the account you '
+          'already set up:'))
+    add(code(S_ASK))
+    add(p('That program works unchanged against all eight API providers. It has to, '
+          'because they agree about almost nothing:'))
+    add(table(['Provider', 'Where the blocked addresses are', 'What a row looks like'], [
+        ['SendGrid', 'Five separate lists: bounces, blocks, spam_reports, '
+                     'unsubscribes, invalid_emails',
+         '<code>email</code>, <code>reason</code>, a unix <code>created</code>'],
+        ['Brevo', 'One list, <code>/smtp/blockedContacts</code>, with a reason CODE '
+                  'saying which kind it is',
+         '<code>email</code>, <code>reason.message</code>, an ISO <code>blockedAt</code>'],
+        ['Mailgun', 'Per DOMAIN, and paged with a cursor rather than an offset',
+         '<code>address</code>, <code>error</code>, <code>code</code>, an RFC-2822 date'],
+        ['Postmark', 'A stream dump, plus a richer <code>/bounces</code> for bounces alone',
+         '<code>EmailAddress</code>, <code>SuppressionReason</code> &mdash; capitalised'],
+        ['Mailjet', 'Everything wrapped in <code>Data</code>, capitalised throughout',
+         '<code>ContactAlt</code>, <code>ErrorRelatedTo</code>, <code>ErrorCode</code>'],
+    ]))
+    add(p('After <code>GetSuppressions()</code> they are one queue with the same '
+          'columns, and <code>SuppQ.Kind</code> says which sort of block each row '
+          'really is &mdash; worked out from the provider\'s own wording where the '
+          'provider keeps them all in one list.'))
+    add(note('tip', 'Ask before you send',
+             '<p><code>IsBlocked()</code> searches whatever the last '
+             '<code>GetSuppressions()</code> loaded. Calling it in the loop that builds '
+             'a mailing costs nothing and stops you sending to an address the provider '
+             'is going to refuse anyway:</p>'
+             '<pre class="code"><code>IF MailApi.IsBlocked(CUS:EMail) THEN CYCLE.'
+             '</code></pre>'))
+
+    add(h2('ask-more', 'The rest of the account'))
+    add(p('The same object answers the other questions, and every one of them fills a '
+          'queue of the same shape whoever the provider is:'))
+    add(table(['You want', 'Call', 'It fills'], [
+        ['Who is blocked', '<code>GetSuppressions(kind)</code>', '<code>SuppQ</code>'],
+        ['Let one back in', '<code>DeleteSuppression(address, kind)</code>', '&mdash;'],
+        ['Let them all back in', '<code>DeleteAllSuppressions(kind)</code>', '&mdash;'],
+        ['Statistics per day', '<code>GetStats(from, to)</code>', '<code>StatQ</code>'],
+        ['What happened to a message', '<code>GetEvents(from, to)</code>',
+         '<code>EventQ</code>'],
+        ['Contacts and lists', '<code>GetContacts()</code> <code>GetLists()</code>',
+         '<code>ContactQ</code> <code>ListQ</code>'],
+        ['Campaigns', '<code>GetCampaigns()</code> <code>SendCampaign(id)</code>',
+         '<code>CampaignQ</code>'],
+        ['Templates, senders, domains, webhooks',
+         '<code>GetTemplates()</code> &hellip;', '<code>TemplateQ</code> &hellip;'],
+        ['All of it, in a window', '<code>Manage()</code>', '&mdash;'],
+    ]))
+    add(p('No provider offers every one. <code>Supports()</code> says which, so a '
+          'window can grey out what this account genuinely cannot do rather than '
+          'failing when somebody presses it:'))
+    add(code(S_SUPPORTS))
+    add(note('info', 'Or just show them the window',
+             '<p><code>MailApi.Manage()</code> is a complete tabbed window over all of '
+             'it &mdash; blocked addresses with their reasons, unblock one or unblock '
+             'every one, a CSV export, statistics, activity, contacts, lists, '
+             'campaigns, templates, senders, domains and webhooks. Tabs this provider '
+             'cannot answer are disabled rather than empty. The <b>emailTo - Mail '
+             'account button</b> control template drops a button that opens it, on '
+             'whichever tab you name.</p>'))
+
     add(h2('demo', 'The demo'))
     add(p('<code>examples/emailTo/emailToDemo.clw</code> is the hand-coded equivalent of '
           'what the templates generate: a window with <b>Account setup</b>, '
@@ -359,13 +509,15 @@ def build_getting_started():
                     ('oauth-microsoft', 'Microsoft'),
                     ('oauth-verify', 'Access blocked'),
                     ('oauth-run', 'Running it')]),
+        ('Ask the provider', [('ask', 'Who is blocked, and why'),
+                              ('ask-more', 'The rest of the account')]),
         ('Then', [('demo', 'The demo'), ('firstrun', 'When the first send does not work')]),
     ]
     return page('getting-started.html', PAGE_TITLES['getting-started.html'][0], 'Volume 1',
                 'Getting Started',
                 'Install the classes, register the template, and get a message out of '
                 'a Clarion program in about twenty lines.',
-                ['No DLL to ship', 'No .NET', 'SMTP + OAuth2 + REST', 'Clarion 12'],
+                ['No DLL to ship', 'No .NET', '8 provider APIs', 'Clarion 12'],
                 groups, body)
 
 # =====================================================================
@@ -603,6 +755,129 @@ def build_programmers_guide():
              'refresh token on every use, so the new one has to be stored each time '
              '&mdash; which is why <code>Refresh</code> writes it back.</p>'))
 
+    add(h2('api', 'One class, eight providers'))
+    add(p('<code>EmailToClass</code> answers one question: send this. '
+          '<code>EmailApiClass</code> answers all the others &mdash; who is blocked, '
+          'what happened last month, which contacts and campaigns exist &mdash; and it '
+          'answers them the same way whoever you signed up with.'))
+    add(p('It owns nothing of its own. <code>Init(Mailer)</code> borrows the account '
+          'and the HTTPS layer, so the key the Setup window sealed is the key these '
+          'calls use, and there is no second copy of a credential anywhere in the '
+          'program.'))
+    add(code(S_ASK))
+    add(p('Underneath it is three layers, and only the middle one knows anything about '
+          'a provider:'))
+    add(table(['Layer', 'What it is', 'Knows about providers?'], [
+        ['<code>BuildMap()</code>', 'The matrix. One row per operation per provider.',
+         'Yes &mdash; and it is the only thing that does'],
+        ['<code>Fetch</code> / <code>Perform</code>',
+         'The engine: expand the URL, sign it, follow the paging, parse, map.', 'No'],
+        ['<code>GetXxx</code> / <code>AddXxx</code>',
+         'The public methods. Set the arguments, call the engine.', 'No'],
+    ]))
+
+    add(h2('api-matrix', 'The matrix'))
+    add(p('Adding a provider is adding rows, not writing branches. A row says: for '
+          'THIS provider and THIS operation, use this verb and this address, the list '
+          'is at this path in the reply, and these JSON members fill these columns.'))
+    add(code(S_MATRIX))
+    add(p('The pieces of a row:'))
+    add(table(['Part', 'What it means'], [
+        ['<code>{scheme}{host}</code>',
+         'The provider&rsquo;s address, honouring <code>ApiRegion</code> (eu) and '
+         '<code>ApiBase</code> (anything you name, scheme included).'],
+        ['<code>{limit} {offset} {page}</code>',
+         'Filled in by the paging loop, over and over, until the provider runs out.'],
+        ['<code>{email} {id} {text} {subject} {html}</code>',
+         'Your data. Percent-encoded in a URL, JSON-escaped in a body &mdash; the '
+         'engine can tell which it is building.'],
+        ['<code>{ymdfrom} {isofrom} {epochfrom} {rfcfrom}</code>',
+         'The same date range in the four spellings the eight providers want.'],
+        ['the item path', 'Where the array of rows sits: blank means the reply IS the '
+         'array, <code>*</code> means the reply is ONE item. A path that turns out not '
+         'to be there falls back to the first array in the document.'],
+        ['the map', '<code>Column=source</code> pairs. A source may be a path '
+         '(<code>reason.message</code>), may offer alternates '
+         '(<code>recipient.email|email</code>), may be a literal '
+         '(<code>!spam report</code>), and may carry a date converter: '
+         '<code>#</code> unix, <code>@</code> ISO-8601, <code>%</code> RFC-2822, '
+         '<code>$</code> a plain day.'],
+    ]))
+    add(note('info', 'ETSup:All on a list row means something specific',
+             '<p>Providers split their block lists two ways. SendGrid keeps five '
+             'separate ones and each row is registered under its own kind. Brevo, '
+             'Postmark and SparkPost keep ONE list and label each entry, so their row '
+             'is registered under <code>ETSup:All</code> &mdash; and the engine then '
+             'reads each row&rsquo;s real kind out of the provider&rsquo;s own wording '
+             '(<code>hardBounce</code>, <code>SpamNotification</code>, '
+             '<code>policy_suppression</code>) through <code>SuppKindOf()</code>. Ask '
+             'either sort for one kind and you get that kind.</p>'))
+
+    add(h2('api-queues', 'The normalised answers'))
+    add(p('Every read fills a queue that looks the same whoever answered. That is the '
+          'whole bargain: the differences are absorbed in the matrix, and your code '
+          'never learns them.'))
+    add(table(['Queue', 'What is in a row'], [
+        ['<code>SuppQ</code>', 'Address, Kind, KindName, Reason, Code, WhenDate, '
+         'WhenTime, Id, Sender, Raw'],
+        ['<code>StatQ</code>', 'WhenDate, Requests, Delivered, Opens, UniqueOpens, '
+         'Clicks, UniqueClicks, HardBounces, SoftBounces, Blocks, SpamReports, '
+         'Unsubscribed, Invalid'],
+        ['<code>EventQ</code>', 'WhenDate, WhenTime, Address, EventName, Reason, '
+         'Subject, MessageId, Link'],
+        ['<code>ContactQ</code> <code>ListQ</code> <code>CampaignQ</code>',
+         'Id, Address, Name, Blocked, Unsubscribed &hellip; / Id, Name, Members &hellip; '
+         '/ Id, Name, Subject, Status &hellip;'],
+        ['<code>TemplateQ</code> <code>SenderQ</code> <code>DomainQ</code> '
+         '<code>HookQ</code>', 'The same treatment for the rest of the account'],
+    ]))
+    add(p('<code>SuppQ.Raw</code> keeps the provider&rsquo;s own object for the row, so '
+          'anything the queue has no column for is still there when you need to log the '
+          'one entry that looks wrong.'))
+    add(note('warn', 'A LIST cannot be pointed at these',
+             '<p><code>FROM(MailApi.SuppQ)</code> compiles and then faults on the first '
+             'paint: these are queue REFERENCES, and the control binds to the reference '
+             'variable itself. Copy the rows into a real local <code>QUEUE</code> for '
+             'display &mdash; which is where you want to format the dates anyway. '
+             '<code>Manage()</code> does exactly that, and the demo shows it.</p>'))
+
+    add(h2('api-paging', 'Paging, three ways'))
+    add(p('A block list is not a page long, and the eight providers disagree about how '
+          'to walk it. The engine handles all three without the caller knowing:'))
+    add(table(['Style', 'Who', 'What the engine does'], [
+        ['limit and offset', 'SendGrid, Brevo, Mailjet, Postmark',
+         'Asks again with the offset advanced, and stops when a page comes back '
+         'shorter than the page size.'],
+        ['page number', 'SparkPost, MailerSend',
+         'The same, counted in pages instead of rows.'],
+        ['a cursor', 'Mailgun',
+         'Follows the address the reply carries in <code>paging.next</code>, and stops '
+         'when a page comes back empty.'],
+    ]))
+    add(p('<code>PageSize</code> sets how many to ask for at a time and '
+          '<code>MaxRows</code> is the guard &mdash; 5,000 by default, 0 for no limit. '
+          'A hundred thousand suppressed addresses is a real thing at a large sender, '
+          'and reading them all into memory by accident should be a decision rather '
+          'than a surprise.'))
+    add(note('tip', 'One list refusing does not lose the others',
+             '<p>Asking SendGrid for everything means five requests. If one of them '
+             'fails &mdash; an endpoint an account&rsquo;s plan does not open, a '
+             'permission the key was not given &mdash; the other four still answer, '
+             'and the failure is in <code>LastErrorText</code>. A partial answer is a '
+             'great deal more use than none.</p>'))
+
+    add(h2('api-add', 'Adding a provider'))
+    add(p('<code>BuildMap</code> is VIRTUAL, so a provider the shipped matrix does not '
+          'know needs no change to any file emailTo ships:'))
+    add(code(S_ADDPROVIDER))
+    add(p('Set <code>Acc.Provider</code> to <code>ETPrv:Custom</code> and '
+          '<code>Acc.ApiBase</code> to the host, and every method above works against '
+          'it &mdash; including <code>Manage()</code>, which reads '
+          '<code>Supports()</code> to decide which tabs to offer.'))
+    add(p('For a single call that deserves no row at all, <code>RawCall()</code> signs '
+          'the request with this account and hands you back the status; the reply is in '
+          '<code>Net.Body()</code>, and <code>Json</code> is right there to parse it.'))
+
     add(h2('settings', 'Where the settings live'))
     add(p('<code>LoadAccount</code> and <code>SaveAccount</code> are <code>VIRTUAL</code>. '
           'Out of the box they read and write an INI beside the <code>.EXE</code>, which '
@@ -734,6 +1009,11 @@ def build_programmers_guide():
                                 ('accents', 'Accents')]),
         ('Getting it out', [('transports', 'Choosing a transport'),
                             ('oauth', 'OAuth2, end to end')]),
+        ('The provider API', [('api', 'One class, eight providers'),
+                              ('api-matrix', 'The matrix'),
+                              ('api-queues', 'The normalised answers'),
+                              ('api-paging', 'Paging, three ways'),
+                              ('api-add', 'Adding a provider')]),
         ('Keeping it', [('settings', 'Where the settings live'),
                         ('secrets', 'Secrets at rest'),
                         ('errors', 'Errors, and the log'),
@@ -750,9 +1030,9 @@ def build_programmers_guide():
     ]
     return page('programmers-guide.html', PAGE_TITLES['programmers-guide.html'][0], 'Volume 2',
                 "Programmer's Guide",
-                'What the three classes own, how a message becomes MIME, how OAuth2 '
-                'actually runs, and the Clarion behaviour that bit us on the way.',
-                ['Object model', 'MIME', 'OAuth2 + PKCE', 'Clarion notes'],
+                'What the five classes own, how a message becomes MIME, how one class '
+                'covers eight provider APIs, and the Clarion behaviour that bit us.',
+                ['Object model', 'MIME', 'The provider matrix', 'Clarion notes'],
                 groups, body)
 
 # =====================================================================
@@ -821,7 +1101,7 @@ def build_template_guide():
     B = []
     add = B.append
 
-    add(h2('five', 'The five templates'))
+    add(h2('five', 'The seven templates'))
     add(table(['Template', 'Kind', 'What it is for'], [
         ['<b>emailTo - Global</b>', 'Application extension',
          'Required, once per app. Declares the object, sets the defaults, '
@@ -834,14 +1114,20 @@ def build_template_guide():
          'The write-and-send window, optionally pre-filled.'],
         ['<b>emailTo - Open the mail account setup window here</b>', 'Code template',
          'The account window, for a Setup menu.'],
+        ['<b>emailTo - Mail account button</b>', 'Control template, MULTI',
+         'Drag onto a window. Opens the management window: blocked addresses and why, '
+         'statistics, activity, contacts, campaigns.'],
+        ['<b>emailTo - Ask the provider</b>', 'Code template',
+         'Any embed: load the blocked list, unblock one or all of them, check an '
+         'address, read the statistics, send a campaign.'],
     ]))
     add(note('tip', 'Only the first one is required',
-             '<p>Add <b>emailTo - Global</b> and the object exists everywhere. The other '
-             'four are conveniences that call it &mdash; anything they do, you can do '
-             'from a hand-written embed with the same one-line calls.</p>'))
+             '<p>Add <b>emailTo - Global</b> and both objects exist everywhere. The '
+             'other six are conveniences that call them &mdash; anything they do, you '
+             'can do from a hand-written embed with the same one-line calls.</p>'))
 
     add(h2('global', 'emailTo - Global'))
-    add(p('Global Properties &rarr; Extensions &rarr; Insert. Six tabs.'))
+    add(p('Global Properties &rarr; Extensions &rarr; Insert. Seven tabs.'))
 
     add(h3('global-general', 'General'))
     add(table(['Prompt', 'Default', 'What it does'], [
@@ -924,6 +1210,80 @@ def build_template_guide():
              'The others import it as the base type and still reach the derived methods, '
              'because both are <code>VIRTUAL</code> and dispatch through the '
              'object&rsquo;s own VMT.</p>'))
+
+    add(h2('global-api', 'Provider API'))
+    add(p('The tab that declares the second object. The same key that sends the mail '
+          'can also answer for the account, so this needs nothing except a name.'))
+    add(table(['Prompt', 'What it does'], [
+        ['Add the management object',
+         'Declares <code>EmailApiClass</code> globally and calls '
+         '<code>Init</code> on it at start-up, right after the mail object has loaded '
+         'its account. On by default.'],
+        ['Object name', 'What to call it. <code>MailApi</code> unless you have a '
+         'reason &mdash; the control and code templates default to that name too.'],
+        ['Rows per request', 'The page size. The class keeps asking until the provider '
+         'runs out, so this is not a limit, only how much comes back at a time.'],
+        ['Stop after this many rows', 'The guard: 5,000 by default, 0 for no limit.'],
+        ['Second key', 'Postmark alone needs two tokens: the SERVER token sends and '
+         'reads bounces, the ACCOUNT token opens senders and domains. Blank for '
+         'everybody else.'],
+        ['Region', '<code>eu</code> for a Mailgun or SparkPost account created in '
+         'Europe. Those are separate services with their own hostnames and their own '
+         'data &mdash; asked at the default endpoint, a European account looks empty '
+         'rather than wrong.'],
+        ['Base address', 'Replaces the provider&rsquo;s host, and its scheme if you '
+         'give one. For a relay of your own, or for pointing a test build at a '
+         'stand-in. Blank in production.'],
+    ]))
+    add(p('Nominate a settings table on the Table tab and three more columns become '
+          'available for these on the second columns tab: second key (sealed), region '
+          'and base address.'))
+
+    add(h2('apibutton', 'The mail account button'))
+    add(p('<b>emailTo - Mail account button</b> is a control template: drag it onto any '
+          'window and it drops a wired button that opens the management window.'))
+    add(table(['Prompt', 'What it does'], [
+        ['API object name', 'The object the global extension declared.'],
+        ['Open on', 'Which tab: Account, Blocked addresses, Statistics, Activity, '
+         'Contacts, Lists, Campaigns, Templates, Senders and domains, or Webhooks. If '
+         'this provider cannot answer that one, the window opens on the first tab it '
+         'CAN answer rather than showing an empty list.'],
+        ['Hide the button if the provider has no API',
+         'An account sending over plain SMTP &mdash; a company Exchange server, Gmail '
+         'with an app password &mdash; has no management API at all. Ticked, the '
+         'button disappears for those accounts instead of opening a window with every '
+         'tab greyed out. It is a run-time test, so one build serves both.'],
+    ]))
+    add(p('Drop it more than once and each instance gets its own tab: one button for '
+          'the blocked list, another for campaigns. The template writes the event '
+          'handler against whichever field equate AppGen gave that instance.'))
+
+    add(h2('apicode', 'Asking from an embed'))
+    add(p('<b>emailTo - Ask the provider</b> is the code template. Drop it in any embed '
+          '&mdash; a button, a menu item, the end of a process &mdash; and pick the '
+          'operation:'))
+    add(table(['Prompt', 'What it does'], [
+        ['Do this', 'Load the blocked addresses, unblock one, unblock every one, block '
+         'an address, is this address blocked, load the statistics, the activity, the '
+         'contacts, the lists, the campaigns, send a campaign, export the blocked list '
+         'to CSV, or open the management window.'],
+        ['Which list', 'Everything, bounces, blocked, spam reports, unsubscribed or '
+         'invalid. A provider that keeps one list for all of them answers the same '
+         'rows whichever you pick, labelled with what they really are.'],
+        ['Value', 'The address, campaign id or file name the operation works on &mdash; '
+         'typed, or taken from a variable at run time.'],
+        ['Put the result in', 'For a load, the NUMBER of rows (or -1 if the provider '
+         'said no). For everything else, 1 means it worked.'],
+        ['Show the error', 'Pops the provider&rsquo;s own words. Either way they are in '
+         '<code>LastErrorText</code>, and the address called is in '
+         '<code>LastUrl</code>.'],
+    ]))
+    add(p('What it writes is short, because the class is where the work is:'))
+    add(code(S_APIEMBED))
+    add(p('The rows land in the object&rsquo;s queues, which are the same shape '
+          'whoever the provider is &mdash; <code>SuppQ</code>, <code>StatQ</code>, '
+          '<code>EventQ</code> and the rest. Loop them yourself, or call '
+          '<code>Manage()</code> and let the shipped window do it.'))
 
     add(h2('button', 'emailTo - E-mail button'))
     add(p('Drag it onto any window; drop it more than once if you want to. AppGen uniques '
@@ -1023,15 +1383,18 @@ def build_template_guide():
 
     body = '\n'.join(B)
     groups = [
-        ('Overview', [('five', 'The five templates')]),
+        ('Overview', [('five', 'The seven templates')]),
         ('The global extension', [('global', 'emailTo - Global'),
                                   ('global-general', 'General'),
                                   ('global-account', 'Account'),
                                   ('global-signin', 'Sign-in'),
+                                  ('global-api', 'Provider API'),
                                   ('global-table', 'Table'),
                                   ('global-multidll', 'Multi-DLL'),
                                   ('global-writes', 'What it writes')]),
-        ('The rest', [('button', 'The e-mail button'),
+        ('The rest', [('apibutton', 'The mail account button'),
+                      ('apicode', 'Asking from an embed'),
+                      ('button', 'The e-mail button'),
                       ('button-general', 'General'),
                       ('button-account', 'Account'),
                       ('button-message', 'Message'),
@@ -1042,7 +1405,7 @@ def build_template_guide():
                 'Template Guide',
                 'Every template, every tab, every prompt &mdash; and the code the '
                 'generator actually writes into your application.',
-                ['5 templates', 'Every prompt', 'Generated code', 'Multi-DLL'],
+                ['7 templates', 'Every prompt', 'Generated code', 'Multi-DLL'],
                 groups, body)
 
 

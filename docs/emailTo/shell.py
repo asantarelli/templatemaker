@@ -160,14 +160,11 @@ def nextcards(names):
 
 
 def foot():
-    return T('emailTo &mdash; four volumes. The reference is generated from '
-             '<code>EmailNetClass.inc</code>, <code>EmailMsgClass.inc</code> and '
-             '<code>EmailToClass.inc</code>, so its signatures are the ones in '
-             'the build.',
+    return T('emailTo &mdash; four volumes. The reference is generated from the five '
+             'include files, so its signatures are the ones in the build.',
              'emailTo &mdash; cuatro vol&uacute;menes. La referencia se genera a '
-             'partir de <code>EmailNetClass.inc</code>, <code>EmailMsgClass.inc</code> '
-             'y <code>EmailToClass.inc</code>, de modo que sus firmas son las que '
-             'est&aacute;n en la compilaci&oacute;n.')
+             'partir de los cinco archivos include, de modo que sus firmas son las '
+             'que est&aacute;n en la compilaci&oacute;n.')
 
 
 def langswitch(base):
