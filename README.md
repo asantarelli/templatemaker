@@ -123,7 +123,7 @@ templates/                      # ready-to-register Clarion templates
     weatherWidget.tpl           #     global extension + code template
     weatherWidget.zip           #     the three files above, zipped for easy distribution
   emailTo/                      #   send e-mail and manage the account: SMTP/TLS, OAuth2,
-                                #     eight provider APIs (see below)
+                                #     nine provider APIs (see below)
     EmailNetClass.inc/.clw      #     transport: sockets, TLS, HTTPS, DPAPI (wraps emailc.c)
     EmailMsgClass.inc/.clw      #     the message: MIME, base64, quoted-printable, UTF-8
     EmailToClass.inc/.clw       #     the sender: accounts, SMTP, OAuth2, REST, the windows
@@ -1152,7 +1152,7 @@ import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
 
-### `templates/emailTo/` — send e-mail, and manage the account: SMTP/TLS, OAuth2 and eight provider APIs
+### `templates/emailTo/` — send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs
 Add **emailTo - Global** to an application and every procedure in it can send mail. Drag **emailTo - E-mail
 button** onto a window for a wired-up button, or drop the **Send an e-mail here** code template into any embed
 — the end of a report, a menu item, a batch process. One line does it from hand-written code:
@@ -1167,13 +1167,13 @@ END
 same bytes its own way: **SMTP** (plain, STARTTLS or implicit TLS, signing in with `AUTH LOGIN`, `AUTH PLAIN`
 or **OAuth2 `XOAUTH2`**); the **Gmail API**; **Microsoft Graph** — the only route many locked-down Microsoft
 365 tenants still permit; and a **provider API key** for SendGrid, Mailgun, Resend, Brevo, Postmark,
-Mailjet, SparkPost or MailerSend, which needs no OAuth and no consent screen at all. Sixteen provider presets
+Mailjet, SparkPost, MailerSend or **Amazon SES**, which needs no OAuth and no consent screen at all. Sixteen provider presets
 fill in host, port, security and sign-in method, so the only things left to type are the address and the
 credential.
 
 **And it asks them questions too.** Sending is half of what a mail provider does. The other half is knowing
 which of your addresses it will not deliver to — the hard bounces, the spam complaints, the unsubscribes —
-and `EmailApiClass` reads that, through **one set of methods for all eight providers**:
+and `EmailApiClass` reads that, through **one set of methods for all nine providers**:
 
 ```clarion
 MailApi.Init(Mailer)                                  ! borrows the account you already set up
@@ -1191,7 +1191,8 @@ MailApi.Manage()                                          ! or just show them th
 That program is unchanged across providers that agree about almost nothing. SendGrid keeps **five** separate
 lists and pages with an offset; Brevo keeps **one** and labels each row with a reason code; Mailgun is
 per-domain and pages with a **cursor**; Postmark capitalises everything and deletes a bounce by *its own id*;
-Mailjet buries the lot in `Data`. The differences live in a **matrix** — one row per operation per provider,
+Mailjet buries the lot in `Data`; Amazon SES wants every request **signed**, and pages with a token.
+The differences live in a **matrix** — one row per operation per provider,
 saying which verb, which address, where the array is in the reply, and which JSON member fills which column —
 so adding a provider is adding rows, and `BuildMap` is VIRTUAL if the one you want is not there yet.
 
@@ -1286,7 +1287,7 @@ must define `_emailToLinkMode_=>1;_emailToDllMode_=>0` itself — `examples/emai
 
 **The manual** is four linked volumes in English and Spanish — eight pages — built by `docs/emailTo/build-docs.py`. The reference volume is
 generated from the `.inc` files, so its signatures cannot drift from the build, and the build fails if a
-nav entry lands on no heading, a heading sits in no nav, or any of the 277 public members lacks a worked
+nav entry lands on no heading, a heading sits in no nav, or any of the 288 public members lacks a worked
 line of code, or an English one-liner has gained no Spanish twin.
 
 | Volume | English | Español |
@@ -1301,6 +1302,22 @@ line of code, or an English one-liner has gained no Spanish twin.
 `emailToButton` (compose, send, or open setup), `emailToApiButton` (opens the management window on whichever
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
+
+**v1.06 (2026-08-24).** **Amazon SES**, the ninth provider — and the first that will not answer a request just
+because you attached a key. Every call has to be signed with **AWS Signature Version 4**, so the signing lives
+on `EmailNetClass` (`SignAws`, over `Hmac256`, `Sha256Hex` and a derived key that walks date → region →
+service → `aws4_request`) where both the sender and the management object can reach it. Sending posts the same
+MIME the other transports build, base64'd into `/v2/email/outbound-emails`; the management side maps the
+suppression list, contact lists and their members, identities and the account itself. SES pages with neither
+an offset nor a cursor URL but a **continuation token**, which is a fourth paging style the engine now knows.
+
+Two things worth remembering. The credential lands in a different place than everywhere else: **`ApiKey2` is
+the access key id, `ApiKey` the secret, `ApiRegion` the region** — which leaves `UserName` and `Password` free
+for the quite separate SMTP credentials SES also issues, so one account row can do both. And an empty HMAC key
+is not an empty Clarion `STRING`: assigning `''` pads with **spaces**, which signs correctly-shaped garbage.
+The zero-fill is explicit. The signer is checked against the RFC 4231 vectors and against Amazon's own worked
+example, and the suite is 140 assertions green — but with no AWS account here, **SES has never been run
+against the live service**; the canonical path's double-encoding is the line most likely to want a real reply.
 
 **v1.05 (2026-08-24).** The upgrade friction from v1.03, fixed properly. The Provider API was a *tab* on the
 global extension, and that broke every application built before v1.03: an app stores the set of prompts it was

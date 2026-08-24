@@ -320,4 +320,20 @@ EXAMPLES = {
 'EmailApiClass.JsonStr':       "Loc:Escaped = MailApi.JsonStr(Loc:Text)            ! escaped, WITHOUT the quotes",
 'EmailApiClass.Csv':           "Loc:Field = MailApi.Csv(MailApi.SuppQ.Reason)      ! quoted, commas and all",
 'EmailApiClass.FailedText':    "Log(MailApi.FailedText())                          ! 'HTTP 401: {\"errors\":...'",
+
+# =====================================================================
+#  Signing - AWS Signature Version 4
+# =====================================================================
+'EmailNetClass.SignAws':       "Loc:Hdrs = Mailer.Net.SignAws('GET', Loc:Url, '', Loc:KeyId, Loc:Secret, 'eu-west-1', 'ses')",
+'EmailNetClass.Hmac256':       "Loc:Mac = Mailer.Net.Hmac256(Loc:Key, 'Hi There')   ! 32 raw bytes, RFC 2104",
+'EmailNetClass.HexOf':         "Loc:Hex = Mailer.Net.HexOf(Loc:Mac)                 ! 'b0344c61d8db...'",
+'EmailNetClass.Sha256Hex':     "Loc:Hash = Mailer.Net.Sha256Hex(Loc:Body)           ! what the canonical request carries",
+'EmailNetClass.SigningKey':    "Loc:Key = Mailer.Net.SigningKey(Loc:Secret, '20260824', 'eu-west-1', 'ses')",
+'EmailNetClass.AmzStamp':      "Loc:When = Mailer.Net.AmzStamp()                    ! '20260824T134205Z', UTC",
+'EmailNetClass.CanonPath':     "Loc:Path = Mailer.Net.CanonPath('/v2/email/x/a%40b.com')   ! '/v2/email/x/a%2540b.com'",
+'EmailNetClass.CanonQuery':    "Loc:Q = Mailer.Net.CanonQuery('b=2&a=1')            ! 'a=1&b=2' - sorted",
+
+'EmailApiClass.SignedHeaders': "Loc:Hdrs = MailApi.SignedHeaders(ETOp:Account, 'GET', Loc:Url, '')",
+'EmailApiClass.AwsKeyId':      "Loc:Id = MailApi.AwsKeyId()                         ! ApiKey2, or UserName if blank",
+'EmailApiClass.ArgToken':      "MESSAGE('Now reading from token ' & CLIP(MailApi.ArgToken))",
 }

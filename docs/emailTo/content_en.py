@@ -209,11 +209,12 @@ def build_getting_started():
     add(p('It can put a message on the wire four ways, and they all send the same '
           'message: <b>SMTP</b> over plain, STARTTLS or implicit TLS; the <b>Gmail '
           'API</b>; <b>Microsoft Graph</b>; or a provider <b>API key</b> for SendGrid, '
-          'Mailgun, Resend, Brevo, Postmark, Mailjet, SparkPost and MailerSend.'))
-    add(p('Those eight API providers answer questions as well as taking messages, and '
+          'Mailgun, Resend, Brevo, Postmark, Mailjet, SparkPost, MailerSend and '
+          '<b>Amazon SES</b>.'))
+    add(p('Those nine API providers answer questions as well as taking messages, and '
           'the same account asks them: <b>who is blocked and why</b>, what the last '
           'month looked like, which contacts and campaigns exist. One set of methods '
-          'covers all eight &mdash; see <a href="#ask">Who is blocked, and why</a>.'))
+          'covers all nine &mdash; see <a href="#ask">Who is blocked, and why</a>.'))
     add(table(['You have', 'Use', 'What you need'], [
         ['A Gmail account', 'SMTP + app password', 'Two-factor on, then an app password'],
         ['Outlook.com or Hotmail', 'SMTP + OAuth2', 'A desktop client ID from Azure'],
@@ -455,7 +456,7 @@ def build_getting_started():
     add(p('<code>EmailApiClass</code> reads it. One object, borrowing the account you '
           'already set up:'))
     add(code(S_ASK))
-    add(p('That program works unchanged against all eight API providers. It has to, '
+    add(p('That program works unchanged against all nine API providers. It has to, '
           'because they agree about almost nothing:'))
     add(table(['Provider', 'Where the blocked addresses are', 'What a row looks like'], [
         ['SendGrid', 'Five separate lists: bounces, blocks, spam_reports, '
@@ -470,6 +471,9 @@ def build_getting_started():
          '<code>EmailAddress</code>, <code>SuppressionReason</code> &mdash; capitalised'],
         ['Mailjet', 'Everything wrapped in <code>Data</code>, capitalised throughout',
          '<code>ContactAlt</code>, <code>ErrorRelatedTo</code>, <code>ErrorCode</code>'],
+        ['Amazon SES', 'Signed with SigV4 rather than a key in a header, and paged with '
+         'a continuation token',
+         '<code>EmailAddress</code>, <code>Reason</code> &mdash; BOUNCE or COMPLAINT'],
     ]))
     add(p('After <code>GetSuppressions()</code> they are one queue with the same '
           'columns, and <code>SuppQ.Kind</code> says which sort of block each row '
@@ -807,7 +811,7 @@ def build_programmers_guide():
              'refresh token on every use, so the new one has to be stored each time '
              '&mdash; which is why <code>Refresh</code> writes it back.</p>'))
 
-    add(h2('api', 'One class, eight providers'))
+    add(h2('api', 'One class, nine providers'))
     add(p('<code>EmailToClass</code> answers one question: send this. '
           '<code>EmailApiClass</code> answers all the others &mdash; who is blocked, '
           'what happened last month, which contacts and campaigns exist &mdash; and it '
@@ -844,7 +848,7 @@ def build_programmers_guide():
          'Your data. Percent-encoded in a URL, JSON-escaped in a body &mdash; the '
          'engine can tell which it is building.'],
         ['<code>{ymdfrom} {isofrom} {epochfrom} {rfcfrom}</code>',
-         'The same date range in the four spellings the eight providers want.'],
+         'The same date range in the four spellings the nine providers want.'],
         ['the item path', 'Where the array of rows sits: blank means the reply IS the '
          'array, <code>*</code> means the reply is ONE item. A path that turns out not '
          'to be there falls back to the first array in the document.'],
@@ -894,7 +898,7 @@ def build_programmers_guide():
              '<code>Manage()</code> does exactly that, and the demo shows it.</p>'))
 
     add(h2('api-paging', 'Paging, three ways'))
-    add(p('A block list is not a page long, and the eight providers disagree about how '
+    add(p('A block list is not a page long, and the nine providers disagree about how '
           'to walk it. The engine handles all three without the caller knowing:'))
     add(table(['Style', 'Who', 'What the engine does'], [
         ['limit and offset', 'SendGrid, Brevo, Mailjet, Postmark',
@@ -905,6 +909,10 @@ def build_programmers_guide():
         ['a cursor', 'Mailgun',
          'Follows the address the reply carries in <code>paging.next</code>, and stops '
          'when a page comes back empty.'],
+        ['a continuation token', 'Amazon SES',
+         'Hands the token back as a parameter named after the path it arrived at, so '
+         'the matrix row says <code>NextToken</code> and the engine needs to know '
+         'nothing about Amazon.'],
     ]))
     add(p('<code>PageSize</code> sets how many to ask for at a time and '
           '<code>MaxRows</code> is the guard &mdash; 5,000 by default, 0 for no limit. '
@@ -1061,7 +1069,7 @@ def build_programmers_guide():
                                 ('accents', 'Accents')]),
         ('Getting it out', [('transports', 'Choosing a transport'),
                             ('oauth', 'OAuth2, end to end')]),
-        ('The provider API', [('api', 'One class, eight providers'),
+        ('The provider API', [('api', 'One class, nine providers'),
                               ('api-matrix', 'The matrix'),
                               ('api-queues', 'The normalised answers'),
                               ('api-paging', 'Paging, three ways'),
@@ -1083,7 +1091,7 @@ def build_programmers_guide():
     return page('programmers-guide.html', PAGE_TITLES['programmers-guide.html'][0], 'Volume 2',
                 "Programmer's Guide",
                 'What the five classes own, how a message becomes MIME, how one class '
-                'covers eight provider APIs, and the Clarion behaviour that bit us.',
+                'covers nine provider APIs, and the Clarion behaviour that bit us.',
                 ['Object model', 'MIME', 'The provider matrix', 'Clarion notes'],
                 groups, body)
 

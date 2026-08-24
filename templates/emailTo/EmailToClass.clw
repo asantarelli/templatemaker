@@ -1361,6 +1361,24 @@ okHi   LONG
     DO MailerSendAttachments
     body.Add('}')
 
+  OF ETPrv:AmazonSes
+    !  SES takes the whole MIME document base64'd, so the message crosses
+    !  exactly as SMTP would have carried it - and the signing is the same
+    !  SigV4 the management API uses, so it lives in EmailApiClass.
+    url = 'https://email.' & CHOOSE(CLIP(SELF.Acc.ApiRegion) <> '', |
+                                    CLIP(SELF.Acc.ApiRegion), 'us-east-1') & |
+          '.amazonaws.com/v2/email/outbound-emails'
+    body.Add('{"Content":{"Raw":{"Data":"')
+    body.Add(pMsg.Base64(pMsg.Mime.Value()))
+    body.Add('"}}}')
+    hdr.Add(SELF.Net.SignAws('POST', url, body.Value(), |
+                             CHOOSE(CLIP(SELF.Acc.ApiKey2) <> '', |
+                                    CLIP(SELF.Acc.ApiKey2), CLIP(SELF.Acc.UserName)), |
+                             SELF.Acc.ApiKey, |
+                             CHOOSE(CLIP(SELF.Acc.ApiRegion) <> '', |
+                                    CLIP(SELF.Acc.ApiRegion), 'us-east-1'), 'ses') & '<13,10>')
+    hdr.Add('Content-Type: application/json')
+
   OF ETPrv:Mailgun
     !  Mailgun accepts a whole MIME document, so the message goes across
     !  exactly as SMTP would have carried it - attachments and all.
@@ -1387,7 +1405,7 @@ okHi   LONG
     DISPOSE(body); DISPOSE(hdr)
     RETURN SELF.SetErr(ETSend:NoTransport, |
       'The API transport does not know this provider. Choose SendGrid, Mailgun, Resend, ' & |
-      'Brevo, Postmark, Mailjet, SparkPost or MailerSend.')
+      'Brevo, Postmark, Mailjet, SparkPost, MailerSend or Amazon SES.')
   END
 
   status = SELF.Net.Http('POST', url, hdr.Value(), body.Value())

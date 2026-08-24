@@ -120,6 +120,17 @@ MEMBER_DOCS_ES = {
  'EmailApiClass.RawCall':      u'cualquier cosa para la que la matriz no tenga fila. La clave, las cabeceras y la dirección base se siguen resolviendo por usted; pPath puede ser una URL entera o sólo lo que va detrás del host',
  'EmailApiClass.AuthHeaders':  u'las cabeceras firmadas, listas para enviar',
  'EmailApiClass.SyncTables':   u'VIRTUAL, y la base no hace más que decirlo. La plantilla de emailTo genera una redefinición DERIVED contra las tablas que usted nombre - el mismo arreglo que EmailToClass.LoadAccount, y por la misma razón: cada aplicación de una suite multi-DLL alcanza la redefinición por la VMT del propio objeto, mientras que sólo la que posee los datos la compila',
+ # ---- firma (AWS Signature Version 4) -------------------------------------
+ 'EmailNetClass.SignAws':       u'el bloque Authorization completo de una petición, firmado. Función pura de lo que se le pasa: sin cuenta, sin proveedor, sin nada que preparar antes',
+ 'EmailNetClass.Hmac256':       u'32 bytes en crudo',
+ 'EmailNetClass.HexOf':         u'en minúsculas, sin espacios',
+ 'EmailNetClass.SigningKey':    u'32 bytes en crudo',
+ 'EmailNetClass.AmzStamp':      u"'YYYYMMDDTHHMMSSZ', en UTC",
+ 'EmailNetClass.CanonPath':     u'cada segmento codificado una vez más',
+ 'EmailNetClass.CanonQuery':    u'ordenada por nombre, como quiere SigV4',
+ 'EmailApiClass.AwsKeyId':      u'ApiKey2, o UserName si aquél está en blanco',
+ 'EmailApiClass.ArgToken':      u'el token de continuación, para un proveedor que pagina con uno en vez de con una URL',
+ 'EmailApiClass.SignedHeaders': u'las cabeceras de ESTA petición. Todos menos Amazon reciben su clave de vuelta; Amazon recibe una firma sobre la petición entera, hecha por la capa de red',
 }
 
 FIELD_DOCS_ES = {

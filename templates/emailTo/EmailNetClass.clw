@@ -13,11 +13,30 @@
 ! ============================================================================
   MEMBER
 
-  INCLUDE('EmailNetClass.INC'),ONCE               ! must precede the PRAGMA / prototypes
+  INCLUDE('EmailNetClass.INC'),ONCE
+  INCLUDE('EmailMsgClass.INC'),ONCE                 ! EmailBufClass, for the signing buffers
+
+ETN_Hex      STRING('0123456789ABCDEF')
+
+!  Windows' own UTC clock. TODAY() and CLOCK() are LOCAL time, and a signature
+!  built on local time is refused everywhere but London in winter.
+ETN_SystemTime      GROUP,TYPE
+wYear                 USHORT
+wMonth                USHORT
+wDayOfWeek            USHORT
+wDay                  USHORT
+wHour                 USHORT
+wMinute               USHORT
+wSecond               USHORT
+wMilliseconds         USHORT
+                    END               ! must precede the PRAGMA / prototypes
 
   PRAGMA('compile(emailc.c)')                     ! Clarion's own C compiler builds the network layer
 
   MAP                                             ! module-level MAP (folds BUILTINS.CLW + hosts emailc.c)
+    MODULE('kernel32')
+ETN_GetSystemTime PROCEDURE(*ETN_SystemTime),PASCAL,RAW,NAME('GetSystemTime')
+    END
     MODULE('emailc.c')
 et_open            PROCEDURE(*CSTRING,LONG,LONG,LONG,LONG),LONG,RAW,NAME('_et_open')
 et_starttls        PROCEDURE(LONG,*CSTRING,LONG),LONG,RAW,NAME('_et_starttls')
@@ -42,6 +61,8 @@ et_shutdown        PROCEDURE(),NAME('_et_shutdown')
 !=== lifecycle ===============================================================
 EmailNetClass.Construct PROCEDURE
   CODE
+  SELF.SgnBuf &= NEW(EmailBufClass)
+  SELF.HexBuf &= NEW(EmailBufClass)
   SELF.Timeout       = 30000
   SELF.VerifyCert    = 1
   SELF.Trace         = 0
@@ -53,6 +74,8 @@ EmailNetClass.Construct PROCEDURE
 
 EmailNetClass.Destruct PROCEDURE
   CODE
+  IF NOT SELF.SgnBuf &= NULL THEN DISPOSE(SELF.SgnBuf).
+  IF NOT SELF.HexBuf &= NULL THEN DISPOSE(SELF.HexBuf).
   SELF.Close()
   IF NOT SELF.Response &= NULL
     DISPOSE(SELF.Response)
@@ -311,6 +334,237 @@ EmailNetClass.Body PROCEDURE()
     RETURN ''
   END
   RETURN SELF.Response[1 : SELF.RespLen]
+
+
+! ============================================================================
+!  Signing - Amazon SES, and nobody else
+!
+!  Every other provider takes a key in a header. Amazon signs the request:
+!  the verb, the path, the query, a chosen set of headers and a hash of the
+!  body, all with a key derived from the secret, the date, the region and the
+!  service. Get one byte of it wrong and the answer is a flat 403 that says
+!  nothing useful, so every piece below is checked against a vector Amazon or
+!  the RFC publishes.
+! ============================================================================
+!  HMAC-SHA256, on top of the SHA-256 emailc.c already provides.
+!      HMAC(K,m) = H( (K^opad) || H( (K^ipad) || m ) )
+!  The digests are copied into locals the moment they come back: Sha256 builds
+!  its answer in a buffer the object owns, so a second call would overwrite
+!  the first one while it was still needed.
+EmailNetClass.Hmac256 PROCEDURE(STRING pKey,STRING pData)
+key    STRING(64)
+inner  STRING(32)
+block  &STRING
+n      LONG
+i      LONG
+  CODE
+  !  ZERO-filled, not blank-filled. `key = ''` pads a Clarion STRING with
+  !  SPACES, and a key padded with 20h instead of 00h produces a perfectly
+  !  plausible digest that matches nothing on earth.
+  LOOP i = 1 TO 64
+    key[i] = CHR(0)
+  END
+  n = SIZE(pKey)
+  IF n > 64
+    inner = SELF.Sha256(pKey)                     ! a long key is hashed first
+    key[1 : 32] = inner[1 : 32]
+  ELSIF n > 0
+    key[1 : n] = pKey[1 : n]
+  END
+
+  block &= NEW(STRING(64 + SIZE(pData)))
+  LOOP i = 1 TO 64
+    block[i] = CHR(BXOR(VAL(key[i]), 36h))            ! the inner pad
+  END
+  IF SIZE(pData) > 0
+    block[65 : 64 + SIZE(pData)] = pData[1 : SIZE(pData)]
+  END
+  inner = SELF.Sha256(block[1 : 64 + SIZE(pData)])
+  DISPOSE(block)
+
+  block &= NEW(STRING(96))
+  LOOP i = 1 TO 64
+    block[i] = CHR(BXOR(VAL(key[i]), 5Ch))            ! and the outer
+  END
+  block[65 : 96] = inner[1 : 32]
+  SELF.SgnBuf.ClearAll()
+  SELF.SgnBuf.Add(SELF.Sha256(block[1 : 96]))
+  DISPOSE(block)
+  RETURN SELF.SgnBuf.Value()
+
+EmailNetClass.HexOf PROCEDURE(STRING pRaw)
+i LONG
+n LONG
+b LONG
+  CODE
+  SELF.HexBuf.ClearAll()
+  n = SIZE(pRaw)
+  LOOP i = 1 TO n
+    b = VAL(pRaw[i])
+    SELF.HexBuf.Add(LOWER(ETN_Hex[BSHIFT(b, -4) + 1] & ETN_Hex[BAND(b, 15) + 1]))
+  END
+  RETURN SELF.HexBuf.Value()
+
+EmailNetClass.Sha256Hex PROCEDURE(STRING pData)
+raw STRING(32)
+  CODE
+  raw = SELF.Sha256(pData)
+  RETURN SELF.HexOf(raw[1 : 32])
+
+!  The four-step derivation. Each answer is 32 raw bytes and feeds the next,
+!  so each one is copied out before the next call reuses the buffer.
+EmailNetClass.SigningKey PROCEDURE(STRING pSecret,STRING pDate,STRING pRegion,STRING pService)
+k STRING(32)
+  CODE
+  k = SELF.Hmac256('AWS4' & CLIP(pSecret), CLIP(pDate))
+  k = SELF.Hmac256(k[1 : 32], CLIP(pRegion))
+  k = SELF.Hmac256(k[1 : 32], CLIP(pService))
+  k = SELF.Hmac256(k[1 : 32], 'aws4_request')
+  SELF.SgnBuf.ClearAll()
+  SELF.SgnBuf.Add(k[1 : 32])
+  RETURN SELF.SgnBuf.Value()
+
+!  UTC, straight from Windows. TODAY() and CLOCK() are LOCAL time, and a
+!  signature built on local time is refused everywhere east or west of London.
+EmailNetClass.AmzStamp PROCEDURE()
+st LIKE(ETN_SystemTime)
+  CODE
+  ETN_GetSystemTime(st)
+  RETURN FORMAT(st.wYear, @n04) & FORMAT(st.wMonth, @n02) & FORMAT(st.wDay, @n02) & 'T' & |
+         FORMAT(st.wHour, @n02) & FORMAT(st.wMinute, @n02) & FORMAT(st.wSecond, @n02) & 'Z'
+
+!  SigV4 wants each path segment encoded ONCE MORE than it already is (S3 is
+!  the exception, and this is not S3). Our paths arrive with the address
+!  already percent-encoded, so this is what turns %40 into %2540 - which is
+!  what Amazon re-derives at its end.
+EmailNetClass.CanonPath PROCEDURE(STRING pPath)
+i LONG
+n LONG
+b LONG
+  CODE
+  SELF.SgnBuf.ClearAll()
+  n = LEN(CLIP(pPath))
+  IF n < 1
+    SELF.SgnBuf.Add('/')
+    RETURN SELF.SgnBuf.Value()
+  END
+  LOOP i = 1 TO n
+    b = VAL(pPath[i])
+    IF b = 47                                          ! keep the separators
+      SELF.SgnBuf.Add('/')
+      CYCLE
+    END
+    IF (b >= 48 AND b <= 57) OR (b >= 65 AND b <= 90) OR (b >= 97 AND b <= 122) |
+       OR b = 45 OR b = 46 OR b = 95 OR b = 126
+      SELF.SgnBuf.Add(pPath[i])
+    ELSE
+      SELF.SgnBuf.Add('%' & ETN_Hex[BSHIFT(b, -4) + 1] & ETN_Hex[BAND(b, 15) + 1])
+    END
+  END
+  RETURN SELF.SgnBuf.Value()
+
+!  Sorted by parameter name, which is what the canonical request is: a form
+!  both ends can arrive at independently.
+EmailNetClass.CanonQuery PROCEDURE(STRING pQuery)
+Q     QUEUE,PRE(CQ)
+Pair    STRING(256)
+      END
+one   CSTRING(257)
+rest  CSTRING(1025)
+p     LONG
+i     LONG
+  CODE
+  FREE(Q)
+  rest = CLIP(pQuery)
+  LOOP WHILE CLIP(rest)
+    p = INSTRING('&', rest, 1, 1)
+    IF p
+      one  = rest[1 : p - 1]
+      rest = rest[p + 1 : LEN(CLIP(rest))]
+    ELSE
+      one  = rest
+      rest = ''
+    END
+    IF CLIP(one)
+      IF NOT INSTRING('=', one, 1, 1)
+        one = CLIP(one) & '='                          ! a bare flag still needs one
+      END
+      CQ:Pair = one
+      ADD(Q, CQ:Pair)
+    END
+  END
+  SELF.SgnBuf.ClearAll()
+  LOOP i = 1 TO RECORDS(Q)
+    GET(Q, i)
+    IF i > 1 THEN SELF.SgnBuf.Add('&').
+    SELF.SgnBuf.Add(CLIP(CQ:Pair))
+  END
+  RETURN SELF.SgnBuf.Value()
+
+!  The whole Authorization block for one request, signed. A pure function of
+!  what it is given: no account, no provider, nothing to set up first - which
+!  is what makes it testable against Amazon's published example, and what lets
+!  both EmailToClass (sending) and EmailApiClass (asking) call the same one.
+EmailNetClass.SignAws PROCEDURE(STRING pVerb,STRING pUrl,STRING pBody,STRING pKeyId,|
+                                STRING pSecret,STRING pRegion,STRING pService)
+host   CSTRING(129)
+path   CSTRING(513)
+query  CSTRING(1025)
+stamp  CSTRING(33)
+datest CSTRING(9)
+scope  CSTRING(129)
+canon  &EmailBufClass
+sts    CSTRING(513)
+kSign  STRING(32)
+sig    CSTRING(129)
+url    CSTRING(1025)
+p      LONG
+q      LONG
+  CODE
+  url = CLIP(pUrl)
+  p   = INSTRING('://', url, 1, 1)
+  IF p THEN url = url[p + 3 : LEN(CLIP(url))].
+  p = INSTRING('/', url, 1, 1)
+  IF p
+    host = url[1 : p - 1]
+    path = url[p : LEN(CLIP(url))]
+  ELSE
+    host = url
+    path = '/'
+  END
+  q = INSTRING('?', path, 1, 1)
+  IF q
+    query = path[q + 1 : LEN(CLIP(path))]
+    path  = path[1 : q - 1]
+  ELSE
+    query = ''
+  END
+
+  stamp  = SELF.AmzStamp()
+  datest = stamp[1 : 8]
+  scope  = CLIP(datest) & '/' & CLIP(pRegion) & '/' & CLIP(pService) & '/aws4_request'
+
+  canon &= NEW(EmailBufClass)
+  canon.Add(UPPER(CLIP(pVerb)) & '<10>')
+  canon.Add(SELF.CanonPath(path) & '<10>')
+  canon.Add(SELF.CanonQuery(query) & '<10>')
+  canon.Add('host:' & CLIP(host) & '<10>x-amz-date:' & CLIP(stamp) & '<10><10>')
+  canon.Add('host;x-amz-date<10>')
+  canon.Add(SELF.Sha256Hex(pBody))
+
+  sts = 'AWS4-HMAC-SHA256<10>' & CLIP(stamp) & '<10>' & CLIP(scope) & '<10>' & |
+        SELF.Sha256Hex(canon.Value())
+  DISPOSE(canon)
+
+  kSign = SELF.SigningKey(pSecret, datest, pRegion, pService)
+  sig   = SELF.HexOf(SELF.Hmac256(kSign[1 : 32], sts))
+
+  SELF.SgnBuf.ClearAll()
+  SELF.SgnBuf.Add('Authorization: AWS4-HMAC-SHA256 Credential=' & CLIP(pKeyId) & '/' & |
+                  CLIP(scope) & ', SignedHeaders=host;x-amz-date, Signature=' & |
+                  CLIP(sig) & '<13,10>')
+  SELF.SgnBuf.Add('x-amz-date: ' & CLIP(stamp))
+  RETURN SELF.SgnBuf.Value()
 
 !=== OAuth2 plumbing =========================================================
 EmailNetClass.OAuthListen PROCEDURE(LONG pPort,*LONG pActualPort)

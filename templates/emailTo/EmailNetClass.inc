@@ -111,6 +111,8 @@ TraceQ               &EmailTraceQueue
 !  NEXT call (or Destruct) releases it.  One buffer, no leak, no guesswork.
 Scratch              &STRING,PRIVATE
 ScratchCap           LONG,PRIVATE
+SgnBuf               &EmailBufClass,PRIVATE        ! one buffer per value-returning method:
+HexBuf               &EmailBufClass,PRIVATE        !   they nest, so they cannot share one
 
 Construct            PROCEDURE
 Destruct             PROCEDURE
@@ -130,6 +132,22 @@ OAuthListen          PROCEDURE(LONG pPort,*LONG pActualPort),LONG
 OAuthWait            PROCEDURE(LONG pId,LONG pSeconds,STRING pReplyHtml),STRING
 OAuthStop            PROCEDURE(LONG pId)
 OpenUrl              PROCEDURE(STRING pUrl),BYTE,PROC
+! ---- signing (AWS Signature Version 4) -----------------------------------
+!  Amazon is the only service here that signs a request rather than taking a
+!  key in a header. These sit at this level because SHA-256 does, and because
+!  a signature is a pure function of the request and the credentials - the
+!  sender and the management API call the same one. Every piece is checked
+!  against a vector the RFC or Amazon publishes.
+SignAws              PROCEDURE(STRING pVerb,STRING pUrl,STRING pBody,STRING pKeyId,|
+                               STRING pSecret,STRING pRegion,STRING pService),STRING
+Hmac256              PROCEDURE(STRING pKey,STRING pData),STRING  ! 32 raw bytes
+HexOf                PROCEDURE(STRING pRaw),STRING               ! lower case, no spaces
+Sha256Hex            PROCEDURE(STRING pData),STRING
+SigningKey           PROCEDURE(STRING pSecret,STRING pDate,STRING pRegion,|
+                               STRING pService),STRING           ! 32 raw bytes
+AmzStamp             PROCEDURE(),STRING            ! 'YYYYMMDDTHHMMSSZ', in UTC
+CanonPath            PROCEDURE(STRING pPath),STRING  ! each segment encoded once more
+CanonQuery           PROCEDURE(STRING pQuery),STRING ! sorted by name, as SigV4 wants
 ! ---- crypto helpers ------------------------------------------------------
 Sha256               PROCEDURE(STRING pData),STRING          ! 32 raw bytes
 RandomBytes          PROCEDURE(LONG pLen),STRING

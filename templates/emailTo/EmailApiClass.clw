@@ -32,11 +32,25 @@ ETA_CREATE_ALWAYS    EQUATE(2)
 ETA_FILE_ATTR_NORMAL EQUATE(80h)
 ETA_INVALID_HANDLE   EQUATE(-1)
 
+!  Windows' own UTC clock. TODAY() and CLOCK() are LOCAL time, and a signature
+!  built on local time is refused everywhere but London in winter.
+ETA_SystemTime      GROUP,TYPE
+wYear                 USHORT
+wMonth                USHORT
+wDayOfWeek            USHORT
+wDay                  USHORT
+wHour                 USHORT
+wMinute               USHORT
+wSecond               USHORT
+wMilliseconds         USHORT
+                    END
+
   MAP
     MODULE('kernel32')
-ETA_CreateFileA  PROCEDURE(*CSTRING,ULONG,ULONG,LONG,ULONG,ULONG,LONG),LONG,PASCAL,RAW,NAME('CreateFileA')
-ETA_WriteFile    PROCEDURE(LONG,*STRING,ULONG,*ULONG,LONG),LONG,PROC,PASCAL,RAW,NAME('WriteFile')
-ETA_CloseHandle  PROCEDURE(LONG),LONG,PROC,PASCAL,NAME('CloseHandle')
+ETA_CreateFileA   PROCEDURE(*CSTRING,ULONG,ULONG,LONG,ULONG,ULONG,LONG),LONG,PASCAL,RAW,NAME('CreateFileA')
+ETA_WriteFile     PROCEDURE(LONG,*STRING,ULONG,*ULONG,LONG),LONG,PROC,PASCAL,RAW,NAME('WriteFile')
+ETA_CloseHandle   PROCEDURE(LONG),LONG,PROC,PASCAL,NAME('CloseHandle')
+ETA_GetSystemTime PROCEDURE(*ETA_SystemTime),PASCAL,RAW,NAME('GetSystemTime')
     END
   END
 
@@ -540,6 +554,41 @@ EmailApiClass.BuildMap PROCEDURE()
            '{scheme}{host}/v1/webhooks?domain_id={domain}', 'data', |
            'Id=id;Url=url;Events=events.0;Active=enabled')
   SELF.Row(ETPrv:MailerSend, ETOp:WebhookDelete, 0, 'DELETE', '{scheme}{host}/v1/webhooks/{id}')
+!===== Amazon SES ============================================================
+!  The only provider that signs its requests rather than taking a key in a
+!  header - see SignedHeaders. The access key id goes in ApiKey2 and the
+!  secret in ApiKey, which leaves UserName and Password free for the quite
+!  separate SMTP credentials SES also issues.
+  SELF.Row(ETPrv:AmazonSes, ETOp:Account, 0, 'GET', '{scheme}{host}/v2/email/account', '*', |
+           'Status=EnforcementStatus;Credits=SendQuota.Max24HourSend')
+  SELF.Row(ETPrv:AmazonSes, ETOp:Suppressions, ETSup:All, 'GET', |
+           '{scheme}{host}/v2/email/suppression/addresses?PageSize={limit}', |
+           'SuppressedDestinationSummaries', |
+           'Address=EmailAddress;KindText=Reason;Reason=Reason;When=@LastUpdateTime', |
+           '', 'NextToken')
+  SELF.Row(ETPrv:AmazonSes, ETOp:SuppDelete, ETSup:All, 'DELETE', |
+           '{scheme}{host}/v2/email/suppression/addresses/{email}')
+  SELF.Row(ETPrv:AmazonSes, ETOp:SuppAdd, ETSup:Bounce, 'PUT', |
+           '{scheme}{host}/v2/email/suppression/addresses/{email}', '', '', |
+           '{"Reason":"BOUNCE"}')
+  SELF.Row(ETPrv:AmazonSes, ETOp:SuppAdd, ETSup:Spam, 'PUT', |
+           '{scheme}{host}/v2/email/suppression/addresses/{email}', '', '', |
+           '{"Reason":"COMPLAINT"}')
+  SELF.Row(ETPrv:AmazonSes, ETOp:Lists, 0, 'GET', |
+           '{scheme}{host}/v2/email/contact-lists', 'ContactLists', |
+           'Id=ContactListName;Name=ContactListName')
+  SELF.Row(ETPrv:AmazonSes, ETOp:ListMembers, 0, 'GET', |
+           '{scheme}{host}/v2/email/contact-lists/{id}/contacts?PageSize={limit}', 'Contacts', |
+           'Address=EmailAddress;Unsubscribed=UnsubscribeAll', '', 'NextToken')
+  SELF.Row(ETPrv:AmazonSes, ETOp:ContactAdd, 1, 'POST', |
+           '{scheme}{host}/v2/email/contact-lists/{id}/contacts', '', '', |
+           '{"EmailAddress":"{email}"}')
+  SELF.Row(ETPrv:AmazonSes, ETOp:ContactDelete, 0, 'DELETE', |
+           '{scheme}{host}/v2/email/contact-lists/{id}/contacts/{email}')
+  SELF.Row(ETPrv:AmazonSes, ETOp:Senders, 0, 'GET', |
+           '{scheme}{host}/v2/email/identities?PageSize={limit}', 'EmailIdentities', |
+           'Id=IdentityName;Address=IdentityName;Verified=SendingEnabled;' & |
+           'Status=IdentityType', '', 'NextToken')
   RETURN
 
 !  One row of the matrix.  Nothing clever - but keeping it a method rather
@@ -727,6 +776,33 @@ key CSTRING(513)
   SELF.HdrBuf.Add('<13,10>Accept: application/json')
   RETURN SELF.HdrBuf.Value()
 
+!  Which of the two credentials is the AWS access key id. SES keeps SMTP
+!  credentials in UserName and Password - they are NOT the AWS keys - so the
+!  key id belongs in ApiKey2 and the secret in ApiKey, and one account can
+!  then send over SMTP and still answer questions over the API. UserName is
+!  accepted as a fallback for anyone who put it there.
+EmailApiClass.AwsKeyId PROCEDURE()
+  CODE
+  IF CLIP(SELF.Mailer.Acc.ApiKey2) THEN RETURN CLIP(SELF.Mailer.Acc.ApiKey2).
+  RETURN CLIP(SELF.Mailer.Acc.UserName)
+
+!  The headers for THIS request. Everybody but Amazon just gets their key
+!  back; Amazon gets a signature over the whole thing, from the net layer.
+EmailApiClass.SignedHeaders PROCEDURE(BYTE pOp,STRING pVerb,STRING pUrl,STRING pBody)
+  CODE
+  IF SELF.Mailer &= NULL THEN RETURN ''.
+  IF SELF.Mailer.Acc.Provider <> ETPrv:AmazonSes
+    RETURN SELF.AuthHeaders(pOp)
+  END
+  SELF.HdrBuf.ClearAll()
+  SELF.HdrBuf.Add(SELF.Net.SignAws(pVerb, pUrl, pBody, SELF.AwsKeyId(), |
+                                   SELF.Mailer.Acc.ApiKey, |
+                                   CHOOSE(CLIP(SELF.Mailer.Acc.ApiRegion) <> '', |
+                                          CLIP(SELF.Mailer.Acc.ApiRegion), 'us-east-1'), |
+                                   'ses'))
+  SELF.HdrBuf.Add('<13,10>Accept: application/json')
+  RETURN SELF.HdrBuf.Value()
+
 ! ============================================================================
 !  Filling in a URL or a body
 !
@@ -852,6 +928,10 @@ pg   LONG
     OF ETPrv:SparkPost  ; host = CHOOSE(LOWER(CLIP(SELF.Mailer.Acc.ApiRegion)) = 'eu', |
                                         'api.eu.sparkpost.com', 'api.sparkpost.com')
     OF ETPrv:MailerSend ; host = 'api.mailersend.com'
+    OF ETPrv:AmazonSes
+      host = 'email.' & CHOOSE(CLIP(SELF.Mailer.Acc.ApiRegion) <> '', |
+                               CLIP(SELF.Mailer.Acc.ApiRegion), 'us-east-1') & |
+             '.amazonaws.com'
     END
     !  ApiBase wins over all of it - a private relay, a regional endpoint, or
     !  a test double standing in for the provider.
@@ -874,6 +954,7 @@ pg   LONG
     END
   OF 'from'     ; SELF.TxtBuf.Add(CLIP(SELF.Mailer.Acc.FromAddr))
   OF 'fromname' ; SELF.TxtBuf.Add(CLIP(SELF.Mailer.Acc.FromName))
+  OF 'token'    ; SELF.TxtBuf.Add(CLIP(SELF.ArgToken))
   OF 'limit'    ; SELF.TxtBuf.Add('' & CHOOSE(SELF.PageSize > 0, SELF.PageSize, 100))
   OF 'offset'   ; SELF.TxtBuf.Add('' & SELF.ArgOffset)
   OF 'page'
@@ -1303,8 +1384,9 @@ AddContactRow ROUTINE
 !  The engine
 ! ============================================================================
 !  Ask for a list and fill the queue behind it.  Handles both kinds of paging
-!  the eight providers use: an offset or page number we count ourselves, and a
-!  cursor the provider hands back with each page.
+!  the nine providers use: an offset or page number we count ourselves, a
+!  cursor the provider hands back as a whole address, and a continuation
+!  TOKEN that has to be handed back as a parameter.
 EmailApiClass.Fetch PROCEDURE(BYTE pOp,BYTE pKind)
 verb    CSTRING(8)
 rowUrl  CSTRING(257)
@@ -1315,6 +1397,8 @@ rowKind BYTE
 url     CSTRING(1025)
 hdr     CSTRING(1025)
 nextUrl CSTRING(1025)
+nextVal CSTRING(1025)
+p       LONG
 base    CSTRING(129)
 pageSz  LONG
 maxRow  LONG
@@ -1349,6 +1433,7 @@ status  LONG
   IF INSTRING('{offset}', rowUrl, 1, 1) THEN paged = 1.
   IF INSTRING('{page}', rowUrl, 1, 1)   THEN paged = 1.
   SELF.ArgOffset = 0
+  SELF.ArgToken  = ''
   nextUrl = ''
   total   = 0
 
@@ -1359,7 +1444,7 @@ status  LONG
       url = SUB(SELF.Expand(rowUrl), 1, 1024)
     END
     SELF.LastUrl = SUB(url, 1, 512)
-    hdr    = SUB(SELF.AuthHeaders(pOp), 1, 1024)
+    hdr    = SUB(SELF.SignedHeaders(pOp, verb, url, ''), 1, 1024)
     status = SELF.Net.Http(verb, url, hdr, '')
     SELF.LastStatus = status
     IF status < 200
@@ -1407,9 +1492,25 @@ status  LONG
     IF total >= maxRow THEN BREAK.
 
     IF CLIP(nextPt)
-      nextUrl = SUB(SELF.Json.Value(nextPt), 1, 1024)
+      nextVal = SUB(SELF.Json.Value(nextPt), 1, 1024)
       IF n < 1 THEN BREAK.
-      IF NOT CLIP(nextUrl) THEN BREAK.
+      IF NOT CLIP(nextVal) THEN BREAK.
+      IF LOWER(SUB(nextVal, 1, 4)) = 'http'
+        nextUrl = nextVal                              ! a whole address, as Mailgun sends
+      ELSE
+        !  A continuation TOKEN, as Amazon sends. The parameter it goes back
+        !  in is the last segment of the path it arrived at, so the matrix row
+        !  says NextToken and nothing here has to know the provider.
+        SELF.ArgToken = nextVal
+        nextUrl = SUB(SELF.Expand(rowUrl), 1, 1024)
+        p = INSTRING('.', nextPt, 1, 1)
+        LOOP WHILE p
+          nextPt = nextPt[p + 1 : LEN(CLIP(nextPt))]
+          p = INSTRING('.', nextPt, 1, 1)
+        END
+        nextUrl = CLIP(nextUrl) & CHOOSE(INSTRING('?', nextUrl, 1, 1) > 0, '&', '?') & |
+                  CLIP(nextPt) & '=' & SELF.UrlEncode(nextVal)
+      END
       CYCLE
     END
     IF NOT paged THEN BREAK.
@@ -1441,7 +1542,7 @@ status LONG
 
   url = SUB(SELF.Expand(rowUrl), 1, 1024)
   SELF.LastUrl = SUB(url, 1, 512)
-  hdr = SUB(SELF.AuthHeaders(pOp), 1, 1024)
+  hdr = SUB(SELF.SignedHeaders(pOp, verb, url, SELF.Expand(bodyT)), 1, 1024)
   IF CLIP(bodyT)
     IF LOWER(SUB(bodyT, 1, 5)) = 'form:'
       hdr = CLIP(hdr) & '<13,10>Content-Type: application/x-www-form-urlencoded'
@@ -1912,7 +2013,11 @@ hdr CSTRING(1153)
   SELF.LastUrl = SUB(url, 1, 512)
   SELF.Net.Trace      = SELF.Mailer.Trace
   SELF.Net.VerifyCert = SELF.Mailer.Acc.VerifyCert
-  hdr = SUB(SELF.AuthHeaders(0), 1, 1024)
+  IF NOT OMITTED(pBody)
+    hdr = SUB(SELF.SignedHeaders(0, pVerb, url, pBody), 1, 1024)
+  ELSE
+    hdr = SUB(SELF.SignedHeaders(0, pVerb, url, ''), 1, 1024)
+  END
   IF NOT OMITTED(pBody)
     hdr = CLIP(hdr) & '<13,10>Content-Type: application/json'
     SELF.LastStatus = SELF.Net.Http(pVerb, url, hdr, pBody)

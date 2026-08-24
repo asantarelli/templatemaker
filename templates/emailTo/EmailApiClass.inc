@@ -18,6 +18,10 @@
 !      my senders ........... GetSenders()   GetDomains()
 !      my webhooks .......... GetWebhooks()  AddWebhook()  DeleteWebhook()
 !
+!  NINE providers answer: SendGrid, Brevo, Mailgun, Postmark, Mailjet, Resend,
+!  SparkPost, MailerSend and Amazon SES.  Eight of them take a key in a header;
+!  Amazon signs the whole request, which is why EmailNetClass grew SignAws.
+!
 !  Every one of those fills a NORMALISED queue.  SendGrid calls a blocked
 !  address "email" with a "reason" and a unix "created"; Brevo calls it "email"
 !  with "reason":{"message"} and an ISO "blockedAt"; Mailgun calls it "address"
@@ -25,7 +29,7 @@
 !  "Data" and spells everything with capitals.  After a GetSuppressions() they
 !  are all one queue with the same six columns, and your code stops caring.
 !
-!  HOW ONE CLASS COVERS TEN APIS.  Not with ten branches per method - with a
+!  HOW ONE CLASS COVERS NINE APIS.  Not with ten branches per method - with a
 !  TABLE.  Each row says: for THIS provider and THIS operation, use this verb
 !  and this URL, the list is at this path in the reply, and these JSON members
 !  fill these columns.  Adding a provider is adding rows, which is why the
@@ -409,7 +413,14 @@ Row                  PROCEDURE(BYTE pProvider,BYTE pOp,BYTE pKind,STRING pVerb,S
 FindRow              PROCEDURE(BYTE pOp,BYTE pKind=ETSup:All),BYTE,PROC  ! leaves it in MapQ
 ExactRow             PROCEDURE(BYTE pOp,BYTE pKind),BYTE,PROC  ! a row for THIS kind, not a
                                                   !   widened match
-AuthHeaders          PROCEDURE(BYTE pOp),STRING
+AuthHeaders          PROCEDURE(BYTE pOp),STRING   ! the static credential headers
+! ---- signing, for the one provider that needs it -------------------------
+!  Amazon does not take a key in a header: it wants the request signed. These
+!  are public because they are worth having on their own - HMAC-SHA256 and a
+!  SigV4 signing key are useful well beyond e-mail - and because every one of
+!  them is checked against a published test vector.
+SignedHeaders        PROCEDURE(BYTE pOp,STRING pVerb,STRING pUrl,STRING pBody),STRING
+AwsKeyId             PROCEDURE(),STRING            ! ApiKey2, or UserName if that is blank
 Expand               PROCEDURE(STRING pText),STRING
 RfcDate              PROCEDURE(DATE pDate),STRING
 Fetch                PROCEDURE(BYTE pOp,BYTE pKind),LONG,PROC
@@ -436,6 +447,8 @@ ArgHtml              &STRING
 ArgFrom              DATE
 ArgTo                DATE
 ArgOffset            LONG
+ArgToken             CSTRING(513)                 ! the continuation token, for a provider
+                                                  !   that pages with one instead of a URL
                    END
 
   _EndOfInclude_

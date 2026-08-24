@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and eight provider APIs - v1.05 (2026-08-24 15:20)'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and nine provider APIs - v1.06 (2026-08-24 16:40)'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  emailTo template set  -  send e-mail from a Clarion application, four ways,
 #!  with no third-party DLL, no .NET and no OpenSSL to deploy.
@@ -85,7 +85,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
@@ -600,17 +600,17 @@ ETFound  BYTE
 #SHEET
   #TAB('&General')
     #BOXED('Asking the provider questions')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
       #DISPLAY('')
       #DISPLAY('The same key that sends the mail can also answer for the')
       #DISPLAY('account: who is blocked and why, statistics, contacts,')
       #DISPLAY('campaigns, templates, senders, domains and webhooks.')
       #DISPLAY('')
-      #DISPLAY('Eight providers answer: SendGrid, Brevo, Mailgun, Postmark,')
-      #DISPLAY('Mailjet, Resend, SparkPost and MailerSend. Each offers a')
-      #DISPLAY('different subset, and Supports() says which - the window greys')
-      #DISPLAY('out whatever a provider genuinely cannot do.')
+      #DISPLAY('Nine providers answer: SendGrid, Brevo, Mailgun, Postmark,')
+      #DISPLAY('Mailjet, Resend, SparkPost, MailerSend and Amazon SES. Each')
+      #DISPLAY('offers a different subset, and Supports() says which - the')
+      #DISPLAY('window greys out whatever a provider genuinely cannot do.')
       #PROMPT('&Disable this template',CHECK),%ETqDisable,DEFAULT(0),AT(10)
       #PROMPT('&Object name:',@s64),%ETqObject,REQ,DEFAULT('MailApi')
       #PROMPT('&Mail object name:',@s64),%ETqMailObject,REQ,DEFAULT('Mailer')
@@ -633,13 +633,19 @@ ETFound  BYTE
       #DISPLAY('settings table instead - name a column ApiKey2, ApiRegion or')
       #DISPLAY('ApiBase and emailTo - Global fills it, by name.')
       #PROMPT('Second &key:',@s255),%ETqKey2,DEFAULT('')
-      #DISPLAY('Postmark only: its senders and domains endpoints want the')
-      #DISPLAY('ACCOUNT token, not the server token. Leave blank otherwise.')
+      #DISPLAY('Postmark: its senders and domains endpoints want the ACCOUNT')
+      #DISPLAY('token, not the server token.')
+      #DISPLAY('Amazon SES: the AWS ACCESS KEY ID goes here and the secret in')
+      #DISPLAY('the API key, which leaves User name and Password free for the')
+      #DISPLAY('quite separate SMTP credentials SES also issues.')
+      #DISPLAY('Blank for everybody else.')
       #PROMPT('Re&gion:',@s32),%ETqRegion,DEFAULT('')
       #DISPLAY('Put eu here for a Mailgun or SparkPost account created in')
       #DISPLAY('Europe. Those are separate services with their own data - at')
       #DISPLAY('the default endpoint a European account looks empty, not')
-      #DISPLAY('wrong. Blank means the default.')
+      #DISPLAY('wrong. For Amazon SES this is the AWS REGION and it is part')
+      #DISPLAY('of the signature: eu-west-1, us-east-2, and so on. Blank')
+      #DISPLAY('means us-east-1 for SES, the default endpoint for the rest.')
       #PROMPT('&Base address:',@s128),%ETqBase,DEFAULT('')
       #DISPLAY('Replaces the host - and the scheme, if you give one. For a')
       #DISPLAY('private relay, or for pointing a test build at a stand-in.')
@@ -706,7 +712,7 @@ INCLUDE('EmailApiClass.INC'),ONCE                          #! pulls in all four 
 #SHEET
   #TAB('&General')
     #BOXED('emailTo - Sync')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
       #DISPLAY('')
       #DISPLAY('It needs the Global extension''s "Provider API" tab switched')
@@ -1172,7 +1178,7 @@ ETyMap%pWhat ROUTINE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
@@ -1363,7 +1369,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -1474,7 +1480,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -1528,7 +1534,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('This is where the END USER sets the account. The values it')
@@ -1570,7 +1576,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('&Disable this button',CHECK),%ETaDisable,DEFAULT(0),AT(10)
       #PROMPT('&API object name:',@s64),%ETaObject,REQ,DEFAULT('MailApi')
       #DISPLAY('The object the emailToGlobal extension declared on its')
@@ -1634,7 +1640,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('&Disable this button',CHECK),%ETzDisable,DEFAULT(0),AT(10)
       #PROMPT('&Sync object name:',@s64),%ETzObject,REQ,DEFAULT('MailSync')
       #DISPLAY('The object the "emailTo - Sync provider data into your tables"')
@@ -1693,7 +1699,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&What to do')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('emailTo v1.06  -  built 2026-08-24 16:40')
       #PROMPT('&API object name:',@s64),%ETpObject,REQ,DEFAULT('MailApi')
     #ENDBOXED
     #BOXED('Operation')

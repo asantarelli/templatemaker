@@ -305,7 +305,7 @@ def build_getting_started():
     add(p(u'<code>EmailApiClass</code> la lee. Un objeto, que toma prestada la cuenta '
           u'que usted ya configuró:'))
     add(code(S_ASK))
-    add(p(u'Ese programa funciona sin cambios contra los ocho proveedores con API. '
+    add(p(u'Ese programa funciona sin cambios contra los nueve proveedores con API. '
           u'Tiene que hacerlo, porque no se ponen de acuerdo en casi nada:'))
     add(table([u'Proveedor', u'Dónde están las direcciones bloqueadas', u'Cómo es una fila'], [
         [u'SendGrid', u'Cinco listas separadas: bounces, blocks, spam_reports, '
@@ -321,6 +321,9 @@ def build_getting_started():
          u'<code>EmailAddress</code>, <code>SuppressionReason</code> &mdash; con mayúsculas'],
         [u'Mailjet', u'Todo envuelto en <code>Data</code>, y todo con mayúscula inicial',
          u'<code>ContactAlt</code>, <code>ErrorRelatedTo</code>, <code>ErrorCode</code>'],
+        [u'Amazon SES', u'Firmado con SigV4 en vez de una clave en una cabecera, y '
+         u'paginado con un token de continuación',
+         u'<code>EmailAddress</code>, <code>Reason</code> &mdash; BOUNCE o COMPLAINT'],
     ]))
     add(p(u'Después de <code>GetSuppressions()</code> son una sola cola con las mismas '
           u'columnas, y <code>SuppQ.Kind</code> dice de qué clase de bloqueo se trata '
@@ -558,7 +561,7 @@ def build_programmers_guide():
              'de refresco en cada uso, así que hay que guardar el nuevo cada vez, que es '
              'por lo que <code>Refresh</code> lo vuelve a escribir.</p>'))
 
-    add(h2('api', u'Una clase, ocho proveedores'))
+    add(h2('api', u'Una clase, nueve proveedores'))
     add(p(u'<code>EmailToClass</code> responde a una pregunta: envía esto. '
           u'<code>EmailApiClass</code> responde a todas las demás &mdash; quién está '
           u'bloqueado, qué pasó el mes pasado, qué contactos y campañas hay &mdash; y '
@@ -624,6 +627,20 @@ def build_programmers_guide():
     add(p(u'Cada lectura llena una cola que se ve igual conteste quien conteste. Ése es '
           u'el trato completo: las diferencias se absorben en la matriz, y su código no '
           u'llega a aprenderlas nunca.'))
+    add(note('cla', u'Amazon es el que no acepta una clave en una cabecera',
+             u'<p>SES firma la petición &mdash; verbo, ruta, consulta, cabeceras y un '
+             u'hash del cuerpo &mdash; con una clave derivada del secreto, la fecha, la '
+             u'región y el servicio. Por eso <code>EmailNetClass</code> ganó '
+             u'<code>SignAws</code>, <code>Hmac256</code> y los demás: están junto al '
+             u'SHA-256 sobre el que se construyen, y tanto enviar como preguntar usan '
+             u'los mismos. Cada pieza está comprobada contra un vector que publican el '
+             u'RFC 4231 o Amazon.</p>'
+             u'<p>Ponga el <b>access key id</b> de AWS en Second key y el <b>secreto</b> '
+             u'en la clave de API. User name y Password quedan libres para las '
+             u'credenciales SMTP, muy distintas, que SES también emite, de modo que una '
+             u'cuenta puede hacer las dos cosas. La región forma parte de la firma, así '
+             u'que tiene que ser la correcta &mdash; en blanco significa '
+             u'<code>us-east-1</code>.</p>'))
     add(table([u'Cola', u'Qué hay en una fila'], [
         [u'<code>SuppQ</code>', u'Address, Kind, KindName, Reason, Code, WhenDate, '
          u'WhenTime, Id, Sender, Raw'],
@@ -650,7 +667,7 @@ def build_programmers_guide():
              u'demostración lo enseña.</p>'))
 
     add(h2('api-paging', u'Paginación, de tres maneras'))
-    add(p(u'Una lista de bloqueados no cabe en una página, y los ocho proveedores no se '
+    add(p(u'Una lista de bloqueados no cabe en una página, y los nueve proveedores no se '
           u'ponen de acuerdo en cómo recorrerla. El motor se ocupa de las tres sin que '
           u'quien llama se entere:'))
     add(table([u'Estilo', u'Quién', u'Qué hace el motor'], [
@@ -662,6 +679,10 @@ def build_programmers_guide():
         [u'un cursor', u'Mailgun',
          u'Sigue la dirección que la respuesta trae en <code>paging.next</code>, y para '
          u'cuando una página vuelve vacía.'],
+        [u'un token de continuación', u'Amazon SES',
+         u'Devuelve el token como un parámetro que se llama igual que la ruta por la '
+         u'que llegó, así que la fila de la matriz dice <code>NextToken</code> y el '
+         u'motor no necesita saber nada de Amazon.'],
     ]))
     add(p(u'<code>PageSize</code> dice cuántas pedir de una vez y <code>MaxRows</code> '
           u'es la guarda &mdash; 5000 por omisión, 0 para no poner límite. Cien mil '
@@ -823,7 +844,7 @@ def build_programmers_guide():
                               ('accents', 'Los acentos')]),
         ('Sacarlo', [('transports', 'Elegir un transporte'),
                      ('oauth', 'OAuth2, de principio a fin')]),
-        ('La API del proveedor', [('api', u'Una clase, ocho proveedores'),
+        ('La API del proveedor', [('api', u'Una clase, nueve proveedores'),
                                   ('api-matrix', u'La matriz'),
                                   ('api-queues', u'Las respuestas normalizadas'),
                                   ('api-paging', u'Paginaci\u00f3n, de tres maneras'),
