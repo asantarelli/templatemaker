@@ -858,7 +858,7 @@ def build_template_guide():
     B = []
     add = B.append
 
-    add(h2('five', 'Las ocho plantillas'))
+    add(h2('five', 'Las diez plantillas'))
     add(table(['Plantilla', 'Tipo', 'Para qué es'], [
         ['<b>emailTo - Global</b>', 'Extensión de aplicación',
          'Obligatoria, una vez por aplicación. Declara el objeto, fija los valores por '
@@ -873,6 +873,11 @@ def build_template_guide():
          'La ventana de escribir y enviar, opcionalmente prellenada.'],
         ['<b>emailTo - Abrir la ventana de configuración aquí</b>', 'Plantilla de código',
          'La ventana de la cuenta, para un menú de configuración.'],
+        ['<b>emailTo - Provider API</b>', 'Extensión de aplicación',
+         'Se agrega una vez. Declara el objeto que lee la lista de bloqueados, las '
+         'estadísticas, los contactos y las campañas.'],
+        ['<b>emailTo - Sync provider data into your tables</b>', 'Extensión de aplicación',
+         'Se agrega una vez. Escribe todo eso en tablas suyas.'],
         ['<b>emailTo - Mail account button</b>', 'Plantilla de control, MULTI',
          'Se arrastra a una ventana. Abre la ventana de gestión: direcciones '
          'bloqueadas y por qué, estadísticas, actividad, contactos, campañas.'],
@@ -891,7 +896,7 @@ def build_template_guide():
              'llamadas de una línea.</p>'))
 
     add(h2('global', 'emailTo - Global'))
-    add(p('Propiedades globales &rarr; Extensiones &rarr; Insertar. Nueve pestañas.'))
+    add(p('Propiedades globales &rarr; Extensiones &rarr; Insertar. Seis pestañas.'))
 
     add(h3('global-general', 'General'))
     add(table(['Campo', 'Por omisión', 'Qué hace'], [
@@ -1091,7 +1096,17 @@ def build_template_guide():
              'métodos derivados, porque los dos son <code>VIRTUAL</code> y se despachan '
              'por la VMT del propio objeto.</p>'))
 
-    add(h2('global-api', u'API del proveedor'))
+    add(h2('global-api', u'emailTo - Provider API'))
+    add(note('warn', u'En la v1.03 era una pestaña de la extensión global',
+             u'<p>Fue un error, y rompía toda aplicación construida antes de la '
+             u'v1.03: una aplicación guarda el conjunto de campos con el que fue '
+             u'construida, y AppGen no rellena uno agregado después &mdash; la '
+             u'generación se detenía con <code>Unknown Variable %ETgApi</code>, sobre '
+             u'un símbolo que nadie escribió.</p>'
+             u'<p>Como extensión propia no puede hacer eso: una aplicación que no la '
+             u'agrega nunca nombra sus símbolos. Si tenía la pestaña encendida en la '
+             u'v1.03, inserte esta extensión y vuelva a poner el nombre del objeto '
+             u'&mdash; lo que guardaba la pestaña vieja simplemente se ignora.</p>'))
     add(p(u'La pestaña que declara el segundo objeto. La misma clave que envía el '
           u'correo puede además contestar por la cuenta, así que aquí no hace falta '
           u'más que un nombre.'))
@@ -1290,12 +1305,12 @@ def build_template_guide():
 
     body = '\n'.join(B)
     groups = [
-        ('Panorama', [('five', 'Las ocho plantillas')]),
+        ('Panorama', [('five', 'Las diez plantillas')]),
         ('La extensión global', [('global', 'emailTo - Global'),
                                  ('global-general', 'General'),
                                  ('global-account', 'Cuenta'),
                                  ('global-signin', 'Acceso'),
-                                 ('global-api', u'API del proveedor'),
+                                 ('global-api', u'emailTo - Provider API'),
                                  ('global-sync', u'Sincronizar tablas'),
                                  ('global-table', 'Tabla'),
                                  ('global-multidll', 'Multi-DLL'),

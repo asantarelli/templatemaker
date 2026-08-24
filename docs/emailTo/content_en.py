@@ -1153,7 +1153,7 @@ def build_template_guide():
     B = []
     add = B.append
 
-    add(h2('five', 'The eight templates'))
+    add(h2('five', 'The ten templates'))
     add(table(['Template', 'Kind', 'What it is for'], [
         ['<b>emailTo - Global</b>', 'Application extension',
          'Required, once per app. Declares the object, sets the defaults, '
@@ -1166,6 +1166,11 @@ def build_template_guide():
          'The write-and-send window, optionally pre-filled.'],
         ['<b>emailTo - Open the mail account setup window here</b>', 'Code template',
          'The account window, for a Setup menu.'],
+        ['<b>emailTo - Provider API</b>', 'Application extension',
+         'Add once. Declares the object that reads the blocked list, statistics, '
+         'contacts and campaigns.'],
+        ['<b>emailTo - Sync provider data into your tables</b>', 'Application extension',
+         'Add once. Writes all of that into tables of your own.'],
         ['<b>emailTo - Mail account button</b>', 'Control template, MULTI',
          'Drag onto a window. Opens the management window: blocked addresses and why, '
          'statistics, activity, contacts, campaigns.'],
@@ -1182,7 +1187,7 @@ def build_template_guide():
              'can do from a hand-written embed with the same one-line calls.</p>'))
 
     add(h2('global', 'emailTo - Global'))
-    add(p('Global Properties &rarr; Extensions &rarr; Insert. Nine tabs.'))
+    add(p('Global Properties &rarr; Extensions &rarr; Insert. Six tabs.'))
 
     add(h3('global-general', 'General'))
     add(table(['Prompt', 'Default', 'What it does'], [
@@ -1367,22 +1372,34 @@ def build_template_guide():
              'because both are <code>VIRTUAL</code> and dispatch through the '
              'object&rsquo;s own VMT.</p>'))
 
-    add(h2('global-api', 'Provider API'))
-    add(p('The tab that declares the second object. The same key that sends the mail '
-          'can also answer for the account, so this needs nothing except a name.'))
+    add(h2('global-api', 'emailTo - Provider API'))
+    add(p('A SEPARATE application extension, added once alongside the global one. '
+          'The same key that sends the mail can also answer for the account, so this '
+          'needs nothing except a name.'))
+    add(note('warn', 'It was a tab on the global extension in v1.03',
+             '<p>That was a mistake, and it broke every application built before '
+             'v1.03: an app stores the set of prompts it was built with, and AppGen '
+             'does not backfill one added later &mdash; generation stopped with '
+             '<code>Unknown Variable %ETgApi</code>, on a symbol nobody typed.</p>'
+             '<p>As an extension of its own it cannot do that: an app that does not '
+             'add it never names its symbols. If you had the tab switched on in '
+             'v1.03, insert this extension and put the object name back &mdash; what '
+             'the old tab stored is simply ignored.</p>'))
     add(table(['Prompt', 'What it does'], [
-        ['Add the management object',
-         'Declares <code>EmailApiClass</code> globally and calls '
-         '<code>Init</code> on it at start-up, right after the mail object has loaded '
-         'its account. On by default.'],
         ['Object name', 'What to call it. <code>MailApi</code> unless you have a '
          'reason &mdash; the control and code templates default to that name too.'],
+        ['Mail object name', 'The object <b>emailTo - Global</b> declared. This one '
+         'borrows its account and its HTTPS layer, so there is no second copy of a '
+         'credential anywhere in the program.'],
         ['Rows per request', 'The page size. The class keeps asking until the provider '
          'runs out, so this is not a limit, only how much comes back at a time.'],
         ['Stop after this many rows', 'The guard: 5,000 by default, 0 for no limit.'],
         ['Second key', 'Postmark alone needs two tokens: the SERVER token sends and '
          'reads bounces, the ACCOUNT token opens senders and domains. Blank for '
-         'everybody else.'],
+         'everybody else. All three of these can come from your settings table '
+         'instead &mdash; name a column <code>ApiKey2</code>, <code>ApiRegion</code> '
+         'or <code>ApiBase</code> and the global extension fills it, by name, with no '
+         'prompt to set.'],
         ['Region', '<code>eu</code> for a Mailgun or SparkPost account created in '
          'Europe. Those are separate services with their own hostnames and their own '
          'data &mdash; asked at the default endpoint, a European account looks empty '
@@ -1539,12 +1556,12 @@ def build_template_guide():
 
     body = '\n'.join(B)
     groups = [
-        ('Overview', [('five', 'The eight templates')]),
+        ('Overview', [('five', 'The ten templates')]),
         ('The global extension', [('global', 'emailTo - Global'),
                                   ('global-general', 'General'),
                                   ('global-account', 'Account'),
                                   ('global-signin', 'Sign-in'),
-                                  ('global-api', 'Provider API'),
+                                  ('global-api', 'emailTo - Provider API'),
                                   ('global-sync', 'Sync tables'),
                                   ('global-table', 'Table'),
                                   ('global-multidll', 'Multi-DLL'),
@@ -1563,7 +1580,7 @@ def build_template_guide():
                 'Template Guide',
                 'Every template, every tab, every prompt &mdash; and the code the '
                 'generator actually writes into your application.',
-                ['8 templates', 'Every prompt', 'Generated code', 'Multi-DLL'],
+                ['10 templates', 'Every prompt', 'Generated code', 'Multi-DLL'],
                 groups, body)
 
 

@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and eight provider APIs - v1.04 (2026-08-24 14:05)'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and eight provider APIs - v1.05 (2026-08-24 15:20)'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  emailTo template set  -  send e-mail from a Clarion application, four ways,
 #!  with no third-party DLL, no .NET and no OpenSSL to deploy.
@@ -85,7 +85,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
@@ -98,22 +98,16 @@
       #DISPLAY('emailc.c is compiled into your EXE by Clarion''s own C')
       #DISPLAY('compiler. There is no DLL to ship and nothing to register.')
     #ENDBOXED
-    #BOXED('Upgrading from v1.02 or earlier - do this ONCE')
-      #DISPLAY('An application stores the set of prompts it was built with. The')
-      #DISPLAY('Provider API tab was added in v1.03, so an app older than that')
-      #DISPLAY('has no value stored for those prompts, and generating it stops')
-      #DISPLAY('with:')
+    #BOXED('Upgraded from v1.03? The API moved out of here')
+      #DISPLAY('v1.03 put the Provider API on a tab of THIS extension. It is')
+      #DISPLAY('now an extension of its own - "emailTo - Provider API" - so')
+      #DISPLAY('that adding it never disturbs an application that does not')
+      #DISPLAY('want it, and so that an app built before v1.03 keeps')
+      #DISPLAY('generating without being touched at all.')
       #DISPLAY('')
-      #DISPLAY('    Unknown Variable ''%ETgApi''')
-      #DISPLAY('')
-      #DISPLAY('Opening THIS property sheet is the cure: the IDE writes every')
-      #DISPLAY('prompt back, defaults included. If you are reading this, it has')
-      #DISPLAY('already happened - press OK and generate again. From a build')
-      #DISPLAY('script that never opens the IDE, delete this extension and')
-      #DISPLAY('insert it again instead.')
-      #DISPLAY('')
-      #DISPLAY('Nothing added since v1.03 does this: the sync lives in its own')
-      #DISPLAY('extension precisely so an existing app is never touched.')
+      #DISPLAY('If you had it switched on here: Global Properties >')
+      #DISPLAY('Extensions > Insert > "emailTo - Provider API", and put the')
+      #DISPLAY('object name back. Anything this tab used to store is ignored.')
     #ENDBOXED
     #BOXED('Options')
       #PROMPT('&Disable this template',CHECK),%ETgDisable,DEFAULT(0),AT(10)
@@ -179,40 +173,6 @@
       #DISPLAY('and the PRIVATE key here.')
     #ENDBOXED
   #ENDTAB
-  #TAB('Provider &API')
-    #BOXED('Asking the provider questions')
-      #DISPLAY('The same key that sends the mail can also answer for the')
-      #DISPLAY('account: who is blocked and why, statistics, contacts,')
-      #DISPLAY('campaigns, templates, senders, domains and webhooks.')
-      #DISPLAY('')
-      #DISPLAY('Eight providers answer: SendGrid, Brevo, Mailgun, Postmark,')
-      #DISPLAY('Mailjet, Resend, SparkPost and MailerSend. Each offers a')
-      #DISPLAY('different subset, and Supports() says which - the window greys')
-      #DISPLAY('out whatever a provider genuinely cannot do.')
-      #PROMPT('&Add the management object',CHECK),%ETgApi,DEFAULT(1),AT(10)
-      #ENABLE(%ETgApi)
-        #PROMPT('&Object name:',@s64),%ETgApiObject,REQ,DEFAULT('MailApi')
-        #PROMPT('&Rows per request:',@n5),%ETgApiPageSize,DEFAULT(100)
-        #DISPLAY('How many rows to ask for at a time. The class keeps asking')
-        #DISPLAY('until the provider runs out, so this is only the page size.')
-        #PROMPT('&Stop after this many rows:',@n7),%ETgApiMaxRows,DEFAULT(5000)
-        #DISPLAY('A guard against a block list with a hundred thousand rows')
-        #DISPLAY('in it. Zero means no limit.')
-      #ENDENABLE
-    #ENDBOXED
-    #BOXED('The second credential, the region, and the base address')
-      #PROMPT('Second &key:',@s255),%ETgApiKey2,DEFAULT('')
-      #DISPLAY('Postmark only: its senders and domains endpoints want the')
-      #DISPLAY('ACCOUNT token, not the server token. Leave blank otherwise.')
-      #PROMPT('Re&gion:',@s32),%ETgApiRegion,DEFAULT('')
-      #DISPLAY('Put eu here for a Mailgun or SparkPost account created in')
-      #DISPLAY('Europe. Blank means the default endpoint.')
-      #PROMPT('&Base address:',@s128),%ETgApiBase,DEFAULT('')
-      #DISPLAY('Replaces the host - and the scheme, if you give one. For a')
-      #DISPLAY('private relay, or for pointing a test build at a stand-in.')
-      #DISPLAY('Blank is what you want in production.')
-    #ENDBOXED
-  #ENDTAB
   #TAB('&Table')
     #BOXED('Keep the account in one of your own tables')
       #DISPLAY('Nominate a table and emailTo generates the code that reads it')
@@ -258,9 +218,11 @@
         #PROMPT('Re&fresh token:',FIELD(%ETgFile)),%ETgColRefresh
         #PROMPT('API &key:',FIELD(%ETgFile)),%ETgColApiKey
         #PROMPT('API &domain:',FIELD(%ETgFile)),%ETgColApiDomain
-        #PROMPT('Second ke&y:',FIELD(%ETgFile)),%ETgColApiKey2
-        #PROMPT('Re&gion:',FIELD(%ETgFile)),%ETgColApiRegion
-        #PROMPT('Base a&ddress:',FIELD(%ETgFile)),%ETgColApiBase
+        #DISPLAY('')
+        #DISPLAY('A column named ApiKey2, ApiRegion or ApiBase is filled too,')
+        #DISPLAY('by NAME - no prompt, nothing to map. They are what the')
+        #DISPLAY('Provider API extension reads: Postmark''s account token, the')
+        #DISPLAY('European endpoints, and a host of your own.')
         #DISPLAY('')
         #DISPLAY('Password, client secret, refresh token and API key are stored')
         #DISPLAY('through Seal(): DPAPI encrypts them for the current Windows')
@@ -331,11 +293,7 @@
 #ENDAT
 #!
 #AT(%AfterGlobalIncludes),WHERE(%ETgDisable=0)
-#IF(%ETgApi)
-INCLUDE('EmailApiClass.INC'),ONCE                          #! pulls in all four of the others
-#ELSE
 INCLUDE('EmailToClass.INC'),ONCE                           #! pulls in EmailNetClass + EmailMsgClass
-#ENDIF
 #ENDAT
 #!
 #!--- the global object ---------------------------------------------------------
@@ -355,15 +313,9 @@ SaveAccount              PROCEDURE(),BYTE,PROC,DERIVED
 %ETgObject             EmailToClass                        #<! the mail object
     #ENDIF
 emailToLanguage        BYTE(%ETgLanguage)                  #<! 1 = English, 2 = Espanol
-    #IF(%ETgApi)
-%ETgApiObject          EmailApiClass                       #<! the management object
-    #ENDIF
   #ELSE
 %ETgObject             EmailToClass,EXTERNAL,DLL(dll_mode) #<! it lives in the data DLL
 emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
-    #IF(%ETgApi)
-%ETgApiObject          EmailApiClass,EXTERNAL,DLL(dll_mode)
-    #ENDIF
   #ENDIF
 #ENDAT
 #!
@@ -371,9 +323,6 @@ emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
   #IF(%DefaultExternal = 'None External' AND %ProgramExtension='DLL' AND %DefaultExport)
   $%ETgObject                                              @?
   $emailToLanguage                                         @?
-    #IF(%ETgApi)
-  $%ETgApiObject                                           @?
-    #ENDIF
   #ENDIF
 #ENDAT
 #!
@@ -426,28 +375,10 @@ emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
   #IF(%ETgApiDomain)
   %ETgObject.Acc.ApiDomain = '%ETgApiDomain'
   #ENDIF
-  #IF(%ETgApiKey2)
-  %ETgObject.Acc.ApiKey2   = '%ETgApiKey2'
-  #ENDIF
-  #IF(%ETgApiRegion)
-  %ETgObject.Acc.ApiRegion = '%ETgApiRegion'
-  #ENDIF
-  #IF(%ETgApiBase)
-  %ETgObject.Acc.ApiBase   = '%ETgApiBase'
-  #ENDIF
   #IF(%ETgFile)
   %ETgObject.LoadAccount('%ETgLoadName')                   ! whatever %ETgFile holds wins
   #ELSE
   %ETgObject.LoadAccount()                                 ! the INI beside the EXE, if there is one
-  #ENDIF
-  #IF(%ETgApi)
-  !  The management object borrows the account and the HTTPS layer above, so
-  !  there is no second copy of the key anywhere.
-  %ETgApiObject.Init(%ETgObject)
-    #IF(%ETgApiPageSize)
-  %ETgApiObject.PageSize = %ETgApiPageSize
-    #ENDIF
-  %ETgApiObject.MaxRows  = %ETgApiMaxRows
   #ENDIF
 #ENDAT
 #!
@@ -535,15 +466,7 @@ emailToLanguage        BYTE,EXTERNAL,DLL(dll_mode)
   #IF(%ETgColApiDomain)
   IF CLIP(%ETgColApiDomain) THEN SELF.Acc.ApiDomain = CLIP(%ETgColApiDomain).
   #ENDIF
-  #IF(%ETgColApiKey2)
-  IF CLIP(%ETgColApiKey2) THEN SELF.Acc.ApiKey2 = SELF.Unseal(%ETgColApiKey2).
-  #ENDIF
-  #IF(%ETgColApiRegion)
-  IF CLIP(%ETgColApiRegion) THEN SELF.Acc.ApiRegion = CLIP(%ETgColApiRegion).
-  #ENDIF
-  #IF(%ETgColApiBase)
-  IF CLIP(%ETgColApiBase) THEN SELF.Acc.ApiBase = CLIP(%ETgColApiBase).
-  #ENDIF
+#INSERT(%ETgExtraCols,'load')
   !  An access token is short-lived; the refresh token buys a new one.
   SELF.Acc.AccessToken  = ''
   SELF.Acc.TokenExpDate = 0
@@ -619,6 +542,7 @@ ETFound  BYTE
   #IF(%ETgColApiDomain)
   %ETgColApiDomain    = CLIP(SELF.Acc.ApiDomain)
   #ENDIF
+#INSERT(%ETgExtraCols,'save')
   IF ETFound
     PUT(%ETgFile)
   ELSE
@@ -657,6 +581,112 @@ ETFound  BYTE
 #ENDAT
 #!
 #!#############################################################################
+#!  APPLICATION EXTENSION - emailToProviderApi
+#!#############################################################################
+#!  The management half: who is blocked and why, statistics, activity,
+#!  contacts, lists, campaigns, templates, senders, domains, webhooks.
+#!
+#!  A SEPARATE extension, not a tab on emailTo - Global, and the reason is
+#!  upgrades. An application stores the set of prompts it was built with, and
+#!  AppGen does not backfill one added later: generation stops with "Unknown
+#!  Variable" on a symbol the developer never typed. An application that does
+#!  not add THIS extension never names these symbols, so an older app keeps
+#!  generating exactly as it did. v1.03 learned that the hard way.
+#!
+#!  It needs emailTo - Global: the account, and the HTTPS layer, both belong
+#!  to the mail object this one borrows.
+#!#############################################################################
+#EXTENSION(emailToProviderApi,'emailTo - Provider API (blocked, statistics, campaigns)'),APPLICATION,HLP('~emailTo.htm')
+#SHEET
+  #TAB('&General')
+    #BOXED('Asking the provider questions')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
+      #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
+      #DISPLAY('')
+      #DISPLAY('The same key that sends the mail can also answer for the')
+      #DISPLAY('account: who is blocked and why, statistics, contacts,')
+      #DISPLAY('campaigns, templates, senders, domains and webhooks.')
+      #DISPLAY('')
+      #DISPLAY('Eight providers answer: SendGrid, Brevo, Mailgun, Postmark,')
+      #DISPLAY('Mailjet, Resend, SparkPost and MailerSend. Each offers a')
+      #DISPLAY('different subset, and Supports() says which - the window greys')
+      #DISPLAY('out whatever a provider genuinely cannot do.')
+      #PROMPT('&Disable this template',CHECK),%ETqDisable,DEFAULT(0),AT(10)
+      #PROMPT('&Object name:',@s64),%ETqObject,REQ,DEFAULT('MailApi')
+      #PROMPT('&Mail object name:',@s64),%ETqMailObject,REQ,DEFAULT('Mailer')
+      #DISPLAY('The object emailTo - Global declared. This one borrows its')
+      #DISPLAY('account and its HTTPS layer, so there is no second copy of')
+      #DISPLAY('a credential anywhere in the program.')
+    #ENDBOXED
+    #BOXED('How much to ask for')
+      #PROMPT('&Rows per request:',@n5),%ETqPageSize,DEFAULT(100)
+      #DISPLAY('How many rows to ask for at a time. The class keeps asking')
+      #DISPLAY('until the provider runs out, so this is only the page size.')
+      #PROMPT('&Stop after this many rows:',@n7),%ETqMaxRows,DEFAULT(5000)
+      #DISPLAY('A guard against a block list with a hundred thousand rows')
+      #DISPLAY('in it. Zero means no limit.')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Endpoint')
+    #BOXED('The second credential, the region, and the base address')
+      #DISPLAY('All three are optional, and all three can come from your')
+      #DISPLAY('settings table instead - name a column ApiKey2, ApiRegion or')
+      #DISPLAY('ApiBase and emailTo - Global fills it, by name.')
+      #PROMPT('Second &key:',@s255),%ETqKey2,DEFAULT('')
+      #DISPLAY('Postmark only: its senders and domains endpoints want the')
+      #DISPLAY('ACCOUNT token, not the server token. Leave blank otherwise.')
+      #PROMPT('Re&gion:',@s32),%ETqRegion,DEFAULT('')
+      #DISPLAY('Put eu here for a Mailgun or SparkPost account created in')
+      #DISPLAY('Europe. Those are separate services with their own data - at')
+      #DISPLAY('the default endpoint a European account looks empty, not')
+      #DISPLAY('wrong. Blank means the default.')
+      #PROMPT('&Base address:',@s128),%ETqBase,DEFAULT('')
+      #DISPLAY('Replaces the host - and the scheme, if you give one. For a')
+      #DISPLAY('private relay, or for pointing a test build at a stand-in.')
+      #DISPLAY('Blank is what you want in production.')
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!
+#AT(%AfterGlobalIncludes),WHERE(%ETqDisable=0)
+INCLUDE('EmailApiClass.INC'),ONCE                          #! pulls in all four of the others
+#ENDAT
+#!
+#AT(%GlobalData),WHERE(%ETqDisable=0)
+  #IF(%DefaultExternal = 'None External')
+%ETqObject             EmailApiClass                       #<! the management object
+  #ELSE
+%ETqObject             EmailApiClass,EXTERNAL,DLL(dll_mode) #<! it lives in the data DLL
+  #ENDIF
+#ENDAT
+#!
+#AT(%DLLExportList),WHERE(%ETqDisable=0)
+  #IF(%DefaultExternal = 'None External' AND %ProgramExtension='DLL' AND %DefaultExport)
+  $%ETqObject                                              @?
+  #ENDIF
+#ENDAT
+#!
+#!  After emailTo - Global has set the account up (it runs at 8000), so that
+#!  whatever the settings table holds is already in place.
+#AT(%ProgramSetup),WHERE(%ETqDisable=0 AND %DefaultExternal = 'None External'),PRIORITY(8500)
+  #IF(%ETqKey2)
+  %ETqMailObject.Acc.ApiKey2   = '%ETqKey2'
+  #ENDIF
+  #IF(%ETqRegion)
+  %ETqMailObject.Acc.ApiRegion = '%ETqRegion'
+  #ENDIF
+  #IF(%ETqBase)
+  %ETqMailObject.Acc.ApiBase   = '%ETqBase'
+  #ENDIF
+  !  Borrows the account and the HTTPS layer, so there is no second copy of
+  !  the key anywhere.
+  %ETqObject.Init(%ETqMailObject)
+  #IF(%ETqPageSize)
+  %ETqObject.PageSize = %ETqPageSize
+  #ENDIF
+  %ETqObject.MaxRows  = %ETqMaxRows
+#ENDAT
+#!#############################################################################
 #!  APPLICATION EXTENSION - emailToSync
 #!#############################################################################
 #!  Bringing the provider's answers down into tables of your own.
@@ -676,7 +706,7 @@ ETFound  BYTE
 #SHEET
   #TAB('&General')
     #BOXED('emailTo - Sync')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
       #DISPLAY('')
       #DISPLAY('It needs the Global extension''s "Provider API" tab switched')
@@ -877,6 +907,42 @@ ETyBad    BYTE
 #INSERT(%ETyOneTable,'Lists',%ETyListFile,%ETyListKey,'ListQ')
 #INSERT(%ETyOneTable,'Campaigns',%ETyCampFile,%ETyCampKey,'CampaignQ')
 #ENDAT
+#!
+#!-----------------------------------------------------------------------------
+#!  The three account columns v1.03 added, matched by NAME instead of by three
+#!  more prompts on a tab that is already full. Name a column ApiKey2,
+#!  ApiRegion or ApiBase and it is filled; call it something else and nothing
+#!  happens. ApiKey2 is a credential, so it goes through Seal / Unseal like
+#!  the others.
+#!-----------------------------------------------------------------------------
+#GROUP(%ETgExtraCols,%pWay)
+#IF(NOT %ETgFile)
+  #RETURN
+#ENDIF
+#FOR(%File),WHERE(%File = %ETgFile)
+  #FOR(%Field),WHERE(%FieldID <> '')
+    #CASE(UPPER(%FieldID))
+    #OF('APIKEY2')
+      #IF(%pWay = 'load')
+  IF CLIP(%Field) THEN SELF.Acc.ApiKey2 = SELF.Unseal(%Field).
+      #ELSE
+  %Field = SELF.Seal(SELF.Acc.ApiKey2)
+      #ENDIF
+    #OF('APIREGION')
+      #IF(%pWay = 'load')
+  IF CLIP(%Field) THEN SELF.Acc.ApiRegion = CLIP(%Field).
+      #ELSE
+  %Field = CLIP(SELF.Acc.ApiRegion)
+      #ENDIF
+    #OF('APIBASE')
+      #IF(%pWay = 'load')
+  IF CLIP(%Field) THEN SELF.Acc.ApiBase = CLIP(%Field).
+      #ELSE
+  %Field = CLIP(SELF.Acc.ApiBase)
+      #ENDIF
+    #ENDCASE
+  #ENDFOR
+#ENDFOR
 #!
 #GROUP(%ETyRelate,%pFile)
 #IF(NOT %pFile)
@@ -1106,7 +1172,7 @@ ETyMap%pWhat ROUTINE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
@@ -1297,7 +1363,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -1408,7 +1474,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -1462,7 +1528,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('This is where the END USER sets the account. The values it')
@@ -1504,7 +1570,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('&Disable this button',CHECK),%ETaDisable,DEFAULT(0),AT(10)
       #PROMPT('&API object name:',@s64),%ETaObject,REQ,DEFAULT('MailApi')
       #DISPLAY('The object the emailToGlobal extension declared on its')
@@ -1568,7 +1634,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('&Disable this button',CHECK),%ETzDisable,DEFAULT(0),AT(10)
       #PROMPT('&Sync object name:',@s64),%ETzObject,REQ,DEFAULT('MailSync')
       #DISPLAY('The object the "emailTo - Sync provider data into your tables"')
@@ -1627,7 +1693,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&What to do')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.04  -  built 2026-08-24 14:05')
+      #DISPLAY('emailTo v1.05  -  built 2026-08-24 15:20')
       #PROMPT('&API object name:',@s64),%ETpObject,REQ,DEFAULT('MailApi')
     #ENDBOXED
     #BOXED('Operation')

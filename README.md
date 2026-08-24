@@ -130,7 +130,7 @@ templates/                      # ready-to-register Clarion templates
     EmailJsonClass.inc/.clw     #     reading the reply: a JSON parser in pure Clarion
     EmailApiClass.inc/.clw      #     the management API: blocked, stats, campaigns, the window
     emailc.c                    #     Winsock + SCHANNEL + WinHTTP + SHA-256 (Clacpp-compiled)
-    emailTo.tpl                 #     2 app extensions + 3 buttons + 4 code templates
+    emailTo.tpl                 #     3 app extensions + 3 buttons + 4 code templates
     EmailTables.txt             #     the settings-table structure, written out by hand
     emailToTables.dctx          #     the dictionary to IMPORT: 7 tables (Dictionary
                                 #       Editor > File > Import > DCTX/XML)
@@ -1296,12 +1296,21 @@ line of code, or an English one-liner has gained no Spanish twin.
 | 3 — every template, tab and prompt, and the code it writes | [Template Guide](https://claude.ai/code/artifact/d8272efa-aa88-4ab6-a61d-79d147907f01) | [Guía de plantillas](https://claude.ai/code/artifact/07f9ecdf-232b-4cbd-8d20-f423561f3ba0) |
 | 4 — every class, method, property and equate | [Reference](https://claude.ai/code/artifact/c98d7cfa-04e7-45ab-9054-9186cc2fbba5) | [Referencia](https://claude.ai/code/artifact/108af66d-ecbe-4a5b-bada-cb3500c741b6) |
 
-**The nine templates.** `emailToGlobal` (application — required once per app), `emailToButton` (control —
-drag onto a window; compose, send straight away, or open setup), `emailToApiButton` (control — opens the
-management window on whichever tab you name, and hides itself when the account has no API at all),
-`emailToSync` (application — the tables to fill), `emailToSyncButton` (control — brings the provider's data
-down into them), plus the `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` code templates for
-any embed.
+**The ten templates.** Three application extensions — `emailToGlobal` (required once per app),
+`emailToProviderApi` (the management object) and `emailToSync` (the tables to fill); three control templates —
+`emailToButton` (compose, send, or open setup), `emailToApiButton` (opens the management window on whichever
+tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
+`emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
+
+**v1.05 (2026-08-24).** The upgrade friction from v1.03, fixed properly. The Provider API was a *tab* on the
+global extension, and that broke every application built before v1.03: an app stores the set of prompts it was
+built with, AppGen does not backfill one added later, and generation stopped with `Unknown Variable %ETgApi` on
+a symbol nobody typed. It is now **`emailTo - Provider API`**, an extension of its own — an app that does not
+add it never names its symbols, so anything older generates untouched. Verified both ways: a v1.02-era app
+generates clean, and an app still carrying the v1.03 prompt values generates clean too (a stored value the
+template no longer declares is simply ignored). The three account columns v1.03 added lose their prompts
+entirely and are matched **by name** instead — call a column `ApiKey2`, `ApiRegion` or `ApiBase` and it is
+filled, in both directions; `SaveAccount` never wrote them back before, and now does.
 
 **v1.04 (2026-08-24).** The data half: a shipped dictionary and a sync into it. Also two template defects
 this uncovered, both of which would have bitten any template that needs a table of its own:
@@ -1316,9 +1325,7 @@ Third, and the reason the sync is its own extension rather than two more tabs on
 application stores the set of prompts it was built with, and AppGen does not backfill a prompt added later** —
 generation stops with `Unknown Variable` on a symbol the developer never typed. An app that never adds the new
 extension never names the new symbols, so every existing application keeps generating untouched. The
-**Provider API** tab added in v1.03 does not have that protection: upgrading an app older than v1.03 means
-opening that extension's property sheet once so the IDE writes the new prompts back (or, from a build script,
-deleting the extension and inserting it again). The General tab now says so. Verified by a harness that imports the shipped
+**Provider API** tab added in v1.03 had the same flaw, and v1.05 fixes it by moving it to an extension too. Verified by a harness that imports the shipped
 `.dctx`, generates an application against it, compiles it, and runs the generated sync twice against a
 stand-in provider: eleven rows into six tables, and eleven again the second time.
 
