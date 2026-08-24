@@ -1243,6 +1243,13 @@ line of code, or an English one-liner has gained no Spanish twin.
 onto a window; compose, send straight away, or open setup), plus the `emailToSend`, `emailToCompose` and
 `emailToSetup` code templates for any embed.
 
+**v1.01 (2026-08-23).** The eighteen column prompts on the **Table** and **Table columns** tabs asked for
+`COMPONENT(%ETgFile)`. `COMPONENT()` lists the component fields of a *key*, so the `...` lookup offered
+nothing and typing a column by hand was rejected with *"Could not find mai:UserName in key 'mailAcct'"* &mdash;
+AppGen was validating against the key on the tab above. Listing a table's columns is `FIELD(%ETgFile)`, which
+is what all five templates now use. Every prompt sheet also carries a version and build stamp on its first
+tab, so the registered copy identifies itself.
+
 ## Install
 
 Copy the two folders into your Claude Code config (`~/.claude` on macOS/Linux,

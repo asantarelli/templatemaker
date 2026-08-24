@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs - v1.0'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion: SMTP/TLS, OAuth2 (Gmail, Outlook, Microsoft 365) and REST APIs - v1.01 (2026-08-23 19:12)'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  emailTo template set  -  send e-mail from a Clarion application, four ways,
 #!  with no third-party DLL, no .NET and no OpenSSL to deploy.
@@ -59,7 +59,8 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo Global - Version 1.0')
+      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
+      #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
       #DISPLAY('IMPORTANT: copy these files to the redirection path (the app')
@@ -153,32 +154,32 @@
     #ENDBOXED
     #ENABLE(%ETgFile)
       #BOXED('Columns - the account itself')
-        #PROMPT('Account &name:',COMPONENT(%ETgFile)),%ETgColName,REQ
-        #PROMPT('&Provider:',COMPONENT(%ETgFile)),%ETgColProvider
-        #PROMPT('&Transport:',COMPONENT(%ETgFile)),%ETgColTransport
-        #PROMPT('&Host:',COMPONENT(%ETgFile)),%ETgColHost
-        #PROMPT('P&ort:',COMPONENT(%ETgFile)),%ETgColPort
-        #PROMPT('&Security:',COMPONENT(%ETgFile)),%ETgColSecurity
-        #PROMPT('&Auth mode:',COMPONENT(%ETgFile)),%ETgColAuth
+        #PROMPT('Account &name:',FIELD(%ETgFile)),%ETgColName,REQ
+        #PROMPT('&Provider:',FIELD(%ETgFile)),%ETgColProvider
+        #PROMPT('&Transport:',FIELD(%ETgFile)),%ETgColTransport
+        #PROMPT('&Host:',FIELD(%ETgFile)),%ETgColHost
+        #PROMPT('P&ort:',FIELD(%ETgFile)),%ETgColPort
+        #PROMPT('&Security:',FIELD(%ETgFile)),%ETgColSecurity
+        #PROMPT('&Auth mode:',FIELD(%ETgFile)),%ETgColAuth
       #ENDBOXED
     #ENDENABLE
   #ENDTAB
   #TAB('Ta&ble columns')
     #ENABLE(%ETgFile)
       #BOXED('Columns - credentials and addresses')
-        #PROMPT('&User name:',COMPONENT(%ETgFile)),%ETgColUser
-        #PROMPT('&Password:',COMPONENT(%ETgFile)),%ETgColPassword
-        #PROMPT('&From address:',COMPONENT(%ETgFile)),%ETgColFromAddr
-        #PROMPT('From &name:',COMPONENT(%ETgFile)),%ETgColFromName
-        #PROMPT('&Reply to:',COMPONENT(%ETgFile)),%ETgColReplyTo
+        #PROMPT('&User name:',FIELD(%ETgFile)),%ETgColUser
+        #PROMPT('&Password:',FIELD(%ETgFile)),%ETgColPassword
+        #PROMPT('&From address:',FIELD(%ETgFile)),%ETgColFromAddr
+        #PROMPT('From &name:',FIELD(%ETgFile)),%ETgColFromName
+        #PROMPT('&Reply to:',FIELD(%ETgFile)),%ETgColReplyTo
       #ENDBOXED
       #BOXED('Columns - OAuth2 and API keys')
-        #PROMPT('Client &ID:',COMPONENT(%ETgFile)),%ETgColClientId
-        #PROMPT('Client &secret:',COMPONENT(%ETgFile)),%ETgColSecret
-        #PROMPT('&Tenant:',COMPONENT(%ETgFile)),%ETgColTenant
-        #PROMPT('Re&fresh token:',COMPONENT(%ETgFile)),%ETgColRefresh
-        #PROMPT('API &key:',COMPONENT(%ETgFile)),%ETgColApiKey
-        #PROMPT('API &domain:',COMPONENT(%ETgFile)),%ETgColApiDomain
+        #PROMPT('Client &ID:',FIELD(%ETgFile)),%ETgColClientId
+        #PROMPT('Client &secret:',FIELD(%ETgFile)),%ETgColSecret
+        #PROMPT('&Tenant:',FIELD(%ETgFile)),%ETgColTenant
+        #PROMPT('Re&fresh token:',FIELD(%ETgFile)),%ETgColRefresh
+        #PROMPT('API &key:',FIELD(%ETgFile)),%ETgColApiKey
+        #PROMPT('API &domain:',FIELD(%ETgFile)),%ETgColApiDomain
         #DISPLAY('')
         #DISPLAY('Password, client secret, refresh token and API key are stored')
         #DISPLAY('through Seal(): DPAPI encrypts them for the current Windows')
@@ -527,6 +528,7 @@ ETFound  BYTE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
+      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
@@ -687,6 +689,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
+      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
     #ENDBOXED
     #BOXED('Who it goes to')
@@ -792,6 +795,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
+      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
     #ENDBOXED
     #BOXED('Pre-fill the window (all optional)')
@@ -840,6 +844,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
+      #DISPLAY('emailTo v1.01  -  built 2026-08-23 19:12')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
     #ENDBOXED
     #BOXED('What it does')
