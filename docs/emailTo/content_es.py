@@ -119,6 +119,15 @@ def build_getting_started():
         'hace &mdash; abrir la ventana de redacción, enviar de una vez, o abrir la '
         'ventana de configuración &mdash; y ya está.</li>'
         '</ol>')
+    add(note('tip', 'La cuenta se configura una vez, no por botón',
+             '<p>El paso 1 es donde vive el remitente: servidor, dirección, usuario, '
+             'contraseña, cliente OAuth2. El paso 2 no pide nada de eso. Esa división '
+             'es justamente el punto: ponga cinco botones de correo en cinco ventanas y '
+             'sigue habiendo exactamente una cuenta, en un solo lugar, para toda la '
+             'aplicación.</p>'
+             '<p>Para que el <em>usuario</em> la cambie en tiempo de ejecución, dele un '
+             'botón cuya acción sea <b>abrir la ventana de configuración de la '
+             'cuenta</b>. Lo que guarde ahí gana sobre la pestaña Cuenta.</p>'))
     add(p('Desde cualquier embed en cualquier otro procedimiento de la aplicación, el '
           'objeto simplemente está ahí:'))
     add(usecode("Mailer.SendSimple(Cus:Email, 'Su estado de cuenta', 'Adjunto.', Loc:PdfName)"))
@@ -703,6 +712,9 @@ def build_template_guide():
           '<code>SaveAccount</code> contra ella. Elija la clave con la que encuentra '
           'una cuenta, indique cuál cargar al arrancar, y luego asigne una columna a '
           'cada campo.'))
+    add(p('Cada campo de columna es un selector: el botón <code>&hellip;</code> de al '
+          'lado lista las columnas de la tabla que señaló, así que el mapeo se elige '
+          'en vez de escribirse.'))
     add(table(['Campo', 'Notas'], [
         ['Tabla de configuración', 'Vacío significa usar un INI junto al <code>.EXE</code>.'],
         ['Clave para encontrar la cuenta', 'Se usa para el <code>GET</code> en los dos sentidos.'],
@@ -751,15 +763,60 @@ def build_template_guide():
           'hace único el equate del campo (<code>?EmailBtn</code>, '
           '<code>?EmailBtn:2</code>&hellip;) y la plantilla engancha el manejador al '
           'que le haya tocado a esta instancia.'))
+    add(note('tip', '¿Cuál botón lleva la dirección del remitente? Ninguno',
+             '<p>Una cuenta pertenece a la <em>aplicación</em>, no a un botón. El '
+             'servidor, la dirección de remitente, el usuario, la contraseña y el '
+             'cliente OAuth2 se configuran una sola vez, en la pestaña Cuenta de '
+             '<b>emailTo - Global</b>. Un botón sólo dice <em>qué hacer</em>, así que '
+             'puede poner dos en una misma ventana, uno para enviar y otro para abrir '
+             'la configuración, y ninguno de los dos lleva una credencial.</p>'
+             '<p>La pestaña <b>Cuenta</b> del botón no tiene campos precisamente por '
+             'eso. Está ahí para señalar el lugar que sí los tiene.</p>'))
+    add(p('Cuál de los dos es cada instancia se ve en la lista de AppGen sin abrirla, '
+          'porque la descripción nombra la acción:'))
+    add(code('emailTo - E-mail button   E-mail button - opens the COMPOSE window\n'
+             'emailTo - E-mail button   E-mail button - opens ACCOUNT SETUP', 'dos'))
+
+    add(h3('button-general', 'General'))
     add(table(['Campo', 'Qué hace'], [
-        ['Acción', 'Abrir la ventana de redacción, enviar de una vez sin ventana, o '
-         'abrir la ventana de la cuenta.'],
+        ['Desactivar este botón',
+         'No genera nada para esta instancia. El botón se queda en la ventana, inerte.'],
         ['Nombre del objeto de correo',
          'Tiene que coincidir con la extensión global. <code>Mailer</code> por omisión.'],
-        ['Avisar al usuario que funcionó', 'Sólo para la acción de enviar de una vez.'],
+        ['Acción', 'Abrir la ventana de redacción, enviar de una vez sin ventana, o '
+         'abrir la ventana de configuración de la cuenta.'],
+        ['Avisar al usuario que funcionó',
+         'Gris salvo que la acción sea <em>enviar de una vez</em>: la única que lo lee.'],
         ['Mostrar el error si falló',
-         'Llama a <code>ShowError</code>. Apagado, el motivo igual queda en '
+         'Igual. Llama a <code>ShowError</code>; apagado, el motivo igual queda en '
          '<code>LastErrorText</code>.'],
+    ]))
+    add(note('note', 'Las tres acciones nacen rotuladas "E-mail..."',
+             '<p>La acción se elige después de soltar el control, así que la plantilla '
+             'no puede variar el texto por usted. Renombre el botón en el diseñador de '
+             'ventanas: dos botones que dicen los dos <em>E-mail...</em> confunden al '
+             'usuario del programa terminado tanto como lo confunden a usted en '
+             'AppGen.</p>'))
+
+    add(h3('button-account', 'Cuenta'))
+    add(p('Sin campos. Nombra el único lugar donde se configura la cuenta &mdash; '
+          '<b>Aplicación &rarr; Propiedades globales &rarr; Extensiones &rarr; '
+          'emailTo - Global &rarr; Cuenta</b> &mdash; y explica que un botón de '
+          'configuración es como el usuario final la sobreescribe: a su tabla de '
+          'ajustes si mapeó una, y si no, a un INI junto al <code>.EXE</code>.'))
+
+    add(h3('button-message', 'Mensaje'))
+    add(p('A quién va y qué dice. Lo que esta pestaña <em>significa</em> depende de la '
+          'acción, y por eso la pestaña General deletrea los tres casos:'))
+    add(table(['Acción', 'Qué hace la pestaña Mensaje'], [
+        ['Abrir la ventana de redacción',
+         'Prellena la ventana. El usuario puede cambiar cualquier cosa antes de enviar.'],
+        ['Enviar de una vez',
+         'Es el mensaje. No se muestra nada; lo que deje en blanco simplemente se omite.'],
+        ['Abrir la ventana de configuración',
+         'Nada: la pestaña entera se pone gris, porque no hay mensaje de por medio.'],
+    ]))
+    add(table(['Campo', 'Qué hace'], [
         ['Para / Copia / Asunto / Cuerpo',
          'Literales, para un botón que siempre manda lo mismo.'],
         ['&hellip;o tomarlo de una variable',
@@ -793,6 +850,10 @@ def build_template_guide():
           'ventana de la cuenta: póngala en un menú de configuración y sus usuarios '
           'pueden configurar su propio correo sin usted.'))
 
+    add(p('Las tres llevan el mismo recordatorio que el botón: la dirección de '
+          'remitente, el servidor y la contraseña no están entre sus campos, porque '
+          'pertenecen a la extensión global.'))
+
     add(h2('embeds', 'Dónde cae el código generado'))
     add(table(['Plantilla', 'Punto de embed', 'Qué llega'], [
         ['Global', '<code>%AfterGlobalIncludes</code>', 'Un <code>INCLUDE</code>, <code>ONCE</code>.'],
@@ -824,6 +885,9 @@ def build_template_guide():
                                  ('global-multidll', 'Multi-DLL'),
                                  ('global-writes', 'Qué escribe')]),
         ('Lo demás', [('button', 'El botón de correo'),
+                      ('button-general', 'General'),
+                      ('button-account', 'Cuenta'),
+                      ('button-message', 'Mensaje'),
                       ('codetemplates', 'Las plantillas de código'),
                       ('embeds', 'Dónde cae el código')]),
     ]

@@ -63,12 +63,15 @@ def table(head, rows, cls=''):
             '<tbody>%s</tbody></table></div>' % (cls, th, tr))
 
 
+#  Headings take HTML, exactly as p() does - a heading is author-written, never
+#  user input, and escaping it turned a deliberate &mdash; into four literal
+#  characters on the page AND in the sidebar that quotes it back.
 def h2(aid, text):
-    return '<h2 id="%s">%s</h2>' % (aid, esc(text))
+    return '<h2 id="%s">%s</h2>' % (aid, text)
 
 
 def h3(aid, text):
-    return '<h3 id="%s">%s</h3>' % (aid, esc(text))
+    return '<h3 id="%s">%s</h3>' % (aid, text)
 
 
 def p(text):
@@ -136,7 +139,11 @@ def secnav(groups, titles):
             out.append('<p class="nav__g">%s</p>' % esc(group))
         out.append('<ul class="nav__l">')
         for aid, label in items:
-            out.append('<li><a href="#%s">%s</a></li>' % (aid, esc(titles.get(aid, label))))
+            #  titles[] was scraped back out of the rendered <h2>/<h3>, so it is
+            #  ALREADY escaped - esc() on it a second time is what put a literal
+            #  "&mdash;" in the sidebar. Only the hand-written fallback is raw.
+            text = titles[aid] if aid in titles else esc(label)
+            out.append('<li><a href="#%s">%s</a></li>' % (aid, text))
         out.append('</ul>')
     return ''.join(out)
 

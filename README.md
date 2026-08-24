@@ -1260,6 +1260,14 @@ one-line signpost. The AppGen list also read `E-mail (1)` / `E-mail (3)` &mdash;
 reads `E-mail button - opens ACCOUNT SETUP`, built with `CHOOSE()` in the `DESCRIPTION` so no stored value
 moved. The code-generating half of the template is byte-identical: this release changes prompts only.
 
+The manual was rebuilt and the four affected volumes republished. Volume 3 gains an **Account** and a
+**Message** section under the e-mail button, and a note that answers the question the prompts had left open:
+*which button holds the sender's address? Neither.* Volume 1 gains the same point where it first tells you to
+add the extension and drop a button. Rebuilding also surfaced a latent generator bug: `secnav()` prints the
+heading text back into the sidebar and `headings()` scrapes it out of already-escaped HTML, so `esc()` ran a
+second time and a deliberate `&mdash;` reached the page as four literal characters &mdash; in the heading as well,
+since `h2()`/`h3()` escaped their text where `p()` does not. Headings now take HTML like every other helper.
+
 ## Install
 
 Copy the two folders into your Claude Code config (`~/.claude` on macOS/Linux,

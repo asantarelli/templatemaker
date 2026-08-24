@@ -165,6 +165,15 @@ def build_getting_started():
         'does &mdash; open the compose window, send a fixed message, or open the account '
         'setup window &mdash; and you are finished.</li>'
         '</ol>')
+    add(note('tip', 'The account is set once, not per button',
+             '<p>Step 1 is where the sender lives &mdash; server, from address, user '
+             'name, password, OAuth2 client. Step 2 never asks for any of it. That '
+             'division is the whole point: put five e-mail buttons on five windows and '
+             'there is still exactly one account, in one place, for the whole '
+             'application.</p>'
+             '<p>To let the <em>user</em> change it at run time, give them a button '
+             'whose action is <b>open the account setup window</b>. What they save '
+             'there overrides the Account tab.</p>'))
     add(p('From any embed anywhere else in the application, the object is simply there:'))
     add(usecode("Mailer.SendSimple(Cus:Email, 'Your statement', 'Attached.', Loc:PdfName)"))
 
@@ -873,6 +882,9 @@ def build_template_guide():
     add(p('Nominate a table and the template generates <code>LoadAccount</code> and '
           '<code>SaveAccount</code> against it. Pick the key it finds an account by, '
           'name the account to load at start-up, then map a column onto each field.'))
+    add(p('Each column prompt is a picker: the <code>&hellip;</code> button beside it '
+          'lists the columns of the table you nominated, so the mapping is chosen '
+          'rather than typed.'))
     add(table(['Prompt', 'Notes'], [
         ['Settings table', 'Blank means use an INI beside the <code>.EXE</code>.'],
         ['Key to find the account by', 'Used for the <code>GET</code> in both directions.'],
@@ -917,11 +929,52 @@ def build_template_guide():
     add(p('Drag it onto any window; drop it more than once if you want to. AppGen uniques '
           'the field equate (<code>?EmailBtn</code>, <code>?EmailBtn:2</code>&hellip;) '
           'and the template attaches the handler to whichever one this instance got.'))
+    add(note('tip', "Which button holds the sender's address? Neither",
+             '<p>An account belongs to the <em>application</em>, not to a button. The '
+             'server, the from address, the user name, the password and the OAuth2 '
+             'client are set once, on <b>emailTo - Global</b>&rsquo;s Account tab. A '
+             'button only says <em>what to do</em> &mdash; so you can put two on one '
+             'window, one to send and one to open the setup window, and neither of them '
+             'carries a credential.</p>'
+             '<p>The button&rsquo;s own <b>Account</b> tab has no prompts for exactly '
+             'that reason. It is there to point at the place that does.</p>'))
+    add(p('Which of the two a given instance is shows in the AppGen list without '
+          'opening it, because the description names the action:'))
+    add(code('emailTo - E-mail button   E-mail button - opens the COMPOSE window\n'
+             'emailTo - E-mail button   E-mail button - opens ACCOUNT SETUP', 'dos'))
+
+    add(h3('button-general', 'General'))
     add(table(['Prompt', 'What it does'], [
-        ['Action', 'Open the compose window, send straight away with no window, or open the account window.'],
+        ['Disable this button', 'Generates nothing for this instance. The button stays on the window, inert.'],
         ['Mail object name', 'Must match the global extension. <code>Mailer</code> by default.'],
-        ['Tell the user it worked', 'Only for the send-straight-away action.'],
-        ['Show the error if it failed', 'Calls <code>ShowError</code>. Off, the reason is still in <code>LastErrorText</code>.'],
+        ['Action', 'Open the compose window, send straight away with no window, or open the account setup window.'],
+        ['Tell the user it worked',
+         'Greyed unless the action is <em>send straight away</em> &mdash; the only action that reads it.'],
+        ['Show the error if it failed',
+         'Same. Calls <code>ShowError</code>; off, the reason is still in <code>LastErrorText</code>.'],
+    ]))
+    add(note('note', 'All three actions start life labelled "E-mail..."',
+             '<p>The action is chosen after the control is dropped, so the template '
+             'cannot vary the caption for you. Rename the button in the window designer '
+             '&mdash; two buttons that both read <em>E-mail...</em> confuse the user of '
+             'the finished program as much as they confuse you in AppGen.</p>'))
+
+    add(h3('button-account', 'Account'))
+    add(p('No prompts. It names the one place the account is configured &mdash; '
+          '<b>Application &rarr; Global Properties &rarr; Extensions &rarr; emailTo - '
+          'Global &rarr; Account</b> &mdash; and explains that a setup-window button is '
+          'how an end user overrides it: into your settings table if you mapped one, '
+          'otherwise into an INI beside the <code>.EXE</code>.'))
+
+    add(h3('button-message', 'Message'))
+    add(p('Who it goes to and what it says. What this tab <em>means</em> depends on the '
+          'action, which is why the General tab spells the three cases out:'))
+    add(table(['Action', 'What the Message tab does'], [
+        ['Open the compose window', 'Pre-fills the window. The user can change any of it before sending.'],
+        ['Send straight away', 'Is the message. Nothing is shown; anything left blank is omitted.'],
+        ['Open the account setup window', 'Nothing &mdash; the whole tab greys out, because no message is involved.'],
+    ]))
+    add(table(['Prompt', 'What it does'], [
         ['To / Cc / Subject / Body', 'Literals for a button that always sends the same thing.'],
         ['&hellip;or take it from a variable', 'A field picker. Overrides the literal beside it.'],
         ['Body is HTML', 'Calls <code>SetHtml</code> instead of <code>SetText</code>.'],
@@ -949,6 +1002,9 @@ def build_template_guide():
           'window. <b>Open the mail account setup window here</b> opens the account '
           'window &mdash; put it on a Setup menu and your users can configure their own '
           'mail without you.'))
+    add(p('All three carry the same reminder the button does: the sender address, the '
+          'server and the password are not among their prompts, because they belong to '
+          'the global extension.'))
 
     add(h2('embeds', 'Where the generated code lands'))
     add(table(['Template', 'Embed point', 'What arrives'], [
@@ -976,6 +1032,9 @@ def build_template_guide():
                                   ('global-multidll', 'Multi-DLL'),
                                   ('global-writes', 'What it writes')]),
         ('The rest', [('button', 'The e-mail button'),
+                      ('button-general', 'General'),
+                      ('button-account', 'Account'),
+                      ('button-message', 'Message'),
                       ('codetemplates', 'The code templates'),
                       ('embeds', 'Where the code lands')]),
     ]
