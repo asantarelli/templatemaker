@@ -823,6 +823,35 @@ IndexThisOne ROUTINE
     PUTINI(SELF.IniSection, 'Accounts', CLIP(known), SELF.IniFile)
   END
 
+!  The last account chosen, and the one to open with.
+!
+!  This is a preference, not a credential, so it lives in the INI even when
+!  the accounts themselves live in a table - there is nothing secret in a
+!  name, and it keeps the settings table free of a column that is about this
+!  machine rather than about the account.
+EmailToClass.RememberAccount PROCEDURE(STRING pName)
+  CODE
+  IF NOT CLIP(SELF.IniFile) THEN SELF.Init().
+  PUTINI(SELF.IniSection, 'LastAccount', CLIP(pName), SELF.IniFile)
+  RETURN
+
+EmailToClass.PreferredAccount PROCEDURE(<STRING pFallback>)
+fall CSTRING(65)
+last CSTRING(65)
+  CODE
+  IF NOT OMITTED(pFallback) THEN fall = CLIP(pFallback).
+  IF NOT CLIP(SELF.IniFile) THEN SELF.Init().
+  last = GETINI(SELF.IniSection, 'LastAccount', '', SELF.IniFile)
+  !  A name that was remembered and then deleted must not strand the program
+  !  on an account that is no longer there.
+  IF CLIP(last)
+    SELF.ListAccounts()
+    SELF.AccountQ.Name = CLIP(last)
+    GET(SELF.AccountQ, SELF.AccountQ.Name)
+    IF NOT ERRORCODE() THEN RETURN CLIP(last).
+  END
+  RETURN CLIP(fall)
+
 !  Which sets of settings the store holds.  The unnamed default is always
 !  row 1 - it is what LoadAccount() with no argument reads - and the named
 !  ones follow, in the order they were first saved.
@@ -1900,6 +1929,8 @@ EmailToClass.Txt PROCEDURE(LONG pId)
     OF ETTxt:ConfirmDelete; RETURN '<191>Borrar esta cuenta guardada?'
     OF ETTxt:StoredAccts  ; RETURN 'Cuentas guardadas:'
     OF ETTxt:LoadAcct     ; RETURN 'Cargar'
+    OF ETTxt:SaveAs       ; RETURN 'Guardar como:'
+    OF ETTxt:SaveAsNote   ; RETURN 'un nombre nuevo aqu<237> crea una segunda cuenta'
     OF ETTxt:Connecting   ; RETURN 'Conectando...'
     OF ETTxt:Authorising  ; RETURN 'Autorizando...'
     OF ETTxt:Building     ; RETURN 'Preparando el mensaje...'
@@ -1958,6 +1989,8 @@ EmailToClass.Txt PROCEDURE(LONG pId)
   OF ETTxt:ConfirmDelete; RETURN 'Delete this stored account?'
   OF ETTxt:StoredAccts  ; RETURN 'Stored accounts:'
   OF ETTxt:LoadAcct     ; RETURN 'Load'
+  OF ETTxt:SaveAs       ; RETURN 'Save as:'
+  OF ETTxt:SaveAsNote   ; RETURN 'a new name here makes a second account'
   OF ETTxt:Connecting   ; RETURN 'Connecting...'
   OF ETTxt:Authorising  ; RETURN 'Authorising...'
   OF ETTxt:Building     ; RETURN 'Preparing the message...'
@@ -2027,8 +2060,18 @@ AName   CSTRING(65)
 AText   CSTRING(129)
       END
 
-Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9),CENTER,ICON(ICON:Application)
-         SHEET,AT(4,4,344,214),USE(?Sheet)
+Window WINDOW('Mail account setup'),AT(,,352,284),GRAY,SYSTEM,FONT('Segoe UI',9),CENTER,ICON(ICON:Application)
+         !  Above the sheet, so which account you are editing is answered from
+         !  every tab and not just the one it happens to be filed under.
+         PROMPT('Account:'),AT(10,10),USE(?PrStored)
+         LIST,AT(58,8,184,10),USE(LocStoredSel),DROP(10),FROM(AccQ),FORMAT('174L(2)@s128@')
+         BUTTON('Load'),AT(248,7,46,13),USE(?LoadAcct)
+         BUTTON('Delete'),AT(298,7,48,13),USE(?DelAcct)
+         PROMPT('Save as:'),AT(10,28),USE(?PrName)
+         ENTRY(@s64),AT(58,26,184,10),USE(LocName)
+         STRING('a new name here makes a second account'),AT(248,28),USE(?NameNote),FONT(,7)
+         LINE,AT(4,40,344,0),USE(?LineTop),COLOR(COLOR:Silver)
+         SHEET,AT(4,44,344,214),USE(?Sheet)
            TAB('Account'),USE(?TabAccount)
              PROMPT('Provider:'),AT(10,24),USE(?PrProvider)
              LIST,AT(92,22,150,10),USE(?ListProvider),DROP(16),FROM(ProviderQ),FORMAT('110L(2)@s30@')
@@ -2077,30 +2120,20 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
              STRING('(Mailgun only: the domain you send from)'),AT(92,183),USE(?DomainNote),FONT(,7)
            END
            TAB('Advanced'),USE(?TabAdvanced)
-             PROMPT('Account name:'),AT(10,24),USE(?PrName)
-             ENTRY(@s64),AT(92,22,150,10),USE(LocName)
-             STRING('(the label these settings are stored under)'),AT(92,35),USE(?NameNote),FONT(,7)
-             PROMPT('Timeout (ms):'),AT(10,52),USE(?PrTimeout)
-             ENTRY(@n7),AT(92,50,60,10),USE(LocTimeout)
-             CHECK('Check the server certificate'),AT(92,68),USE(LocVerify)
-             STRING('Turn this off ONLY for a server with a self-signed certificate on'),AT(92,80),USE(?VerifyNote1),FONT(,7)
-             STRING('your own network. It disables the protection TLS gives you.'),AT(92,89),USE(?VerifyNote2),FONT(,7)
-             LINE,AT(10,106,332,0),USE(?Line9),COLOR(COLOR:Silver)
-             PROMPT('Stored accounts:'),AT(10,116),USE(?PrStored)
-             LIST,AT(92,114,150,10),USE(LocStoredSel),DROP(10),FROM(AccQ),FORMAT('140L(2)@s128@')
-             BUTTON('Load'),AT(248,113,44,13),USE(?LoadAcct)
-             BUTTON('Delete'),AT(296,113,46,13),USE(?DelAcct)
-             STRING('Each account keeps its own provider and key. Type a new name'),AT(92,129),USE(?StoredNote1),FONT(,7)
-             STRING('above and Save to add one; pick one here and Load to switch.'),AT(92,138),USE(?StoredNote2),FONT(,7)
+             PROMPT('Timeout (ms):'),AT(10,24),USE(?PrTimeout)
+             ENTRY(@n7),AT(92,22,60,10),USE(LocTimeout)
+             CHECK('Check the server certificate'),AT(92,40),USE(LocVerify)
+             STRING('Turn this off ONLY for a server with a self-signed certificate on'),AT(92,52),USE(?VerifyNote1),FONT(,7)
+             STRING('your own network. It disables the protection TLS gives you.'),AT(92,61),USE(?VerifyNote2),FONT(,7)
            END
            TAB('Log'),USE(?TabLog)
              LIST,AT(10,22,332,182),USE(?ListLog),FROM(LogQ),FORMAT('320L(2)@s255@'),VSCROLL,HSCROLL,FONT('Consolas',8)
            END
          END
-         BUTTON('Test account'),AT(6,224,72,16),USE(?Test)
-         STRING(@s128),AT(84,228,150,10),USE(LocStatus),FONT(,8)
-         BUTTON('Save'),AT(240,224,52,16),USE(?Ok),DEFAULT
-         BUTTON('Cancel'),AT(296,224,52,16),USE(?CancelBtn),STD(STD:Close)
+         BUTTON('Test account'),AT(6,262,72,16),USE(?Test)
+         STRING(@s128),AT(84,266,150,10),USE(LocStatus),FONT(,8)
+         BUTTON('Save'),AT(240,262,52,16),USE(?Ok),DEFAULT
+         BUTTON('Cancel'),AT(296,262,52,16),USE(?CancelBtn),STD(STD:Close)
        END
 
   CODE
@@ -2178,6 +2211,7 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
       IF EVENT() = EVENT:Accepted
         DO LocalToAcc
         SELF.SaveAccount()
+        SELF.RememberAccount(SELF.Acc.Name)
         Saved = 1
         POST(EVENT:CloseWindow)
       END
@@ -2193,6 +2227,7 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
             SELF.Acc.Name = ''
             SELF.LoadAccount()
           END
+          SELF.RememberAccount(SELF.Acc.Name)
           DO AccToLocal
           DO Reflect
           DISPLAY()
@@ -2285,7 +2320,9 @@ p BYTE
 
 Localise ROUTINE
   Window{PROP:Text}        = SELF.Txt(ETTxt:Setup)
-  ?PrStored{PROP:Text}     = SELF.Txt(ETTxt:StoredAccts)
+  ?PrStored{PROP:Text}     = SELF.Txt(ETTxt:Account) & ':'
+  ?PrName{PROP:Text}       = SELF.Txt(ETTxt:SaveAs)
+  ?NameNote{PROP:Text}     = SELF.Txt(ETTxt:SaveAsNote)
   ?LoadAcct{PROP:Text}     = SELF.Txt(ETTxt:LoadAcct)
   ?DelAcct{PROP:Text}      = SELF.Txt(ETTxt:Remove)
   ?PrProvider{PROP:Text}   = SELF.Txt(ETTxt:Provider)

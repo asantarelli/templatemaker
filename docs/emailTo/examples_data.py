@@ -185,6 +185,8 @@ EXAMPLES = {
 'EmailToClass.AccountQ':       "GET(Mailer.AccountQ, 2)                           ! .Name .Provider .ProviderText .FromAddr",
 'EmailToClass.ListAccounts':   "IF Mailer.ListAccounts() > 1 THEN DO PickOne.     ! VIRTUAL - the template walks your table",
 'EmailToClass.DeleteAccount':  "Mailer.DeleteAccount('brevo')                     ! the unnamed default cannot be deleted",
+'EmailToClass.RememberAccount': "Mailer.RememberAccount('sendgrid')                  ! come back up on this one",
+'EmailToClass.PreferredAccount': "Mailer.LoadAccount(Mailer.PreferredAccount('default'))  ! last chosen, else this",
 'EmailToClass.LoadAccount':     "Mailer.LoadAccount('billing')                     ! VIRTUAL - the template points it at your table",
 'EmailToClass.SaveAccount':     "Mailer.SaveAccount()                              ! VIRTUAL - what the Setup window calls on Save",
 'EmailToClass.Seal':            "Set:Password = Mailer.Seal(Loc:Typed)             ! DPAPI + base64, safe for a text column",

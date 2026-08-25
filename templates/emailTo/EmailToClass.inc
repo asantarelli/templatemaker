@@ -161,6 +161,8 @@ ETTxt:BrowserNote  EQUATE(50)
 ETTxt:ConfirmDelete EQUATE(51)
 ETTxt:StoredAccts  EQUATE(52)
 ETTxt:LoadAcct     EQUATE(53)
+ETTxt:SaveAs       EQUATE(54)
+ETTxt:SaveAsNote   EQUATE(55)
 
 ! ============================================================================
 !  The account.  This GROUP is the contract between the class and wherever you
@@ -305,6 +307,11 @@ SaveAccount          PROCEDURE(),BYTE,PROC,VIRTUAL
 !  and get rid of that one. Both VIRTUAL, because the template replaces the
 !  store with a table and then only the generated code knows how to walk it.
 ListAccounts         PROCEDURE(),LONG,PROC,VIRTUAL
+!  Which account to open with. Saving one or loading one from the setup
+!  window remembers it here, so a program that has been switched to a second
+!  provider comes back up on it instead of always reopening the first.
+RememberAccount      PROCEDURE(STRING pName)
+PreferredAccount     PROCEDURE(<STRING pFallback>),STRING
 DeleteAccount        PROCEDURE(STRING pName),BYTE,PROC,VIRTUAL
 Seal                 PROCEDURE(STRING pClear),STRING
 Unseal               PROCEDURE(STRING pStored),STRING

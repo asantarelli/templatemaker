@@ -1303,6 +1303,26 @@ line of code, or an English one-liner has gained no Spanish twin.
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
 
+**v1.11 (2026-08-24).** Reported as "the setup window saves to the wrong record" - and it never did. Both rows
+were correct in the table; what was wrong is that the program **always reopened the first one**, because the
+generated start-up line named it outright: `LoadAccount('default')`. Create a second account, restart, and you
+are looking at the first one again, which reads exactly like the save went astray.
+
+`RememberAccount` / `PreferredAccount` fix it. Saving an account or loading one from the picker remembers the
+name, and start-up becomes `LoadAccount(PreferredAccount('default'))` - last chosen, falling back to the name
+on the extension for a fresh installation, and falling back again if that account has since been deleted so a
+remembered name can never strand a program on something that is not there. The name is a preference about this
+machine rather than anything secret, so it lives in the INI even when the accounts live in a table.
+
+The account row also moved **above the sheet**, where the report started: the name was on the *Advanced* tab,
+which is the last place anyone looks for "which account am I editing". The window is now headed by
+**Account:** with the drop list, **Load** and **Delete**, and **Save as:** underneath - visible from every tab
+rather than filed under one.
+
+Also a lesson about testing INI code: **Windows keeps written sections in a profile cache**, so `REMOVE()` on
+the file leaves the previous run's values still answering `GETINI`. The account test was reading its own last
+run and failing on the order; it clears the index through `PUTINI` now and passes twice running.
+
 **v1.10 (2026-08-24).** Several providers configured at once. The store always allowed it - accounts are
 named, and `LoadAccount('brevo')` reads INI section `[emailTo_brevo]` or the table row whose Name column says
 `brevo`, each with its own provider, key, region and domain, nothing shared. What was missing was any way to
