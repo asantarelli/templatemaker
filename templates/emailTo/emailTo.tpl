@@ -1,4 +1,4 @@
-#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and nine provider APIs - v1.07 (2026-08-24 21:20)'),FAMILY('ABC')
+#TEMPLATE(emailTo,'emailTo - Send e-mail from Clarion and manage the account: SMTP/TLS, OAuth2 and nine provider APIs - v1.08 (2026-08-24 21:40)'),FAMILY('ABC')
 #!
 #!  Set by emailTo - Provider API when the application carries it, and read by
 #!  every template that writes a call to that object. A control template on a
@@ -93,7 +93,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('emailTo')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #DISPLAY('Global extension - add once per application.')
       #DISPLAY('Makes the mail object available to every procedure in the app.')
       #DISPLAY('')
@@ -625,7 +625,7 @@ ETFound  BYTE
 #SHEET
   #TAB('&General')
     #BOXED('Asking the provider questions')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
       #DISPLAY('')
       #DISPLAY('The same key that sends the mail can also answer for the')
@@ -745,7 +745,7 @@ INCLUDE('EmailApiClass.INC'),ONCE                          #! pulls in all four 
 #SHEET
   #TAB('&General')
     #BOXED('emailTo - Sync')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #DISPLAY('Add this ONCE per application, alongside emailTo - Global.')
       #DISPLAY('')
       #DISPLAY('It needs the Global extension''s "Provider API" tab switched')
@@ -1212,7 +1212,7 @@ ETyMap%pWhat ROUTINE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('&Disable this button',CHECK),%ETbDisable,DEFAULT(0),AT(10)
       #PROMPT('Mail &object name:',@s64),%ETbObject,REQ,DEFAULT('Mailer')
       #DISPLAY('The object the emailToGlobal extension declared. Add that')
@@ -1403,7 +1403,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&Message')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('Mail &object name:',@s64),%ETcObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -1514,7 +1514,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('Mail &object name:',@s64),%ETmObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('The sender address, server and password are NOT set here.')
@@ -1568,7 +1568,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('Mail &object name:',@s64),%ETsObject,REQ,DEFAULT('Mailer')
       #DISPLAY('')
       #DISPLAY('This is where the END USER sets the account. The values it')
@@ -1610,7 +1610,7 @@ INCLUDE('EmailToClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('&Disable this button',CHECK),%ETaDisable,DEFAULT(0),AT(10)
       #PROMPT('&API object name:',@s64),%ETaObject,REQ,DEFAULT('MailApi')
       #DISPLAY('The object the emailToGlobal extension declared on its')
@@ -1675,7 +1675,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&General')
     #BOXED('Button')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('&Disable this button',CHECK),%ETzDisable,DEFAULT(0),AT(10)
       #PROMPT('&Sync object name:',@s64),%ETzObject,REQ,DEFAULT('MailSync')
       #DISPLAY('The object the "emailTo - Sync provider data into your tables"')
@@ -1734,7 +1734,7 @@ INCLUDE('EmailApiClass.INC'),ONCE
 #SHEET
   #TAB('&What to do')
     #BOXED('Object')
-      #DISPLAY('emailTo v1.07  -  built 2026-08-24 21:20')
+      #DISPLAY('emailTo v1.08  -  built 2026-08-24 21:40')
       #PROMPT('&API object name:',@s64),%ETpObject,REQ,DEFAULT('MailApi')
     #ENDBOXED
     #BOXED('Operation')

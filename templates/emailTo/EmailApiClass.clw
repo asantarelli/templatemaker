@@ -2390,6 +2390,7 @@ Ask WINDOW('Address'),AT(,,220,66),GRAY,SYSTEM,FONT('Segoe UI',9),CENTER
   OPEN(Win)
   Win{PROP:Text} = SELF.Txt(ETATxt:Manage)
   DO NameEverything
+  DO NameColumns
   DO ShowCapability
   LocProvider = CLIP(SELF.Mailer.ProviderName(SELF.Mailer.Acc.Provider)) & '   -   ' & |
                 CLIP(SELF.Mailer.Acc.FromAddr)
@@ -2495,6 +2496,49 @@ NameEverything ROUTINE
   LocKindTxt = SELF.Txt(ETATxt:AllKinds)
   ?LocListSel{PROP:From} = SELF.Txt(ETATxt:AllKinds)
   LocListSel = SELF.Txt(ETATxt:AllKinds)
+
+!  The headings are the one part of this window that a FORMAT string owns, and
+!  a FORMAT string is fixed at design time - so everything else here answered in
+!  the user's language while nine lists went on saying Address, Kind, Reason.
+!  They are set by column number, once, from the same table as the rest.
+NameColumns ROUTINE
+  ?BlkList{PROPLIST:Header, 1}      = SELF.Txt(ETATxt:Address)
+  ?BlkList{PROPLIST:Header, 2}      = SELF.Txt(ETATxt:Kind)
+  ?BlkList{PROPLIST:Header, 3}      = SELF.Txt(ETATxt:Reason)
+  ?BlkList{PROPLIST:Header, 4}      = SELF.Txt(ETATxt:When)
+  ?StatList{PROPLIST:Header, 1}     = SELF.Txt(ETATxt:When)
+  ?StatList{PROPLIST:Header, 2}     = SELF.Txt(ETATxt:Requests)
+  ?StatList{PROPLIST:Header, 3}     = SELF.Txt(ETATxt:Delivered)
+  ?StatList{PROPLIST:Header, 4}     = SELF.Txt(ETATxt:Opens)
+  ?StatList{PROPLIST:Header, 5}     = SELF.Txt(ETATxt:Clicks)
+  ?StatList{PROPLIST:Header, 6}     = SELF.Txt(ETATxt:Bounces)
+  ?StatList{PROPLIST:Header, 7}     = SELF.Txt(ETATxt:Spam)
+  ?StatList{PROPLIST:Header, 8}     = SELF.Txt(ETATxt:Unsubs)
+  ?EventList{PROPLIST:Header, 1}    = SELF.Txt(ETATxt:When)
+  ?EventList{PROPLIST:Header, 2}    = SELF.Txt(ETATxt:Address)
+  ?EventList{PROPLIST:Header, 3}    = SELF.Txt(ETATxt:Events)
+  ?EventList{PROPLIST:Header, 4}    = SELF.Txt(ETATxt:Reason)
+  ?EventList{PROPLIST:Header, 5}    = SELF.Txt(ETATxt:Subject)
+  ?ContactList{PROPLIST:Header, 1}  = SELF.Txt(ETATxt:Address)
+  ?ContactList{PROPLIST:Header, 2}  = SELF.Txt(ETATxt:Name)
+  ?ContactList{PROPLIST:Header, 3}  = SELF.Txt(ETATxt:Status)
+  ?ContactList{PROPLIST:Header, 4}  = SELF.Txt(ETATxt:When)
+  ?ListList{PROPLIST:Header, 1}     = SELF.Txt(ETATxt:Name)
+  ?ListList{PROPLIST:Header, 2}     = SELF.Txt(ETATxt:Members)
+  ?CampaignList{PROPLIST:Header, 1} = SELF.Txt(ETATxt:Name)
+  ?CampaignList{PROPLIST:Header, 2} = SELF.Txt(ETATxt:Subject)
+  ?CampaignList{PROPLIST:Header, 3} = SELF.Txt(ETATxt:Status)
+  ?CampaignList{PROPLIST:Header, 4} = SELF.Txt(ETATxt:When)
+  ?TemplateList{PROPLIST:Header, 1} = SELF.Txt(ETATxt:Name)
+  ?TemplateList{PROPLIST:Header, 2} = SELF.Txt(ETATxt:Subject)
+  ?SenderList{PROPLIST:Header, 1}   = SELF.Txt(ETATxt:Address)
+  ?SenderList{PROPLIST:Header, 2}   = SELF.Txt(ETATxt:Name)
+  ?SenderList{PROPLIST:Header, 3}   = SELF.Txt(ETATxt:Verified)
+  ?DomainList{PROPLIST:Header, 1}   = SELF.Txt(ETATxt:Domains)
+  ?DomainList{PROPLIST:Header, 2}   = SELF.Txt(ETATxt:Verified)
+  ?DomainList{PROPLIST:Header, 3}   = SELF.Txt(ETATxt:Status)
+  ?HookList{PROPLIST:Header, 1}     = SELF.Txt(ETATxt:Url)
+  ?HookList{PROPLIST:Header, 2}     = SELF.Txt(ETATxt:Events)
 
 !  A tab whose operation this provider does not have is switched off.  That is
 !  what Supports() is for: the difference between "no rows" and "not offered"

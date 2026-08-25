@@ -1303,6 +1303,17 @@ line of code, or an English one-liner has gained no Spanish twin.
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
 
+**v1.08 (2026-08-24).** The management window, run in Spanish, translated everything except the one thing a
+`FORMAT()` string owns. Title, all ten tabs, every button and prompt, the kind names (`Rebote`) and the row
+count (`1207 filas`) came through - and then nine lists went on saying **Address, Kind, Reason, When**. A
+list's headings are fixed at design time, so `NameEverything` had never been able to reach them; the strings
+for all of them had existed since v1.03 and were simply never applied.
+
+`NameColumns` now sets them by column number from the same table as everything else, across all nine lists -
+blocked, statistics, activity, contacts, lists, campaigns, templates, senders and domains, webhooks. Found by
+looking at a screenshot of the real thing: this window had never been *seen* until now, because the sandbox
+that builds it runs on a window station with no desktop.
+
 **v1.07 (2026-08-24).** A generate-time check, from a real report: an application with the **Mail account
 button** on a window but no **Provider API** extension generated happily and then failed to compile with eight
 errors - `Unknown function label`, `Field not found: SUPPORTS` - all of them on lines the developer never
