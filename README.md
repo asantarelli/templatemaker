@@ -117,6 +117,13 @@ templates/                      # ready-to-register Clarion templates
     BrowseGridLeg.tpl           #     global + procedure extensions, search box, filter bar
     d2gridleg.c                 #     the grid, plus filter buttons and drag-reorder
     README.md                   #     what the port adds over the ABC original
+  SDAspecto/                    #   one look for every window: rules, type, rescaling
+                                #     (see below)
+    SDAspecto.inc               #     the class: rule queue, per-window state, prototypes
+    SDAspecto.clw               #     the engine: matching, painting, rescaling, the INI
+    SDAspecto.tpl               #     the chain file
+    SDAspecto.tpw               #     1 app extension + 2 procedure extensions
+    VentanaConfigAspecto.txa    #     a ready-made settings window to IMPORT (optional)
   weatherWidget/                #   a weather card when your program starts (see below)
     MyWeatherClass.inc          #     the widget (settings, the reading, EN/ES strings)
     MyWeatherClass.clw          #     the implementation (curl + JSON + the drawn card)
@@ -144,7 +151,7 @@ README.md
 
 ## Included templates
 
-**Jump to a template.** 28 of them; each links to its own section below.
+**Jump to a template.** 29 of them; each links to its own section below.
 
 | | |
 |---|---|
@@ -154,7 +161,7 @@ README.md
 | **Browses & lists** | [**BrowseGrid**](#t-browsegrid) &nbsp;<sub>take over any ABC browse and draw it with Direct2D</sub><br>[**BrowseGridLeg**](#t-browsegridleg) &nbsp;<sub>the same grid for the Legacy (CW20) chain</sub><br>[**myFilter**](#t-myfilter) &nbsp;<sub>build filters for any browse</sub><br>[**myExport**](#t-myexport) &nbsp;<sub>export any browse or list to seven file formats</sub> |
 | **Beside a field** | [**myCalc**](#t-mycalc) &nbsp;<sub>a pop-up calculator beside any numeric field</sub><br>[**myCalendar**](#t-mycalendar) &nbsp;<sub>a pop-up date picker beside any date field</sub> |
 | **Files & data** | [**myCompress**](#t-mycompress) &nbsp;<sub>pure-Clarion compression (memory + files)</sub><br>[**myPdfSign**](#t-mypdfsign) &nbsp;<sub>read a signed PDF and see who signed it</sub> |
-| **Look & feel** | [**myFontChanger**](#t-myfontchanger) &nbsp;<sub>global + per-list font picker</sub><br>[**myBackground**](#t-mybackground) &nbsp;<sub>global default + per-window background color / image</sub><br>[**weatherWidget**](#t-weatherwidget) &nbsp;<sub>the weather, on a card at start-up</sub><br>[**my3D**](#t-my3d) &nbsp;<sub>real WebGL2 3D scenes driven from Clarion</sub><br>[**myYuru**](#t-myyuru) &nbsp;<sub>yuruyurau animated flow-field art on a window</sub> |
+| **Look & feel** | [**SDAspecto**](#t-sdaspecto) &nbsp;<sub>one look for every window: rules, typography and rescaling</sub><br>[**myFontChanger**](#t-myfontchanger) &nbsp;<sub>global + per-list font picker</sub><br>[**myBackground**](#t-mybackground) &nbsp;<sub>global default + per-window background color / image</sub><br>[**weatherWidget**](#t-weatherwidget) &nbsp;<sub>the weather, on a card at start-up</sub><br>[**my3D**](#t-my3d) &nbsp;<sub>real WebGL2 3D scenes driven from Clarion</sub><br>[**myYuru**](#t-myyuru) &nbsp;<sub>yuruyurau animated flow-field art on a window</sub> |
 | **Plumbing** | [**myFuncs**](#t-myfuncs) &nbsp;<sub>global function library</sub><br>[**myHook**](#t-myhook) &nbsp;<sub>intercept MESSAGE, STOP, HALT and run-time errors</sub> |
 | **Diagnostics** | [**myPixel**](#t-mypixel) &nbsp;<sub>per-window diagnostic pixel</sub><br>[**showLine**](#t-showline) &nbsp;<sub>Ctrl+Shift+P "where am I" hotkey</sub><br>[**identifier**](#t-identifier) &nbsp;<sub>Ctrl+Shift+I shows the procedure name</sub> |
 
@@ -1176,6 +1183,74 @@ quote-doubling, and the roll-over to `.bak`.
 
 Full programmer's documentation, English and Spanish in one page with a language toggle:
 [`docs/myHook-template.html`](docs/myHook-template.html).
+
+<a id="t-sdaspecto"></a>
+### `templates/SDAspecto/` — **one look for every window**: rules, typography and rescaling
+One APPLICATION extension and two procedure extensions. The global one restyles **every window in the
+program** with no per-window work; the other two are escape hatches for the windows that need one.
+
+- **Typography.** One typeface, size, colour, style and charset for the whole program — applied to the
+  window, to its controls, or to both. Each parameter is a literal or a program variable, and `-1` /
+  empty means *leave this one alone*.
+- **Rescaling.** Changing the font makes every control the wrong size, so the engine puts them back: it
+  saves each control's geometry **in dialog units**, applies the font with `SETFONT`, forces Clarion to
+  recompute the dialog unit, then writes the same numbers back. Every control starts from its
+  **original** geometry, never its current one, so reapplying is idempotent instead of cumulative.
+  `LIST` and `COMBO` line height and column widths come along — read as indexed properties
+  (`PROPLIST:width`, `PROPLIST:group`), so no `PROP:Format` string has to be parsed.
+- **Recentring.** A window that grows keeps its top-left corner fixed and therefore drifts down and to
+  the right. It gets moved back half of what it grew, so the centre stays put.
+- **Fixed settings.** A minimum height for `ENTRY`/`SPIN`/`CHECK`/`COMBO`/`LIST`/`BUTTON`, and a
+  background colour per control type. `GROUP` is deliberately absent — it is not a fillable surface;
+  put a `PANEL` or `REGION` behind it instead.
+- **A rule engine.** A rule is *match criteria + actions*. It can match on the control type, on its text
+  (exact / contains / starts-with), on a wildcard over `PROP:Text`, and on whether the control is
+  required, read-only or disabled. It can then set the background, the font colour and style, flatten a
+  button, set a tip, or set a cursor.
+
+Rules **cascade like CSS**: they are evaluated in order, every rule that matches applies, and the last
+one wins per property — so a broad rule can set the ground and a narrow one can override a single
+property of it. A rule marked *Cortar* stops the cascade for that control, which is the `ELSIF`
+semantics when you want it.
+
+Two details worth knowing, because they are the kind that bite silently:
+
+- **"Required" is a bitmask, not a flag.** The `REQ` attribute is the clean answer, but plenty of
+  applications never used it and instead mark required fields by giving them a background colour in the
+  designer. The engine can test either, or both.
+- **The actions are a bitmask too** — because `COLOR:NONE` is `-1`, which is a *valid* colour and
+  therefore useless as a "not set" sentinel. The bitmask says which fields of the rule are defined.
+  Font colour also accepts `sdColor:Auto`, which derives black or white from the background's
+  luminance; its value (`7FFFFFFFh`) dodges both real colours (`00BBGGRRh`) and system colours
+  (`80000000h`–`8000001Eh`).
+
+**Rules are data, not code.** They live in the INI as one `[Regla:n]` section each; the factory scheme
+(required, read-only, normal, confirm button, cancel button, browse buttons) is built in code and
+written out the first time, when the INI has none. The INI is read **after** the template's own
+settings and overrides them: the template is the factory default, the INI is the customisation. Three
+global functions — `SDAspectoCargar()`, `SDAspectoGuardar()` and `SDAspectoApply()` — let a settings
+window reread, save and reapply at run time, editing the parameters straight on the global instance
+(`GLO_SDAspecto.FuenteNombre = 'Segoe UI'`). `VentanaConfigAspecto.txa` is such a window, ready to
+IMPORT.
+
+Painting is injected into `WindowManager.Init` at **`PRIORITY(8600)`** — deliberately late, so any
+other template that reapplies fonts or moves controls has already finished. The two procedure
+extensions cover the exceptions: **`SDAspecto - Excluir esta ventana`** leaves one window alone, and
+**`SDAspecto - Ventana redimensionable o maximizada`** is needed when a window uses the ABC resizer or
+starts maximised, because the resizer belongs to the window rather than to the application.
+
+Multi-DLL is handled the way `cleansdw.tpw` does it: `MEMBER` modules never see the `SDAspectoClass`
+type at all, they only call the global functions, so the class instance is declared in the app that
+owns the globals and the satellites import five prototypes. The global instance is shared across
+threads, so the rule queue carries a lock and the per-window state queue is declared `,THREAD`.
+
+Copy `SDAspecto.clw` and `SDAspecto.inc` to `libsrc\win`, register `SDAspecto.tpl`, then add
+**SDAspecto - Personalizacion visual de controles** under Global → Extensions. Full programmer's
+documentation — the four prompt tabs, the rule model, the INI format, the class API and the multi-DLL
+skeleton — is in [`docs/SDAspecto-template.html`](docs/SDAspecto-template.html).
+
+> **Note:** this template's prompt UI, its INI keys and its source comments are in **Spanish**, as
+> written. The documentation above and in `docs/` is in English.
 
 <a id="t-weatherwidget"></a>
 ### `templates/weatherWidget/` — the weather, on a card at start-up

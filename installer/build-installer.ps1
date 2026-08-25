@@ -56,7 +56,7 @@ $templates = Join-Path $repo 'templates'
 $notAClass = @('TestQRWnd_Renz.clw')
 
 $stage = @(
-    @{ Include = @('*.tpl', '*.png');          Dest = $tplOut; What = 'template' }
+    @{ Include = @('*.tpl', '*.tpw', '*.png'); Dest = $tplOut; What = 'template' }
     @{ Include = @('*.inc', '*.clw', '*.c');   Dest = $libOut; What = 'class'    }
 )
 
