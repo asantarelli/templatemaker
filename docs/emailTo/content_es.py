@@ -18,7 +18,7 @@ from lang import PAGE_TITLES                                           # noqa: E
 from es_docs import MEMBER_DOCS_ES, FIELD_DOCS_ES, EQUATE_NOTES_ES  # noqa: E402
 from content_en import (S_HELLO, S_PROJECT, S_ATTACH, S_OAUTHRUN,      # noqa: E402
                         S_OWNS, S_OAUTHFLOW, S_TABLE, S_ACCOUNTS, S_DERIVE, S_INLINE,
-                        S_CLEARTRAP, S_STRINGTRAP, S_RETSTR,
+                        S_CLEARTRAP, S_BRACETRAP, S_STRINGTRAP, S_RETSTR,
                         S_GEN_GLOBAL, S_GEN_DERIVED, S_GEN_BUTTON,
                         S_ASK, S_SUPPORTS, S_MATRIX, S_ADDPROVIDER, S_APIEMBED,
                         S_SYNCGEN)
@@ -34,7 +34,7 @@ def build_getting_started():
     add(h2('what', 'Qué es emailTo'))
     add(p('emailTo envía correo desde una aplicación Clarion, y administra la cuenta '
           'por la que lo envía. Son cinco clases, un '
-          'archivo C incluido y siete plantillas, y se despliega dentro de su propio '
+          'archivo C incluido y diez plantillas, y se despliega dentro de su propio '
           '<code>.EXE</code>: no hay DLL que distribuir, ni .NET, ni OpenSSL, ni nada '
           'que registrar en la máquina donde corra.'))
     add(p('Puede poner un mensaje en la red de cuatro maneras, y las cuatro envían el '
@@ -55,7 +55,19 @@ def build_getting_started():
     ]))
 
     add(h2('install', 'Instalación'))
-    add(p('Copie estos siete archivos a una carpeta que esté en la ruta de '
+    add(note('tip', u'O deje que lo haga el instalador',
+             u'<p><b>emailToSetup.exe</b> encuentra cada Clarion <b>10 o posterior</b> de la '
+             u'm&aacute;quina &mdash; por la configuraci&oacute;n del propio IDE y recorriendo '
+             u'los discos fijos &mdash;, copia las plantillas y las clases en los que usted '
+             u'marque, y registra cada uno con el <code>ClarionCL</code> de esa '
+             u'instalaci&oacute;n. Deja adem&aacute;s este manual, el diccionario y las demos '
+             u'en el disco. El resto de esta p&aacute;gina es exactamente lo que hace, para '
+             u'quien prefiera colocar los archivos a mano.</p>'
+             u'<p>Clarion 10 recibe una compilaci&oacute;n de la plantilla con los prompts '
+             u'dispuestos para su di&aacute;logo de AppGen m&aacute;s angosto &mdash; 480 px, '
+             u'frente a 960 desde Clarion 11. Mismo nombre de plantilla y mismo c&oacute;digo '
+             u'generado, as&iacute; que una aplicaci&oacute;n pasa de una a otra.</p>'))
+    add(p('Copie estos once archivos a una carpeta que esté en la ruta de '
           'redirección de Clarion: la carpeta de la aplicación, o '
           '<code>\\clarion12\\accessory\\libsrc\\win</code>.'))
     add(table(['Archivo', 'Qué es'], [
@@ -65,6 +77,10 @@ def build_getting_started():
          'El mensaje y su MIME. Clarion puro.'],
         ['<code>EmailToClass.inc</code> / <code>.clw</code>',
          'Cuentas, los cuatro transportes, OAuth2, las ventanas.'],
+        ['<code>EmailJsonClass.inc</code> / <code>.clw</code>',
+         u'Leer lo que contesta un proveedor. Clarion puro.'],
+        ['<code>EmailApiClass.inc</code> / <code>.clw</code>',
+         u'La API de gesti&oacute;n: bloqueados, estad&iacute;sticas, campa&ntilde;as.'],
         ['<code>emailc.c</code>',
          'Winsock, SCHANNEL, WinHTTP, DPAPI, SHA-256.'],
     ]))
@@ -427,7 +443,7 @@ def build_getting_started():
                 'Volumen 1', 'Primeros pasos',
                 'Instalar las clases, registrar la plantilla y sacar un mensaje de un '
                 'programa Clarion en unas veinte líneas.',
-                ['Sin DLL que distribuir', 'Sin .NET', 'SMTP + OAuth2 + REST', 'Clarion 12'],
+                ['Sin DLL que distribuir', 'Sin .NET', 'SMTP + OAuth2 + REST', 'Clarion 10 &ndash; 12'],
                 groups, body)
 
 
@@ -816,6 +832,20 @@ def build_programmers_guide():
           '<code>RESET</code>, <code>ADD</code>, <code>LEN</code> y <code>FREE</code> '
           'son los otros nombres de los que hay que alejarse.'))
 
+    add(h3('note-brace', u'Una llave dentro de un literal hay que duplicarla'))
+    add(p(u'<code>{</code> abre el escape de repetici&oacute;n de Clarion: '
+          u'<code>&#39;ab{3}&#39;</code> es <code>&#39;abbb&#39;</code>. Clarion 12 deja pasar '
+          u'como texto una llave que no lleva d&iacute;gitos detr&aacute;s, as&iacute; que un '
+          u'literal JSON escrito a mano compila ah&iacute; y en ninguna otra versi&oacute;n: '
+          u'Clarion 10 y 11 rechazan el literal entero con <code>Invalid string (misused '
+          u'&lt;...&gt; or {...}, or literal is too long)</code>. La forma portable es '
+          u'<code>{{</code>, y es una sola llave en todas las versiones.'))
+    add(code(S_BRACETRAP))
+    add(p(u'Aqu&iacute; importa porque este juego de clases escribe JSON a mano y lleva las '
+          u'plantillas de URL de nueve proveedores. Si deriva <code>BuildMap()</code> para '
+          u'a&ntilde;adir un proveedor propio, duplique las llaves de la URL que pase a '
+          u'<code>Row()</code>: los marcadores se expanden igual que antes.'))
+
     add(h3('note-string', 'Un STRING ligado a una variable necesita una picture'))
     add(p('Escrito con un literal en su lugar, el control sobrevive solo, y luego '
           'truena dentro de <code>OPEN(Window)</code> en cuanto la misma ventana tiene '
@@ -893,6 +923,7 @@ def build_programmers_guide():
                          ('deriving', 'Hacer que haga otra cosa')]),
         ('Notas de Clarion', [('notes', 'Notas de Clarion'),
                               ('note-clear', 'Clear rompe CLEAR()'),
+                              ('note-brace', u'Llaves en un literal'),
                               ('note-string', 'STRING necesita picture'),
                               ('note-picture', 'El tope de @s255'),
                               ('note-map', 'MEMBER necesita MAP'),
@@ -1400,7 +1431,7 @@ def build_template_guide():
                 'Volumen 3', 'Guía de plantillas',
                 'Cada plantilla, cada pestaña, cada campo &mdash; y el código que el '
                 'generador realmente escribe en su aplicación.',
-                ['5 plantillas', 'Cada campo', 'Código generado', 'Multi-DLL'],
+                ['10 plantillas', 'Cada campo', 'Código generado', 'Multi-DLL'],
                 groups, body)
 
 

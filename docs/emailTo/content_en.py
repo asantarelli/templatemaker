@@ -85,11 +85,11 @@ S_SUPPORTS = """
 
 S_MATRIX = """
   SELF.Row(ETPrv:SendGrid, ETOp:Suppressions, ETSup:Bounce, 'GET', |
-           '{scheme}{host}/v3/suppression/bounces?limit={limit}&offset={offset}', '', |
+           '{{scheme}{{host}/v3/suppression/bounces?limit={{limit}&offset={{offset}', '', |
            'Address=email;Reason=reason;Id=status;When=#created')
 
   SELF.Row(ETPrv:Brevo, ETOp:Suppressions, ETSup:All, 'GET', |
-           '{scheme}{host}/v3/smtp/blockedContacts?limit={limit}&offset={offset}', |
+           '{{scheme}{{host}/v3/smtp/blockedContacts?limit={{limit}&offset={{offset}', |
            'contacts', |
            'Address=email;Reason=reason.message;KindText=reason.code;When=@blockedAt')
 """
@@ -103,10 +103,10 @@ MyApiClass.BuildMap PROCEDURE()
   CODE
   PARENT.BuildMap()                           ! keep the eight that are already there
   SELF.Row(ETPrv:Custom, ETOp:Suppressions, ETSup:All, 'GET', |
-           '{scheme}{host}/api/blocked?page={page}', 'rows', |
+           '{{scheme}{{host}/api/blocked?page={{page}', 'rows', |
            'Address=addr;Reason=why;When=@stamp')
   SELF.Row(ETPrv:Custom, ETOp:SuppDelete, ETSup:All, 'DELETE', |
-           '{scheme}{host}/api/blocked/{email}')
+           '{{scheme}{{host}/api/blocked/{{email}')
 """
 
 S_APIEMBED = """
@@ -202,7 +202,7 @@ def build_getting_started():
 
     add(h2('what', 'What emailTo is'))
     add(p('emailTo sends e-mail from a Clarion application, and manages the account '
-          'it sends through. It is five classes, one bundled C file and seven '
+          'it sends through. It is seven classes, one bundled C file and ten '
           'templates, and it deploys as part of your <code>.EXE</code> &mdash; there is '
           'no DLL to ship, no .NET, no OpenSSL and nothing to register on the machine '
           'it runs on.'))
@@ -224,6 +224,17 @@ def build_getting_started():
     ]))
 
     add(h2('install', 'Install'))
+    add(note('tip', 'Or let the installer do it',
+             '<p><b>emailToSetup.exe</b> finds every Clarion <b>10 or later</b> on the machine '
+             '&mdash; from the IDE&rsquo;s own settings and from a sweep of the fixed drives '
+             '&mdash; copies the templates and the classes into the ones you tick, and '
+             'registers each with that installation&rsquo;s own <code>ClarionCL</code>. It '
+             'leaves this manual, the dictionary and the demos on disk beside them. The rest '
+             'of this page is exactly what it does, for anyone who would rather place the '
+             'files themselves.</p>'
+             '<p>Clarion 10 gets a build of the template whose prompts are laid out for its '
+             'narrower AppGen dialog &mdash; 480 px, against 960 from Clarion 11 on. Same '
+             'template name, same generated code, so an application moves between them.</p>'))
     add(p('Copy these eleven files to a folder on the Clarion redirection path &mdash; '
           'the application folder, or <code>\\clarion12\\accessory\\libsrc\\win</code>:'))
     add(table(['File', 'What it is'], [
@@ -573,7 +584,7 @@ def build_getting_started():
                 'Getting Started',
                 'Install the classes, register the template, and get a message out of '
                 'a Clarion program in about twenty lines.',
-                ['No DLL to ship', 'No .NET', '8 provider APIs', 'Clarion 12'],
+                ['No DLL to ship', 'No .NET', '9 provider APIs', 'Clarion 10 &ndash; 12'],
                 groups, body)
 
 # =====================================================================
@@ -680,6 +691,22 @@ ClearAll             PROCEDURE       ! correct
 !  With a method called Clear, this line, in code that has nothing to do
 !  with e-mail, stops compiling:
   CLEAR(GlobalRequest)               ! error: No matching prototype available
+"""
+
+S_BRACETRAP = """
+!  '{' opens Clarion's repeat-count escape:  'ab{3}'  IS  'abbb'.
+!  So a brace that is meant to be a brace has to be doubled.
+
+  body.Add('{"personalizations":[')     ! WRONG.  Clarion 10 and 11 refuse the
+                                        ! literal: Invalid string (misused
+                                        ! <...> or {...}, or literal too long)
+
+  body.Add('{{"personalizations":[')    ! RIGHT.  One '{' in every version.
+
+!  The URL templates handed to Row() are the same story:
+  SELF.Row(ETPrv:Custom, ETOp:Stats, 0, 'GET', '{{scheme}{{host}/stats', 'days', 'When=@d')
+
+!  A closing '}' needs nothing.  Neither does a brace inside a ! comment.
 """
 
 S_STRINGTRAP = """
@@ -1052,6 +1079,19 @@ def build_programmers_guide():
           '<code>RESET</code>, <code>ADD</code>, <code>LEN</code> and <code>FREE</code> '
           'are the other names to keep away from.'))
 
+    add(h3('note-brace', 'A brace inside a literal has to be doubled'))
+    add(p('<code>{</code> opens Clarion&rsquo;s repeat-count escape &mdash; '
+          '<code>&#39;ab{3}&#39;</code> is <code>&#39;abbb&#39;</code>. Clarion 12 lets a brace '
+          'that no digits follow pass as text, so a hand-written JSON literal compiles there '
+          'and nowhere else: Clarion 10 and 11 refuse the whole literal with <code>Invalid '
+          'string (misused &lt;...&gt; or {...}, or literal is too long)</code>. The portable '
+          'spelling is <code>{{</code>, and it is one brace in every version.'))
+    add(code(S_BRACETRAP))
+    add(p('It matters in this class set because it writes JSON by hand and carries nine '
+          'providers&rsquo; URL templates. If you derive <code>BuildMap()</code> to add a '
+          'provider of your own, double the braces in the URL you pass to <code>Row()</code> '
+          '&mdash; the placeholders expand exactly as they did before.'))
+
     add(h3('note-string', 'A STRING bound to a variable needs a picture'))
     add(p('Written with a literal instead, the control survives on its own &mdash; and '
           'then faults inside <code>OPEN(Window)</code> as soon as the same window also '
@@ -1128,6 +1168,7 @@ def build_programmers_guide():
                         ('deriving', 'Making it do something else')]),
         ('Clarion notes', [('notes', 'Clarion notes'),
                            ('note-clear', 'Clear breaks CLEAR()'),
+                           ('note-brace', 'Braces in a literal'),
                            ('note-string', 'STRING needs a picture'),
                            ('note-picture', 'The @s255 ceiling'),
                            ('note-map', 'MEMBER needs a MAP'),
