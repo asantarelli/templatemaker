@@ -554,7 +554,7 @@ holding up. Mouse wheel scrolls, **Ctrl+wheel resizes the type** (6 to 32 point,
 line height following it), long text **wraps** onto up to four lines, and a diagnostics prompt puts what the
 grid is working from into the window title, because a browse that draws nothing looks identical whether the
 queue was empty, the rows were too tall, or the columns were never read.
-**What v1.24 adds.** A **totals row** that sums *every record the browse shows* &mdash; filter and range
+**What v1.25 adds.** A **totals row** that sums *every record the browse shows* &mdash; filter and range
 included, not the page on screen &mdash; with the columns to total proposed by their picture and corrected
 by the user from the Columns dialog. **Find text…**: a string, matched case-insensitively across this
 column or every column, numeric columns compared by value. A **check-box column**, drawn rather than
