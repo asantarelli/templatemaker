@@ -605,6 +605,16 @@ S_OAUTHFLOW = """
   END
 """
 
+S_ACCOUNTS = """Mailer.Acc.Name     = 'brevo'                 ! a name nothing has used yet
+Mailer.Acc.Provider = ETPrv:Brevo
+Mailer.Acc.ApiKey   = 'xkeysib-...'
+Mailer.SaveAccount()                          ! creates a SECOND account
+
+IF Mailer.ListAccounts() > 1                  ! AccountQ: .Name .Provider .ProviderText .FromAddr
+   Mailer.LoadAccount('brevo')                ! switch - the other one is untouched
+   MailApi.Manage(2)                          ! it borrows whatever is loaded
+END"""
+
 S_TABLE = """
 Mailer.LoadAccount PROCEDURE(<STRING pName>)
   CODE
@@ -949,6 +959,43 @@ def build_programmers_guide():
           'reference-counted &mdash; so it is safe whether or not the table is already '
           'open elsewhere in the program.'))
 
+    add(h2('accounts', 'Several accounts, one program'))
+    add(p('An account has a <b>name</b>, and the store keeps one set of settings per '
+          'name. Nothing is shared between them &mdash; provider, key, region, domain, '
+          'sign-in, all of it belongs to the account &mdash; so a program can be set up '
+          'for SendGrid and Brevo at once and switched between them in a line:'))
+    add(code(S_ACCOUNTS))
+    add(p('With an INI the default account is section <code>[emailTo]</code> and a named '
+          'one is <code>[emailTo_brevo]</code>. With a table it is one row per name, '
+          'fetched by the key on the name column. An INI cannot be asked which sections '
+          'it holds, so the named ones keep an index in the base section that '
+          '<code>SaveAccount</code> maintains; a table is simply walked. That is why '
+          '<code>ListAccounts</code> and <code>DeleteAccount</code> are '
+          '<code>VIRTUAL</code> like the other two &mdash; only the generated code knows '
+          'how to read your table.'))
+    add(table(['Method', 'What it does'], [
+        ['<code>LoadAccount(name)</code>', 'Switch to that account. No argument means the '
+         'unnamed default.'],
+        ['<code>SaveAccount()</code>', 'Write back under <code>Acc.Name</code>. A name '
+         'nothing has used yet creates a second account.'],
+        ['<code>ListAccounts()</code>', 'Fill <code>AccountQ</code> with every account the '
+         'store holds &mdash; name, provider, provider text and from-address &mdash; and '
+         'answer how many. Row 1 is the unnamed default.'],
+        ['<code>DeleteAccount(name)</code>', 'Forget one. The unnamed default cannot be '
+         'deleted.'],
+        ['<code>RememberAccount(name)</code>', 'Which one to open with next time.'],
+        ['<code>PreferredAccount(fallback)</code>', 'That name, or the fallback if it was '
+         'never set &mdash; or if the account it names has since been deleted.'],
+    ]))
+    add(note('note', 'The setup window does all of this without code',
+             '<p>Above the tabs it carries <b>Account:</b>, a drop list of everything '
+             'stored, with <b>Load</b> and <b>Remove</b>; and <b>Save as:</b> underneath, '
+             'where a new name makes a second account. Loading or saving one remembers '
+             'it, and the generated start-up line is '
+             '<code>LoadAccount(PreferredAccount(&#39;default&#39;))</code> &mdash; so a '
+             'program switched to a second provider comes back up on it instead of always '
+             'reopening the first.</p>'))
+
     add(h2('secrets', 'Secrets at rest'))
     add(p('Four fields are never stored in the clear: the password, the client secret, '
           'the refresh token and the API key. Each goes through <code>Seal()</code> '
@@ -1075,6 +1122,7 @@ def build_programmers_guide():
                               ('api-paging', 'Paging, three ways'),
                               ('api-add', 'Adding a provider')]),
         ('Keeping it', [('settings', 'Where the settings live'),
+                        ('accounts', 'Several accounts, one program'),
                         ('secrets', 'Secrets at rest'),
                         ('errors', 'Errors, and the log'),
                         ('deriving', 'Making it do something else')]),
@@ -1211,7 +1259,7 @@ def build_template_guide():
           'changes back; with no table these <em>are</em> the settings and the setup '
           'window saves to an INI.'))
     add(table(['Prompt', 'Notes'], [
-        ['Provider', 'Fourteen presets. Choosing one fills in server, port, security and sign-in.'],
+        ['Provider', 'Sixteen presets. Choosing one fills in server, port, security and sign-in.'],
         ['Send using', 'SMTP, Gmail API, Microsoft Graph, or a provider API key.'],
         ['From address / From name / Reply to', 'Used when the message does not set its own.'],
         ['Server / Port / Security', 'Only for the SMTP transport.'],
@@ -1222,6 +1270,9 @@ def build_template_guide():
              '<p>Anyone with the <code>.EXE</code> has it. For anything you would not '
              'publish, leave it blank and let the setup window store it &mdash; that '
              'path puts it through DPAPI for the Windows user.</p>'))
+
+    add(note('note', 'The setup window is where a second account is made',
+             '<p>Above its tabs it carries <b>Account:</b> &mdash; a drop list of everything stored, with <b>Load</b> and <b>Remove</b> &mdash; and <b>Save as:</b> underneath. Type a name nothing has used yet, press Save, and that is a second account with its own provider and key. The one you last loaded is the one the program opens with.</p>'))
 
     add(h3('global-signin', 'Sign-in'))
     add(p('The OAuth2 application and the API keys. <b>Client ID</b> is the desktop '

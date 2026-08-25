@@ -17,7 +17,7 @@ from shell import (esc, slug, code, usecode, note, table, h2, h3, p,   # noqa: E
 from lang import PAGE_TITLES                                           # noqa: E402
 from es_docs import MEMBER_DOCS_ES, FIELD_DOCS_ES, EQUATE_NOTES_ES  # noqa: E402
 from content_en import (S_HELLO, S_PROJECT, S_ATTACH, S_OAUTHRUN,      # noqa: E402
-                        S_OWNS, S_OAUTHFLOW, S_TABLE, S_DERIVE, S_INLINE,
+                        S_OWNS, S_OAUTHFLOW, S_TABLE, S_ACCOUNTS, S_DERIVE, S_INLINE,
                         S_CLEARTRAP, S_STRINGTRAP, S_RETSTR,
                         S_GEN_GLOBAL, S_GEN_DERIVED, S_GEN_BUTTON,
                         S_ASK, S_SUPPORTS, S_MATRIX, S_ADDPROVIDER, S_APIEMBED,
@@ -721,6 +721,43 @@ def build_programmers_guide():
           'llevan cuenta de referencias, así que da igual si la tabla ya estaba abierta '
           'en otra parte del programa.'))
 
+    add(h2('accounts', u'Varias cuentas, un solo programa'))
+    add(p(u'Una cuenta tiene <b>nombre</b>, y el almacén guarda una configuración por '
+          u'nombre. Nada se comparte entre ellas — proveedor, clave, región, dominio, '
+          u'forma de autenticarse, todo pertenece a la cuenta — así que un programa '
+          u'puede quedar configurado para SendGrid y Brevo a la vez, y cambiar de una a '
+          u'otra en una línea:'))
+    add(code(S_ACCOUNTS))
+    add(p(u'Con un INI la cuenta predeterminada es la sección <code>[emailTo]</code> y '
+          u'una con nombre es <code>[emailTo_brevo]</code>. Con una tabla es una fila por '
+          u'nombre, buscada por la clave de la columna del nombre. A un INI no se le '
+          u'puede preguntar qué secciones tiene, así que las que llevan nombre mantienen '
+          u'un índice en la sección base que <code>SaveAccount</code> actualiza; una '
+          u'tabla simplemente se recorre. Por eso <code>ListAccounts</code> y '
+          u'<code>DeleteAccount</code> son <code>VIRTUAL</code> como los otros dos: '
+          u'sólo el código generado sabe leer su tabla.'))
+    add(table([u'Método', u'Qué hace'], [
+        ['<code>LoadAccount(name)</code>', u'Cambia a esa cuenta. Sin argumento, la '
+         u'predeterminada sin nombre.'],
+        ['<code>SaveAccount()</code>', u'Escribe bajo <code>Acc.Name</code>. Un nombre que '
+         u'nadie usó todavía crea una segunda cuenta.'],
+        ['<code>ListAccounts()</code>', u'Llena <code>AccountQ</code> con cada cuenta del '
+         u'almacén — nombre, proveedor, texto del proveedor y dirección — y contesta '
+         u'cuántas hay. La fila 1 es la predeterminada sin nombre.'],
+        ['<code>DeleteAccount(name)</code>', u'Olvida una. La predeterminada sin nombre no '
+         u'se puede borrar.'],
+        ['<code>RememberAccount(name)</code>', u'Con cuál abrir la próxima vez.'],
+        ['<code>PreferredAccount(fallback)</code>', u'Ese nombre, o el de reserva si nunca '
+         u'se fijó, o si la cuenta que nombra ya fue borrada.'],
+    ]))
+    add(note('note', u'La ventana de configuración hace todo esto sin código',
+             u'<p>Encima de las pestañas lleva <b>Cuenta:</b>, una lista desplegable con '
+             u'todo lo guardado, con <b>Cargar</b> y <b>Quitar</b>; y <b>Guardar como:</b> '
+             u'debajo, donde un nombre nuevo crea una segunda cuenta. Cargar o guardar una '
+             u'la recuerda, y la línea de arranque generada es '
+             u'<code>LoadAccount(PreferredAccount(&#39;default&#39;))</code>, así que un '
+             u'programa cambiado a un segundo proveedor vuelve a abrir con él.</p>'))
+
     add(h2('secrets', 'Los secretos guardados'))
     add(p('Cuatro campos nunca se guardan en claro: la contraseña, el secreto de '
           'cliente, el token de refresco y la clave API. Cada uno pasa por '
@@ -850,6 +887,7 @@ def build_programmers_guide():
                                   ('api-paging', u'Paginaci\u00f3n, de tres maneras'),
                                   ('api-add', u'A\u00f1adir un proveedor')]),
         ('Conservarlo', [('settings', 'Dónde vive la configuración'),
+                         ('accounts', u'Varias cuentas, un solo programa'),
                          ('secrets', 'Los secretos guardados'),
                          ('errors', 'Los errores, y el registro'),
                          ('deriving', 'Hacer que haga otra cosa')]),
@@ -937,7 +975,7 @@ def build_template_guide():
           'configuración escribe los cambios de vuelta; sin tabla, éstos <em>son</em> '
           'la configuración y la ventana guarda en un INI.'))
     add(table(['Campo', 'Notas'], [
-        ['Proveedor', 'Catorce preajustes. Elegir uno llena servidor, puerto, seguridad '
+        ['Proveedor', 'Dieciséis preajustes. Elegir uno llena servidor, puerto, seguridad '
          'y autenticación.'],
         ['Enviar usando', 'SMTP, API de Gmail, Microsoft Graph, o clave API del proveedor.'],
         ['Dirección / nombre del remitente / Responder a',

@@ -144,6 +144,21 @@ README.md
 
 ## Included templates
 
+**Jump to a template.** 28 of them; each links to its own section below.
+
+| | |
+|---|---|
+| **Mail** | [**emailTo**](#t-emailto) &nbsp;<sub>send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs</sub> |
+| **Charts & gauges** | [**graficaBarra**](#t-graficabarra) &nbsp;<sub>thirteen chart types on windows and reports (vector on PDF)</sub><br>[**myPie**](#t-mypie) &nbsp;<sub>pie chart on a window</sub><br>[**myGauge**](#t-mygauge) &nbsp;<sub>analog gauges/dials on windows and reports</sub><br>[**myGaugePlus**](#t-mygaugeplus) &nbsp;<sub>antialiased (GDI+) gauges/dials on windows</sub> |
+| **Images & codes** | [**myImage**](#t-myimage) &nbsp;<sub>twelve image formats in, nine out, every colour format</sub><br>[**allImageRead**](#t-allimageread) &nbsp;<sub>any picture, from anywhere, on a window or a report</sub><br>[**myQR**](#t-myqr) &nbsp;<sub>QR code into an image control</sub><br>[**myQRDraw**](#t-myqrdraw) &nbsp;<sub>offline QR code drawn with BOX primitives</sub><br>[**myBarcodeGen**](#t-mybarcodegen) &nbsp;<sub>nine barcode types, offline, drawn with BOX primitives</sub> |
+| **Browses & lists** | [**BrowseGrid**](#t-browsegrid) &nbsp;<sub>take over any ABC browse and draw it with Direct2D</sub><br>[**BrowseGridLeg**](#t-browsegridleg) &nbsp;<sub>the same grid for the Legacy (CW20) chain</sub><br>[**myFilter**](#t-myfilter) &nbsp;<sub>build filters for any browse</sub><br>[**myExport**](#t-myexport) &nbsp;<sub>export any browse or list to seven file formats</sub> |
+| **Beside a field** | [**myCalc**](#t-mycalc) &nbsp;<sub>a pop-up calculator beside any numeric field</sub><br>[**myCalendar**](#t-mycalendar) &nbsp;<sub>a pop-up date picker beside any date field</sub> |
+| **Files & data** | [**myCompress**](#t-mycompress) &nbsp;<sub>pure-Clarion compression (memory + files)</sub><br>[**myPdfSign**](#t-mypdfsign) &nbsp;<sub>read a signed PDF and see who signed it</sub> |
+| **Look & feel** | [**myFontChanger**](#t-myfontchanger) &nbsp;<sub>global + per-list font picker</sub><br>[**myBackground**](#t-mybackground) &nbsp;<sub>global default + per-window background color / image</sub><br>[**weatherWidget**](#t-weatherwidget) &nbsp;<sub>the weather, on a card at start-up</sub><br>[**my3D**](#t-my3d) &nbsp;<sub>real WebGL2 3D scenes driven from Clarion</sub><br>[**myYuru**](#t-myyuru) &nbsp;<sub>yuruyurau animated flow-field art on a window</sub> |
+| **Plumbing** | [**myFuncs**](#t-myfuncs) &nbsp;<sub>global function library</sub><br>[**myHook**](#t-myhook) &nbsp;<sub>intercept MESSAGE, STOP, HALT and run-time errors</sub> |
+| **Diagnostics** | [**myPixel**](#t-mypixel) &nbsp;<sub>per-window diagnostic pixel</sub><br>[**showLine**](#t-showline) &nbsp;<sub>Ctrl+Shift+P "where am I" hotkey</sub><br>[**identifier**](#t-identifier) &nbsp;<sub>Ctrl+Shift+I shows the procedure name</sub> |
+
+<a id="t-mypixel"></a>
 ### `templates/myPixel.tpl` — per-window diagnostic pixel
 A global (APPLICATION-scope) ABC extension that needs no per-procedure setup. On **every** procedure
 that owns a window it drops a tiny configurable REGION "pixel" in the top-left corner. Hovering it shows
@@ -157,6 +172,7 @@ lives in (app/EXE or DLL). Pressing **Ctrl+Shift+I** pops a message box with the
 - Register it like any template (see below), then add **myPixel - Diagnostic Pixel (Global)** under
   Global → Extensions.
 
+<a id="t-showline"></a>
 ### `templates/showLine.tpl` — Ctrl+Shift+P "where am I" hotkey
 A global (APPLICATION-scope) ABC extension that needs no per-procedure setup. On **every** windowed
 procedure it alerts **Ctrl+Shift+P**; pressing it pops a message telling you where you are: the
@@ -169,6 +185,7 @@ procedure it alerts **Ctrl+Shift+P**; pressing it pops a message telling you whe
   and `feq{PROP:Use}` to report the live focus. Local-only code — no globals, so no multi-DLL handling.
 - Register it, then add **showLine - Where-Am-I Hotkey (Global)** under Global → Extensions.
 
+<a id="t-identifier"></a>
 ### `templates/identifier.tpl` — Ctrl+Shift+I shows the procedure name
 A global (APPLICATION-scope) ABC extension, no per-procedure setup. It alerts **Ctrl+Shift+I** on every
 windowed procedure; pressing it pops a message box with the current **procedure name** (baked in at
@@ -176,6 +193,7 @@ generation time via `%Procedure`). Same proven injection as the other hotkey tem
 `CASE EVENT()` at the top of `WindowManager.TakeWindowEvent`). Register it and add **identifier - Show
 Procedure Name (Ctrl+Shift+I)** under Global → Extensions.
 
+<a id="t-myfuncs"></a>
 ### `templates/myFuncs/` — global function library
 A global (APPLICATION-scope) ABC extension that makes a growing set of utility **functions** callable
 from anywhere in the app, with no per-procedure setup and **no external source files**. The template
@@ -200,6 +218,7 @@ us  = weekNumberUS(myOrder:Date)! US week of the same date (can differ by one)
 Install: register `myFuncs.tpl`, then add **myFuncs - Global Function Library (Global)** under
 Global → Extensions, generate, and build. (No source files to copy — everything is generated.)
 
+<a id="t-mypie"></a>
 ### `templates/myPie/` — pie chart on a window
 Renders a pie chart into an IMAGE control using Clarion's built-in `PIE` graphics primitive (no external
 files). **Easiest path: a control template** — drag **myPie - Pie Chart** straight onto a window and it
@@ -238,6 +257,7 @@ Install: register `myPie.tpl`, then either drop **myPie - Pie Chart** from the c
 note:** the `myPieDraw` helper gained a leading `WINDOW` parameter, so **regenerate** any app built against
 the older one (a stale call shows as "No matching prototype available").
 
+<a id="t-myfontchanger"></a>
 ### `templates/myFontChanger/` — global + per-list font picker
 A single global (APPLICATION-scope) ABC extension, no per-procedure setup:
 - Applies a **default font** (name + size) to every browse/`LIST` control at window open.
@@ -255,6 +275,7 @@ The extension has a **General** tab (default font, size, INI name) and an **Inst
 Register it, add **myFontChanger - global per-list font picker** under Global → Extensions, set the
 default font + INI name, generate and build.
 
+<a id="t-mybackground"></a>
 ### `templates/myBackground/` — global default + per-window background color / image
 A single global (APPLICATION-scope) ABC extension, no per-procedure setup:
 - Gives **every window** a **global default background** — a solid **color** and/or an **image** — applied
@@ -276,6 +297,7 @@ INI name, generate and build. Full programmer's documentation (prompts, generate
 the `myBackApply`/`myBackChoose` helper API, and the runtime properties it uses) is in
 [`docs/myBackground-template.html`](docs/myBackground-template.html).
 
+<a id="t-myqr"></a>
 ### `templates/myQR/` — QR code into an image control
 A self-contained ABC **procedure** extension that renders a **QR code** into an `IMAGE` control on a window.
 The QR **value** can be a design-time **literal** (a quoted string) **or any Clarion variable/expression** you
@@ -296,6 +318,7 @@ pick a sized IMAGE control, set the value, generate and build. Full programmer's
 the literal-vs-code value, generated code, the `myQRLoad`/`myQRUrlEncode`/`myQRRefresh` API, the curl/
 CreateProcess download, and the privacy caveat) is in [`docs/myQR-template.html`](docs/myQR-template.html).
 
+<a id="t-myqrdraw"></a>
 ### `templates/myQRDraw/` — offline QR code drawn with BOX primitives
 The **offline** companion to myQR: instead of downloading a PNG, it carries a complete **QR encoder** and
 draws every module as a filled `BOX` into an `IMAGE` control — exactly the way myPie draws a pie. **No
@@ -326,6 +349,7 @@ field laptops, air-gapped networks, and reports that must render with zero exter
 when an internet round-trip is acceptable. Full programmer's documentation is in
 [`docs/myQRDraw-template.html`](docs/myQRDraw-template.html).
 
+<a id="t-mybarcodegen"></a>
 ### `templates/myBarcodeGen/` — nine barcode types, offline, drawn with BOX primitives
 A generalization of myQRDraw to **nine symbologies**: the **linear (1D)** codes **Code 39, Code 128**
 (auto Code B / Code C), **Interleaved 2 of 5, EAN-13, UPC-A**, and the **2D** codes **QR, Data Matrix,
@@ -343,6 +367,7 @@ the prime field GF(929), and GF(2^n) for Aztec). Full **developer's manual** (in
 symbology rules, drawing model, multi-DLL, troubleshooting) is in
 [`docs/myBarcodeGen-template.html`](docs/myBarcodeGen-template.html).
 
+<a id="t-myimage"></a>
 ### `templates/myImage/` — **twelve image formats in, nine out**, every colour format
 Read **BMP, GIF, JPEG, PNG, TIFF, ICO, EMF, WMF, TGA, PCX, PNM and QOI**; write **BMP, GIF, JPEG, PNG,
 TIFF, TGA, PCX, PNM and QOI**. Convert between **every colour format** — 32-bit ARGB, 24-bit RGB,
@@ -409,6 +434,7 @@ together, and troubleshooting — is in
 palette update, save it back out) and **ImgTest**, a headless harness that round-trips all nine writable
 formats and all eleven colour formats and writes the results to an INI.
 
+<a id="t-allimageread"></a>
 ### `templates/allImageRead/` — **any picture, from anywhere**, on a window or a report
 myImage is the engine; **allImageRead is the piece that puts a picture in front of the user**. One `.tpl`,
 no new class — it sits on top of `ImageClass` and answers the two questions a template cannot: *where does
@@ -472,6 +498,7 @@ the window title), the GPU canvas (it draws the test card into a run-time REGION
 [`docs/allImageRead-d2dcanvas.png`](docs/allImageRead-d2dcanvas.png)), and the 80x figure above. See
 [`examples/allImageRead/`](examples/allImageRead/).
 
+<a id="t-browsegrid"></a>
 ### `templates/BrowseGrid/` — **take over any ABC browse** and draw it with Direct2D
 A browse that does not look like 1995, **without touching the browse**. Drop the extension on a procedure,
 point it at the `LIST`, and the grid draws the rows instead: antialiased text through DirectWrite, banded
@@ -524,6 +551,7 @@ concealment (`novis` — `winvis 1>0 | PROP:Hide 0>0 | recs 20`), group resizing
 (`proptest` — `PROP-PASS was 200,300,160,140 now 200,300,160,140`), and the row-height clamp
 (`GridTest grew=33 shrank=19`). See [`examples/BrowseGrid/`](examples/BrowseGrid/).
 
+<a id="t-browsegridleg"></a>
 ### `templates/BrowseGridLeg/` — the same grid for the **Legacy (CW20)** chain
 BrowseGrid ported to the Legacy template family, and grown up on the way. The browse engine underneath is
 untouched — file access, sort orders, range limits, locators and the update round-trip stay the generated
@@ -555,6 +583,7 @@ never-opened view) live as comments at the relevant spots in the template. See
 [the Legacy chain reference](skills/clarion-template/reference/legacy-cw20.md) for the porting rules it
 demonstrates.
 
+<a id="t-mygauge"></a>
 ### `templates/myGauge/` — analog gauges/dials on windows and reports
 A configurable **analog gauge** drawn entirely with native Clarion graphics (`ARC`, `ELLIPSE`, `LINE`,
 `POLYGON`, `SHOW`) into an `IMAGE` control — the same offline, no-dependency approach as myPie and myQRDraw.
@@ -575,6 +604,7 @@ on open/resize, optional animation, a generated `Refresh:<Object>` routine), and
 `GaugeClass.clw` (ANSI) to the redirection path. Full programmer's documentation — shapes, prompts, the class
 API, run-time control, and troubleshooting — is in [`docs/myGauge-template.html`](docs/myGauge-template.html).
 
+<a id="t-graficabarra"></a>
 ### `templates/graficaBarra/` — **thirteen chart types** on windows and reports (vector on PDF)
 **Column, horizontal Bar, Stacked column, Stacked bar, Stacked percent, Line, Area, Stacked area, Scatter,
 Pie, Pie 3D, Donut and Radar** — all drawn with native Clarion primitives (`BOX`, `LINE`, `POLYGON`,
@@ -640,6 +670,7 @@ examples for windows, reports, multi-chart bands and dashboards, and a table of 
 except that `TextColor` now actually works (`SHOW` takes its color from the target's *font*, not the pen,
 so v1 silently drew all text in black; set `ColorText = 0` for the old behaviour).
 
+<a id="t-mygaugeplus"></a>
 ### `templates/myGaugePlus/` — **antialiased** (GDI+) gauges/dials on windows
 The pretty sibling of myGauge. Native Clarion `ARC`/`ELLIPSE`/`LINE` have **no antialiasing**, so round
 gauges drawn with them look jagged — myGaugePlus draws every pixel with **GDI+** instead: smooth arcs with
@@ -667,6 +698,7 @@ docs — how it works, prompts, the `GaugePlusClass` + `AaCanvasClass` API, and 
 radios, check boxes and colour pickers beside a big live gauge, so you can see exactly what each option does
 before wiring the template.
 
+<a id="t-mycompress"></a>
 ### `templates/myCompress/` — pure-Clarion compression (memory + files)
 A self-contained **compression library** written entirely in **pure Clarion** — no DLL, no external
 library. One self-contained ANSI class, **`CompressClass`**, implements **DEFLATE (RFC 1951)** with the
@@ -695,6 +727,7 @@ a pure-Clarion app needs **no `mc.c` and no subclass** — copy the C files only
 Full programmer's documentation — the API, formats, run-time control, the C fast-path, error codes, and
 troubleshooting — is in [`docs/myCompress-template.html`](docs/myCompress-template.html).
 
+<a id="t-mypdfsign"></a>
 ### `templates/myPdfSign/` — read a signed PDF and see who signed it
 A self-contained **signed-PDF identity reader** written entirely in **pure Clarion** — no DLL, no external
 library, no network. One ANSI class, **`PdfSignClass`**, opens a digitally-signed PDF and surfaces the
@@ -746,6 +779,7 @@ In an AppGen app, add the **myPdfSign - Global signed-PDF reader** extension onc
 `IF PdfSig.ReadFile(...) ... END` body into any embed (e.g. a button's **Accepted** embed). Parsing a PDF
 already in memory? Use `PdfSig.Read(buffer, length)` instead of `ReadFile`.
 
+<a id="t-my3d"></a>
 ### `templates/my3D/` — real WebGL2 3D scenes driven from Clarion
 A **3D scene manager** that lets a Clarion app build and display **hardware-accelerated WebGL2** scenes with
 **no JavaScript**. One ANSI class, **`WebGL2Class`**, exposes a rich object-oriented 3D API — **camera**
@@ -795,6 +829,7 @@ Full programmer's documentation — a guided tour in [`docs/my3D-template.html`]
 the **exhaustive per‑method/per‑property API reference with example code for each** in
 [`docs/my3D-reference.html`](docs/my3D-reference.html).
 
+<a id="t-myyuru"></a>
 ### `templates/myYuru/` — yuruyurau animated flow-field art on a window
 Live **generative "flow-field" animation** — the pure-trigonometry particle sketches of the artist
 [@yuruyurau](https://twitter.com/yuruyurau) — playing on a Clarion **`IMAGE` control**, offline and with **no
@@ -836,6 +871,7 @@ by the class itself:
 
 ![myYuru presets](docs/myYuru-presets.png)
 
+<a id="t-mycalc"></a>
 ### `templates/myCalc/` — a pop-up calculator beside any numeric field
 > **Renamed in this version:** the class's string equates are now `CalcTxt:Cancel`, `CalcTxt:Accept` …
 > rather than `Txt:Cancel`, `Txt:Accept` …. `Txt:Cancel` was declared by **both** CalcClass (12) and
@@ -879,6 +915,7 @@ programmer's documentation — **bilingual English/Spanish** — is
 
 ![Contable (cinta)](docs/myCalc-accountant-es.png)
 
+<a id="t-mycalendar"></a>
 ### `templates/myCalendar/` — a pop-up date picker beside any date field
 Drag **myCalendar - Calendar button** next to a date entry and point it at that entry. A small calendar icon
 appears; pressing it opens a modal calendar already sitting on whatever the field holds, and **Accept puts the
@@ -930,6 +967,7 @@ documentation — **bilingual English/Spanish** — is
 
 ![A full year on one canvas](docs/myCalendar-year.png)
 
+<a id="t-myfilter"></a>
 ### `templates/myFilter/` — build filters for any browse
 Drop **myFilter - Filters button** on a browse window and name the browse object. Pressing the button opens a
 window listing **the browse's own fields**: pick one, say how to test it, press Add, repeat. **Apply** hands
@@ -969,6 +1007,7 @@ registrations: **myFilterButton** (the drag-on control template, MULTI), **myFil
 a button or menu you already have) and **myFilterGlobal** (the class, the language and the storage choice).
 Copy `MyFilterClass.inc` and `MyFilterClass.clw` (**ANSI, CRLF** — they are pure ASCII) to the redirection path.
 
+<a id="t-myexport"></a>
 ### `templates/myExport/` — export any browse or list to seven file formats
 Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
 opens a modal dialog that asks for the **format**, the **folder and file name** (through the standard Windows
@@ -1054,6 +1093,7 @@ button plus a "write all seven" self-test. Full programmer's documentation:
 
 ![The myExport dialog, with two columns left out, one renamed and one re-pictured](docs/myExport-dialog.png)
 
+<a id="t-myhook"></a>
 ### `templates/myHook/` — intercept MESSAGE, STOP, HALT and run-time errors
 Add **myHook - Global message/stop/halt interceptor** once to the application and the Clarion run-time
 library's own dialogs stop being the run-time library's business. `MESSAGE`, `STOP`, `HALT`, a failed
@@ -1099,6 +1139,7 @@ quote-doubling, and the roll-over to `.bak`.
 Full programmer's documentation, English and Spanish in one page with a language toggle:
 [`docs/myHook-template.html`](docs/myHook-template.html).
 
+<a id="t-weatherwidget"></a>
 ### `templates/weatherWidget/` — the weather, on a card at start-up
 Add **weatherWidget - The weather at start-up** to the application (once, not per procedure), generate, and
 your program opens with the weather: where the user is, the temperature now, what it feels like, humidity,
@@ -1152,6 +1193,7 @@ import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
 
+<a id="t-emailto"></a>
 ### `templates/emailTo/` — send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs
 Add **emailTo - Global** to an application and every procedure in it can send mail. Drag **emailTo - E-mail
 button** onto a window for a wired-up button, or drop the **Send an e-mail here** code template into any embed
@@ -1302,6 +1344,18 @@ line of code, or an English one-liner has gained no Spanish twin.
 `emailToButton` (compose, send, or open setup), `emailToApiButton` (opens the management window on whichever
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
+
+**v1.12 (2026-08-24).** The account row from v1.11, drawn where it was meant to go. A control inside a `TAB`
+is positioned against the **window**, not the sheet - so moving the `SHEET` down 40 units to make room moved
+the frame and left all 49 controls exactly where they were, still drawing over the header that had just been
+put above them. They move with it now.
+
+Checked by walking the window structure and comparing rectangles - header ends at 40, sheet spans 44 to 258,
+tab content 62 to 244, footer 262 to 278, window 284 - because this sandbox has no desktop and that arithmetic
+is the only reviewer available. Two more from the same screenshot: the account drop list showed the bare name,
+since a `LIST` with `FROM(queue)` displays the queue's **first** field whatever the FORMAT is named after; and
+nothing repainted it after filling, so it opened blank. It selects the account actually loaded now, and
+`DISPLAY`s.
 
 **v1.11 (2026-08-24).** Reported as "the setup window saves to the wrong record" - and it never did. Both rows
 were correct in the table; what was wrong is that the program **always reopened the first one**, because the
