@@ -1128,6 +1128,18 @@ def build_template_guide():
              u'agrega nunca nombra sus símbolos. Si tenía la pestaña encendida en la '
              u'v1.03, inserte esta extensión y vuelva a poner el nombre del objeto '
              u'&mdash; lo que guardaba la pestaña vieja simplemente se ignora.</p>'))
+    add(note('tip', u'Ahora las plantillas lo dicen solas',
+             u'<p>Una ventana se genera antes que el módulo global, así que el '
+             u'<b>botón de cuenta de correo</b> no puede saber, en el momento en que '
+             u'escribe <code>MailApi.Manage(1)</code>, si algo va a declarar '
+             u'<code>MailApi</code>. Anota lo que necesita; la extensión global lo '
+             u'verifica cuando ya se conoce la aplicación entera.</p>'
+             u'<p>Por eso desde la v1.07, un botón o un embed que llama a la API del '
+             u'proveedor en una aplicación sin la extensión <b>Provider API</b> '
+             u'detiene la generación con una sola línea que nombra el procedimiento '
+             u'&mdash; en vez de un puñado de errores <code>Unknown function label</code> '
+             u'y <code>Field not found: SUPPORTS</code> sobre código generado que '
+             u'usted nunca escribió.</p>'))
     add(p(u'La pestaña que declara el segundo objeto. La misma clave que envía el '
           u'correo puede además contestar por la cuenta, así que aquí no hace falta '
           u'más que un nombre.'))

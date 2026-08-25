@@ -1393,6 +1393,18 @@ def build_template_guide():
              'add it never names its symbols. If you had the tab switched on in '
              'v1.03, insert this extension and put the object name back &mdash; what '
              'the old tab stored is simply ignored.</p>'))
+    add(note('tip', 'The templates now say so themselves',
+             '<p>A window generates before the global module does, so the '
+             '<b>Mail account button</b> cannot tell, at the moment it writes '
+             '<code>MailApi.Manage(1)</code>, whether anything will declare '
+             '<code>MailApi</code>. It records what it needs; the global extension '
+             'checks once the whole application is known.</p>'
+             '<p>So from v1.07, a button or an embed that calls the provider API in '
+             'an application carrying no <b>Provider API</b> extension stops '
+             'generation with one plain line naming the procedure &mdash; instead of '
+             'a handful of <code>Unknown function label</code> and '
+             '<code>Field not found: SUPPORTS</code> errors on generated code you '
+             'never wrote.</p>'))
     add(table(['Prompt', 'What it does'], [
         ['Object name', 'What to call it. <code>MailApi</code> unless you have a '
          'reason &mdash; the control and code templates default to that name too.'],

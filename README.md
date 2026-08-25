@@ -1303,6 +1303,29 @@ line of code, or an English one-liner has gained no Spanish twin.
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
 
+**v1.07 (2026-08-24).** A generate-time check, from a real report: an application with the **Mail account
+button** on a window but no **Provider API** extension generated happily and then failed to compile with eight
+errors - `Unknown function label`, `Field not found: SUPPORTS` - all of them on lines the developer never
+wrote. The button writes `MailApi.Manage(1)`; only the extension declares `MailApi`; nothing connected the
+two. This is v1.05's fix leaving a hole: moving the API onto its own extension stopped the *generator* error
+for apps built before v1.03, but any app that had used the API **button** in the v1.03 era still generated
+calls to an object that no longer had a declaration.
+
+The check has to be built backwards, because a window generates **before** the global module does. At the
+moment the button writes the call it cannot know whether anything will declare what it is calling - so it does
+not guess. It records what it needs (`#ADD(%ETApiWanted, %Procedure)`), the Provider API extension records
+that it exists, and **emailTo - Global** - the one extension every emailTo application carries - reports at
+`PRIORITY(9000)` on `%AfterGlobalIncludes`, by which time the whole application is known. Now a missing
+extension is one plain line naming the procedure and telling you where the Insert button is. Proved both ways
+against generated applications: the app that has the extension builds its exe with no false alarm, the app
+that lacks it stops with exactly one message. The same guard covers the API code template and the Sync
+extension.
+
+Two template-language facts fell out of it, both general. `#DECLARE` has **no `GLOBAL` attribute** and cannot
+sit at file scope either - a symbol shared across sections belongs in `#SYSTEM`. And `%ProgramProcedures` is
+**not** generated with the global module: like a window, it comes out in the procedure pass, so a check placed
+there sees the global module's symbols still unset.
+
 **v1.06 (2026-08-24).** **Amazon SES**, the ninth provider — and the first that will not answer a request just
 because you attached a key. Every call has to be signed with **AWS Signature Version 4**, so the signing lives
 on `EmailNetClass` (`SignAws`, over `Hmac256`, `Sha256Hex` and a derived key that walks date → region →
