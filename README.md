@@ -115,7 +115,7 @@ templates/                      # ready-to-register Clarion templates
     d2grid.c                    #     the grid: Direct2D + DirectWrite, bound at run time
   BrowseGridLeg/                #   the same grid for the Legacy (CW20) chain (see below)
     BrowseGridLeg.tpl           #     global + procedure extensions, search box, filter bar
-    d2grid.c                    #     the grid, plus filter buttons and drag-reorder
+    d2gridleg.c                 #     the grid, plus filter buttons and drag-reorder
     README.md                   #     what the port adds over the ABC original
   weatherWidget/                #   a weather card when your program starts (see below)
     MyWeatherClass.inc          #     the widget (settings, the reading, EN/ES strings)
@@ -546,7 +546,7 @@ Double-click opens the Change form through the browse's own `AlertKey` machinery
 variable-height rows**: each row is measured with `CreateTextLayout` + `GetMetrics` and takes only the lines
 its own text needs, paging works from a conservative page size while fills push the measured optimum, and the last
 screen bottom-anchors at the final record the way a stock browse does.
-Needs `d2grid.c` on the redirection path, and `MyFilterClass.inc`/`.clw` from
+Needs `d2gridleg.c` on the redirection path, and `MyFilterClass.inc`/`.clw` from
 [`templates/myFilter/`](templates/myFilter) if you use the filter bar. Tested against Clarion 12 with the
 TopSpeed and SQLite drivers on browses of 5,000 and 10,000 records; the SQLite conversion notes (padded CHAR
 storage, the optimistic-concurrency WHERE clause, POSITION drift after a Change, error 37 from CLOSE on a
