@@ -1303,6 +1303,25 @@ line of code, or an English one-liner has gained no Spanish twin.
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
 
+**v1.10 (2026-08-24).** Several providers configured at once. The store always allowed it - accounts are
+named, and `LoadAccount('brevo')` reads INI section `[emailTo_brevo]` or the table row whose Name column says
+`brevo`, each with its own provider, key, region and domain, nothing shared. What was missing was any way to
+*find* them: typing a different name on the Setup window changed where it **saved**, never what it **loaded**,
+so a second account could be created and then never reached again.
+
+`ListAccounts()` and `DeleteAccount()` are both **VIRTUAL**, because the two stores answer the question in
+completely different ways. An INI cannot be asked which sections it has, so the named ones keep an index of
+their own in the base section, maintained by `SaveAccount`. A table just gets walked - and only the generated
+code knows the table, so the template writes that override beside the `LoadAccount`/`SaveAccount` ones it
+already generated. Without it the picker would have come up empty in exactly the applications that have a
+settings table, which is most of them.
+
+On the **Advanced** tab of the Setup window there is now a drop list of everything stored - `brevo - Brevo -
+bulk@acme.com` - with **Load** and **Delete** beside it. Load switches the whole form to that account; the
+name field above still creates one, by typing a new name and saving. The unnamed default is always row 1 and
+cannot be deleted. Fourteen new assertions cover it, the sharpest being that a key belonging to one account is
+not inherited by another.
+
 **v1.09 (2026-08-24).** Amazon SES proved, without an Amazon account. `botocore` - the signing half of the AWS
 SDK, written by Amazon - is not a dependency of anything shipped here; it is the **oracle**. A stand-in SES
 re-signs every request that arrives with it and refuses the request unless our `Authorization` header matches

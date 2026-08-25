@@ -485,6 +485,7 @@ EmailToClass.Construct PROCEDURE
   SELF.Enc     &= NEW(EmailMsgClass)
   SELF.OAuth   &= NEW(EmailOAuthClass)
   SELF.Stuffed &= NEW(EmailBufClass)
+  SELF.AccountQ &= NEW(EmailAccountQueue)
   SELF.OAuth.Init(SELF.Net, SELF.Enc)
   SELF.Language      = ETLng:English
   SELF.IniSection    = 'emailTo'
@@ -502,6 +503,10 @@ EmailToClass.Destruct PROCEDURE
   IF NOT SELF.Enc     &= NULL THEN DISPOSE(SELF.Enc).
   IF NOT SELF.OAuth   &= NULL THEN DISPOSE(SELF.OAuth).
   IF NOT SELF.Stuffed &= NULL THEN DISPOSE(SELF.Stuffed).
+  IF NOT SELF.AccountQ &= NULL
+    FREE(SELF.AccountQ)
+    DISPOSE(SELF.AccountQ)
+  END
 
 EmailToClass.Init PROCEDURE(<STRING pIniFile>)
   CODE
@@ -768,7 +773,8 @@ sec CSTRING(65)
   RETURN CHOOSE(CLIP(SELF.Acc.Host) <> '' OR CLIP(SELF.Acc.ApiKey) <> '', 1, 0)
 
 EmailToClass.SaveAccount PROCEDURE()
-sec CSTRING(65)
+sec   CSTRING(65)
+known CSTRING(2049)
   CODE
   IF NOT CLIP(SELF.IniFile) THEN SELF.Init().
   sec = SELF.IniSection
@@ -798,7 +804,101 @@ sec CSTRING(65)
   PUTINI(sec, 'ApiBase',      CLIP(SELF.Acc.ApiBase),   SELF.IniFile)
   PUTINI(sec, 'Timeout',      SELF.Acc.Timeout,    SELF.IniFile)
   PUTINI(sec, 'VerifyCert',   SELF.Acc.VerifyCert, SELF.IniFile)
+  !  An INI cannot be asked which sections it has, so the named ones keep an
+  !  index of their own in the base section. Without it a second account can
+  !  be written and then never found again.
+  IF CLIP(SELF.Acc.Name)
+    DO IndexThisOne
+  END
   RETURN 1
+
+IndexThisOne ROUTINE
+  known = GETINI(SELF.IniSection, 'Accounts', '', SELF.IniFile)
+  IF NOT INSTRING('|' & CLIP(SELF.Acc.Name) & '|', '|' & CLIP(known) & '|', 1, 1)
+    IF CLIP(known)
+      known = CLIP(known) & '|' & CLIP(SELF.Acc.Name)
+    ELSE
+      known = CLIP(SELF.Acc.Name)
+    END
+    PUTINI(SELF.IniSection, 'Accounts', CLIP(known), SELF.IniFile)
+  END
+
+!  Which sets of settings the store holds.  The unnamed default is always
+!  row 1 - it is what LoadAccount() with no argument reads - and the named
+!  ones follow, in the order they were first saved.
+!
+!  Reading each one costs a handful of GETINIs, and the answer carries the
+!  provider and the address so a picker can show 'brevo - Brevo -
+!  me@acme.com' without the caller loading anything.
+EmailToClass.ListAccounts PROCEDURE()
+known  CSTRING(2049)
+one    CSTRING(65)
+sec    CSTRING(129)
+vStart LONG
+j      LONG
+  CODE
+  IF NOT CLIP(SELF.IniFile) THEN SELF.Init().
+  FREE(SELF.AccountQ)
+  CLEAR(SELF.AccountQ)
+  SELF.AccountQ.Name         = ''
+  SELF.AccountQ.Provider     = GETINI(SELF.IniSection, 'Provider', 0, SELF.IniFile)
+  SELF.AccountQ.ProviderText = SELF.ProviderName(SELF.AccountQ.Provider)
+  SELF.AccountQ.FromAddr     = GETINI(SELF.IniSection, 'FromAddr', '', SELF.IniFile)
+  ADD(SELF.AccountQ)
+  known  = GETINI(SELF.IniSection, 'Accounts', '', SELF.IniFile)
+  vStart = 1
+  LOOP WHILE vStart <= LEN(CLIP(known))
+    j = INSTRING('|', known, 1, vStart)
+    IF NOT j THEN j = LEN(CLIP(known)) + 1.
+    one = SUB(known, vStart, j - vStart)
+    IF CLIP(one)
+      sec = CLIP(SELF.IniSection) & '_' & CLIP(one)
+      CLEAR(SELF.AccountQ)
+      SELF.AccountQ.Name         = CLIP(one)
+      SELF.AccountQ.Provider     = GETINI(sec, 'Provider', 0, SELF.IniFile)
+      SELF.AccountQ.ProviderText = SELF.ProviderName(SELF.AccountQ.Provider)
+      SELF.AccountQ.FromAddr     = GETINI(sec, 'FromAddr', '', SELF.IniFile)
+      ADD(SELF.AccountQ)
+    END
+    vStart = j + 1
+  END
+  RETURN RECORDS(SELF.AccountQ)
+
+!  Forget one.  The section's keys are blanked and the name comes out of the
+!  index; the unnamed default cannot be deleted, only re-typed.
+EmailToClass.DeleteAccount PROCEDURE(STRING pName)
+known  CSTRING(2049)
+rebuilt CSTRING(2049)
+one    CSTRING(65)
+sec    CSTRING(129)
+vStart LONG
+j      LONG
+  CODE
+  IF NOT CLIP(pName) THEN RETURN SELF.SetErr(ETSend:NoAccount, 'The default account cannot be deleted.').
+  IF NOT CLIP(SELF.IniFile) THEN SELF.Init().
+  sec = CLIP(SELF.IniSection) & '_' & CLIP(pName)
+  PUTINI(sec, 'Provider',  '', SELF.IniFile)
+  PUTINI(sec, 'ApiKey',    '', SELF.IniFile)
+  PUTINI(sec, 'ApiKey2',   '', SELF.IniFile)
+  PUTINI(sec, 'Password',  '', SELF.IniFile)
+  PUTINI(sec, 'FromAddr',  '', SELF.IniFile)
+  known   = GETINI(SELF.IniSection, 'Accounts', '', SELF.IniFile)
+  vStart  = 1
+  LOOP WHILE vStart <= LEN(CLIP(known))
+    j = INSTRING('|', known, 1, vStart)
+    IF NOT j THEN j = LEN(CLIP(known)) + 1.
+    one = SUB(known, vStart, j - vStart)
+    IF CLIP(one) AND CLIP(one) <> CLIP(pName)
+      IF CLIP(rebuilt)
+        rebuilt = CLIP(rebuilt) & '|' & CLIP(one)
+      ELSE
+        rebuilt = CLIP(one)
+      END
+    END
+    vStart = j + 1
+  END
+  PUTINI(SELF.IniSection, 'Accounts', CLIP(rebuilt), SELF.IniFile)
+  RETURN SELF.SetErr(ETSend:Ok)
 
 EmailToClass.Authorize PROCEDURE()
   CODE
@@ -1797,6 +1897,9 @@ EmailToClass.Txt PROCEDURE(LONG pId)
     OF ETTxt:NeedSubject  ; RETURN '<191>Enviar el mensaje sin asunto?'
     OF ETTxt:TestSubject  ; RETURN 'Mensaje de prueba de emailTo'
     OF ETTxt:TestBody     ; RETURN 'Si est<225> leyendo esto, la cuenta de correo funciona.'
+    OF ETTxt:ConfirmDelete; RETURN '<191>Borrar esta cuenta guardada?'
+    OF ETTxt:StoredAccts  ; RETURN 'Cuentas guardadas:'
+    OF ETTxt:LoadAcct     ; RETURN 'Cargar'
     OF ETTxt:Connecting   ; RETURN 'Conectando...'
     OF ETTxt:Authorising  ; RETURN 'Autorizando...'
     OF ETTxt:Building     ; RETURN 'Preparando el mensaje...'
@@ -1852,6 +1955,9 @@ EmailToClass.Txt PROCEDURE(LONG pId)
   OF ETTxt:NeedSubject  ; RETURN 'Send the message with no subject?'
   OF ETTxt:TestSubject  ; RETURN 'emailTo test message'
   OF ETTxt:TestBody     ; RETURN 'If you are reading this, the mail account works.'
+  OF ETTxt:ConfirmDelete; RETURN 'Delete this stored account?'
+  OF ETTxt:StoredAccts  ; RETURN 'Stored accounts:'
+  OF ETTxt:LoadAcct     ; RETURN 'Load'
   OF ETTxt:Connecting   ; RETURN 'Connecting...'
   OF ETTxt:Authorising  ; RETURN 'Authorising...'
   OF ETTxt:Building     ; RETURN 'Preparing the message...'
@@ -1870,6 +1976,8 @@ EmailToClass.Txt PROCEDURE(LONG pId)
 ! ============================================================================
 EmailToClass.Setup PROCEDURE()
 LocName      CSTRING(65)
+LocStoredSel CSTRING(129)
+StoredIdx    LONG
 LocHost      CSTRING(129)
 LocPort      LONG
 LocUser      CSTRING(256)
@@ -1911,6 +2019,13 @@ AId            BYTE
 LogQ         QUEUE
 LLine          STRING(512)
              END
+
+!  A LIST cannot be pointed at a queue that lives in the class, so the stored
+!  accounts are copied into one of our own each time they are asked for.
+AccQ  QUEUE
+AName   CSTRING(65)
+AText   CSTRING(129)
+      END
 
 Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9),CENTER,ICON(ICON:Application)
          SHEET,AT(4,4,344,214),USE(?Sheet)
@@ -1970,6 +2085,13 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
              CHECK('Check the server certificate'),AT(92,68),USE(LocVerify)
              STRING('Turn this off ONLY for a server with a self-signed certificate on'),AT(92,80),USE(?VerifyNote1),FONT(,7)
              STRING('your own network. It disables the protection TLS gives you.'),AT(92,89),USE(?VerifyNote2),FONT(,7)
+             LINE,AT(10,106,332,0),USE(?Line9),COLOR(COLOR:Silver)
+             PROMPT('Stored accounts:'),AT(10,116),USE(?PrStored)
+             LIST,AT(92,114,150,10),USE(LocStoredSel),DROP(10),FROM(AccQ),FORMAT('140L(2)@s128@')
+             BUTTON('Load'),AT(248,113,44,13),USE(?LoadAcct)
+             BUTTON('Delete'),AT(296,113,46,13),USE(?DelAcct)
+             STRING('Each account keeps its own provider and key. Type a new name'),AT(92,129),USE(?StoredNote1),FONT(,7)
+             STRING('above and Save to add one; pick one here and Load to switch.'),AT(92,138),USE(?StoredNote2),FONT(,7)
            END
            TAB('Log'),USE(?TabLog)
              LIST,AT(10,22,332,182),USE(?ListLog),FROM(LogQ),FORMAT('320L(2)@s255@'),VSCROLL,HSCROLL,FONT('Consolas',8)
@@ -1985,6 +2107,7 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
   DO FillLists
   DO AccToLocal
   OPEN(Window)
+  DO FillAccounts
   DO Localise
   DO Reflect
   ACCEPT
@@ -2058,10 +2181,67 @@ Window WINDOW('Mail account setup'),AT(,,352,246),GRAY,SYSTEM,FONT('Segoe UI',9)
         Saved = 1
         POST(EVENT:CloseWindow)
       END
+    OF ?LoadAcct
+      IF EVENT() = EVENT:Accepted
+        StoredIdx = CHOICE(?LocStoredSel)
+        GET(AccQ, StoredIdx)
+        IF NOT ERRORCODE()
+          !  Whatever is on the form is abandoned - it was never saved.
+          IF CLIP(AccQ.AName)
+            SELF.LoadAccount(AccQ.AName)
+          ELSE
+            SELF.Acc.Name = ''
+            SELF.LoadAccount()
+          END
+          DO AccToLocal
+          DO Reflect
+          DISPLAY()
+        END
+      END
+    OF ?DelAcct
+      IF EVENT() = EVENT:Accepted
+        StoredIdx = CHOICE(?LocStoredSel)
+        GET(AccQ, StoredIdx)
+        IF NOT ERRORCODE() AND CLIP(AccQ.AName)
+          IF SELF.Silent OR MESSAGE(SELF.Txt(ETTxt:ConfirmDelete) & '<13,10><13,10>' & |
+                                    CLIP(AccQ.AText), SELF.Txt(ETTxt:Setup), |
+                                    ICON:Question, BUTTON:Yes + BUTTON:No, BUTTON:No) = BUTTON:Yes
+            SELF.DeleteAccount(AccQ.AName)
+            DO FillAccounts
+            DISPLAY()
+          END
+        END
+      END
     END
   END
   CLOSE(Window)
   RETURN Saved
+
+!  The store is asked every time, so a name typed on this window and saved
+!  appears here without reopening it.
+FillAccounts ROUTINE
+  FREE(AccQ)
+  SELF.ListAccounts()
+  LOOP StoredIdx = 1 TO RECORDS(SELF.AccountQ)
+    GET(SELF.AccountQ, StoredIdx)
+    AccQ.AName = SELF.AccountQ.Name
+    IF CLIP(AccQ.AName)
+      AccQ.AText = CLIP(AccQ.AName)
+    ELSE
+      AccQ.AText = '(default)'
+    END
+    IF CLIP(SELF.AccountQ.ProviderText)
+      AccQ.AText = CLIP(AccQ.AText) & '  -  ' & CLIP(SELF.AccountQ.ProviderText)
+    END
+    IF CLIP(SELF.AccountQ.FromAddr)
+      AccQ.AText = CLIP(AccQ.AText) & '  -  ' & CLIP(SELF.AccountQ.FromAddr)
+    END
+    ADD(AccQ)
+  END
+  IF RECORDS(AccQ)
+    GET(AccQ, 1)
+    LocStoredSel = AccQ.AText
+  END
 
 RefreshLog ROUTINE
   DATA
@@ -2105,6 +2285,9 @@ p BYTE
 
 Localise ROUTINE
   Window{PROP:Text}        = SELF.Txt(ETTxt:Setup)
+  ?PrStored{PROP:Text}     = SELF.Txt(ETTxt:StoredAccts)
+  ?LoadAcct{PROP:Text}     = SELF.Txt(ETTxt:LoadAcct)
+  ?DelAcct{PROP:Text}      = SELF.Txt(ETTxt:Remove)
   ?PrProvider{PROP:Text}   = SELF.Txt(ETTxt:Provider)
   ?PrTransport{PROP:Text}  = SELF.Txt(ETTxt:Transport)
   ?PrServer{PROP:Text}     = SELF.Txt(ETTxt:Server)

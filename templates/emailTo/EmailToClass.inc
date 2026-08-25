@@ -158,11 +158,24 @@ ETTxt:Building     EQUATE(47)
 ETTxt:Remove       EQUATE(48)
 ETTxt:AddFile      EQUATE(49)
 ETTxt:BrowserNote  EQUATE(50)
+ETTxt:ConfirmDelete EQUATE(51)
+ETTxt:StoredAccts  EQUATE(52)
+ETTxt:LoadAcct     EQUATE(53)
 
 ! ============================================================================
 !  The account.  This GROUP is the contract between the class and wherever you
 !  keep your settings - the template maps a table column onto each field.
 ! ============================================================================
+!  One row per set of settings the store holds - what ListAccounts fills, and
+!  what an account picker is built from. Enough to show a useful line without
+!  loading anything: 'brevo - Brevo - me@acme.com'.
+EmailAccountQueue  QUEUE,TYPE
+Name                 CSTRING(65)                 ! blank = the unnamed default
+Provider             BYTE                        ! ETPrv:...
+ProviderText         CSTRING(33)                 ! already in the object's language
+FromAddr             CSTRING(256)
+                   END
+
 EmailAccountGroup  GROUP,TYPE
 Name                 CSTRING(65)                  ! the label this account is stored under
 Transport            BYTE                         ! ETTrn:...
@@ -264,6 +277,7 @@ Enc                  &EmailMsgClass,PRIVATE        ! a SECOND message object, us
                                                    !   from Msg so sealing a password cannot
                                                    !   disturb a message that is mid-send.
 Stuffed              &EmailBufClass,PRIVATE        ! the dot-stuffed copy for SMTP DATA
+AccountQ             &EmailAccountQueue            ! every account the store holds
 ! ---- behaviour -----------------------------------------------------------
 Language             BYTE                          ! ETLng:English / ETLng:Spanish
 Silent               BYTE                          ! 1 = never pop a message box
@@ -287,6 +301,11 @@ ProviderName         PROCEDURE(BYTE pProvider),STRING
 ApiUrl               PROCEDURE(STRING pUrl),STRING
 LoadAccount          PROCEDURE(<STRING pName>),BYTE,PROC,VIRTUAL
 SaveAccount          PROCEDURE(),BYTE,PROC,VIRTUAL
+!  Every account the store holds, newest question first: which ones are there,
+!  and get rid of that one. Both VIRTUAL, because the template replaces the
+!  store with a table and then only the generated code knows how to walk it.
+ListAccounts         PROCEDURE(),LONG,PROC,VIRTUAL
+DeleteAccount        PROCEDURE(STRING pName),BYTE,PROC,VIRTUAL
 Seal                 PROCEDURE(STRING pClear),STRING
 Unseal               PROCEDURE(STRING pStored),STRING
 ! ---- sending ------------------------------------------------------------

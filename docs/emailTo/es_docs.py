@@ -81,6 +81,10 @@ MEMBER_DOCS_ES = {
  'EmailToClass.SetErr':         'lo registra Y contesta 1 = funcionó / 0 = falló, para que un '
                                 'método pueda terminar con RETURN SELF.SetErr(...)',
  'EmailToClass.EhloDomain':     'el nombre con el que nos anunciamos en el EHLO',
+ 'EmailToClass.AccountQ':      u'cada cuenta que guarda el almacén; la fila 1 es la predeterminada sin nombre',
+ 'EmailToClass.ListAccounts':  u'las llena en AccountQ y contesta cuántas hay - VIRTUAL, porque sólo el '
+                              u'código generado sabe recorrer su tabla',
+ 'EmailToClass.DeleteAccount': u'olvida una cuenta guardada; la predeterminada sin nombre no se puede borrar',
  'EmailToClass.ApiUrl':         u'reemplaza el esquema y el host de una dirección de proveedor cuando '
                                u'ApiBase nombra otro - un relay propio, o un sustituto local sin '
                                u'certificado; idempotente',
