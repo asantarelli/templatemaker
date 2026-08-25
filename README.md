@@ -2027,6 +2027,39 @@ colour coding, a Bug Log, and an auto-tallying Summary) covering install, the vi
 template, and the QR self-tests. Hand it to testers as their script. Regenerate or extend it with
 `python testing/build_beta_test_plan.py` (requires `openpyxl`).
 
+## Acknowledgements
+
+A good part of what is here arrived as a pull request from someone else, and several of the sharpest bugs
+were found by people running these templates in real applications rather than in a demo. Named below, with
+the numbers, so the work can be read in full.
+
+| | |
+|---|---|
+| **[Mark Sarson](https://github.com/msarson)** | The **visual designer**, largely rebuilt from the inside: several templates open at once with a tab each, external edits to an open `.tpl` detected and offered for reload, the source editor scrolled to whatever part is selected, and the part/tab, undo/redo and panel view-sync bugs cleared out. Then the layout engine — `#BOXED,SECTION` honoured as the origin for `AT`, `#INSERT(%group)` resolved in the prompt tree *and* in the flow preview, auto-flow reserving the label column and an `#IMAGE`'s real footprint so nothing lands off-canvas or underneath, no reparenting on a plain click, `#ENABLE` membership never silently stripped — and characterization tests to keep it that way.<br><sub>[#2](https://github.com/robertorenz/templatemaker/pull/2) · [#3](https://github.com/robertorenz/templatemaker/pull/3) · [#4](https://github.com/robertorenz/templatemaker/pull/4) · [#6](https://github.com/robertorenz/templatemaker/pull/6) · [#7](https://github.com/robertorenz/templatemaker/pull/7) · [#8](https://github.com/robertorenz/templatemaker/pull/8) · [#9](https://github.com/robertorenz/templatemaker/pull/9) · [#11](https://github.com/robertorenz/templatemaker/pull/11) · [#12](https://github.com/robertorenz/templatemaker/pull/12) · [#13](https://github.com/robertorenz/templatemaker/pull/13) · [#14](https://github.com/robertorenz/templatemaker/pull/14) · [#15](https://github.com/robertorenz/templatemaker/pull/15)</sub> |
+| **[Dinko Bačun](https://github.com/bdinko)** <sub>(Indicio d.o.o.)</sub> | Made the toolkit work on **somebody else's machine**: the Clarion install auto-detected instead of hardcoded to `C:\clarion12`, `<CLARION_ROOT>` placeholders through the skill and agent docs so the corpus paths survive a different version, an installer that ships *every* template together with the classes they need to compile, and the `d2gridleg.c` rename that let the installer stage both grids at once.<br><sub>[#1](https://github.com/robertorenz/templatemaker/pull/1) · [#22](https://github.com/robertorenz/templatemaker/pull/22) · [#28](https://github.com/robertorenz/templatemaker/pull/28) · [#31](https://github.com/robertorenz/templatemaker/pull/31)</sub> |
+| **[Carl T. Barnes](https://github.com/CarlTBarnes)** <sub>([carlbarnes.com](https://www.carlbarnes.com))</sub> | Read the Clarion source the way only long practice lets you: `SetTarget(Window, Image)` in **myQRDraw** so the symbol lands on the control instead of at the window origin — with a test program to prove it — and `STRING` in place of `*CSTRING` through the class and the barcode method parameters. Plus the **myGauge** and **myPie** reports below.<br><sub>[#19](https://github.com/robertorenz/templatemaker/pull/19) · [#20](https://github.com/robertorenz/templatemaker/pull/20) · [#21](https://github.com/robertorenz/templatemaker/pull/21)</sub> |
+| **[ClarionLive](https://github.com/ClarionLive)** | The **Legacy (CW20) chain**: `BrowseGridLeg`, the Direct2D grid carried over to a chain that has no ABC objects to hang it on, with word wrap and rows that grow only as far as their text needs — and the corrections and Legacy/CW20 chapter that the port turned up in the `clarion-template` skill. Also the **myFilter** bug where a filter whose name contained `=` could never be loaded back.<br><sub>[#26](https://github.com/robertorenz/templatemaker/pull/26) · [#27](https://github.com/robertorenz/templatemaker/pull/27) · [#29](https://github.com/robertorenz/templatemaker/pull/29)</sub> |
+| **[Adrian E. Santarelli](https://github.com/asantarelli)** <sub>([SDigitales](https://www.sdigitales.com.ar))</sub> | **SDAspecto** — one look for every window in a program, from a cascading rule engine whose rules live in an INI rather than in code — and **BrowseGrid v1.24**: totals, text search, check-box columns, auto-fit widths and the help page the template had been missing.<br><sub>[#32](https://github.com/robertorenz/templatemaker/pull/32) · [#33](https://github.com/robertorenz/templatemaker/pull/33)</sub> |
+
+**Bugs found and reported.** [Carl T. Barnes](https://github.com/CarlTBarnes) on `myPie` positioning the pie at
+`(0,0)` instead of the image's own X,Y ([#5](https://github.com/robertorenz/templatemaker/issues/5)), and on
+`myGauge` three times over — custom angles refusing a negative under `@n7.1`
+([#16](https://github.com/robertorenz/templatemaker/issues/16)), `.TextColor` doing nothing for `SHOW()` of the
+title or units ([#17](https://github.com/robertorenz/templatemaker/issues/17)), and `Preset` writing bad values
+for 90° ([#18](https://github.com/robertorenz/templatemaker/issues/18)).
+[Mark Sarson](https://github.com/msarson) on the designer destructively rewriting valid templates on save
+([#10](https://github.com/robertorenz/templatemaker/issues/10)), described precisely enough to be fixed from the
+report alone. [Dinko Bačun](https://github.com/bdinko) on the installer failing because two templates each
+shipped a different `d2grid.c` ([#30](https://github.com/robertorenz/templatemaker/issues/30)).
+[antonnagel](https://github.com/antonnagel) on `ExportClass.inc`
+([#23](https://github.com/robertorenz/templatemaker/issues/23)) and on BrowseGrid
+([#25](https://github.com/robertorenz/templatemaker/issues/25)).
+[golmedo](https://github.com/golmedo) proposed the `graficaBarra` per-category legend detail, percent-of-total
+and left-aligned labels ([#24](https://github.com/robertorenz/templatemaker/pull/24)).
+
+Everything above is MIT-licensed along with the rest of the repo; the copyright in each contribution stays with
+whoever wrote it.
+
 ## License
 
 Released under the [MIT License](LICENSE) — © 2026 Reddin Assessments. Free to use, modify, and
