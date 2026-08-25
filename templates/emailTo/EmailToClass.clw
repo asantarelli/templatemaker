@@ -2056,8 +2056,8 @@ LLine          STRING(512)
 !  A LIST cannot be pointed at a queue that lives in the class, so the stored
 !  accounts are copied into one of our own each time they are asked for.
 AccQ  QUEUE
+AText   CSTRING(129)                          ! FIRST - a LIST FROM() shows field 1
 AName   CSTRING(65)
-AText   CSTRING(129)
       END
 
 Window WINDOW('Mail account setup'),AT(,,352,284),GRAY,SYSTEM,FONT('Segoe UI',9),CENTER,ICON(ICON:Application)
@@ -2073,61 +2073,61 @@ Window WINDOW('Mail account setup'),AT(,,352,284),GRAY,SYSTEM,FONT('Segoe UI',9)
          LINE,AT(4,40,344,0),USE(?LineTop),COLOR(COLOR:Silver)
          SHEET,AT(4,44,344,214),USE(?Sheet)
            TAB('Account'),USE(?TabAccount)
-             PROMPT('Provider:'),AT(10,24),USE(?PrProvider)
-             LIST,AT(92,22,150,10),USE(?ListProvider),DROP(16),FROM(ProviderQ),FORMAT('110L(2)@s30@')
-             PROMPT('Send using:'),AT(10,40),USE(?PrTransport)
-             LIST,AT(92,38,150,10),USE(?ListTransport),DROP(6),FROM(TransportQ),FORMAT('110L(2)@s34@')
-             LINE,AT(10,56,332,0),USE(?Line1),COLOR(COLOR:Silver)
-             PROMPT('From address:'),AT(10,64),USE(?PrFrom)
-             ENTRY(@s255),AT(92,62,150,10),USE(LocFrom)
-             PROMPT('From name:'),AT(10,80),USE(?PrFromName)
-             ENTRY(@s128),AT(92,78,150,10),USE(LocFromName)
-             PROMPT('Reply to:'),AT(10,96),USE(?PrReplyTo)
-             ENTRY(@s255),AT(92,94,150,10),USE(LocReplyTo)
-             LINE,AT(10,112,332,0),USE(?Line2),COLOR(COLOR:Silver)
-             PROMPT('Server:'),AT(10,120),USE(?PrServer)
-             ENTRY(@s128),AT(92,118,150,10),USE(LocHost)
-             PROMPT('Port:'),AT(10,136),USE(?PrPort)
-             ENTRY(@n5),AT(92,134,40,10),USE(LocPort)
-             PROMPT('Security:'),AT(148,136),USE(?PrSecurity)
-             LIST,AT(196,134,146,10),USE(?ListSecurity),DROP(5),FROM(SecurityQ),FORMAT('110L(2)@s34@')
-             PROMPT('Sign in with:'),AT(10,152),USE(?PrAuth)
-             LIST,AT(92,150,150,10),USE(?ListAuth),DROP(6),FROM(AuthQ),FORMAT('110L(2)@s34@')
-             PROMPT('User name:'),AT(10,168),USE(?PrUser)
-             ENTRY(@s255),AT(92,166,150,10),USE(LocUser)
-             PROMPT('Password:'),AT(10,184),USE(?PrPass)
-             ENTRY(@s255),AT(92,182,150,10),USE(LocPass),PASSWORD
-             STRING(''),AT(250,184,92,20),USE(?PassNote),FONT(,7),COLOR(COLOR:None)
+             PROMPT('Provider:'),AT(10,64),USE(?PrProvider)
+             LIST,AT(92,62,150,10),USE(?ListProvider),DROP(16),FROM(ProviderQ),FORMAT('110L(2)@s30@')
+             PROMPT('Send using:'),AT(10,80),USE(?PrTransport)
+             LIST,AT(92,78,150,10),USE(?ListTransport),DROP(6),FROM(TransportQ),FORMAT('110L(2)@s34@')
+             LINE,AT(10,96,332,0),USE(?Line1),COLOR(COLOR:Silver)
+             PROMPT('From address:'),AT(10,104),USE(?PrFrom)
+             ENTRY(@s255),AT(92,102,150,10),USE(LocFrom)
+             PROMPT('From name:'),AT(10,120),USE(?PrFromName)
+             ENTRY(@s128),AT(92,118,150,10),USE(LocFromName)
+             PROMPT('Reply to:'),AT(10,136),USE(?PrReplyTo)
+             ENTRY(@s255),AT(92,134,150,10),USE(LocReplyTo)
+             LINE,AT(10,152,332,0),USE(?Line2),COLOR(COLOR:Silver)
+             PROMPT('Server:'),AT(10,160),USE(?PrServer)
+             ENTRY(@s128),AT(92,158,150,10),USE(LocHost)
+             PROMPT('Port:'),AT(10,176),USE(?PrPort)
+             ENTRY(@n5),AT(92,174,40,10),USE(LocPort)
+             PROMPT('Security:'),AT(148,176),USE(?PrSecurity)
+             LIST,AT(196,174,146,10),USE(?ListSecurity),DROP(5),FROM(SecurityQ),FORMAT('110L(2)@s34@')
+             PROMPT('Sign in with:'),AT(10,192),USE(?PrAuth)
+             LIST,AT(92,190,150,10),USE(?ListAuth),DROP(6),FROM(AuthQ),FORMAT('110L(2)@s34@')
+             PROMPT('User name:'),AT(10,208),USE(?PrUser)
+             ENTRY(@s255),AT(92,206,150,10),USE(LocUser)
+             PROMPT('Password:'),AT(10,224),USE(?PrPass)
+             ENTRY(@s255),AT(92,222,150,10),USE(LocPass),PASSWORD
+             STRING(''),AT(250,224,92,20),USE(?PassNote),FONT(,7),COLOR(COLOR:None)
            END
            TAB('Sign-in (OAuth2)'),USE(?TabOAuth)
-             STRING('Register a DESKTOP application with the provider and paste its Client ID'),AT(10,22),USE(?OaNote1),FONT(,8)
-             STRING('here. Nothing secret is compiled into your program.'),AT(10,32),USE(?OaNote2),FONT(,8)
-             PROMPT('Client ID:'),AT(10,52),USE(?PrClientId)
-             ENTRY(@s255),AT(92,50,250,10),USE(LocClientId)
-             PROMPT('Client secret:'),AT(10,68),USE(?PrSecret)
-             ENTRY(@s255),AT(92,66,250,10),USE(LocSecret),PASSWORD
-             STRING('(leave blank for Microsoft, and for Google desktop clients that have none)'),AT(92,79),USE(?SecretNote),FONT(,7)
-             PROMPT('Tenant:'),AT(10,94),USE(?PrTenant)
-             ENTRY(@s128),AT(92,92,150,10),USE(LocTenant)
-             STRING('(Microsoft only: common, organizations, or your tenant GUID)'),AT(92,105),USE(?TenantNote),FONT(,7)
-             BUTTON('Sign in...'),AT(92,122,90,14),USE(?SignIn)
-             STRING(@s128),AT(190,126,152,10),USE(LocTokenInfo),FONT(,8)
-             LINE,AT(10,146,332,0),USE(?Line3),COLOR(COLOR:Silver)
-             PROMPT('API key:'),AT(10,156),USE(?PrApiKey)
-             ENTRY(@s255),AT(92,154,250,10),USE(LocApiKey),PASSWORD
-             PROMPT('API domain:'),AT(10,172),USE(?PrApiDomain)
-             ENTRY(@s128),AT(92,170,150,10),USE(LocApiDomain)
-             STRING('(Mailgun only: the domain you send from)'),AT(92,183),USE(?DomainNote),FONT(,7)
+             STRING('Register a DESKTOP application with the provider and paste its Client ID'),AT(10,62),USE(?OaNote1),FONT(,8)
+             STRING('here. Nothing secret is compiled into your program.'),AT(10,72),USE(?OaNote2),FONT(,8)
+             PROMPT('Client ID:'),AT(10,92),USE(?PrClientId)
+             ENTRY(@s255),AT(92,90,250,10),USE(LocClientId)
+             PROMPT('Client secret:'),AT(10,108),USE(?PrSecret)
+             ENTRY(@s255),AT(92,106,250,10),USE(LocSecret),PASSWORD
+             STRING('(leave blank for Microsoft, and for Google desktop clients that have none)'),AT(92,119),USE(?SecretNote),FONT(,7)
+             PROMPT('Tenant:'),AT(10,134),USE(?PrTenant)
+             ENTRY(@s128),AT(92,132,150,10),USE(LocTenant)
+             STRING('(Microsoft only: common, organizations, or your tenant GUID)'),AT(92,145),USE(?TenantNote),FONT(,7)
+             BUTTON('Sign in...'),AT(92,162,90,14),USE(?SignIn)
+             STRING(@s128),AT(190,166,152,10),USE(LocTokenInfo),FONT(,8)
+             LINE,AT(10,186,332,0),USE(?Line3),COLOR(COLOR:Silver)
+             PROMPT('API key:'),AT(10,196),USE(?PrApiKey)
+             ENTRY(@s255),AT(92,194,250,10),USE(LocApiKey),PASSWORD
+             PROMPT('API domain:'),AT(10,212),USE(?PrApiDomain)
+             ENTRY(@s128),AT(92,210,150,10),USE(LocApiDomain)
+             STRING('(Mailgun only: the domain you send from)'),AT(92,223),USE(?DomainNote),FONT(,7)
            END
            TAB('Advanced'),USE(?TabAdvanced)
-             PROMPT('Timeout (ms):'),AT(10,24),USE(?PrTimeout)
-             ENTRY(@n7),AT(92,22,60,10),USE(LocTimeout)
-             CHECK('Check the server certificate'),AT(92,40),USE(LocVerify)
-             STRING('Turn this off ONLY for a server with a self-signed certificate on'),AT(92,52),USE(?VerifyNote1),FONT(,7)
-             STRING('your own network. It disables the protection TLS gives you.'),AT(92,61),USE(?VerifyNote2),FONT(,7)
+             PROMPT('Timeout (ms):'),AT(10,64),USE(?PrTimeout)
+             ENTRY(@n7),AT(92,62,60,10),USE(LocTimeout)
+             CHECK('Check the server certificate'),AT(92,80),USE(LocVerify)
+             STRING('Turn this off ONLY for a server with a self-signed certificate on'),AT(92,92),USE(?VerifyNote1),FONT(,7)
+             STRING('your own network. It disables the protection TLS gives you.'),AT(92,101),USE(?VerifyNote2),FONT(,7)
            END
            TAB('Log'),USE(?TabLog)
-             LIST,AT(10,22,332,182),USE(?ListLog),FROM(LogQ),FORMAT('320L(2)@s255@'),VSCROLL,HSCROLL,FONT('Consolas',8)
+             LIST,AT(10,62,332,182),USE(?ListLog),FROM(LogQ),FORMAT('320L(2)@s255@'),VSCROLL,HSCROLL,FONT('Consolas',8)
            END
          END
          BUTTON('Test account'),AT(6,262,72,16),USE(?Test)
@@ -2273,10 +2273,20 @@ FillAccounts ROUTINE
     END
     ADD(AccQ)
   END
-  IF RECORDS(AccQ)
+  !  Show the one that is loaded, not just the first row.
+  LocStoredSel = ''
+  LOOP StoredIdx = 1 TO RECORDS(AccQ)
+    GET(AccQ, StoredIdx)
+    IF CLIP(AccQ.AName) = CLIP(SELF.Acc.Name)
+      LocStoredSel = AccQ.AText
+      BREAK
+    END
+  END
+  IF NOT CLIP(LocStoredSel) AND RECORDS(AccQ)
     GET(AccQ, 1)
     LocStoredSel = AccQ.AText
   END
+  DISPLAY(?LocStoredSel)
 
 RefreshLog ROUTINE
   DATA
