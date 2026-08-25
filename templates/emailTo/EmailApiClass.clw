@@ -1856,10 +1856,19 @@ variant BYTE
   IF SELF.MapQ.Kind <> variant THEN RETURN SELF.SetErr(ETApi:NotSupported).
   RETURN SELF.Perform(ETOp:ContactAdd, variant)
 
-EmailApiClass.DeleteContact PROCEDURE(STRING pIdOrAddress)
+EmailApiClass.DeleteContact PROCEDURE(STRING pIdOrAddress,<STRING pListId>)
   CODE
-  SELF.ArgId    = SUB(CLIP(pIdOrAddress), 1, 128)
+  !  Most providers delete a contact by one value - their own id, or the
+  !  address - so {id} and {email} are both filled with it. Amazon SES is the
+  !  first that needs BOTH: the LIST in {id} and the address in {email}. When
+  !  a list is named it wins, or the address ends up standing in for the list
+  !  and the row is deleted from a contact list that does not exist.
   SELF.ArgEmail = SUB(CLIP(pIdOrAddress), 1, 255)
+  IF NOT OMITTED(pListId) AND CLIP(pListId) <> ''
+    SELF.ArgId  = SUB(CLIP(pListId), 1, 128)
+  ELSE
+    SELF.ArgId  = SUB(CLIP(pIdOrAddress), 1, 128)
+  END
   RETURN SELF.Perform(ETOp:ContactDelete, 0)
 
 EmailApiClass.AddList PROCEDURE(STRING pName)
@@ -3005,9 +3014,9 @@ DoDelContact ROUTINE
   !  Some providers delete a contact by their own id, some by the address.
   !  The id is preferred when there is one; the address is the fallback.
   IF CLIP(CtQ.CId)
-    ok = SELF.DeleteContact(CtQ.CId)
+    ok = SELF.DeleteContact(CtQ.CId, LocListId)
   ELSE
-    ok = SELF.DeleteContact(CtQ.CAddr)
+    ok = SELF.DeleteContact(CtQ.CAddr, LocListId)
   END
   DO Rested
   IF ok

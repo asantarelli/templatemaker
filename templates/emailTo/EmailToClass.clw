@@ -535,6 +535,34 @@ EmailToClass.ShowError PROCEDURE
 ! ============================================================================
 !  The account
 ! ============================================================================
+!  ApiBase replaces the scheme AND the host of whatever address the provider
+!  branch built - which is what makes the API transports testable without an
+!  account at the provider, and what lets a site route them through a relay
+!  of its own. The path, and any query on it, are kept exactly as built.
+!
+!  Amazon SES signs the host, so this has to happen BEFORE the signature is
+!  computed, not after. It is idempotent so the call after the CASE cannot
+!  undo the one the SES branch already made.
+EmailToClass.ApiUrl PROCEDURE(STRING pUrl)
+base   CSTRING(257)
+rest   CSTRING(1025)
+j      LONG
+  CODE
+  base = CLIP(SELF.Acc.ApiBase)
+  IF NOT base THEN RETURN CLIP(pUrl).
+  !  A return value cannot be indexed, so the address lands in a local first.
+  rest = CLIP(pUrl)
+  IF LEN(base) <= LEN(rest)
+    IF rest[1 : LEN(base)] = base THEN RETURN rest.
+  END
+  !  Everything from the third slash on is the path.
+  j = INSTRING('://', rest, 1, 1)
+  IF j THEN j = INSTRING('/', rest, 1, j + 3).
+  IF j
+    RETURN CLIP(base) & rest[j : LEN(rest)]
+  END
+  RETURN CLIP(base)
+
 EmailToClass.ProviderName PROCEDURE(BYTE pProvider)
   CODE
   CASE pProvider
@@ -1368,6 +1396,7 @@ okHi   LONG
     url = 'https://email.' & CHOOSE(CLIP(SELF.Acc.ApiRegion) <> '', |
                                     CLIP(SELF.Acc.ApiRegion), 'us-east-1') & |
           '.amazonaws.com/v2/email/outbound-emails'
+    url = SELF.ApiUrl(url)                        ! before the signature: host is signed
     body.Add('{"Content":{"Raw":{"Data":"')
     body.Add(pMsg.Base64(pMsg.Mime.Value()))
     body.Add('"}}}')
@@ -1408,6 +1437,7 @@ okHi   LONG
       'Brevo, Postmark, Mailjet, SparkPost, MailerSend or Amazon SES.')
   END
 
+  url = SELF.ApiUrl(url)
   status = SELF.Net.Http('POST', url, hdr.Value(), body.Value())
   DISPOSE(body)
   DISPOSE(hdr)

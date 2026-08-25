@@ -181,6 +181,7 @@ EXAMPLES = {
 'EmailToClass.Init':            "Mailer.Init(PATH() & '\\emailTo.ini')",
 'EmailToClass.SetProvider':     "Mailer.SetProvider(ETPrv:Gmail)                   ! host, port, security and sign-in in one call",
 'EmailToClass.ProviderName':    "MESSAGE('Sending through ' & Mailer.ProviderName(Mailer.Acc.Provider))",
+'EmailToClass.ApiUrl':         "Mailer.Acc.ApiBase = 'http://127.0.0.1:8098'",
 'EmailToClass.LoadAccount':     "Mailer.LoadAccount('billing')                     ! VIRTUAL - the template points it at your table",
 'EmailToClass.SaveAccount':     "Mailer.SaveAccount()                              ! VIRTUAL - what the Setup window calls on Save",
 'EmailToClass.Seal':            "Set:Password = Mailer.Seal(Loc:Typed)             ! DPAPI + base64, safe for a text column",

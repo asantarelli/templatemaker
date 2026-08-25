@@ -1303,6 +1303,28 @@ line of code, or an English one-liner has gained no Spanish twin.
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
 
+**v1.09 (2026-08-24).** Amazon SES proved, without an Amazon account. `botocore` - the signing half of the AWS
+SDK, written by Amazon - is not a dependency of anything shipped here; it is the **oracle**. A stand-in SES
+re-signs every request that arrives with it and refuses the request unless our `Authorization` header matches
+byte for byte. A wrong canonical request, signed-header list, payload hash, credential scope or derived key
+all change the signature completely, so anything answered 200 was signed correctly. **Thirteen requests,
+thirteen verified** - GET with a query string, GET with a continuation token, DELETE with `%2B` and `%40` in
+the path (the double-encoded canonical path, the line I had flagged as most likely to be wrong), PUT with a
+JSON body, POST with base64 MIME. 29 assertions, 0 failed.
+
+It found two real defects that no unit test could have. **`DeleteContact` sent the address where the list
+belonged**: most providers delete a contact by one value, so `{id}` and `{email}` were both filled with it,
+and SES is the first provider that needs *both* - the list in one, the address in the other. Deleting a
+contact from the management window would have hit
+`/contact-lists/ann%40example.com/contacts/ann%40example.com` against the real service. It now takes an
+optional list id, and the window passes the list you are looking at.
+
+**And no send path honoured `ApiBase`** - not SES's, not any of the nine. The management half has always been
+testable against a stand-in; the sending half never was, for anybody, which is why the REST transports have
+sat at "unproven end to end" since v1.00. `EmailToClass.ApiUrl` now rewrites scheme and host for every
+provider, and for SES it runs **before** the signature, because the host is signed. That is the change that
+makes the send side testable at all - and the SES send is the first one actually proved.
+
 **v1.08 (2026-08-24).** The management window, run in Spanish, translated everything except the one thing a
 `FORMAT()` string owns. Title, all ten tabs, every button and prompt, the kind names (`Rebote`) and the row
 count (`1207 filas`) came through - and then nine lists went on saying **Address, Kind, Reason, When**. A

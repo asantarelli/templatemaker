@@ -282,6 +282,9 @@ Init                 PROCEDURE(<STRING pIniFile>)
 ! ---- account ------------------------------------------------------------
 SetProvider          PROCEDURE(BYTE pProvider)
 ProviderName         PROCEDURE(BYTE pProvider),STRING
+!  Rewrites the scheme and host of a provider URL when ApiBase names one -
+!  a private relay, or a stand-in with no certificate. Idempotent.
+ApiUrl               PROCEDURE(STRING pUrl),STRING
 LoadAccount          PROCEDURE(<STRING pName>),BYTE,PROC,VIRTUAL
 SaveAccount          PROCEDURE(),BYTE,PROC,VIRTUAL
 Seal                 PROCEDURE(STRING pClear),STRING

@@ -81,6 +81,9 @@ MEMBER_DOCS_ES = {
  'EmailToClass.SetErr':         'lo registra Y contesta 1 = funcionó / 0 = falló, para que un '
                                 'método pueda terminar con RETURN SELF.SetErr(...)',
  'EmailToClass.EhloDomain':     'el nombre con el que nos anunciamos en el EHLO',
+ 'EmailToClass.ApiUrl':         u'reemplaza el esquema y el host de una dirección de proveedor cuando '
+                               u'ApiBase nombra otro - un relay propio, o un sustituto local sin '
+                               u'certificado; idempotente',
  # ---- EmailJsonClass ------------------------------------------------------
  'EmailJsonClass.Doc':          u'nuestra propia copia del texto',
  'EmailJsonClass.Find':         u'número de nodo, 0 = esa ruta no existe',
