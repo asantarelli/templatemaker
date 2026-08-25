@@ -1188,7 +1188,7 @@ status LONG
   IF SELF.Acc.Timeout > 0 THEN SELF.Net.Timeout = SELF.Acc.Timeout.
 
   body &= NEW(EmailBufClass)
-  body.Add('{"raw":"')
+  body.Add('{{"raw":"')
   body.Add(pMsg.Base64Url(pMsg.Mime.Value()))
   body.Add('"}')
 
@@ -1254,25 +1254,25 @@ first BYTE
     first = 0
     CASE CLIP(pStyle)
     OF 'sg'                                          ! SendGrid
-      out.Add('{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
+      out.Add('{{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
       IF pMsg.AddrQ.DisplayName
         out.Add(',"name":' & pMsg.JsonString(pMsg.AddrQ.DisplayName))
       END
       out.Add('}')
     OF 'brevo'
-      out.Add('{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
+      out.Add('{{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
       IF pMsg.AddrQ.DisplayName
         out.Add(',"name":' & pMsg.JsonString(pMsg.AddrQ.DisplayName))
       END
       out.Add('}')
     OF 'sp'                                          ! SparkPost wraps the address one deeper
-      out.Add('{"address":{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
+      out.Add('{{"address":{{"email":' & pMsg.JsonString(pMsg.AddrQ.Address))
       IF pMsg.AddrQ.DisplayName
         out.Add(',"name":' & pMsg.JsonString(pMsg.AddrQ.DisplayName))
       END
       out.Add('}}')
     OF 'mj'                                          ! Mailjet capitalises its keys
-      out.Add('{"Email":' & pMsg.JsonString(pMsg.AddrQ.Address))
+      out.Add('{{"Email":' & pMsg.JsonString(pMsg.AddrQ.Address))
       IF pMsg.AddrQ.DisplayName
         out.Add(',"Name":' & pMsg.JsonString(pMsg.AddrQ.DisplayName))
       END
@@ -1330,7 +1330,7 @@ okHi   LONG
     url = 'https://api.sendgrid.com/v3/mail/send'
     hdr.Add('Authorization: Bearer ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
     hdr.Add('Content-Type: application/json')
-    body.Add('{"personalizations":[{"to":' & SELF.JsonRecipients(pMsg, ETAddr:To, 'sg'))
+    body.Add('{{"personalizations":[{{"to":' & SELF.JsonRecipients(pMsg, ETAddr:To, 'sg'))
     IF RECORDS(pMsg.AddrQ)
       IF SELF.JsonRecipients(pMsg, ETAddr:Cc, 'sg') <> '[]'
         body.Add(',"cc":' & SELF.JsonRecipients(pMsg, ETAddr:Cc, 'sg'))
@@ -1339,17 +1339,17 @@ okHi   LONG
         body.Add(',"bcc":' & SELF.JsonRecipients(pMsg, ETAddr:Bcc, 'sg'))
       END
     END
-    body.Add('}],"from":{"email":' & pMsg.JsonString(pMsg.FromAddr))
+    body.Add('}],"from":{{"email":' & pMsg.JsonString(pMsg.FromAddr))
     IF pMsg.FromName
       body.Add(',"name":' & pMsg.JsonString(pMsg.FromName))
     END
     body.Add('},"subject":' & pMsg.JsonString(pMsg.Subject) & ',"content":[')
     IF pMsg.TextBody.Len > 0
-      body.Add('{"type":"text/plain","value":' & pMsg.JsonString(pMsg.TextBody.Value()) & '}')
+      body.Add('{{"type":"text/plain","value":' & pMsg.JsonString(pMsg.TextBody.Value()) & '}')
       IF pMsg.HtmlBody.Len > 0 THEN body.Add(',').
     END
     IF pMsg.HtmlBody.Len > 0
-      body.Add('{"type":"text/html","value":' & pMsg.JsonString(pMsg.HtmlBody.Value()) & '}')
+      body.Add('{{"type":"text/html","value":' & pMsg.JsonString(pMsg.HtmlBody.Value()) & '}')
     END
     body.Add(']')
     DO SendGridAttachments
@@ -1359,7 +1359,7 @@ okHi   LONG
     url = 'https://api.resend.com/emails'
     hdr.Add('Authorization: Bearer ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
     hdr.Add('Content-Type: application/json')
-    body.Add('{"from":')
+    body.Add('{{"from":')
     IF pMsg.FromName
       body.Add(pMsg.JsonString(CLIP(pMsg.FromName) & ' <' & CLIP(pMsg.FromAddr) & '>'))
     ELSE
@@ -1387,7 +1387,7 @@ okHi   LONG
     hdr.Add('api-key: ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
     hdr.Add('Content-Type: application/json<13,10>')
     hdr.Add('Accept: application/json')
-    body.Add('{"sender":{"email":' & pMsg.JsonString(pMsg.FromAddr))
+    body.Add('{{"sender":{{"email":' & pMsg.JsonString(pMsg.FromAddr))
     IF pMsg.FromName
       body.Add(',"name":' & pMsg.JsonString(pMsg.FromName))
     END
@@ -1413,7 +1413,7 @@ okHi   LONG
     hdr.Add('X-Postmark-Server-Token: ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
     hdr.Add('Content-Type: application/json<13,10>')
     hdr.Add('Accept: application/json')
-    body.Add('{"From":')
+    body.Add('{{"From":')
     IF pMsg.FromName
       body.Add(pMsg.JsonString(CLIP(pMsg.FromName) & ' <' & CLIP(pMsg.FromAddr) & '>'))
     ELSE
@@ -1443,7 +1443,7 @@ okHi   LONG
     hdr.Add('Authorization: Basic ' & |
             SELF.Enc.Base64(CLIP(SELF.Acc.UserName) & ':' & CLIP(SELF.Acc.ApiKey)) & '<13,10>')
     hdr.Add('Content-Type: application/json')
-    body.Add('{"Messages":[{"From":{"Email":' & pMsg.JsonString(pMsg.FromAddr))
+    body.Add('{{"Messages":[{{"From":{{"Email":' & pMsg.JsonString(pMsg.FromAddr))
     IF pMsg.FromName
       body.Add(',"Name":' & pMsg.JsonString(pMsg.FromName))
     END
@@ -1472,11 +1472,11 @@ okHi   LONG
     !  SparkPost has no separate cc / bcc: every recipient goes in one list and
     !  the Cc: header is what makes a copy visible.  Bcc recipients are simply
     !  in the list with no header, which is exactly what blind means.
-    body.Add('{"recipients":[')
+    body.Add('{{"recipients":[')
     body.Add(SUB(SELF.JsonRecipients(pMsg, ETAddr:To, 'sp'), 2, |
                  LEN(CLIP(SELF.JsonRecipients(pMsg, ETAddr:To, 'sp'))) - 2))
     DO SparkPostMore
-    body.Add('],"content":{"from":{"email":' & pMsg.JsonString(pMsg.FromAddr))
+    body.Add('],"content":{{"from":{{"email":' & pMsg.JsonString(pMsg.FromAddr))
     IF pMsg.FromName
       body.Add(',"name":' & pMsg.JsonString(pMsg.FromName))
     END
@@ -1488,7 +1488,7 @@ okHi   LONG
       body.Add(',"html":' & pMsg.JsonString(pMsg.HtmlBody.Value()))
     END
     IF SELF.JsonRecipients(pMsg, ETAddr:Cc, 'csv')
-      body.Add(',"headers":{"CC":' & pMsg.JsonString(SELF.JsonRecipients(pMsg, ETAddr:Cc, 'csv')) & '}')
+      body.Add(',"headers":{{"CC":' & pMsg.JsonString(SELF.JsonRecipients(pMsg, ETAddr:Cc, 'csv')) & '}')
     END
     DO SparkPostAttachments
     body.Add('}}')
@@ -1497,7 +1497,7 @@ okHi   LONG
     url = 'https://api.mailersend.com/v1/email'
     hdr.Add('Authorization: Bearer ' & CLIP(SELF.Acc.ApiKey) & '<13,10>')
     hdr.Add('Content-Type: application/json')
-    body.Add('{"from":{"email":' & pMsg.JsonString(pMsg.FromAddr))
+    body.Add('{{"from":{{"email":' & pMsg.JsonString(pMsg.FromAddr))
     IF pMsg.FromName
       body.Add(',"name":' & pMsg.JsonString(pMsg.FromName))
     END
@@ -1526,7 +1526,7 @@ okHi   LONG
                                     CLIP(SELF.Acc.ApiRegion), 'us-east-1') & |
           '.amazonaws.com/v2/email/outbound-emails'
     url = SELF.ApiUrl(url)                        ! before the signature: host is signed
-    body.Add('{"Content":{"Raw":{"Data":"')
+    body.Add('{{"Content":{{"Raw":{{"Data":"')
     body.Add(pMsg.Base64(pMsg.Mime.Value()))
     body.Add('"}}}')
     hdr.Add(SELF.Net.SignAws('POST', url, body.Value(), |
@@ -1585,7 +1585,7 @@ SendGridAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"content":"')
+    body.Add('{{"content":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('","filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs))
     body.Add(',"type":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
@@ -1606,7 +1606,7 @@ ResendAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
+    body.Add('{{"filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('"}')
     DISPOSE(raw)
@@ -1620,7 +1620,7 @@ BrevoAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"name":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
+    body.Add('{{"name":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('"}')
     DISPOSE(raw)
@@ -1634,7 +1634,7 @@ PostmarkAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"Name":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"Content":"')
+    body.Add('{{"Name":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"Content":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('","ContentType":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
     IF pMsg.AttachQ.ContentId
@@ -1666,7 +1666,7 @@ SparkPostAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"type":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
+    body.Add('{{"type":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
     body.Add(',"name":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"data":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('"}')
@@ -1681,7 +1681,7 @@ MailerSendAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
+    body.Add('{{"filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"content":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('"')
     IF pMsg.AttachQ.ContentId
@@ -1701,7 +1701,7 @@ MailjetAttachments ROUTINE
     GET(pMsg.AttachQ, i)
     IF i > 1 THEN body.Add(',').
     DO LoadOne
-    body.Add('{"ContentType":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
+    body.Add('{{"ContentType":' & pMsg.JsonString(pMsg.AttachQ.ContentType))
     body.Add(',"Filename":' & pMsg.JsonString(pMsg.AttachQ.ShownAs) & ',"Base64Content":"')
     body.Add(pMsg.Base64(raw.Value()))
     body.Add('"}')

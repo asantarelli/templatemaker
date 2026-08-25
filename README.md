@@ -138,6 +138,9 @@ templates/                      # ready-to-register Clarion templates
     EmailApiClass.inc/.clw      #     the management API: blocked, stats, campaigns, the window
     emailc.c                    #     Winsock + SCHANNEL + WinHTTP + SHA-256 (Clacpp-compiled)
     emailTo.tpl                 #     3 app extensions + 3 buttons + 4 code templates
+    emailTo10.tpl               #     the same, prompts re-laid out for Clarion 10's
+                                #       480 px AppGen dialog - GENERATED, do not edit
+    Build-NarrowTpl.ps1         #     generates it, and fails if anything stops fitting
     EmailTables.txt             #     the settings-table structure, written out by hand
     emailToTables.dctx          #     the dictionary to IMPORT: 7 tables (Dictionary
                                 #       Editor > File > Import > DCTX/XML)
@@ -146,6 +149,7 @@ templates/                      # ready-to-register Clarion templates
     emailTo.zip                 #     all of the above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 installer/                      # builds the installer + a portable single-file exe
+  emailTo/                      #   and a stand-alone one for emailTo alone, Clarion 10+
 README.md
 ```
 
@@ -1458,6 +1462,35 @@ line of code, or an English one-liner has gained no Spanish twin.
 tab you name, and hides itself when the account has no API) and `emailToSyncButton`; and four code templates —
 `emailToSend`, `emailToCompose`, `emailToSetup` and `emailToApi` — for any embed.
 
+**Installing it, Clarion 10 forward.** [`installer/emailTo/`](installer/emailTo/) builds a stand-alone
+`emailToSetup.exe`: tick the Clarion installations you want, and each one gets the templates, the classes and
+`emailc.c` in its `accessory\` folders and is registered with its own `ClarionCL /tr`. It finds them two ways
+(the IDE's `ClarionProperties.xml`, and `Clarion*` on the fixed drives), reads each version off
+`ClarionCL.exe`, and warns if the IDE is open — the IDE holds the template registry and writes it back on
+close, which can quietly undo a registration made behind it.
+
+**Two builds of the template, because the prompt sheet is not the same width.** AppGen draws prompts in a
+dialog the IDE owns: **480 px up to Clarion 10, 960 px from Clarion 11** (`WideAppgenDialogs` in
+`ClarionProperties.xml`). Nothing in the template language can ask which it is being drawn in — a prompt sheet
+is parsed once, at registration — so [`Build-NarrowTpl.ps1`](templates/emailTo/Build-NarrowTpl.ps1) generates
+`emailTo10.tpl` from `emailTo.tpl`: prose re-flowed to 340 px and eleven captions shortened to fit the 200 px
+label column, every string **measured** in the system font rather than counted in characters. The installer
+deploys whichever fits, always as `emailTo.tpl`. Both declare `#TEMPLATE(emailTo,...)`, and the generator
+proves they are otherwise the same file — it strips both of exactly their `#DISPLAY` text and `#PROMPT`
+captions and requires the remainder to be byte-identical, so no symbol, embed or generated line can drift
+between them, and it exits non-zero (failing the installer build) if a future prompt stops fitting 480 px.
+Tab height is deliberately *not* budgeted: Clarion 10's own `ABBROWSE.TPW` carries 91 prompts inside 35 boxes
+on one tab, six times emailTo's heaviest, so the sheet plainly scrolls.
+
+**v1.13 (2026-08-25).** emailTo compiles on Clarion 10 and 11. It never did: `'{"personalizations":['` and
+619 other string literals hold a brace, and **`{` opens Clarion's repeat-count escape** — `'ab{3}'` is
+`'abbb'`. Clarion 12 lets a `{` that no digits follow pass as text; 10 and 11 reject the literal outright with
+*Invalid string (misused &lt;...&gt; or {...}, or literal is too long)*, and `EmailToClass.clw` alone failed on
+34 lines. The portable spelling is `{{`, which is one `{` in every version — verified by compiling the same
+program under all three and comparing the bytes it wrote, not by reading the manual. `EmailApiClass.clw` (590
+of them, the whole provider matrix), `EmailToClass.clw` and `EmailJsonClass.clw` now say `{{`, and both demos
+build clean under Clarion 10.0.12799, 11.0.13401 and 12.0.13941 — six builds, no errors.
+
 **v1.12 (2026-08-24).** The account row from v1.11, drawn where it was meant to go. A control inside a `TAB`
 is positioned against the **window**, not the sheet - so moving the `SHEET` down 40 units to make room moved
 the frame and left all 49 controls exactly where they were, still drawing over the header that had just been
@@ -1993,6 +2026,17 @@ pwsh installer\build-portable.ps1    # -> run\ClarionTemplateDesigner.exe (porta
 ```
 
 See `installer/README.md` for what each option installs.
+
+One template can also ship on its own. [`installer/emailTo/`](installer/emailTo/) builds
+**`emailToSetup.exe`**, which finds every Clarion **10 or later** on the machine — from the IDE's own
+`ClarionProperties.xml` and from a sweep of the fixed drives — and installs emailTo into the ones you tick,
+registering each with that installation's own `ClarionCL`:
+
+```powershell
+pwsh installer\emailTo\build-emailTo.ps1     # -> installer\emailTo\Output\emailToSetup.exe
+```
+
+Clarion 10 gets a different build of the template — see below — and uninstalling unregisters it again.
 
 ### QR encoder core (`designer/QrCodeCore/`)
 
