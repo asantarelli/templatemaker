@@ -543,6 +543,44 @@ holding up. Mouse wheel scrolls, **Ctrl+wheel resizes the type** (6 to 32 point,
 line height following it), long text **wraps** onto up to four lines, and a diagnostics prompt puts what the
 grid is working from into the window title, because a browse that draws nothing looks identical whether the
 queue was empty, the rows were too tall, or the columns were never read.
+**What v1.24 adds.** A **totals row** that sums *every record the browse shows* &mdash; filter and range
+included, not the page on screen &mdash; with the columns to total proposed by their picture and corrected
+by the user from the Columns dialog. **Find text…**: a string, matched case-insensitively across this
+column or every column, numeric columns compared by value. A **check-box column**, drawn rather than
+loaded, recognised with no prompt at all from an icon column whose set is the standard
+`~BoxOff.ico`/`~BoxOn.ico` pair &mdash; so it scales with the row. **Conditional and fixed colours per
+column**, over the BrowseBox's own. **Double-click opens the record**, and a **tooltip** shows a value that
+does not fit its column. Typeface, size and the eight colours can each **come from a variable** so a global
+theme drives the grid, or from **[SDAspecto](#t-sdaspecto)**, in which case they are read from its global
+instance *at run time* &mdash; its prompts are only the factory default and its INI overrides them at
+start-up. Texts the end user sees are **English or Spanish**, per application or per grid; the AppGen
+prompts stay English either way. The queue and the browse object are now **deduced** rather than typed
+(`?Browse:5` → `Queue:5` → `BRW5`), and a wrong guess is a compile error rather than a grid that quietly
+fails to filter. Internals: static data down from **3.46 MB to 322 KB**, and the ceilings up to **64
+columns** and **16 grids**.
+
+**Auto-fit widths**, on the same menu: it sizes every visible column to the widest of its heading and
+its values. The heading counts — a column sized to its values alone truncates its own title, the one
+string on screen that never scrolls away. It measures in two passes and they are deliberately not the
+same pass: the loaded page is already in memory so **every cell of it is measured exactly**, while past
+the page there is no queue to read, only the view — and walking that means `EVALUATE` by field *name*
+rather than `WHAT` by field number, because what moves is the record buffer. That is the expensive
+call, so out there the longest text is kept **by character count** and only the winner is measured. The
+approximation is worth naming: in a proportional font ten `i`s are narrower than four `W`s. **With the
+look-ahead at 0 no file is touched.** A hidden column stays hidden, and widths are clamped to 16 and
+600 pixels.
+
+The prompts now live on **seven tabs** rather than four — the content had stopped fitting on screen —
+split by what things share rather than by size: *Heading menu* holds filtering and auto-fit together
+because both hang off the same tick.
+
+Measured on a real application: a fill costs **under 200 µs** — 1.2 % of a 60 Hz frame — and the generated
+code makes **three file accesses**, none of them on the drawing path. The one to know about is *Filter by
+value*, which scans the file sequentially in the foreground; it can be taken off the menu from the prompts.
+Full programmer's documentation — the four prompt tabs, the heading menu, the hooks your code may need, the
+measured limits and the diagnostics — is in
+[`docs/BrowseGrid-template.html`](docs/BrowseGrid-template.html).
+
 Requires `d2grid.c` on the redirection path. Verified: registers, generates **with every optional path
 switched on** — a generate only covers the prompts that are ticked, which is how a `CODE` without a `DATA`
 once shipped — and the generated source compiles and links against a copy of `School`. Behaviour is proved
