@@ -664,8 +664,9 @@ just work. Pick the shape with one property — `Obj.ChartType = Chart:Donut`.
 
 ![thirteen chart types](docs/graficaBarra-demo.png)
 
-Highlights: automatic **"nice" scale** (max rounds up to 1/2/5×10ᵏ, and when the data crosses zero the axis
-steps in nice units so **zero lands on a gridline**) or a fixed `SetRange`; **negative values** hang below
+Highlights: automatic **"nice" scale** — the gap between two gridlines is sized to the data (1/2/2.5/5/10×10ᵏ)
+and the axis runs to the first whole step past it, so a maximum of 113,376,143 gets an axis of 125,000,000
+rather than 200,000,000, and **zero always lands on a gridline** — or a fixed `SetRange`; **negative values** hang below
 the baseline; **up to 4 series from the prompts** (8 from code) grouped, stacked or stacked-to-100; a
 **legend** bottom/top/right that wraps; markers (circle/square/diamond); **smooth** Catmull-Rom lines;
 values shown as numbers or **percentages**; category labels that thin themselves out rather than collide;

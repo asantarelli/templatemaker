@@ -379,7 +379,7 @@ SETTARGET()</pre>
     <tr><td>Title text</td><td>empty</td><td>Centered over the chart.</td></tr>
     <tr><td><b>Chart type</b></td><td>Column</td><td>The thirteen types above. Changing it changes nothing else &mdash; the same data draws as bars, a pie or a radar.</td></tr>
     <tr><td><b>Number of series</b></td><td>1</td><td>1 = a color per bar/slice, no legend needed. 2&ndash;4 = a color per series, a legend, and the extra value prompts appear on every data row.</td></tr>
-    <tr><td>Automatic scale</td><td>on</td><td>Nice round maximum (1/2/5 × 10<sup>k</sup>) from the data; untick for fixed Minimum/Maximum. When the data crosses zero the axis steps in nice units so zero lands on a gridline.</td></tr>
+    <tr><td>Automatic scale</td><td>on</td><td>The gap between two gridlines is sized to the data (1/2/2.5/5/10 × 10<sup>k</sup>) and the axis runs to the first whole step past it &mdash; so a maximum of 113,376,143 gets an axis of 125,000,000, not 200,000,000, and zero always lands on a gridline. Untick for a fixed Minimum/Maximum. <b>Scale/grid divisions is a ceiling, not an exact count</b>: every line has to fall on a whole step.</td></tr>
     <tr><td>Character width / height <i>(report only)</i></td><td>0 / 0</td><td>0 means 62 / 130 thousandths of an inch &mdash; a 9pt font on a <code>THOUS</code> report. Nudge them if your labels crowd or straggle.</td></tr>
   </table>
   <h3>Look</h3>
@@ -443,7 +443,7 @@ SETTARGET()</pre>
     <tr><td>Title text</td><td>vacío</td><td>Centrado sobre el gráfico.</td></tr>
     <tr><td><b>Chart type</b></td><td>Column</td><td>Los trece tipos de arriba. Cambiarlo no cambia nada más &mdash; los mismos datos se dibujan como barras, pastel o radar.</td></tr>
     <tr><td><b>Number of series</b></td><td>1</td><td>1 = un color por barra/porción, sin necesidad de leyenda. 2&ndash;4 = un color por serie, una leyenda, y aparecen los prompts de valor extra en cada fila de datos.</td></tr>
-    <tr><td>Automatic scale</td><td>on</td><td>Máximo redondo (1/2/5 × 10<sup>k</sup>) calculado de los datos; desmárcalo para fijar Mínimo/Máximo. Cuando los datos cruzan el cero, el eje avanza en pasos redondos para que el cero caiga en una línea de rejilla.</td></tr>
+    <tr><td>Automatic scale</td><td>on</td><td>El hueco entre dos líneas de rejilla se dimensiona según los datos (1/2/2,5/5/10 × 10<sup>k</sup>) y el eje llega hasta el primer paso entero que los pasa &mdash; así un máximo de 113.376.143 recibe un eje de 125.000.000 y no de 200.000.000, y el cero siempre cae en una línea. Desmárcalo para fijar Mínimo/Máximo. <b>Scale/grid divisions es un techo, no una cantidad exacta</b>: cada línea tiene que caer en un paso entero.</td></tr>
     <tr><td>Character width / height <i>(solo informe)</i></td><td>0 / 0</td><td>0 significa 62 / 130 milésimas de pulgada &mdash; una fuente de 9pt en un informe <code>THOUS</code>. Ajústalos si las etiquetas se aprietan o se separan.</td></tr>
   </table>
   <h3>Look</h3>

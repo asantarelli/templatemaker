@@ -110,7 +110,12 @@
       both off the same value axis. The line series takes no room in the category slot, so one bar series
       beside one line still draws full-width bars, and the legend keys it with a line rather than a block.
       <code>Chart:Column</code>, <code>Chart:Line</code> and <code>Chart:Scatter</code> only. A chart that
-      never calls it is untouched.</div>
+      never calls it is untouched.
+      <br><b>And a tighter axis.</b> The auto-scale now sizes the <i>step</i> between two gridlines and
+      runs the axis to the first whole step past the data, instead of rounding the top up to the next
+      1/2/5 magnitude. A maximum of 113,376,143 used to get an axis of 200,000,000 &mdash; every bar at
+      half height; it now gets 125,000,000. <b>Scale divisions became a ceiling rather than an exact
+      count</b>, because every gridline has to land on a whole step.</div>
     <div class="es"><b>Nuevo en v2.1 &mdash; barras y una línea en el mismo gráfico.</b> Ahora se le puede
       decir a una serie su propia forma, diga lo que diga <code>ChartType</code>:
       <code>Obj.SetSeriesPlot(2, Plot:Line)</code> dibuja la serie 2 como una línea sobre las barras de
@@ -118,7 +123,13 @@
       La serie de línea no ocupa lugar en la ranura de la categoría, así que una serie de barras al lado
       de una de línea sigue dibujando barras de ancho completo, y la leyenda la marca con una línea y no
       con un bloque. Solo <code>Chart:Column</code>, <code>Chart:Line</code> y <code>Chart:Scatter</code>.
-      Un gráfico que nunca la llama queda igual.</div>
+      Un gráfico que nunca la llama queda igual.
+      <br><b>Y un eje más ajustado.</b> La escala automática ahora dimensiona el <i>paso</i> entre dos
+      líneas de rejilla y lleva el eje hasta el primer paso entero que pasa los datos, en vez de
+      redondear el techo a la siguiente magnitud 1/2/5. Un máximo de 113.376.143 recibía un eje de
+      200.000.000 &mdash; todas las barras a media altura; ahora recibe 125.000.000. <b>Las divisiones
+      de escala pasaron a ser un techo y no una cantidad exacta</b>, porque cada línea tiene que caer en
+      un paso entero.</div>
   </div>
   <div class="note">
     <div class="en"><b>New in v2.0 &mdash; thirteen chart types.</b> One property, <code>ChartType</code>, switches

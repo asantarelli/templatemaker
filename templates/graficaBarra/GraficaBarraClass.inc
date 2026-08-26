@@ -184,6 +184,8 @@ Paint              PROCEDURE(SIGNED pFeq,BYTE pWindowMode=0)   ! paint into the 
                                                                ! EraseFirst=1 clears pFeq's rect beforehand.
 ! ---- internal: helpers ----------------------------------------------------
 NiceMax            PROCEDURE(REAL v),REAL                      ! round up to 1/2/5 x 10^k
+NiceStep           PROCEDURE(REAL v),REAL                     ! round up to 1/2/2.5/5/10 x 10^k:
+                                                               ! the gap BETWEEN two gridlines
 Palette            PROCEDURE(LONG i),LONG                      ! professional auto colors (cycles)
 FmtNum             PROCEDURE(REAL v,LONG dp),STRING
 SeriesCount        PROCEDURE(),LONG                            ! effective series count (never 0)

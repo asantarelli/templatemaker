@@ -187,6 +187,24 @@ f  REAL
   IF f <= 5 THEN RETURN 5 * m.
   RETURN 10 * m
 
+!  The gap between two gridlines, rounded UP to something a reader can add
+!  up in their head. 2.5 earns its rung here even though NiceMax does not
+!  have it: a step is divided into the axis, so 2.5 buys a tighter fit
+!  without ever printing an awkward number.
+GraficaBarraClass.NiceStep PROCEDURE(REAL v)
+m  REAL
+f  REAL
+  CODE
+  IF v <= 0 THEN RETURN 0.
+  m = 10 ^ INT(LOG10(v))
+  IF m > v THEN m = m / 10.                                  ! guard rounding on exact powers
+  f = v / m
+  IF f <= 1 THEN RETURN m.
+  IF f <= 2 THEN RETURN 2 * m.
+  IF f <= 2.5 THEN RETURN 2.5 * m.
+  IF f <= 5 THEN RETURN 5 * m.
+  RETURN 10 * m
+
 GraficaBarraClass.Palette PROCEDURE(LONG i)
 k  LONG
   CODE
@@ -629,7 +647,9 @@ txt   STRING(64)
   n = SELF.NBars
   ns = SELF.SeriesCount()
   ! ---- value axis range ----
+  IF SELF.GridDivs < 1 THEN SELF.GridDivs = 1.               ! the scale is derived from it: guard first
   SELF.zLo = SELF.MinVal; SELF.zHi = SELF.MaxVal
+  SELF.zDivs = SELF.GridDivs
   IF SELF.ChartType = Chart:Stacked100
     SELF.zLo = 0; SELF.zHi = 100
   ELSIF SELF.AutoScale = 1
@@ -648,21 +668,34 @@ txt   STRING(64)
         END
       END
     END
-    IF dmax > 0 THEN SELF.zHi = SELF.NiceMax(dmax) ELSE SELF.zHi = 0.
-    IF dmin < 0 THEN SELF.zLo = -SELF.NiceMax(-dmin) ELSE SELF.zLo = 0.
-  END
-  IF SELF.zHi <= SELF.zLo THEN SELF.zHi = SELF.zLo + 1.
-  IF SELF.GridDivs < 1 THEN SELF.GridDivs = 1.
-  SELF.zDivs = SELF.GridDivs
-  IF SELF.zLo < 0 AND SELF.zHi > 0                           ! both signs: put ZERO on a gridline by
-    stp = SELF.NiceMax((SELF.zHi - SELF.zLo) / SELF.GridDivs) ! stepping in nice units from zero out
+    !  THE STEP FIRST, THE BOUNDS SECOND. Rounding the TOP up to the next
+    !  1/2/5 magnitude throws away most of the plot whenever the data sits
+    !  just above one: a maximum of 113 million against an axis of 200 million
+    !  draws every bar at half height. Sizing the step to the divisions and
+    !  then taking the first multiple of it past the data keeps the round
+    !  numbers on the axis AND the bars at full height - 113 million gets an
+    !  axis of 125 million. It also puts zero on a gridline for free, because
+    !  both ends are whole multiples of the one step, which is what the
+    !  mixed-sign case used to need a second pass to arrange.
+    stp = SELF.NiceStep((dmax - dmin) / SELF.GridDivs)
     IF stp > 0
-      SELF.zHi = stp * INT((SELF.zHi - 0.000001) / stp + 1)
-      SELF.zLo = -stp * INT((-SELF.zLo - 0.000001) / stp + 1)
-      SELF.zDivs = INT((SELF.zHi - SELF.zLo) / stp + 0.5)
-      IF SELF.zDivs < 1 THEN SELF.zDivs = 1.
+      IF dmax > 0
+        SELF.zHi = stp * INT((dmax - stp/1000000) / stp + 1)  ! relative epsilon: a maximum that is
+      ELSE                                                   ! already on a step must not buy another
+        SELF.zHi = 0
+      END
+      IF dmin < 0
+        SELF.zLo = -stp * INT((-dmin - stp/1000000) / stp + 1)
+      ELSE
+        SELF.zLo = 0
+      END
+      IF SELF.zHi > SELF.zLo                                 ! GridDivs is now a CEILING on the
+        SELF.zDivs = INT((SELF.zHi - SELF.zLo) / stp + 0.5)  ! gridlines, not an exact count: every
+        IF SELF.zDivs < 1 THEN SELF.zDivs = 1.               ! line has to land on a whole step
+      END
     END
   END
+  IF SELF.zHi <= SELF.zLo THEN SELF.zHi = SELF.zLo + 1.
   ! ---- room for the axis furniture, inside the content rectangle ----
   lw = 0
   IF SELF.ShowScale = 1
