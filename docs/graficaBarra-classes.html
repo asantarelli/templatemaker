@@ -208,7 +208,7 @@
 
     <h3>Fixed storage, no allocation</h3>
     <p>All storage is <code>DIM</code>'d in the class, so one instance is a fixed block of about
-    <b>6.5&nbsp;KB</b>. That is the number to keep in mind if you <code>NEW</code> a dashboard's worth of
+    <b>7&nbsp;KB</b>. That is the number to keep in mind if you <code>NEW</code> a dashboard's worth of
     them.</p>
     <table>
       <tr><th>Equate</th><th>Value</th><th>What it caps</th></tr>
@@ -262,7 +262,7 @@
 
     <h3>Almacenamiento fijo, sin reservas</h3>
     <p>Todo el almacenamiento está <code>DIM</code>ensionado en la clase, así que una instancia es un
-    bloque fijo de unos <b>6,5&nbsp;KB</b>. Es la cifra a tener presente si hace <code>NEW</code> de
+    bloque fijo de unos <b>7&nbsp;KB</b>. Es la cifra a tener presente si hace <code>NEW</code> de
     varios para un tablero.</p>
     <table>
       <tr><th>Equate</th><th>Valor</th><th>Qué limita</th></tr>
@@ -3199,6 +3199,7 @@ MiGrafica.Standard <span class="k">PROCEDURE</span>(<span class="k">STRING</span
           scaffolding.</td></tr>
       <tr><td><code>%ProcedureRoutines</code></td>
         <td><code>Refresh:Obj ROUTINE</code> — the <code>ClearAll</code> / <code>AddSeries</code> /
+          <code>SetSeriesPlot</code> (only for a series whose <b>Draw as</b> was set) /
           <code>AddBar</code>&nbsp;·&nbsp;<code>AddCat</code> / <code>Draw</code> sequence. Call it
           yourself (<code>DO Refresh:Obj</code>) after your data changes.</td></tr>
     </table>
@@ -3247,7 +3248,7 @@ MiGrafica.Standard <span class="k">PROCEDURE</span>(<span class="k">STRING</span
           propio de ABC.</td></tr>
       <tr><td><code>%ProcedureRoutines</code></td>
         <td><code>Refresh:Obj ROUTINE</code> — la secuencia <code>ClearAll</code> /
-          <code>AddSeries</code> / <code>AddBar</code>&nbsp;·&nbsp;<code>AddCat</code> /
+          <code>AddSeries</code> / <code>SetSeriesPlot</code> (solo si se puso <b>Draw as</b>) / <code>AddBar</code>&nbsp;·&nbsp;<code>AddCat</code> /
           <code>Draw</code>. Llámela usted (<code>DO Refresh:Obj</code>) cuando cambien sus datos.</td></tr>
     </table>
     <h3>Extensión de informe</h3>
