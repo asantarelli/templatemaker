@@ -67,7 +67,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>graficaBarra</h1><span class="en">Developer's Reference · v2.0</span><span class="es">Referencia del desarrollador · v2.0</span></div>
+    <div class="brand"><h1>graficaBarra</h1><span class="en">Developer's Reference · v2.1</span><span class="es">Referencia del desarrollador · v2.1</span></div>
     <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
     <div class="grp"><span class="en">Concepts</span><span class="es">Conceptos</span></div>
     <a href="#how" class="h2"><span class="en">How the class works</span><span class="es">Cómo funciona la clase</span></a>
@@ -103,6 +103,23 @@
 
 <section id="over">
   <h2><span class="en">Overview</span><span class="es">Resumen</span></h2>
+  <div class="note">
+    <div class="en"><b>New in v2.1 &mdash; bars and a line on the one chart.</b> A series can now be told
+      its own shape, whatever <code>ChartType</code> says: <code>Obj.SetSeriesPlot(2, Plot:Line)</code>
+      draws series 2 as a line over the bars of the others &mdash; sales as columns, the trend as a line,
+      both off the same value axis. The line series takes no room in the category slot, so one bar series
+      beside one line still draws full-width bars, and the legend keys it with a line rather than a block.
+      <code>Chart:Column</code>, <code>Chart:Line</code> and <code>Chart:Scatter</code> only. A chart that
+      never calls it is untouched.</div>
+    <div class="es"><b>Nuevo en v2.1 &mdash; barras y una línea en el mismo gráfico.</b> Ahora se le puede
+      decir a una serie su propia forma, diga lo que diga <code>ChartType</code>:
+      <code>Obj.SetSeriesPlot(2, Plot:Line)</code> dibuja la serie 2 como una línea sobre las barras de
+      las demás &mdash; las ventas en columnas, la tendencia en línea, las dos del mismo eje de valores.
+      La serie de línea no ocupa lugar en la ranura de la categoría, así que una serie de barras al lado
+      de una de línea sigue dibujando barras de ancho completo, y la leyenda la marca con una línea y no
+      con un bloque. Solo <code>Chart:Column</code>, <code>Chart:Line</code> y <code>Chart:Scatter</code>.
+      Un gráfico que nunca la llama queda igual.</div>
+  </div>
   <div class="note">
     <div class="en"><b>New in v2.0 &mdash; thirteen chart types.</b> One property, <code>ChartType</code>, switches
       between <code>Chart:Column</code>, <code>Chart:Bar</code>, <code>Chart:StackedCol</code>,
@@ -522,8 +539,8 @@ Win WINDOW(<span class="s">'Demo'</span>),AT(,,320,220),SYSTEM,GRAY
 
     </div>
     <footer>
-      <span class="en">graficaBarra v2.0 · developer's reference · thirteen pure-Clarion chart types · part of the templatemaker collection</span>
-      <span class="es">graficaBarra v2.0 · referencia del desarrollador · trece tipos de gráfico en Clarion puro · parte de la colección templatemaker</span>
+      <span class="en">graficaBarra v2.1 · developer's reference · thirteen pure-Clarion chart types · part of the templatemaker collection</span>
+      <span class="es">graficaBarra v2.1 · referencia del desarrollador · trece tipos de gráfico en Clarion puro · parte de la colección templatemaker</span>
     </footer>
   </main>
 </div>

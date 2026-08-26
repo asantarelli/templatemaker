@@ -1,4 +1,4 @@
-#TEMPLATE(graficaBarra,'graficaBarra - Charts on windows and reports - v2.0'),FAMILY('ABC')
+#TEMPLATE(graficaBarra,'graficaBarra - Charts on windows and reports - v2.1'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  graficaBarra template set - THIRTEEN chart types drawn with native Clarion
 #!  graphics primitives (BOX / LINE / POLYGON / ELLIPSE / PIE / SHOW).
@@ -42,7 +42,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('graficaBarra')
-      #DISPLAY('graficaBarra Global - Version 2.0')
+      #DISPLAY('graficaBarra Global - Version 2.1')
       #DISPLAY('Adds the GraficaBarraClass chart renderer - 13 chart types,')
       #DISPLAY('on windows and on reports, drawn with native primitives.')
       #DISPLAY('Add once, at the Application (global) level. IMPORTANT: copy')
@@ -136,11 +136,17 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
   #TAB('&Series')
     #DISPLAY('Only needed when "Number of series" on the General tab is 2 or more.')
     #DISPLAY('The name is what the legend shows.')
+    #DISPLAY('"Draw as" mixes shapes on the one chart: leave sales on Bars and')
+    #DISPLAY('set the trend to Line, and the line is drawn OVER the bars, off')
+    #DISPLAY('the same value axis. Column, Line and Scatter charts only.')
     #BOXED('Series 1')
       #PROMPT('&Name:',@s32),%gbWS1Name,DEFAULT('Series 1')
       #PROMPT('Automatic &color',CHECK),%gbWS1Auto,DEFAULT(1),AT(10)
       #ENABLE(%gbWS1Auto=0)
         #PROMPT('C&olor:',COLOR),%gbWS1Color,DEFAULT(00B6752EH)
+      #ENDENABLE
+      #ENABLE(%gbWNSeries>=2 AND (%gbWType='Column' OR %gbWType='Line' OR %gbWType='Scatter'))
+        #PROMPT('&Draw as:',DROP('As the chart type|Bars|Line')),%gbWS1Plot,DEFAULT('As the chart type')
       #ENDENABLE
     #ENDBOXED
     #ENABLE(%gbWNSeries>=2)
@@ -149,6 +155,9 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
         #PROMPT('A&utomatic color',CHECK),%gbWS2Auto,DEFAULT(1),AT(10)
         #ENABLE(%gbWS2Auto=0)
           #PROMPT('Co&lor:',COLOR),%gbWS2Color,DEFAULT(00A4A62CH)
+        #ENDENABLE
+        #ENABLE(%gbWNSeries>=2 AND (%gbWType='Column' OR %gbWType='Line' OR %gbWType='Scatter'))
+          #PROMPT('D&raw as:',DROP('As the chart type|Bars|Line')),%gbWS2Plot,DEFAULT('As the chart type')
         #ENDENABLE
       #ENDBOXED
     #ENDENABLE
@@ -159,6 +168,9 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
         #ENABLE(%gbWS3Auto=0)
           #PROMPT('Col&or:',COLOR),%gbWS3Color,DEFAULT(003DA3E8H)
         #ENDENABLE
+        #ENABLE(%gbWNSeries>=2 AND (%gbWType='Column' OR %gbWType='Line' OR %gbWType='Scatter'))
+          #PROMPT('Dr&aw as:',DROP('As the chart type|Bars|Line')),%gbWS3Plot,DEFAULT('As the chart type')
+        #ENDENABLE
       #ENDBOXED
     #ENDENABLE
     #ENABLE(%gbWNSeries>=4)
@@ -167,6 +179,9 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
         #PROMPT('Automati&c color',CHECK),%gbWS4Auto,DEFAULT(1),AT(10)
         #ENABLE(%gbWS4Auto=0)
           #PROMPT('Colo&r:',COLOR),%gbWS4Color,DEFAULT(00794E1FH)
+        #ENDENABLE
+        #ENABLE(%gbWNSeries>=2 AND (%gbWType='Column' OR %gbWType='Line' OR %gbWType='Scatter'))
+          #PROMPT('Dra&w as:',DROP('As the chart type|Bars|Line')),%gbWS4Plot,DEFAULT('As the chart type')
         #ENDENABLE
       #ENDBOXED
     #ENDENABLE
@@ -334,11 +349,17 @@ Refresh:%gbWObject ROUTINE
   #ENDTAB
   #TAB('&Series')
     #DISPLAY('Only needed when "Number of series" on the General tab is 2 or more.')
+    #DISPLAY('"Draw as" mixes shapes on the one chart: leave sales on Bars and')
+    #DISPLAY('set the trend to Line, and the line is drawn OVER the bars, off')
+    #DISPLAY('the same value axis. Column, Line and Scatter charts only.')
     #BOXED('Series 1')
       #PROMPT('&Name:',@s32),%gbRS1Name,DEFAULT('Series 1')
       #PROMPT('Automatic &color',CHECK),%gbRS1Auto,DEFAULT(1),AT(10)
       #ENABLE(%gbRS1Auto=0)
         #PROMPT('C&olor:',COLOR),%gbRS1Color,DEFAULT(00B6752EH)
+      #ENDENABLE
+      #ENABLE(%gbRNSeries>=2 AND (%gbRType='Column' OR %gbRType='Line' OR %gbRType='Scatter'))
+        #PROMPT('&Draw as:',DROP('As the chart type|Bars|Line')),%gbRS1Plot,DEFAULT('As the chart type')
       #ENDENABLE
     #ENDBOXED
     #ENABLE(%gbRNSeries>=2)
@@ -347,6 +368,9 @@ Refresh:%gbWObject ROUTINE
         #PROMPT('A&utomatic color',CHECK),%gbRS2Auto,DEFAULT(1),AT(10)
         #ENABLE(%gbRS2Auto=0)
           #PROMPT('Co&lor:',COLOR),%gbRS2Color,DEFAULT(00A4A62CH)
+        #ENDENABLE
+        #ENABLE(%gbRNSeries>=2 AND (%gbRType='Column' OR %gbRType='Line' OR %gbRType='Scatter'))
+          #PROMPT('D&raw as:',DROP('As the chart type|Bars|Line')),%gbRS2Plot,DEFAULT('As the chart type')
         #ENDENABLE
       #ENDBOXED
     #ENDENABLE
@@ -357,6 +381,9 @@ Refresh:%gbWObject ROUTINE
         #ENABLE(%gbRS3Auto=0)
           #PROMPT('Col&or:',COLOR),%gbRS3Color,DEFAULT(003DA3E8H)
         #ENDENABLE
+        #ENABLE(%gbRNSeries>=2 AND (%gbRType='Column' OR %gbRType='Line' OR %gbRType='Scatter'))
+          #PROMPT('Dr&aw as:',DROP('As the chart type|Bars|Line')),%gbRS3Plot,DEFAULT('As the chart type')
+        #ENDENABLE
       #ENDBOXED
     #ENDENABLE
     #ENABLE(%gbRNSeries>=4)
@@ -365,6 +392,9 @@ Refresh:%gbWObject ROUTINE
         #PROMPT('Automati&c color',CHECK),%gbRS4Auto,DEFAULT(1),AT(10)
         #ENABLE(%gbRS4Auto=0)
           #PROMPT('Colo&r:',COLOR),%gbRS4Color,DEFAULT(00794E1FH)
+        #ENDENABLE
+        #ENABLE(%gbRNSeries>=2 AND (%gbRType='Column' OR %gbRType='Line' OR %gbRType='Scatter'))
+          #PROMPT('Dra&w as:',DROP('As the chart type|Bars|Line')),%gbRS4Plot,DEFAULT('As the chart type')
         #ENDENABLE
       #ENDBOXED
     #ENDENABLE
@@ -486,6 +516,14 @@ Refresh:%gbWObject ROUTINE
 #ELSE
   %gbRObject.AddSeries('%gbRS4Name')
 #ENDIF
+#ENDIF
+#INSERT(%gbEmitPlot,%gbRObject,1,%gbRS1Plot)
+#INSERT(%gbEmitPlot,%gbRObject,2,%gbRS2Plot)
+#IF(%gbRNSeries>=3)
+#INSERT(%gbEmitPlot,%gbRObject,3,%gbRS3Plot)
+#ENDIF
+#IF(%gbRNSeries>=4)
+#INSERT(%gbEmitPlot,%gbRObject,4,%gbRS4Plot)
 #ENDIF
 #FOR(%gbRBar)
 #INSERT(%gbSetValueArgs,%gbRBarIsExpr,%gbRBarValue,%gbRBarField,%gbRNSeries,%gbRBarV2,%gbRBarV3,%gbRBarV4,%Args)
@@ -616,6 +654,20 @@ Refresh:%gbWObject ROUTINE
 #!  either the literal or the expression (as in v1); series 2..4 are always
 #!  free text, so a number and a field name both work. %Args comes back
 #!  empty when the row has nothing usable in it - the caller then skips it.
+#!
+#!  One series' shape, for a combo: bars for sales, a line for the trend.
+#!  Nothing is emitted for 'As the chart type', so an application generated
+#!  before this prompt existed generates exactly the code it did before.
+#!  The indent is two literal spaces rather than a parameter: a value that
+#!  opened the line would put the object name in column 1 if it ever came
+#!  through empty, and column 1 is where Clarion reads a LABEL.
+#GROUP(%gbEmitPlot,%pObject,%pSeries,%pPlot)
+#IF(%pPlot = 'Bars')
+  %pObject.SetSeriesPlot(%pSeries, Plot:Bar)
+#ELSIF(%pPlot = 'Line')
+  %pObject.SetSeriesPlot(%pSeries, Plot:Line)
+#ENDIF
+#!
 #GROUP(%gbSetValueArgs,%pIsExpr,%pValue,%pField,%pNSeries,%pV2,%pV3,%pV4,*%pArgs)
 #IF(%pIsExpr)
 #SET(%pArgs,CLIP(%pField))
@@ -725,6 +777,14 @@ Refresh:%gbWObject ROUTINE
 #ELSE
     %gbWObject.AddSeries('%gbWS4Name')
 #ENDIF
+#ENDIF
+#INSERT(%gbEmitPlot,%gbWObject,1,%gbWS1Plot)
+#INSERT(%gbEmitPlot,%gbWObject,2,%gbWS2Plot)
+#IF(%gbWNSeries>=3)
+#INSERT(%gbEmitPlot,%gbWObject,3,%gbWS3Plot)
+#ENDIF
+#IF(%gbWNSeries>=4)
+#INSERT(%gbEmitPlot,%gbWObject,4,%gbWS4Plot)
 #ENDIF
 #FOR(%gbWBar)
 #INSERT(%gbSetValueArgs,%gbWBarIsExpr,%gbWBarValue,%gbWBarField,%gbWNSeries,%gbWBarV2,%gbWBarV3,%gbWBarV4,%Args)

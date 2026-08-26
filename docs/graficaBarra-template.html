@@ -72,7 +72,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <div class="brand"><h1>graficaBarra</h1><span class="en">Programmer's Documentation · v2.0</span><span class="es">Documentación del programador · v2.0</span></div>
+    <div class="brand"><h1>graficaBarra</h1><span class="en">Programmer's Documentation · v2.1</span><span class="es">Documentación del programador · v2.1</span></div>
     <a href="#over"><span class="en">Overview</span><span class="es">Resumen</span></a>
     <div class="grp"><span class="en">Using it</span><span class="es">Cómo usarlo</span></div>
     <a href="#install" class="h2"><span class="en">Install &amp; register</span><span class="es">Instalar y registrar</span></a>
@@ -403,6 +403,16 @@ SETTARGET()</pre>
   <h3>Series</h3>
   <p>Only used when <b>Number of series</b> is 2 or more: a <b>name</b> (what the legend shows) and a
   <b>color</b> (automatic palette, or pick one) for each of up to four series.</p>
+  <p><b>Draw as</b> (new in v2.1) is what makes a <b>combo</b>: it says whether that one series is
+  drawn as <b>Bars</b> or as a <b>Line</b>, whatever the chart type says. Leave the sales series on
+  <i>As the chart type</i> and set the trend series to <b>Line</b>, and the line is drawn <b>over</b>
+  the bars &mdash; both read the same value axis, so the trend has to be in the same units as the bars.
+  The line series takes no room in the category slot: with one bar series and one line the bars are
+  full width, exactly as they are on a one-series chart. The legend keys a line series with a line and
+  its marker rather than a block. The prompt appears on <b>Column</b>, <b>Line</b> and <b>Scatter</b>
+  charts only &mdash; a stack has nothing to overlay, a horizontal bar chart has no vertical line
+  painter, and a pie is not a cartesian chart at all. Left alone it emits nothing, so an application
+  generated before v2.1 generates exactly the code it did before.</p>
   <h3>Data</h3>
   <p>An ordered list &mdash; one row per bar, point or slice, left to right. Per row: <b>Label</b>,
   <b>Value</b> for series 1 (a literal number, or tick the box and give a variable / field / expression),
@@ -448,6 +458,17 @@ SETTARGET()</pre>
   <h3>Series</h3>
   <p>Solo se usa cuando <b>Number of series</b> es 2 o más: un <b>nombre</b> (lo que muestra la leyenda) y un
   <b>color</b> (paleta automática, o el que elijas) para cada una de hasta cuatro series.</p>
+  <p><b>Draw as</b> (nuevo en v2.1) es lo que arma un <b>combo</b>: dice si esa serie se dibuja como
+  <b>Bars</b> o como <b>Line</b>, diga lo que diga el tipo de gráfico. Dejá la serie de ventas en
+  <i>As the chart type</i> y poné la serie de tendencia en <b>Line</b>, y la línea se dibuja
+  <b>encima</b> de las barras &mdash; las dos leen el mismo eje de valores, así que la tendencia tiene
+  que estar en las mismas unidades que las barras. La serie de línea no ocupa lugar en la ranura de la
+  categoría: con una serie de barras y una de línea, las barras salen del ancho completo, igual que en
+  un gráfico de una sola serie. La leyenda marca una serie de línea con una línea y su marcador, no con
+  un bloque. El prompt aparece solo en <b>Column</b>, <b>Line</b> y <b>Scatter</b> &mdash; una pila no
+  tiene nada que superponer, un gráfico de barras horizontales no tiene pintor de líneas verticales, y
+  un pastel no es un gráfico cartesiano. Si no lo tocás no emite nada, así que una aplicación generada
+  antes de la v2.1 genera exactamente el mismo código que antes.</p>
   <h3>Data</h3>
   <p>Una lista ordenada &mdash; una fila por barra, punto o porción, de izquierda a derecha. Por fila:
   <b>Label</b>, <b>Value</b> de la serie 1 (un número literal, o marca la casilla y pon una variable /
@@ -647,8 +668,8 @@ DO Refresh:Graph1                        <span class="c">! recargar los datos de
     </section>
 
     </div>
-    <footer><span class="en">graficaBarra v2.0 · thirteen pure-Clarion chart types · windows + reports (vector PDF) · part of the templatemaker collection</span>
-      <span class="es">graficaBarra v2.0 · trece tipos de gráfico en Clarion puro · ventanas + informes (PDF vectorial) · parte de la colección templatemaker</span></footer>
+    <footer><span class="en">graficaBarra v2.1 · thirteen pure-Clarion chart types · windows + reports (vector PDF) · part of the templatemaker collection</span>
+      <span class="es">graficaBarra v2.1 · trece tipos de gráfico en Clarion puro · ventanas + informes (PDF vectorial) · parte de la colección templatemaker</span></footer>
   </main>
 </div>
 <script>

@@ -21,6 +21,12 @@
 !    Chart:Donut        pie with a hole (optional text in the middle)
 !    Chart:Radar        spider / radar web
 !
+!  AND ANY COMBINATION OF BARS AND LINES. A series may be told how it is
+!  drawn, whatever the chart type says:  Obj.SetSeriesPlot(2, Plot:Line)
+!  draws series 2 as a line over the bars of the others - sales as columns
+!  and the trend as a line, on the one value axis, which is the shape a
+!  Clarion LIST has never been able to give you.
+!
 !  USAGE (handled by the graficaBarra template, or call it yourself):
 !    INCLUDE('GraficaBarraClass.INC'),ONCE     then declare one per graph:
 !      Ventas  GraficaBarraClass
@@ -36,6 +42,13 @@
 !    Ventas.AddSeries('Sur')                   ! series 2
 !    Ventas.AddCat('Ene', 120, 80)             ! one category, one value each
 !    Ventas.AddCat('Feb',  95, 60)
+!
+!    ! --- a combo: bars for one series, a line for the other ---------------
+!    Ventas.ChartType = Chart:Column           ! bars, for the series that
+!    Ventas.AddSeries('Ventas')                !   say nothing
+!    Ventas.AddSeries('Tendencia')
+!    Ventas.SetSeriesPlot(2, Plot:Line)        ! ...but this one is a line
+!    Ventas.AddCat('Ene', 120, 118)            ! both read the same axis
 !
 !    Ventas.Draw(MyWindow, ?Graph)             ! window: draw into the IMAGE
 !    ! report (per band):
@@ -74,6 +87,11 @@ Chart:Pie          EQUATE(9)
 Chart:Pie3D        EQUATE(10)
 Chart:Donut        EQUATE(11)
 Chart:Radar        EQUATE(12)
+
+! ---- how one series is drawn (combos) --------------------------------------
+Plot:Default       EQUATE(0)                                   ! whatever ChartType says
+Plot:Bar           EQUATE(1)                                   ! this series is a bar
+Plot:Line          EQUATE(2)                                   ! this series is a line
 
 ! ---- legend placement ------------------------------------------------------
 Legend:Bottom      EQUATE(0)
@@ -140,6 +158,7 @@ BarColor           LONG,DIM(GraficaBarra:MaxBars)              ! -1 (COLOR:None)
 NSeries            LONG                                        ! 0/1 = one series, up to MaxSeries
 SeriesName         STRING(32),DIM(GraficaBarra:MaxSeries)
 SeriesColor        LONG,DIM(GraficaBarra:MaxSeries)            ! -1 (COLOR:None) = auto palette
+SeriesPlot         LONG,DIM(GraficaBarra:MaxSeries)            ! Plot:Default / Plot:Bar / Plot:Line
 SeriesValue        REAL,DIM(GraficaBarra:MaxSeries2,GraficaBarra:MaxBars) ! series 2..8
 
 ! ---- methods: data --------------------------------------------------------
@@ -149,7 +168,9 @@ ClearAll           PROCEDURE                                   ! drop the catego
                                                                ! it does not un-draw a chart already on the page;
                                                                ! EraseFirst (default 1) does that at Paint time.
 AddBar             PROCEDURE(STRING pLabel,REAL pValue,LONG pColor=-1)
-AddSeries          PROCEDURE(STRING pName,LONG pColor=-1),LONG,PROC ! returns the series number
+AddSeries          PROCEDURE(STRING pName,LONG pColor=-1,LONG pPlot=0),LONG,PROC ! returns the series number
+SetSeriesPlot      PROCEDURE(LONG pSeries,LONG pPlot)          ! Plot:Bar / Plot:Line for one series;
+                                                               ! Plot:Default hands it back to ChartType
 AddCat             PROCEDURE(STRING pLabel,REAL v1,REAL v2=0,REAL v3=0,REAL v4=0,REAL v5=0,REAL v6=0,REAL v7=0,REAL v8=0)
 SetValue           PROCEDURE(LONG pSeries,LONG pCat,REAL pValue)
 GetValue           PROCEDURE(LONG pSeries,LONG pCat),REAL
@@ -166,6 +187,10 @@ NiceMax            PROCEDURE(REAL v),REAL                      ! round up to 1/2
 Palette            PROCEDURE(LONG i),LONG                      ! professional auto colors (cycles)
 FmtNum             PROCEDURE(REAL v,LONG dp),STRING
 SeriesCount        PROCEDURE(),LONG                            ! effective series count (never 0)
+PlotOf             PROCEDURE(LONG pSeries),LONG                ! Plot:Bar or Plot:Line, resolved
+IsCombo            PROCEDURE(),BYTE                            ! 1 = the series are not all one shape
+BarSeriesCount     PROCEDURE(),LONG                            ! how many series are drawn as bars
+BarSeriesIndex     PROCEDURE(LONG pSeries),LONG                ! its place among them (0 = not a bar)
 ColorOf            PROCEDURE(LONG pSeries,LONG pCat),LONG      ! resolved fill color
 IsStacked          PROCEDURE(),BYTE
 IsHorizontal       PROCEDURE(),BYTE
@@ -187,6 +212,8 @@ TextAt             PROCEDURE(LONG px,LONG py,STRING pTxt,LONG pColor)
 TextMid            PROCEDURE(LONG px,LONG py,STRING pTxt,LONG pColor)  ! px = the CENTER of the text
 FillBox            PROCEDURE(LONG px,LONG py,LONG pw,LONG ph,LONG pColor)
 Marker             PROCEDURE(LONG px,LONG py,LONG pColor)
+LegendKey          PROCEDURE(LONG px,LONG py,LONG pw,LONG pSeries,LONG pColor) ! the legend's swatch:
+                                                               ! a block, or a line for a line series
 PolyStart          PROCEDURE
 PolyAdd            PROCEDURE(LONG px,LONG py)
 PolyDraw           PROCEDURE(LONG pFill)

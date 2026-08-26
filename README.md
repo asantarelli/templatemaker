@@ -672,6 +672,19 @@ values shown as numbers or **percentages**; category labels that thin themselves
 a 12-color professional palette or explicit colors; optional painted background, plot area and bar/slice
 outlines. An empty data list draws **sample data suited to the chart type** — a built-in self-test.
 
+**v2.1 adds the combo: bars and a line on the one chart.** A series can be told its own shape, whatever
+the chart type says — `Obj.SetSeriesPlot(2, Plot:Line)`, or the **Draw as** prompt on the Series tab —
+and the line is drawn **over** the bars, off the same value axis. Sales as columns, the trend as a line,
+which is the shape a Clarion `LIST` has never been able to give you. The line series **takes no room in
+the category slot**, so one bar series beside one line still draws full-width bars rather than squeezing
+them into half a slot for a series that is not drawn there, and the legend keys it with a line and its
+marker instead of a block. `Column`, `Line` and `Scatter` only — a stack has nothing to overlay, a
+horizontal bar chart has no vertical line painter, and a pie is not a cartesian chart at all. A chart
+that never sets it takes exactly the code path it took before, so every existing application is
+untouched.
+
+![bars and a line on one chart](docs/graficaBarra-combo.png)
+
 The report path is still the point: **graficaBarraReport** draws **straight into the band as vector
 primitives** under `SETTARGET(Report)` at `%BeforePrint` — never a bitmap — so a **PDF export stays as
 small as possible**. Pie/3D pie/donut ride on Clarion's own `PIE` statement and areas and radar webs on
@@ -700,8 +713,9 @@ values). Three registrations:
 **graficaBarraGlobal** (include the class once), **graficaBarra** (window), **graficaBarraReport** (report).
 Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
 [`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy
-distribution. `examples/graficaBarra/` has three runnable demos: **ChartDemo** (pick a type, watch it draw),
-**ChartShots** (six charts per page, `ChartShots 1|2|3`) and **ReportClear** — a headless report that writes
+distribution. `examples/graficaBarra/` has four runnable demos: **ChartDemo** (pick a type, watch it draw),
+**ChartShots** (six charts per page, `ChartShots 1|2|3`), **ComboChart** (the bars-plus-line combo, three
+ways) and **ReportClear** — a headless report that writes
 its pages out as metafiles: `ReportClear` paints, clears and repaints into one placeholder page by page,
 `ReportClear 2` compares the candidate fixes, and `ReportClear 3` walks the report with `PROP:NextField`
 and logs a control census (the count never moves — a chart is ink, not controls). Full docs — prompts, class API, run-time
