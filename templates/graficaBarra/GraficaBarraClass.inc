@@ -50,6 +50,11 @@
 !    Ventas.SetSeriesPlot(2, Plot:Line)        ! ...but this one is a line
 !    Ventas.AddCat('Ene', 120, 118)            ! both read the same axis
 !
+!    ! --- a bar with no line point on it -----------------------------------
+!    Ventas.AddCat('Prm.', 93400000, 0)        ! the average: a bar, but the
+!    Ventas.SetNoValue(2, Ventas.NBars)        !   trend has nothing to say
+!                                              !   there, so the line stops
+!
 !    Ventas.Draw(MyWindow, ?Graph)             ! window: draw into the IMAGE
 !    ! report (per band):
 !    !   SETTARGET(MyReport, ?Band) ; Ventas.Paint(?Placeholder) ; SETTARGET()
@@ -160,6 +165,9 @@ SeriesName         STRING(32),DIM(GraficaBarra:MaxSeries)
 SeriesColor        LONG,DIM(GraficaBarra:MaxSeries)            ! -1 (COLOR:None) = auto palette
 SeriesPlot         LONG,DIM(GraficaBarra:MaxSeries)            ! Plot:Default / Plot:Bar / Plot:Line
 SeriesValue        REAL,DIM(GraficaBarra:MaxSeries2,GraficaBarra:MaxBars) ! series 2..8
+NoVal              BYTE,DIM(GraficaBarra:MaxSeries,GraficaBarra:MaxBars)  ! 1 = this cell has NO value:
+                                                               ! the category is there, this series has
+                                                               ! nothing to say about it. See SetNoValue
 
 ! ---- methods: data --------------------------------------------------------
 Construct          PROCEDURE
@@ -172,8 +180,13 @@ AddSeries          PROCEDURE(STRING pName,LONG pColor=-1,LONG pPlot=0),LONG,PROC
 SetSeriesPlot      PROCEDURE(LONG pSeries,LONG pPlot)          ! Plot:Bar / Plot:Line for one series;
                                                                ! Plot:Default hands it back to ChartType
 AddCat             PROCEDURE(STRING pLabel,REAL v1,REAL v2=0,REAL v3=0,REAL v4=0,REAL v5=0,REAL v6=0,REAL v7=0,REAL v8=0)
-SetValue           PROCEDURE(LONG pSeries,LONG pCat,REAL pValue)
-GetValue           PROCEDURE(LONG pSeries,LONG pCat),REAL
+SetValue           PROCEDURE(LONG pSeries,LONG pCat,REAL pValue)  ! also clears NoVal for that cell
+SetNoValue         PROCEDURE(LONG pSeries,LONG pCat)           ! that cell has nothing to draw: the bar
+                                                               ! is skipped and the LINE BREAKS rather
+                                                               ! than diving to zero. A trend that stops
+                                                               ! short of an average bar is the case.
+GetValue           PROCEDURE(LONG pSeries,LONG pCat),REAL      ! 0 for a cell with no value
+HasValue           PROCEDURE(LONG pSeries,LONG pCat),BYTE      ! 0 = skip this point
 SetRange           PROCEDURE(REAL pMin,REAL pMax)              ! fixed scale (sets AutoScale=0)
 Demo               PROCEDURE                                   ! sample data suited to ChartType (self-test)
 ! ---- methods: drawing -----------------------------------------------------

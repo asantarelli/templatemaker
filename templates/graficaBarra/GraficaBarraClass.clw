@@ -49,6 +49,8 @@ i  LONG
     SELF.SeriesColor[i] = COLOR:None
     SELF.SeriesPlot[i] = Plot:Default
   END
+  SELF.ClearBars()                                           ! and the cells, so a local object cannot
+                                                             ! open with stack rubbish in NoVal
 
 GraficaBarraClass.ClearBars PROCEDURE()
 s  LONG
@@ -63,6 +65,11 @@ i  LONG
   LOOP s = 1 TO GraficaBarra:MaxSeries2                      ! the extra series share the categories
     LOOP i = 1 TO GraficaBarra:MaxBars
       SELF.SeriesValue[s,i] = 0
+    END
+  END
+  LOOP s = 1 TO GraficaBarra:MaxSeries                       ! every cell has a value again
+    LOOP i = 1 TO GraficaBarra:MaxBars
+      SELF.NoVal[s,i] = 0
     END
   END
 
@@ -127,11 +134,30 @@ GraficaBarraClass.SetValue PROCEDURE(LONG pSeries,LONG pCat,REAL pValue)
   IF pSeries < 1 OR pSeries > GraficaBarra:MaxSeries THEN RETURN.
   IF pSeries > SELF.NSeries THEN SELF.NSeries = pSeries.
   IF pCat > SELF.NBars THEN SELF.NBars = pCat.
+  SELF.NoVal[pSeries,pCat] = 0                               ! giving it a value gives it back
   IF pSeries = 1
     SELF.BarValue[pCat] = pValue
   ELSE
     SELF.SeriesValue[pSeries-1,pCat] = pValue
   END
+
+!  A category the whole chart shows, that ONE series has nothing to say about.
+!  The bar is not drawn and the line BREAKS at it rather than diving to zero -
+!  a trend that must stop short of an average bar at the end of the row is the
+!  case that asks for it. Honoured by the bar and line painters; a stack, an
+!  area, a pie and a radar all read the cell as a plain zero.
+GraficaBarraClass.SetNoValue PROCEDURE(LONG pSeries,LONG pCat)
+  CODE
+  IF pCat < 1 OR pCat > GraficaBarra:MaxBars THEN RETURN.
+  IF pSeries < 1 OR pSeries > GraficaBarra:MaxSeries THEN RETURN.
+  SELF.NoVal[pSeries,pCat] = 1
+
+GraficaBarraClass.HasValue PROCEDURE(LONG pSeries,LONG pCat)
+  CODE
+  IF pCat < 1 OR pCat > GraficaBarra:MaxBars THEN RETURN 0.
+  IF pSeries < 1 OR pSeries > GraficaBarra:MaxSeries THEN RETURN 0.
+  IF SELF.NoVal[pSeries,pCat] = 1 THEN RETURN 0.
+  RETURN 1
 
 GraficaBarraClass.GetValue PROCEDURE(LONG pSeries,LONG pCat)
   CODE
@@ -662,6 +688,7 @@ txt   STRING(64)
     ELSE
       LOOP i = 1 TO n
         LOOP s = 1 TO ns
+          IF SELF.HasValue(s, i) = 0 THEN CYCLE.             ! not drawn, so it cannot size the axis
           v = SELF.GetValue(s, i)
           IF v < dmin THEN dmin = v.
           IF v > dmax THEN dmax = v.
@@ -877,6 +904,8 @@ txt   STRING(64)
     LOOP s = 1 TO ns
       k = SELF.BarSeriesIndex(s)
       IF k < 1 THEN CYCLE.                                   ! a line: PaintLine draws this one
+      IF SELF.HasValue(s, i) = 0 THEN CYCLE.                 ! nothing to say here: no bar, but the
+                                                             ! slot stays so the categories line up
       v = SELF.GetValue(s, i)
       c = SELF.ColorOf(s, i)
       IF SELF.IsHorizontal()
@@ -1014,6 +1043,7 @@ txt   STRING(64)
 GraficaBarraClass.PaintLine PROCEDURE(LONG pSeries)
 i     LONG
 n     LONG
+run   LONG
 i0    LONG
 i3    LONG
 t8    LONG
@@ -1048,11 +1078,15 @@ txt   STRING(64)
     SETPENWIDTH(SELF.LineWidth * SELF.zSc)
     SETPENCOLOR(c)
     IF SELF.Smooth = 1 AND n > 2                             ! Catmull-Rom through the points
-      lastx = INT(SELF.zPX + slot * 0.5)
-      lasty = SELF.VY(SELF.GetValue(pSeries, 1))
-      LOOP i = 1 TO n - 1
-        i0 = i - 1; IF i0 < 1 THEN i0 = 1.
-        i3 = i + 2; IF i3 > n THEN i3 = n.
+      LOOP i = 1 TO n - 1                                    ! one curve per segment, primed from its
+        IF SELF.HasValue(pSeries, i) = 0 THEN CYCLE.         ! own left end, so a gap simply skips a
+        IF SELF.HasValue(pSeries, i+1) = 0 THEN CYCLE.       ! segment and the curve breaks there
+        lastx = INT(SELF.zPX + slot * (i - 0.5))
+        lasty = SELF.VY(SELF.GetValue(pSeries, i))
+        i0 = i - 1; IF i0 < 1 THEN i0 = 1.                   ! the two control points fall back to the
+        IF SELF.HasValue(pSeries, i0) = 0 THEN i0 = i.       ! segment's own ends when the neighbour
+        i3 = i + 2; IF i3 > n THEN i3 = n.                   ! next door has nothing in it
+        IF SELF.HasValue(pSeries, i3) = 0 THEN i3 = i + 1.
         x0 = SELF.zPX + slot * (i0 - 0.5); y0 = SELF.VY(SELF.GetValue(pSeries, i0))
         x1 = SELF.zPX + slot * (i - 0.5);  y1 = SELF.VY(SELF.GetValue(pSeries, i))
         x2 = SELF.zPX + slot * (i + 0.5);  y2 = SELF.VY(SELF.GetValue(pSeries, i+1))
@@ -1066,17 +1100,23 @@ txt   STRING(64)
         END
       END
     ELSE
+      run = 0                                                ! 0 = the next point starts a fresh run
       LOOP i = 1 TO n
+        IF SELF.HasValue(pSeries, i) = 0
+          run = 0                                            ! a gap: no segment across it, and the
+          CYCLE                                              ! point after it does not join back
+        END
         cx = INT(SELF.zPX + slot * (i - 0.5))
         cy = SELF.VY(SELF.GetValue(pSeries, i))
-        IF i > 1 THEN LINE(lastx, lasty, cx - lastx, cy - lasty).
-        lastx = cx; lasty = cy
+        IF run = 1 THEN LINE(lastx, lasty, cx - lastx, cy - lasty).
+        lastx = cx; lasty = cy; run = 1
       END
     END
     SETPENWIDTH(SELF.zSc)
   END
   ! ---- markers and values ----
   LOOP i = 1 TO n
+    IF SELF.HasValue(pSeries, i) = 0 THEN CYCLE.             ! no point, so no dot and no number
     cx = INT(SELF.zPX + slot * (i - 0.5))
     cy = SELF.VY(SELF.GetValue(pSeries, i))
     IF SELF.ShowMarkers = 1 OR SELF.ChartType = Chart:Scatter
