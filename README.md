@@ -664,13 +664,33 @@ just work. Pick the shape with one property — `Obj.ChartType = Chart:Donut`.
 
 ![thirteen chart types](docs/graficaBarra-demo.png)
 
-Highlights: automatic **"nice" scale** (max rounds up to 1/2/5×10ᵏ, and when the data crosses zero the axis
-steps in nice units so **zero lands on a gridline**) or a fixed `SetRange`; **negative values** hang below
+Highlights: automatic **"nice" scale** — the gap between two gridlines is sized to the data (1/2/2.5/5/10×10ᵏ)
+and the axis runs to the first whole step past it, so a maximum of 113,376,143 gets an axis of 125,000,000
+rather than 200,000,000, and **zero always lands on a gridline** — or a fixed `SetRange`; **negative values** hang below
 the baseline; **up to 4 series from the prompts** (8 from code) grouped, stacked or stacked-to-100; a
 **legend** bottom/top/right that wraps; markers (circle/square/diamond); **smooth** Catmull-Rom lines;
 values shown as numbers or **percentages**; category labels that thin themselves out rather than collide;
 a 12-color professional palette or explicit colors; optional painted background, plot area and bar/slice
 outlines. An empty data list draws **sample data suited to the chart type** — a built-in self-test.
+
+**v2.1 adds the combo: bars and a line on the one chart.** A series can be told its own shape, whatever
+the chart type says — `Obj.SetSeriesPlot(2, Plot:Line)`, or the **Draw as** prompt on the Series tab —
+and the line is drawn **over** the bars, off the same value axis. Sales as columns, the trend as a line,
+which is the shape a Clarion `LIST` has never been able to give you. The line series **takes no room in
+the category slot**, so one bar series beside one line still draws full-width bars rather than squeezing
+them into half a slot for a series that is not drawn there, and the legend keys it with a line and its
+marker instead of a block. `Column`, `Line` and `Scatter` only — a stack has nothing to overlay, a
+horizontal bar chart has no vertical line painter, and a pie is not a cartesian chart at all. A chart
+that never sets it takes exactly the code path it took before, so every existing application is
+untouched. The chart also gets **its own type** — `FontName`, `FontSize`, `FontStyle`, or the Typeface /
+Size / Bold / Italic prompts — and a **size scales the layout with it**, so labels keep their spacing and
+thin themselves out instead of colliding. A cell can also be told it has **no value** — `Obj.SetNoValue(2, Obj.NBars)` — and that series
+draws no bar there and **breaks its line** rather than diving to zero: the shape you need for a row of
+periods with an **average** bar on the end, which belongs on the chart but has no place on a trend. The prompts now live on **six tabs** rather than four: *Look* had grown to thirty prompts in
+five groups and had stopped fitting on screen, so it splits into what is **shown**, the **shapes** that
+draw it, and the **colors**.
+
+![bars and a line on one chart](docs/graficaBarra-combo.png)
 
 The report path is still the point: **graficaBarraReport** draws **straight into the band as vector
 primitives** under `SETTARGET(Report)` at `%BeforePrint` — never a bitmap — so a **PDF export stays as
@@ -700,8 +720,9 @@ values). Three registrations:
 **graficaBarraGlobal** (include the class once), **graficaBarra** (window), **graficaBarraReport** (report).
 Copy `GraficaBarraClass.inc` + `.clw` (ANSI) to the redirection path —
 [`graficaBarra.zip`](templates/graficaBarra/graficaBarra.zip) bundles all three files for easy
-distribution. `examples/graficaBarra/` has three runnable demos: **ChartDemo** (pick a type, watch it draw),
-**ChartShots** (six charts per page, `ChartShots 1|2|3`) and **ReportClear** — a headless report that writes
+distribution. `examples/graficaBarra/` has four runnable demos: **ChartDemo** (pick a type, watch it draw),
+**ChartShots** (six charts per page, `ChartShots 1|2|3`), **ComboChart** (the bars-plus-line combo, three
+ways) and **ReportClear** — a headless report that writes
 its pages out as metafiles: `ReportClear` paints, clears and repaints into one placeholder page by page,
 `ReportClear 2` compares the candidate fixes, and `ReportClear 3` walks the report with `PROP:NextField`
 and logs a control census (the count never moves — a chart is ink, not controls). Full docs — prompts, class API, run-time
