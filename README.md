@@ -585,6 +585,14 @@ The prompts now live on **seven tabs** rather than four — the content had stop
 split by what things share rather than by size: *Heading menu* holds filtering and auto-fit together
 because both hang off the same tick.
 
+**What v1.25 fixes.** The page size counted one row too many whenever the horizontal scrollbar was
+showing. `d2g_PageSize` was the only one of the functions that measure the row area which did not take
+the bar off it, and the Clarion side sizes the browse through exactly that call &mdash; `BG:Items` asks how
+many rows fit and sets the `LIST` line height so ABC loads that many. One too many meant the last record
+was loaded, drawn, and then clipped away behind the bar: selectable with the arrow key and impossible to
+see. The **Overlay** style was never affected, because that bar floats over the rows and takes no height
+from anything.
+
 Measured on a real application: a fill costs **under 200 µs** — 1.2 % of a 60 Hz frame — and the generated
 code makes **three file accesses**, none of them on the drawing path. The one to know about is *Filter by
 value*, which scans the file sequentially in the foreground; it can be taken off the menu from the prompts.

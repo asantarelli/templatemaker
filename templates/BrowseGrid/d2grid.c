@@ -1,6 +1,6 @@
 /* ============================================================================
  *  d2grid.c - a grid drawn with Direct2D and DirectWrite, for Clarion.
- *  v1.24 - it ships with the BrowseGrid template of the same number, and the
+ *  v1.25 - it ships with the BrowseGrid template of the same number, and the
  *  two are versioned together because the template declares every export here.
  *
  *  WHY. Clarion's LIST is drawn by the runtime and looks it. This draws every
@@ -1209,7 +1209,18 @@ int d2g_PageSize(int h) {
     if (!c || !IsWindow(c->hwnd)) return 0;
     GetClientRect(c->hwnd, &r);
     if (c->rowH < 1) return 0;
-    return (int)((r.bottom - r.top - c->hdrH - c->footH) / c->rowH);
+    /* The horizontal bar takes its height off the rows, exactly as d2g_Draw
+       does ("the rows stop above one"), as d2g_HitRow does when it decides a
+       point is in the footer, and as d2g_VGeom does when it measures the
+       trough. This was the one of the four that did not, and the Clarion side
+       sizes the browse through it: BG:Items asks how many rows fit and sets
+       the LIST line height so ABC loads that many. One too many meant the
+       last record was loaded, drawn, and then clipped away behind the bar -
+       selectable with the arrow key and impossible to see.
+       barTakes is 0 for the overlay style, which floats over the rows and
+       therefore takes nothing, so this costs that style nothing. */
+    return (int)((r.bottom - r.top - c->hdrH - c->footH
+                  - (c->hBar ? barTakes(c) : 0)) / c->rowH);
 }
 
 /* which row and column a point landed on; row is absolute, -1 for the header */

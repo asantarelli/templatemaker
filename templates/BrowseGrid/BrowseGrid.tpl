@@ -1,4 +1,4 @@
-#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.24'),FAMILY('ABC')
+#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.25'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  BrowseGrid  -  a browse that does not look like 1995.
 #!
@@ -34,7 +34,7 @@
 #SHEET
   #TAB('General')
     #BOXED('BrowseGrid')
-      #DISPLAY('BrowseGrid - Version 1.24')
+      #DISPLAY('BrowseGrid - Version 1.25')
       #DISPLAY('Draws an ABC browse with Direct2D and DirectWrite instead of')
       #DISPLAY('the runtime LIST, without touching the browse underneath.')
       #DISPLAY('')
