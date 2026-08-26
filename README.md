@@ -670,7 +670,7 @@ ANSI class, **`GraficaBarraClass`**, holds the data (up to 48 categories × 8 se
 and the look, and renders itself; every chart is its **own local object**, so several per window or report
 just work. Pick the shape with one property — `Obj.ChartType = Chart:Donut`.
 
-![thirteen chart types](docs/graficaBarra-demo.png)
+![ChartDemo: pick a type from the list and watch it draw](docs/graficaBarra-demo.png)
 
 Highlights: automatic **"nice" scale** — the gap between two gridlines is sized to the data (1/2/2.5/5/10×10ᵏ)
 and the axis runs to the first whole step past it, so a maximum of 113,376,143 gets an axis of 125,000,000
@@ -680,6 +680,32 @@ the baseline; **up to 4 series from the prompts** (8 from code) grouped, stacked
 values shown as numbers or **percentages**; category labels that thin themselves out rather than collide;
 a 12-color professional palette or explicit colors; optional painted background, plot area and bar/slice
 outlines. An empty data list draws **sample data suited to the chart type** — a built-in self-test.
+
+**All thirteen, six to a page.** The `ChartShots` demo paints six charts on one window — `ChartShots 1|2|3`
+— which is what the whole family looks like drawn by the same class, from the same data, with nothing but
+Clarion primitives. Every shot below is re-taken under v2.1, so the axes are the ones the current scale
+picks:
+
+![Column, horizontal bar, stacked column, stacked bar, 100% stacked and line](docs/graficaBarra-types1.png)
+
+*Page 1 — the bar family and the line.* **Column** and **Bar (horizontal)** off the same six values;
+**Stacked column** and **Stacked bar** with three series summing into one; **100% stacked**, where the same
+three series are re-cast as percentages and the axis is always 0–100; and **Line** with circle markers and
+its values called out.
+
+![Area, stacked area, scatter, pie, 3D pie and donut](docs/graficaBarra-types2.png)
+
+*Page 2 — areas and the round ones.* **Area** and **Stacked area** filled with `POLYGON`; **Scatter**, the
+line's markers with the line taken away; and **Pie**, **3D pie** and **Donut**, all three on Clarion's own
+`PIE` statement — the donut's hole carrying the total, and the slice name outside the ring with its value or
+percentage inside.
+
+![Radar, grouped columns with the legend at the right, negative values, smooth lines, two decimals and forty bars](docs/graficaBarra-types3.png)
+
+*Page 3 — the awkward cases.* **Radar** on a six-spoke web; **grouped columns** with the legend moved to the
+right; **negative values** hanging below a baseline that stays on a gridline; **smooth** two-series
+Catmull-Rom lines; a picture with **two decimals and no gridlines**; and **forty bars**, where the category
+labels thin themselves out to every third one rather than collide.
 
 **v2.1 adds the combo: bars and a line on the one chart.** A series can be told its own shape, whatever
 the chart type says — `Obj.SetSeriesPlot(2, Plot:Line)`, or the **Draw as** prompt on the Series tab —
