@@ -554,7 +554,7 @@ holding up. Mouse wheel scrolls, **Ctrl+wheel resizes the type** (6 to 32 point,
 line height following it), long text **wraps** onto up to four lines, and a diagnostics prompt puts what the
 grid is working from into the window title, because a browse that draws nothing looks identical whether the
 queue was empty, the rows were too tall, or the columns were never read.
-**What v1.25 adds.** A **totals row** that sums *every record the browse shows* &mdash; filter and range
+**What v1.24 adds.** A **totals row** that sums *every record the browse shows* &mdash; filter and range
 included, not the page on screen &mdash; with the columns to total proposed by their picture and corrected
 by the user from the Columns dialog. **Find text…**: a string, matched case-insensitively across this
 column or every column, numeric columns compared by value. A **check-box column**, drawn rather than
@@ -584,6 +584,14 @@ look-ahead at 0 no file is touched.** A hidden column stays hidden, and widths a
 The prompts now live on **seven tabs** rather than four — the content had stopped fitting on screen —
 split by what things share rather than by size: *Heading menu* holds filtering and auto-fit together
 because both hang off the same tick.
+
+**What v1.25 fixes.** The page size counted one row too many whenever the horizontal scrollbar was
+showing. `d2g_PageSize` was the only one of the functions that measure the row area which did not take
+the bar off it, and the Clarion side sizes the browse through exactly that call &mdash; `BG:Items` asks how
+many rows fit and sets the `LIST` line height so ABC loads that many. One too many meant the last record
+was loaded, drawn, and then clipped away behind the bar: selectable with the arrow key and impossible to
+see. The **Overlay** style was never affected, because that bar floats over the rows and takes no height
+from anything.
 
 Measured on a real application: a fill costs **under 200 µs** — 1.2 % of a 60 Hz frame — and the generated
 code makes **three file accesses**, none of them on the drawing path. The one to know about is *Filter by
