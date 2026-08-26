@@ -101,6 +101,8 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
         #PROMPT('&Where:',DROP('Bottom|Right|Top')),%gbWLegendPos,DEFAULT('Bottom')
       #ENDENABLE
     #ENDBOXED
+  #ENDTAB
+  #TAB('Sha&pes')
     #BOXED('Bars, lines and markers')
       #PROMPT('Gap between bars (%% of a slot):',SPIN(@n3,0,90,5)),%gbWGapPct,DEFAULT(30)
       #PROMPT('Line &thickness:',SPIN(@n2,1,9,1)),%gbWLineWidth,DEFAULT(2)
@@ -115,6 +117,8 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
       #PROMPT('Donut hole (percent of the diameter):',SPIN(@n3,10,90,5)),%gbWDonutPct,DEFAULT(55)
       #PROMPT('Text in the middle of the donut:',@s32),%gbWDonutText,DEFAULT('')
     #ENDBOXED
+  #ENDTAB
+  #TAB('&Colors')
     #BOXED('Colors')
       #PROMPT('Paint the &background',CHECK),%gbWUseBack,DEFAULT(0),AT(10)
       #ENABLE(%gbWUseBack=1)
@@ -135,10 +139,8 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
   #ENDTAB
   #TAB('&Series')
     #DISPLAY('Only needed when "Number of series" on the General tab is 2 or more.')
-    #DISPLAY('The name is what the legend shows.')
-    #DISPLAY('"Draw as" mixes shapes on the one chart: leave sales on Bars and')
-    #DISPLAY('set the trend to Line, and the line is drawn OVER the bars, off')
-    #DISPLAY('the same value axis. Column, Line and Scatter charts only.')
+    #DISPLAY('The name is what the legend shows. "Draw as" mixes shapes on the one')
+    #DISPLAY('chart - sales on Bars, the trend on Line, over the same value axis.')
     #BOXED('Series 1')
       #PROMPT('&Name:',@s32),%gbWS1Name,DEFAULT('Series 1')
       #PROMPT('Automatic &color',CHECK),%gbWS1Auto,DEFAULT(1),AT(10)
@@ -315,6 +317,8 @@ Refresh:%gbWObject ROUTINE
         #PROMPT('&Where:',DROP('Bottom|Right|Top')),%gbRLegendPos,DEFAULT('Bottom')
       #ENDENABLE
     #ENDBOXED
+  #ENDTAB
+  #TAB('Sha&pes')
     #BOXED('Bars, lines and markers')
       #PROMPT('Gap between bars (%% of a slot):',SPIN(@n3,0,90,5)),%gbRGapPct,DEFAULT(30)
       #PROMPT('Line &thickness:',SPIN(@n2,1,9,1)),%gbRLineWidth,DEFAULT(2)
@@ -329,6 +333,8 @@ Refresh:%gbWObject ROUTINE
       #PROMPT('Donut hole (percent of the diameter):',SPIN(@n3,10,90,5)),%gbRDonutPct,DEFAULT(55)
       #PROMPT('Text in the middle of the donut:',@s32),%gbRDonutText,DEFAULT('')
     #ENDBOXED
+  #ENDTAB
+  #TAB('&Colors')
     #BOXED('Colors')
       #PROMPT('Paint the &background',CHECK),%gbRUseBack,DEFAULT(0),AT(10)
       #ENABLE(%gbRUseBack=1)
@@ -349,9 +355,8 @@ Refresh:%gbWObject ROUTINE
   #ENDTAB
   #TAB('&Series')
     #DISPLAY('Only needed when "Number of series" on the General tab is 2 or more.')
-    #DISPLAY('"Draw as" mixes shapes on the one chart: leave sales on Bars and')
-    #DISPLAY('set the trend to Line, and the line is drawn OVER the bars, off')
-    #DISPLAY('the same value axis. Column, Line and Scatter charts only.')
+    #DISPLAY('"Draw as" mixes shapes on the one chart - sales on Bars, the trend')
+    #DISPLAY('on Line, over the same value axis. Column, Line and Scatter only.')
     #BOXED('Series 1')
       #PROMPT('&Name:',@s32),%gbRS1Name,DEFAULT('Series 1')
       #PROMPT('Automatic &color',CHECK),%gbRS1Auto,DEFAULT(1),AT(10)

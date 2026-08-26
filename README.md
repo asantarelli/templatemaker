@@ -681,7 +681,9 @@ them into half a slot for a series that is not drawn there, and the legend keys 
 marker instead of a block. `Column`, `Line` and `Scatter` only — a stack has nothing to overlay, a
 horizontal bar chart has no vertical line painter, and a pie is not a cartesian chart at all. A chart
 that never sets it takes exactly the code path it took before, so every existing application is
-untouched.
+untouched. The prompts now live on **six tabs** rather than four: *Look* had grown to thirty prompts in
+five groups and had stopped fitting on screen, so it splits into what is **shown**, the **shapes** that
+draw it, and the **colors**.
 
 ![bars and a line on one chart](docs/graficaBarra-combo.png)
 

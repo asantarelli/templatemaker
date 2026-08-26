@@ -383,6 +383,7 @@ SETTARGET()</pre>
     <tr><td>Character width / height <i>(report only)</i></td><td>0 / 0</td><td>0 means 62 / 130 thousandths of an inch &mdash; a 9pt font on a <code>THOUS</code> report. Nudge them if your labels crowd or straggle.</td></tr>
   </table>
   <h3>Look</h3>
+  <p class="lead">Three tabs since v2.1 &mdash; the old single <b>Look</b> tab had thirty prompts and had stopped fitting on screen.</p>
   <table>
     <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
     <tr><td>Show values / decimals</td><td>on / 0</td><td>The number on each bar, point or slice (above a positive bar, below a negative one, inside a stack segment).</td></tr>
@@ -392,12 +393,20 @@ SETTARGET()</pre>
     <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Lines across the plot; rings on a radar.</td></tr>
     <tr><td>Show the axis and the zero line</td><td>on</td><td>The value axis plus the baseline through zero.</td></tr>
     <tr><td>Show a legend / where</td><td>on / Bottom</td><td>Bottom, Top or Right. Drawn only when it says something: series names when there are 2+ series, slice names on a pie. Wraps onto up to three rows.</td></tr>
+  </table>
+  <h3>Shapes</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
     <tr><td>Gap between bars</td><td>30</td><td>Percent of one category slot. With several series the remainder is split between them.</td></tr>
     <tr><td>Line thickness / Smooth</td><td>2 / off</td><td>Pen width for line, area and radar outlines. Smooth rounds the corners off with a Catmull-Rom curve.</td></tr>
     <tr><td>Markers / shape / size</td><td>on / Circle / 0</td><td>Dots on line and area charts (always drawn for Scatter). Size 0 = three quarters of the text height.</td></tr>
     <tr><td>First slice starts at</td><td>0</td><td>Degrees clockwise from twelve o'clock (pie, 3D pie, donut).</td></tr>
     <tr><td>3D depth</td><td>0</td><td>Edge depth for <code>Pie 3D</code>; 0 = an eighth of the height.</td></tr>
     <tr><td>Donut hole / middle text</td><td>55 / empty</td><td>Hole as a percent of the diameter, and an optional caption in the middle.</td></tr>
+  </table>
+  <h3>Colors</h3>
+  <table>
+    <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
     <tr><td>Colors</td><td>near-black axis/text, light-gray grid</td><td>Optional painted background and plot area, plus an optional outline around every bar and slice (white looks good on a pie). All colors are Clarion BGR longs.</td></tr>
   </table>
   <h3>Series</h3>
@@ -438,6 +447,7 @@ SETTARGET()</pre>
     <tr><td>Character width / height <i>(solo informe)</i></td><td>0 / 0</td><td>0 significa 62 / 130 milésimas de pulgada &mdash; una fuente de 9pt en un informe <code>THOUS</code>. Ajústalos si las etiquetas se aprietan o se separan.</td></tr>
   </table>
   <h3>Look</h3>
+  <p class="lead">Tres solapas desde la v2.1 &mdash; la vieja solapa <b>Look</b> tenía treinta prompts y había dejado de entrar en pantalla.</p>
   <table>
     <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
     <tr><td>Show values / decimals</td><td>on / 0</td><td>El número en cada barra, punto o porción (encima de una barra positiva, debajo de una negativa, dentro del tramo de una pila).</td></tr>
@@ -447,12 +457,20 @@ SETTARGET()</pre>
     <tr><td>Show gridlines / divisions</td><td>on / 5</td><td>Líneas a lo ancho del área de dibujo; anillos en un radar.</td></tr>
     <tr><td>Show the axis and the zero line</td><td>on</td><td>El eje de valores más la línea base del cero.</td></tr>
     <tr><td>Show a legend / where</td><td>on / Bottom</td><td>Abajo, arriba o a la derecha. Solo se dibuja cuando aporta algo: los nombres de las series si hay 2 o más, o los de las porciones en un pastel. Se reparte en hasta tres filas.</td></tr>
+  </table>
+  <h3>Shapes</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
     <tr><td>Gap between bars</td><td>30</td><td>Porcentaje del hueco de una categoría. Con varias series, lo que queda se reparte entre ellas.</td></tr>
     <tr><td>Line thickness / Smooth</td><td>2 / off</td><td>Grosor del trazo de líneas, áreas y contornos del radar. Smooth redondea las esquinas con una curva Catmull-Rom.</td></tr>
     <tr><td>Markers / shape / size</td><td>on / Circle / 0</td><td>Puntos en líneas y áreas (siempre se dibujan en Scatter). Tamaño 0 = tres cuartos de la altura del texto.</td></tr>
     <tr><td>First slice starts at</td><td>0</td><td>Grados en sentido horario desde las doce (pastel, pastel 3D, dona).</td></tr>
     <tr><td>3D depth</td><td>0</td><td>Profundidad del canto en <code>Pie 3D</code>; 0 = un octavo de la altura.</td></tr>
     <tr><td>Donut hole / middle text</td><td>55 / vacío</td><td>El agujero como porcentaje del diámetro, y un texto opcional en el centro.</td></tr>
+  </table>
+  <h3>Colors</h3>
+  <table>
+    <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
     <tr><td>Colors</td><td>eje/texto casi negro, rejilla gris claro</td><td>Fondo y área de dibujo pintados opcionalmente, más un contorno opcional en cada barra y porción (el blanco queda bien en un pastel). Todos los colores son longs BGR de Clarion.</td></tr>
   </table>
   <h3>Series</h3>
