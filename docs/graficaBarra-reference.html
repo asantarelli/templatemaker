@@ -119,7 +119,12 @@
       <br><b>And cells with no value.</b> <code>Obj.SetNoValue(series, category)</code> says one series has
       nothing to say about one category: no bar, no marker, and the line <b>breaks</b> there instead of
       diving to zero. A row of periods with an average bar on the end is the case — the bar belongs on the
-      chart, the trend does not run out to it.</div>
+      chart, the trend does not run out to it.
+      <br><b>And its own type.</b> <code>FontName</code>, <code>FontSize</code> and
+      <code>FontStyle</code> draw the chart's labels in a font of its own — <code>SETFONT</code> on the
+      drawing target is the window's font, so the chart puts its type on, draws, and hands the target's
+      own back before <code>Paint</code> returns. A <code>FontSize</code> <b>also scales the layout</b>,
+      because nothing on the chart is measured from the real font.</div>
     <div class="es"><b>Nuevo en v2.1 &mdash; barras y una línea en el mismo gráfico.</b> Ahora se le puede
       decir a una serie su propia forma, diga lo que diga <code>ChartType</code>:
       <code>Obj.SetSeriesPlot(2, Plot:Line)</code> dibuja la serie 2 como una línea sobre las barras de
@@ -137,7 +142,12 @@
       <br><b>Y celdas sin valor.</b> <code>Obj.SetNoValue(serie, categoría)</code> dice que una serie no
       tiene nada que decir de una categoría: sin barra, sin marcador, y la línea <b>se corta</b> ahí en vez
       de caer a cero. Una fila de períodos con una barra de promedio al final es el caso — la barra va en
-      el gráfico, la tendencia no llega hasta ella.</div>
+      el gráfico, la tendencia no llega hasta ella.
+      <br><b>Y su propia tipografía.</b> <code>FontName</code>, <code>FontSize</code> y
+      <code>FontStyle</code> dibujan las etiquetas del gráfico con una fuente propia — <code>SETFONT</code>
+      sobre el destino es la fuente de la ventana, así que el gráfico pone la suya, dibuja, y devuelve la
+      del destino antes de que <code>Paint</code> termine. Un <code>FontSize</code> <b>además escala la
+      maquetación</b>, porque nada del gráfico se mide de la fuente real.</div>
   </div>
   <div class="note">
     <div class="en"><b>New in v2.0 &mdash; thirteen chart types.</b> One property, <code>ChartType</code>, switches

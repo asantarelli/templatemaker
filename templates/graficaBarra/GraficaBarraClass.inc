@@ -130,6 +130,11 @@ LineWidth          LONG                                        ! pen width for L
 Smooth             BYTE                                        ! Line / Area: round the corners off
 Percent            BYTE                                        ! show values as a % of the total (pie / stacks)
 ColorText          BYTE                                        ! 1 = re-color text with SETFONT (0 = target's font)
+! ---- the chart's own type (blank / 0 = whatever the target is using) ----
+FontName           CSTRING(32)                                 ! typeface for every label on this chart
+FontSize           LONG                                        ! points. ALSO scales TextW/TextH when they
+                                                               ! are 0, so the layout follows the type
+FontStyle          LONG                                        ! FONT:regular / FONT:bold / ...
 ! ---- pie / donut / radar ----
 Depth3D            LONG                                        ! Chart:Pie3D edge depth (0 = auto)
 DonutPct           LONG                                        ! Chart:Donut hole, % of the diameter (default 55)
@@ -142,8 +147,10 @@ MinVal             REAL                                        ! used when AutoS
 MaxVal             REAL
 ! ---- layout ----
 BarGapPct          LONG                                        ! gap between bars, percent of one slot
-TextW              LONG                                        ! char cell width override (0 = auto per target)
-TextH              LONG                                        ! char cell height override (0 = auto per target)
+TextW              LONG                                        ! char cell override. 0 = work it out: 4 x 9
+TextH              LONG                                        ! dialog units on a window, 62 x 130 thousandths
+                                                               ! on a report, both scaled by FontSize / 9 when
+                                                               ! a FontSize was asked for
 EraseFirst         BYTE                                        ! 1 (default) = Paint clears its own rectangle
                                                                ! before drawing. 0 = draw ON TOP of whatever is
                                                                ! already there (deliberate overlays).

@@ -118,7 +118,15 @@ INCLUDE('GraficaBarraClass.INC'),ONCE
       #PROMPT('Text in the middle of the donut:',@s32),%gbWDonutText,DEFAULT('')
     #ENDBOXED
   #ENDTAB
-  #TAB('&Colors')
+  #TAB('Te&xt && colors')
+    #BOXED('Type')
+      #DISPLAY('Blank / 0 = draw with whatever font the target is using.')
+      #DISPLAY('A size also scales the layout, so labels keep their spacing.')
+      #PROMPT('&Typeface (blank = the window''s):',@s32),%gbWFontName,DEFAULT('')
+      #PROMPT('Si&ze (0 = the window''s):',SPIN(@n3,0,72,1)),%gbWFontSize,DEFAULT(0)
+      #PROMPT('&Bold',CHECK),%gbWFontBold,DEFAULT(0),AT(10)
+      #PROMPT('&Italic',CHECK),%gbWFontItalic,DEFAULT(0),AT(10)
+    #ENDBOXED
     #BOXED('Colors')
       #PROMPT('Paint the &background',CHECK),%gbWUseBack,DEFAULT(0),AT(10)
       #ENABLE(%gbWUseBack=1)
@@ -334,7 +342,15 @@ Refresh:%gbWObject ROUTINE
       #PROMPT('Text in the middle of the donut:',@s32),%gbRDonutText,DEFAULT('')
     #ENDBOXED
   #ENDTAB
-  #TAB('&Colors')
+  #TAB('Te&xt && colors')
+    #BOXED('Type')
+      #DISPLAY('Blank / 0 = draw with whatever font the target is using.')
+      #DISPLAY('A size also scales the layout, so labels keep their spacing.')
+      #PROMPT('&Typeface (blank = the band''s):',@s32),%gbRFontName,DEFAULT('')
+      #PROMPT('Si&ze (0 = the band''s):',SPIN(@n3,0,72,1)),%gbRFontSize,DEFAULT(0)
+      #PROMPT('&Bold',CHECK),%gbRFontBold,DEFAULT(0),AT(10)
+      #PROMPT('&Italic',CHECK),%gbRFontItalic,DEFAULT(0),AT(10)
+    #ENDBOXED
     #BOXED('Colors')
       #PROMPT('Paint the &background',CHECK),%gbRUseBack,DEFAULT(0),AT(10)
       #ENABLE(%gbRUseBack=1)
@@ -488,6 +504,7 @@ Refresh:%gbWObject ROUTINE
   %gbRObject.AxisColor = %gbRAxisColor
   %gbRObject.GridColor = %gbRGridColor
   %gbRObject.TextColor = %gbRTextColor
+#INSERT(%gbEmitFont,%gbRObject,%gbRFontName,%gbRFontSize,%gbRFontBold,%gbRFontItalic)
 #IF(%gbRUseBorder)
   %gbRObject.BarBorderColor = %gbRBorderColor
 #ENDIF
@@ -666,6 +683,23 @@ Refresh:%gbWObject ROUTINE
 #!  The indent is two literal spaces rather than a parameter: a value that
 #!  opened the line would put the object name in column 1 if it ever came
 #!  through empty, and column 1 is where Clarion reads a LABEL.
+#!  The chart's own type. Nothing is emitted for blank / 0, so a chart that
+#!  says nothing keeps drawing with the target's font exactly as before.
+#GROUP(%gbEmitFont,%pObject,%pName,%pSize,%pBold,%pItalic)
+#IF(%pName)
+  %pObject.FontName = '%pName'
+#ENDIF
+#IF(%pSize)
+  %pObject.FontSize = %pSize
+#ENDIF
+#IF(%pBold AND %pItalic)
+  %pObject.FontStyle = FONT:bold + FONT:italic
+#ELSIF(%pBold)
+  %pObject.FontStyle = FONT:bold
+#ELSIF(%pItalic)
+  %pObject.FontStyle = FONT:regular + FONT:italic
+#ENDIF
+#!
 #GROUP(%gbEmitPlot,%pObject,%pSeries,%pPlot)
 #IF(%pPlot = 'Bars')
   %pObject.SetSeriesPlot(%pSeries, Plot:Bar)
@@ -744,6 +778,7 @@ Refresh:%gbWObject ROUTINE
     %gbWObject.AxisColor = %gbWAxisColor
     %gbWObject.GridColor = %gbWGridColor
     %gbWObject.TextColor = %gbWTextColor
+#INSERT(%gbEmitFont,%gbWObject,%gbWFontName,%gbWFontSize,%gbWFontBold,%gbWFontItalic)
 #IF(%gbWUseBorder)
     %gbWObject.BarBorderColor = %gbWBorderColor
 #ENDIF

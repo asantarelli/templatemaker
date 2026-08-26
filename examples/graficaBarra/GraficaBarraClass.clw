@@ -29,6 +29,7 @@ i  LONG
   SELF.LineWidth = 2;  SELF.Smooth = 0
   SELF.Percent = 0
   SELF.ColorText = 1
+  SELF.FontName = ''; SELF.FontSize = 0; SELF.FontStyle = 0    ! the target's own type, until told otherwise
   SELF.Depth3D = 0;    SELF.DonutPct = 55; SELF.DonutText = ''
   SELF.HoleColor = COLOR:None
   SELF.StartAngle = 0
@@ -498,6 +499,13 @@ GraficaBarraClass.VX PROCEDURE(REAL v)
 
 !=== Paint - set the stage, then hand over to the right painter =============
 GraficaBarraClass.Paint PROCEDURE(SIGNED pFeq,BYTE pWindowMode=0)
+oFont  CSTRING(64)                                           ! the type the target came with, so it can
+oSize  LONG                                                  ! be handed back untouched at the end
+oColor LONG
+oStyle LONG
+oChar  LONG
+fSwap  LONG                                                  ! 1 = this chart put its own type on
+pt     LONG                                                  ! points the layout is being measured for
 x      LONG
 y      LONG
 w      LONG
@@ -509,30 +517,61 @@ maxlen LONG
 totw   LONG
 avail  LONG
 rows   LONG
-dummy  LONG
 saved  LONG
 ex     LONG
 ey     LONG
 txt    STRING(64)
   CODE
-  GETPOSITION(pFeq, x, y, w, h)
   SELF.zFeq = pFeq
   SELF.zWin = pWindowMode
+  ! ---- the type ----------------------------------------------------------
+  !  SETFONT on the target is the WINDOW's font - there is no separate channel
+  !  for one control - so this chart's type goes on, the chart is drawn, and the
+  !  target's own type is handed back before Paint returns. Measured: twenty
+  !  swaps in a row move no control by a pixel and raise no EVENT:Sized, so the
+  !  window cannot be walked into a redraw loop by it.
+  SELF.zFont = ''; SELF.zFSize = 0; SELF.zFStyle = 0; SELF.zFChar = 0
+  fSwap = 0
+  IF SELF.ColorText = 1 OR SELF.FontName OR SELF.FontSize > 0 OR SELF.FontStyle > 0
+    oFont = ''; oSize = 0; oColor = 0; oStyle = 0; oChar = 0
+    GETFONT(0, oFont, oSize, oColor, oStyle, oChar)
+    SELF.zFont = oFont; SELF.zFSize = oSize
+    SELF.zFStyle = oStyle; SELF.zFChar = oChar
+    IF SELF.FontName THEN SELF.zFont = SELF.FontName.        ! each one overrides on its own, so a
+    IF SELF.FontSize > 0 THEN SELF.zFSize = SELF.FontSize.   ! size alone keeps the target's typeface
+    IF SELF.FontStyle > 0 THEN SELF.zFStyle = SELF.FontStyle.
+    IF SELF.zFont <> oFont OR SELF.zFSize <> oSize OR SELF.zFStyle <> oStyle
+      SETFONT(0, SELF.zFont, SELF.zFSize, oColor, SELF.zFStyle, SELF.zFChar)
+      fSwap = 1
+    END
+  END
+  !  MEASURE AFTER THE SWAP, never before. A dialog unit is a fraction of the
+  !  window's character cell, so changing the type changes the unit itself -
+  !  a rectangle read at 9 point and then drawn at 14 overflows its control,
+  !  and at 6 point it draws into a corner of it.
+  GETPOSITION(pFeq, x, y, w, h)
   ! ---- text metrics: dialog units on a window, 1/1000 inch on a report ----
+  !  The 4 x 9 and 62 x 130 pairs are what roughly a 9-point font measures, so
+  !  a chart that asked for a size scales them by it. Nothing is measured from
+  !  the real font: every label position on the chart comes off these two.
+  pt = 9
+  IF SELF.FontSize > 0 THEN pt = SELF.FontSize.
   IF SELF.TextW > 0
     SELF.zCW = SELF.TextW
   ELSIF pWindowMode
-    SELF.zCW = 4                                             ! a dialog unit is 1/4 of a char cell
+    SELF.zCW = INT(4 * pt / 9 + 0.5)                         ! a dialog unit is 1/4 of a char cell
   ELSE
-    SELF.zCW = 62                                            ! 9pt on a THOUS report: ~0.062 inch
+    SELF.zCW = INT(62 * pt / 9 + 0.5)                        ! 9pt on a THOUS report: ~0.062 inch
   END
+  IF SELF.zCW < 1 THEN SELF.zCW = 1.
   IF SELF.TextH > 0
     SELF.zCH = SELF.TextH
   ELSIF pWindowMode
-    SELF.zCH = 9
+    SELF.zCH = INT(9 * pt / 9 + 0.5)
   ELSE
-    SELF.zCH = 130
+    SELF.zCH = INT(130 * pt / 9 + 0.5)
   END
+  IF SELF.zCH < 1 THEN SELF.zCH = 1.
   SELF.zPad = INT(SELF.zCH / 4); IF SELF.zPad < 1 THEN SELF.zPad = 1.
   SELF.zSc = INT(SELF.zCH / 9);  IF SELF.zSc < 1 THEN SELF.zSc = 1.
   ! ---- wipe what was here before -----------------------------------------
@@ -551,12 +590,6 @@ txt    STRING(64)
     BLANK(ex, ey, x + w + SELF.zPad - ex, y + h + SELF.zPad - ey)
   END
   SELF.zX = x; SELF.zY = y; SELF.zW = w; SELF.zH = h
-  ! ---- remember the target's own font so text can be re-colored ----
-  SELF.zFont = ''; SELF.zFSize = 0; SELF.zFStyle = 0; SELF.zFChar = 0
-  dummy = 0
-  IF SELF.ColorText = 1
-    GETFONT(0, SELF.zFont, SELF.zFSize, dummy, SELF.zFStyle, SELF.zFChar)
-  END
   SELF.zLastColor = -2                                       ! nothing set yet
   SETPENWIDTH(SELF.zSc)
   SETPENSTYLE()
@@ -638,8 +671,10 @@ txt    STRING(64)
     SELF.PaintCartesian()
   END
   SELF.PaintLegend()
-  IF SELF.ColorText = 1 AND SELF.zFont                       ! hand the target back the font color it came with
-    SETFONT(0, SELF.zFont, SELF.zFSize, dummy, SELF.zFStyle, SELF.zFChar)
+  IF fSwap = 1                                               ! this chart's type off, the target's back on
+    SETFONT(0, oFont, oSize, oColor, oStyle, oChar)
+  ELSIF SELF.ColorText = 1 AND SELF.zFont                    ! only the color was ever changed: put it back
+    SETFONT(0, SELF.zFont, SELF.zFSize, oColor, SELF.zFStyle, SELF.zFChar)
   END
 
 GraficaBarraClass.Draw PROCEDURE(WINDOW pWin,SIGNED pImageFeq)

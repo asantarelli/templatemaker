@@ -682,7 +682,9 @@ them into half a slot for a series that is not drawn there, and the legend keys 
 marker instead of a block. `Column`, `Line` and `Scatter` only — a stack has nothing to overlay, a
 horizontal bar chart has no vertical line painter, and a pie is not a cartesian chart at all. A chart
 that never sets it takes exactly the code path it took before, so every existing application is
-untouched. A cell can also be told it has **no value** — `Obj.SetNoValue(2, Obj.NBars)` — and that series
+untouched. The chart also gets **its own type** — `FontName`, `FontSize`, `FontStyle`, or the Typeface /
+Size / Bold / Italic prompts — and a **size scales the layout with it**, so labels keep their spacing and
+thin themselves out instead of colliding. A cell can also be told it has **no value** — `Obj.SetNoValue(2, Obj.NBars)` — and that series
 draws no bar there and **breaks its line** rather than diving to zero: the shape you need for a row of
 periods with an **average** bar on the end, which belongs on the chart but has no place on a trend. The prompts now live on **six tabs** rather than four: *Look* had grown to thirty prompts in
 five groups and had stopped fitting on screen, so it splits into what is **shown**, the **shapes** that

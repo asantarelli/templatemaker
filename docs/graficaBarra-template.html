@@ -404,9 +404,12 @@ SETTARGET()</pre>
     <tr><td>3D depth</td><td>0</td><td>Edge depth for <code>Pie 3D</code>; 0 = an eighth of the height.</td></tr>
     <tr><td>Donut hole / middle text</td><td>55 / empty</td><td>Hole as a percent of the diameter, and an optional caption in the middle.</td></tr>
   </table>
-  <h3>Colors</h3>
+  <h3>Text &amp; colors</h3>
   <table>
     <tr><th>Prompt</th><th>Default</th><th>Notes</th></tr>
+    <tr><td>Typeface</td><td>blank</td><td>The font for every label on the chart. Blank = whatever the window (or the report band) is using.</td></tr>
+    <tr><td>Size</td><td>0</td><td>Points; 0 = the target's own size. <b>It also scales the layout</b>, so the spacing follows the type and labels thin themselves out rather than colliding. This is the prompt to reach for to make a chart's text bigger or smaller.</td></tr>
+    <tr><td>Bold / Italic</td><td>off / off</td><td>Style. Left alone, the target's own style is kept.</td></tr>
     <tr><td>Colors</td><td>near-black axis/text, light-gray grid</td><td>Optional painted background and plot area, plus an optional outline around every bar and slice (white looks good on a pie). All colors are Clarion BGR longs.</td></tr>
   </table>
   <h3>Series</h3>
@@ -468,9 +471,12 @@ SETTARGET()</pre>
     <tr><td>3D depth</td><td>0</td><td>Profundidad del canto en <code>Pie 3D</code>; 0 = un octavo de la altura.</td></tr>
     <tr><td>Donut hole / middle text</td><td>55 / vacío</td><td>El agujero como porcentaje del diámetro, y un texto opcional en el centro.</td></tr>
   </table>
-  <h3>Colors</h3>
+  <h3>Text &amp; colors</h3>
   <table>
     <tr><th>Prompt</th><th>Por defecto</th><th>Notas</th></tr>
+    <tr><td>Typeface</td><td>en blanco</td><td>La fuente de todas las etiquetas del gráfico. En blanco = la que use la ventana (o la banda del informe).</td></tr>
+    <tr><td>Size</td><td>0</td><td>Puntos; 0 = el tamaño del destino. <b>También escala la maquetación</b>, así el espaciado sigue a la tipografía y las etiquetas se ralean solas en vez de pisarse. Es el prompt para agrandar o achicar el texto de un gráfico.</td></tr>
+    <tr><td>Bold / Italic</td><td>off / off</td><td>Estilo. Sin tocar, se conserva el del destino.</td></tr>
     <tr><td>Colors</td><td>eje/texto casi negro, rejilla gris claro</td><td>Fondo y área de dibujo pintados opcionalmente, más un contorno opcional en cada barra y porción (el blanco queda bien en un pastel). Todos los colores son longs BGR de Clarion.</td></tr>
   </table>
   <h3>Series</h3>
