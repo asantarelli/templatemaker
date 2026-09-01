@@ -593,6 +593,14 @@ was loaded, drawn, and then clipped away behind the bar: selectable with the arr
 see. The **Overlay** style was never affected, because that bar floats over the rows and takes no height
 from anything.
 
+**What v1.26 fixes.** *Find text* across several columns built a filter that would not parse. The clause
+was joined in two steps &mdash; `expr = CLIP(expr) & ' OR '` and then `expr = CLIP(expr) & CLIP(one)` &mdash;
+and the second `CLIP` eats the space the first one had just added, so the expression came out as
+`...1,1) ORINSTRING(...)`. The evaluator reads that run-together token as one identifier and the view
+opens with *BIND has not been called for ORINSTRING (1011)*, filters and ranges ignored. It is built as a
+single expression now. Only *In all columns* reproduced it &mdash; with one column there is no `OR` to run
+together, which is why the same field of a related table searched fine on its own.
+
 Measured on a real application: a fill costs **under 200 µs** — 1.2 % of a 60 Hz frame — and the generated
 code makes **three file accesses**, none of them on the drawing path. The one to know about is *Filter by
 value*, which scans the file sequentially in the foreground; it can be taken off the menu from the prompts.

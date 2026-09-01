@@ -1,4 +1,4 @@
-#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.25'),FAMILY('ABC')
+#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.26'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  BrowseGrid  -  a browse that does not look like 1995.
 #!
@@ -34,7 +34,7 @@
 #SHEET
   #TAB('General')
     #BOXED('BrowseGrid')
-      #DISPLAY('BrowseGrid - Version 1.25')
+      #DISPLAY('BrowseGrid - Version 1.26')
       #DISPLAY('Draws an ABC browse with Direct2D and DirectWrite instead of')
       #DISPLAY('the runtime LIST, without touching the browse underneath.')
       #DISPLAY('')
@@ -2665,10 +2665,23 @@ ok   LONG
     END
     IF ~one THEN CYCLE.
     IF LEN(CLIP(expr)) + LEN(CLIP(one)) + 4 > BG:MaxExpr THEN BREAK.
+!  EN UNA SOLA EXPRESION, y no en dos pasos. Separarlo era:
+!
+!      IF expr THEN expr = CLIP(expr) & ' OR '.
+!      expr = CLIP(expr) & CLIP(one)
+!
+!  ...y el segundo CLIP se come el espacio que acababa de poner el primero. El
+!  filtro sale con 'OR' pegado a lo que sigue - ORINSTRING - que el evaluador
+!  lee como un identificador solo, y la vista se abre con
+!  'BIND has not been called for ORINSTRING' y los filtros ignorados.
+!
+!  Solo aparecia buscando en varias columnas: con una sola no hay ningun OR que
+!  pegar.
     IF expr
-      expr = CLIP(expr) & ' OR '
+      expr = CLIP(expr) & ' OR ' & CLIP(one)
+    ELSE
+      expr = CLIP(one)
     END
-    expr = CLIP(expr) & CLIP(one)
   END
 !  Ninguna columna aplicable: la unica del menu es numerica y lo tipeado no es un
 !  numero, o no hay nombres de campo. Decirlo, no quedarse quieto.
