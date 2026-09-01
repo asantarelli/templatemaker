@@ -1,4 +1,4 @@
-#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.26'),FAMILY('ABC')
+#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.28'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  BrowseGrid  -  a browse that does not look like 1995.
 #!
@@ -34,7 +34,7 @@
 #SHEET
   #TAB('General')
     #BOXED('BrowseGrid')
-      #DISPLAY('BrowseGrid - Version 1.26')
+      #DISPLAY('BrowseGrid - Version 1.28')
       #DISPLAY('Draws an ABC browse with Direct2D and DirectWrite instead of')
       #DISPLAY('the runtime LIST, without touching the browse underneath.')
       #DISPLAY('')
@@ -551,6 +551,11 @@ c LONG,AUTO
         #DISPLAY('  Sizes every visible column to the widest of its heading and its')
         #DISPLAY('  values, in one go. Needs the drop-down button, which is where')
         #DISPLAY('  the option lives.')
+        #DISPLAY('')
+        #DISPLAY('  Needs a FLATTENED format too. In a grouped one the width that')
+        #DISPLAY('  governs the layout belongs to the GROUP, and sizing the fields')
+        #DISPLAY('  inside it without touching that would leave the spanning heading')
+        #DISPLAY('  at its old width. With Flatten off the option is not offered.')
         #ENABLE(%bgAutoFit)
           #PROMPT('  Records to look &ahead:',SPIN(@n7,0,100000,500)),%bgFitScan,DEFAULT(1000)
           #DISPLAY('  The loaded page is measured exactly and costs nothing - it is')
@@ -742,7 +747,7 @@ c LONG,AUTO
   #SET(%bgMiClrThis,%bgMiN + 1)
   #SET(%bgMiClrAll,%bgMiN + 2)
   #SET(%bgMiCols,%bgMiN + 3)
-  #IF(%bgAutoFit)
+  #IF(%bgAutoFit AND %bgFlatten)
     #SET(%bgMiAutoFit,%bgMiN + 4)
     #SET(%bgMiReset,%bgMiN + 5)
   #ELSE
@@ -2119,7 +2124,7 @@ val  CSTRING(129)
              & '%bgTFindMenu|' |
 #ENDIF
              & '%bgTClearThis|%bgTClearAll|%bgTColumns|' |
-#IF(%bgAutoFit)
+#IF(%bgAutoFit AND %bgFlatten)
              & '%bgTAutoFit|' |
 #ENDIF
              & '%bgTReset')
@@ -2176,7 +2181,7 @@ val  CSTRING(129)
     DO BG:Filter:%bgObject
   OF %bgMiCols                                                ! which columns to show
     DO BG:Chooser:%bgObject
-#IF(%bgAutoFit)
+#IF(%bgAutoFit AND %bgFlatten)
   OF %bgMiAutoFit                                             ! size every column to its content
     DO BG:AutoFit:%bgObject
 #ENDIF
@@ -2384,7 +2389,7 @@ BG:AutoFit:%bgObject ROUTINE
 !  a cell, the page - where being wrong would show - is exact, and a column
 !  that comes out a few pixels shy can be fixed by dragging it or pressing this
 !  again.
-#IF(%bgAutoFit)
+#IF(%bgAutoFit AND %bgFlatten)
   DATA
 c    LONG,AUTO
 i    LONG,AUTO
@@ -2724,8 +2729,9 @@ BG:Values:%bgObject ROUTINE
   DATA
 VQ   QUEUE
 Mark   STRING(4)                                              ! shown - see the note on ChQ
-Val    STRING(64)                                             ! shown
+Val    STRING(64)                                             ! shown, con el picture puesto
 On     BYTE                                                   ! not shown
+Raw    STRING(64)                                             ! not shown - con lo que se filtra
      END
 VW   WINDOW('%bgTValues'),AT(,,200,250),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
        STRING('%bgTValsHint'),AT(8,7,184,18),USE(?VHint),TRN
@@ -2739,6 +2745,9 @@ VW   WINDOW('%bgTValues'),AT(,,200,250),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
      END
 nm   CSTRING(65)
 v    CSTRING(65)
+d    CSTRING(65)
+pic  STRING(32)
+one  CSTRING(201)
 expr CSTRING(1025)
 n    LONG,AUTO
 i    LONG,AUTO
@@ -2747,7 +2756,8 @@ ge   LONG
 ae   LONG
 off  LONG,AUTO
   CODE
-  nm = CLIP(WHO(%bgQueueUsed,%bgObject:Fld[%bgObject:SortCol + 1]))
+  nm  = CLIP(WHO(%bgQueueUsed,%bgObject:Fld[%bgObject:SortCol + 1]))
+  pic = %bgObject:Pic[%bgObject:SortCol + 1]
 #IF(%bgDiag)
 !  EN LA ENTRADA, antes de cualquier salida. Las sondas de mas adentro no
 !  sirven para diagnosticar una rutina que se va antes de llegar a ellas.
@@ -2790,20 +2800,39 @@ off  LONG,AUTO
     END
     n += 1
     IF n > BG:MaxScan THEN BREAK.
+!  LO QUE SE MUESTRA Y LO QUE SE COMPARA NO SON LO MISMO. El campo guarda su
+!  valor crudo, y para una fecha eso es el numero de dias que Clarion lleva por
+!  dentro: la lista ofrecia 81234 en vez de 25/12/2026. Se le pone el picture de
+!  la columna para mostrarlo - el mismo que usa el llenado, o seria un texto que
+!  nadie vio nunca en el grid.
+!
+!  Pero el filtro tiene que seguir comparando contra el CRUDO, porque es lo que
+!  hay en el campo. Filtrar por '25/12/2026' contra un long no encuentra nada, y
+!  no encuentra nada sin dar error: la lista queda vacia y parece que no hubiera
+!  registros.
     v = CLIP(LEFT(EVALUATE(nm)))
-    VQ.Val = v
-    GET(VQ,+VQ.Val)                                           ! sorted, so this dedupes as it goes
+    IF pic
+      d = CLIP(LEFT(FORMAT(EVALUATE(nm),CLIP(pic))))
+    ELSE
+      d = v
+    END
+!  Y SE DEDUPLICA POR EL CRUDO, no por lo que se ve. Un picture puede perder
+!  informacion - dos importes distintos redondean al mismo texto - y agrupar por
+!  el texto dejaria fuera las filas del otro valor sin decirlo.
+    VQ.Raw = v
+    GET(VQ,+VQ.Raw)                                           ! sorted, so this dedupes as it goes
     ge = ERRORCODE()
 !  ES DUPLICADO SOLO SI LO QUE VOLVIO ES ESTE VALOR. Preguntarle nada mas al
 !  ERRORCODE es confiar en que un GET por clave sobre una cola siempre falle
 !  cuando no hay coincidencia exacta; si vuelve sin error con OTRO registro,
 !  la condicion no se cumple nunca, no se agrega nada nunca, y la lista
 !  termina vacia despues de haber leido el archivo entero.
-    IF ge OR VQ.Val <> v
-      VQ.Val  = v
+    IF ge OR VQ.Raw <> v
+      VQ.Raw  = v
+      VQ.Val  = d
       VQ.On   = 1
       VQ.Mark = ' X'
-      ADD(VQ,+VQ.Val)
+      ADD(VQ,+VQ.Raw)
       ae = ERRORCODE()
       IF RECORDS(VQ) >= BG:MaxVals THEN BREAK.
     END
@@ -2879,11 +2908,18 @@ off  LONG,AUTO
           GET(VQ,i)
           IF (on <= off AND ~VQ.On) OR (on > off AND VQ.On) THEN CYCLE.
           IF LEN(CLIP(expr)) > BG:MaxExpr THEN BREAK.         ! no entra: se avisa abajo
+!  EN UNA SOLA EXPRESION. El mismo tropiezo que la busqueda por texto: poner el
+!  separador en un paso y el termino en otro deja que el segundo CLIP se coma el
+!  espacio recien puesto, y el filtro sale con ORCUE:FECHA pegado - un
+!  identificador que nadie bindeo. Latente aca porque hacen falta tres valores
+!  distintos y dos tildados para que aparezca un solo OR.
+          one = CLIP(nm) & CHOOSE(on <= off,' = ',' <> ')                       |
+              & '''' & BG_Quote(CLIP(VQ.Raw)) & ''''
           IF expr
-            expr = CLIP(expr) & CHOOSE(on <= off,' OR ',' AND ')
+            expr = CLIP(expr) & CHOOSE(on <= off,' OR ',' AND ') & CLIP(one)
+          ELSE
+            expr = CLIP(one)
           END
-          expr = CLIP(expr) & CLIP(nm) & CHOOSE(on <= off,' = ',' <> ')          |
-               & '''' & BG_Quote(CLIP(VQ.Val)) & ''''
         END
         IF LEN(CLIP(expr)) > BG:MaxExpr
           MESSAGE('%bgTTooMany','BrowseGrid',ICON:Exclamation)

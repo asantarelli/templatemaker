@@ -593,7 +593,7 @@ was loaded, drawn, and then clipped away behind the bar: selectable with the arr
 see. The **Overlay** style was never affected, because that bar floats over the rows and takes no height
 from anything.
 
-**What v1.26 fixes.** *Find text* across several columns built a filter that would not parse. The clause
+**What v1.28 fixes.** *Find text* across several columns built a filter that would not parse. The clause
 was joined in two steps &mdash; `expr = CLIP(expr) & ' OR '` and then `expr = CLIP(expr) & CLIP(one)` &mdash;
 and the second `CLIP` eats the space the first one had just added, so the expression came out as
 `...1,1) ORINSTRING(...)`. The evaluator reads that run-together token as one identifier and the view
