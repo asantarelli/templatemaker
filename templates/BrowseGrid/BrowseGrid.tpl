@@ -2693,6 +2693,14 @@ ok   LONG
 !  busqueda haya sido en todas: asi se acumula, se limpia y se señala como
 !  cualquier otro filtro, en vez de ser una categoria aparte que despues nadie
 !  sabe donde apagar.
+#IF(%bgDiag)
+!  LA EXPRESION TAL CUAL SE ARMO, antes de que la vea nadie. Discrimina de una:
+!  si aparece 'ORINSTRING' pegado, esta corriendo codigo viejo; si aparece
+!  'OR INSTRING' separado y falla igual, el problema no es el armado sino algun
+!  campo que la vista no tiene bindeado, y el mensaje va a nombrarlo.
+  BG_Log('%Procedure %bgObject buscar: cols=' & %bgObject:Cols & ' todas=' &  |
+         FAll & ' [' & CLIP(expr) & ']')
+#ENDIF
   %bgObject:ColFilt[%bgObject:SortCol + 1] = '(' & CLIP(expr) & ')'
   d2g_FilterOn(%bgObject:G,%bgObject:SortCol,1)
   d2g_PaintNow(%bgObject:G)
