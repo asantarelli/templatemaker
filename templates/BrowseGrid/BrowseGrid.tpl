@@ -60,6 +60,7 @@
 #!-----------------------------------------------------------------------------
 #AT(%AfterGlobalIncludes),WHERE(%bgGDisable=0)
   PRAGMA('compile(d2grid.c)')                                 ! the grid, built by Clarion's own C compiler
+  INCLUDE('ABUTIL.INC'),ONCE                                  ! CalendarClass, for the date filter popup
 BG:Scrolled          EQUATE(EVENT:User + 244)                 ! a grid scrollbar moved
 BG:GwlStyle          EQUATE(-16)
 BG:GwlWndProc        EQUATE(-4)
@@ -1022,6 +1023,7 @@ BG:ClrHit:%bgObject  EQUATE(EVENT:User + 40 + %ActiveTemplateInstance)
 %bgObject:MapWas     CSTRING(201)                             ! the last map written to the log
 #ENDIF
 %bgObject:Pic        STRING(32),DIM(BG:MaxCols)               ! and its picture, if it has one
+%bgObject:IsDate     LONG,DIM(BG:MaxCols)                     ! does its picture say it is a date? (@d)
 %bgObject:Face       CSTRING(33)
 %bgObject:Pt         LONG                                     ! tamano ya resuelto, en puntos
 %bgObject:Cell       CSTRING(129)                              ! as long as the C side G_TEXT
@@ -1072,6 +1074,17 @@ BG:ClrHit:%bgObject  EQUATE(EVENT:User + 40 + %ActiveTemplateInstance)
 #!
 #AT(%WindowManagerMethodCodeSection,'Init','(),BYTE'),PRIORITY(8800),WHERE(%bgDisable=0 AND %bgList)
   IF ReturnValue = Level:Benign
+!  BIND de los campos de todos los archivos del procedimiento, una vez y para
+!  toda la vida de la ventana. El filtro de una columna nombra el campo
+!  (PRE:CAMPO >= ...) y ABC lo evalua contra lo que este BIND-eado. ABC solo
+!  bindea los campos del ORDEN ACTIVO (y un archivo con LazyOpen ni siquiera
+!  esta abierto en otra pestana), asi que filtrar por una fecha parado en otra
+!  pestana daba "BIND has not been called for ...". BIND(record) del grupo
+!  registra los nombres de campo aunque el archivo este cerrado, para siempre;
+!  ABC nunca los des-bindea. Repetirlo no molesta.
+    #FOR(%File),WHERE(%FileIsUsed())
+    BIND(%FilePrefix:Record)
+    #ENDFOR
     DO BG:Setup:%bgObject
   END
 #ENDAT
@@ -1590,6 +1603,15 @@ ghead CSTRING(129)
         %bgObject:Num[n + 1] = 1
       END
     END
+!  Y CUAL ES UNA FECHA. El picture lo dice: @d es una fecha. Se guarda aca,
+!  una vez, para que el menu de la columna ofrezca un calendario en vez de
+!  pedir el numero de serie que un @d guarda por debajo.
+    %bgObject:IsDate[n + 1] = 0
+    IF %bgObject:Pic[n + 1]
+      IF UPPER(SUB(CLIP(%bgObject:Pic[n + 1]),2,1)) = 'D'
+        %bgObject:IsDate[n + 1] = 1
+      END
+    END
 #IF(%bgTotals)
 !  WHAT ADDS UP. The picture says it: @n and @e are numbers, @s and @d are
 !  not. A tick box is excluded whatever its picture claims - the one under
@@ -2096,6 +2118,7 @@ fld  LONG,AUTO
 lc   LONG,AUTO
 nm   CSTRING(65)
 val  CSTRING(129)
+vlabel CSTRING(129)
   CODE
   fld = %bgObject:Fld[%bgObject:SortCol + 1]
   IF ~fld THEN EXIT.
@@ -2106,12 +2129,18 @@ val  CSTRING(129)
   ELSE
     val = CLIP(LEFT(WHAT(%bgQueueUsed,fld)))
   END
+!  El menu muestra la fecha formateada; el filtro (OF 3) se sigue armando
+!  sobre val crudo, que es el numero que la expresion sabe comparar.
+  vlabel = val
+  IF %bgObject:IsDate[%bgObject:SortCol + 1] AND %bgObject:Pic[%bgObject:SortCol + 1] AND NUMERIC(val)
+    vlabel = CLIP(LEFT(FORMAT(DEFORMAT(CLIP(val)),CLIP(%bgObject:Pic[%bgObject:SortCol + 1]))))
+  END
 !  NO SEPARATORS. POPUP counts a '-' as an item, so with two of them in here
 !  every choice after the first was numbered one or two higher than it looked -
 !  "Filter on" was item 3 and matched nothing, and "Clear this filter" was item
 !  4, which is why CLEARING a filter is what applied one.
   pick = POPUP('%bgTSortAsc|%bgTSortDesc|' |
-             & '%bgTFilterOn {{' & CLIP(val) & '}|' |
+             & '%bgTFilterOn {{' & CLIP(vlabel) & '}|' |
 #IF(%bgFilterVals)
              & '%bgTFilterBy|' |
 #ENDIF
@@ -2206,6 +2235,15 @@ i LONG,AUTO
 !  front (ABFILE.CLW:2613) - so there is nothing to concatenate here, and an
 !  empty expression DELETES that ID rather than leaving an empty bracket.
 !  Setting all of them every time is therefore both safe and idempotent.
+!  BIND ANTES DE FILTRAR. La expresion nombra el campo (PRE:CAMPO >= ...) y ABC
+!  la evalua contra lo que este BIND-eado. Un campo que ABC no bindeo solo -
+!  tipico de las fechas, que no suelen entrar en un range limit ni en un sort
+!  generado - hace que al reabrir la VIEW salte "BIND has not been called for
+!  ...". BindFields hace BIND(record) del archivo entero, y volver a llamarlo
+!  no molesta.
+#IF(%bgFileUsed)
+  Access:%bgFileUsed.BindFields()
+#ENDIF
   %bgObject:Filters = 0
   LOOP i = 1 TO %bgObject:Cols
     %bgBrowseUsed.SetFilter(%bgObject:ColFilt[i],'BrowseGrid:' & i)
@@ -2628,6 +2666,13 @@ one  CSTRING(201)
 expr CSTRING(1025)
 ok   LONG
   CODE
+!  UNA COLUMNA DE FECHA no se busca tipeando: el picture @d guarda un numero
+!  de dias por debajo, no texto. Para esas, el menu abre el dialogo con
+!  calendario en vez de este entry de texto libre.
+  IF %bgObject:IsDate[%bgObject:SortCol + 1]
+    DO BG:DateFind:%bgObject
+    EXIT
+  END
   FTxt = ''
   FAll = 0
   ok   = 0
@@ -2665,10 +2710,13 @@ ok   LONG
     END
     IF ~one THEN CYCLE.
     IF LEN(CLIP(expr)) + LEN(CLIP(one)) + 4 > BG:MaxExpr THEN BREAK.
+!  Separador y termino en la misma asignacion: partirlo deja que el segundo
+!  CLIP se coma el espacio del ' OR ' y quede ' ORINSTRING(...' pegado.
     IF expr
-      expr = CLIP(expr) & ' OR '
+      expr = CLIP(expr) & ' OR ' & CLIP(one)
+    ELSE
+      expr = CLIP(one)
     END
-    expr = CLIP(expr) & CLIP(one)
   END
 !  Ninguna columna aplicable: la unica del menu es numerica y lo tipeado no es un
 !  numero, o no hay nombres de campo. Decirlo, no quedarse quieto.
@@ -2687,6 +2735,109 @@ ok   LONG
 #ELSE
   EXIT
 #ENDIF
+#!
+#IF(%bgFilterText)
+BG:DateFind:%bgObject ROUTINE
+!  BUSCAR POR FECHA. Una columna con picture @d guarda por debajo el numero
+!  de dias de Clarion, no un texto - pedirle al usuario que tipee ese numero
+!  no es un filtro de fecha usable. Asi que para esas columnas el menu abre
+!  esto: Desde / Hasta, cada uno con un calendario de ABC (CalendarClass), y
+!  arma  CAMPO >= desde AND CAMPO <= hasta  sobre el serial, que es como se
+!  comparan las fechas en una expresion.
+!
+!  Cualquiera de los dos puede quedar en blanco: solo Desde es  >= desde ,
+!  solo Hasta es  <= hasta . Los dos en blanco limpia el filtro de la columna.
+  DATA
+DFrom LONG
+DTo   LONG
+DCal  CalendarClass
+DW   WINDOW('Buscar por fecha'),AT(,,182,102),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
+       PROMPT('&Desde:'),AT(8,15,30,10),USE(?DFromLbl)
+       ENTRY(@d17),AT(40,13,94,13),USE(DFrom)
+       BUTTON('...'),AT(138,13,16,13),USE(?DFromCal)
+       PROMPT('&Hasta:'),AT(8,35,30,10),USE(?DToLbl)
+       ENTRY(@d17),AT(40,33,94,13),USE(DTo)
+       BUTTON('...'),AT(138,33,16,13),USE(?DToCal)
+       PANEL,AT(0,76,182,26),BEVEL(1)
+       BUTTON('%bgTOk'),AT(66,81,54,14),LEFT,ICON('waok.ico'),FONT(,,00235C23h),USE(?DOk),DEFAULT
+       BUTTON('%bgTCancel'),AT(122,81,54,14),LEFT,ICON('wacancel.ico'),FONT(,,1600B2h),USE(?DCancel)
+     END
+dnm   CSTRING(65)
+dexpr CSTRING(1025)
+dok   LONG
+dtmp  LONG
+  CODE
+  dnm = CLIP(WHO(%bgQueueUsed,%bgObject:Fld[%bgObject:SortCol + 1]))
+  IF ~dnm
+    MESSAGE('%bgTNoField','BrowseGrid',ICON:Asterisk)
+    EXIT
+  END
+  DFrom = 0
+  DTo   = 0
+  dok   = 0
+  OPEN(DW)
+!  Los dos entry en el mismo picture que la columna, para que lo tipeado se
+!  vea igual que en la grilla. Si la columna no trae picture, queda el @d17.
+  IF %bgObject:Pic[%bgObject:SortCol + 1]
+    ?DFrom{PROP:Text} = CLIP(%bgObject:Pic[%bgObject:SortCol + 1])
+    ?DTo{PROP:Text}   = CLIP(%bgObject:Pic[%bgObject:SortCol + 1])
+  END
+  ACCEPT
+    CASE ACCEPTED()
+    OF ?DFromCal
+      dtmp = DCal.Ask('Desde',CHOOSE(DFrom > 0,DFrom,TODAY()))
+      IF DCal.Response = RequestCompleted
+        DFrom = dtmp
+        DISPLAY(?DFrom)
+      END
+    OF ?DToCal
+      dtmp = DCal.Ask('Hasta',CHOOSE(DTo > 0,DTo,CHOOSE(DFrom > 0,DFrom,TODAY())))
+      IF DCal.Response = RequestCompleted
+        DTo = dtmp
+        DISPLAY(?DTo)
+      END
+    OF ?DOk
+      dok = 1
+      POST(EVENT:CloseWindow)
+    OF ?DCancel
+      POST(EVENT:CloseWindow)
+    END
+  END
+  CLOSE(DW)
+  IF ~dok THEN EXIT.
+  IF DFrom > 0 AND DTo > 0 AND DFrom > DTo                    ! al reves: darlo vuelta, no fallar
+    dtmp  = DFrom
+    DFrom = DTo
+    DTo   = dtmp
+  END
+!  EN UNA SOLA ASIGNACION. Si se parte en dos (CLIP(dexpr) & ' AND ' y despues
+!  CLIP(dexpr) & campo), el segundo CLIP se come el espacio final del ' AND ' y
+!  queda "... ANDIVAVTA:FECHA" - el AND pegado al prefijo del campo, que es un
+!  identificador que no existe.
+  dexpr = ''
+  IF DFrom > 0
+    dexpr = CLIP(dnm) & ' >= ' & DFrom
+  END
+  IF DTo > 0
+    IF dexpr
+      dexpr = CLIP(dexpr) & ' AND ' & CLIP(dnm) & ' <= ' & DTo
+    ELSE
+      dexpr = CLIP(dnm) & ' <= ' & DTo
+    END
+  END
+  IF ~dexpr                                                   ! los dos en blanco: limpiar la columna
+    %bgObject:ColFilt[%bgObject:SortCol + 1] = ''
+    d2g_FilterOn(%bgObject:G,%bgObject:SortCol,0)
+    d2g_PaintNow(%bgObject:G)
+    DO BG:Filter:%bgObject
+    EXIT
+  END
+  %bgObject:ColFilt[%bgObject:SortCol + 1] = '(' & CLIP(dexpr) & ')'
+  d2g_FilterOn(%bgObject:G,%bgObject:SortCol,1)
+  d2g_PaintNow(%bgObject:G)
+  DO BG:Filter:%bgObject
+#ENDIF
+#!
 BG:Values:%bgObject ROUTINE
 !  Excel's checklist: every value in this column, tick the ones to keep.
 !
@@ -2703,8 +2854,9 @@ BG:Values:%bgObject ROUTINE
   DATA
 VQ   QUEUE
 Mark   STRING(4)                                              ! shown - see the note on ChQ
-Val    STRING(64)                                             ! shown
+Val    STRING(64)                                             ! shown (a date column: formatted)
 On     BYTE                                                   ! not shown
+RawV   STRING(32)                                             ! not shown - the raw value, for the filter
      END
 VW   WINDOW('%bgTValues'),AT(,,200,250),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
        STRING('%bgTValsHint'),AT(8,7,184,18),USE(?VHint),TRN
@@ -2718,6 +2870,7 @@ VW   WINDOW('%bgTValues'),AT(,,200,250),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
      END
 nm   CSTRING(65)
 v    CSTRING(65)
+dv   CSTRING(65)
 expr CSTRING(1025)
 n    LONG,AUTO
 i    LONG,AUTO
@@ -2742,6 +2895,12 @@ off  LONG,AUTO
     EXIT
   END
   FREE(VQ)
+!  EVALUATE(nm) resuelve el nombre del campo contra lo BIND-eado; un campo que
+!  ABC no bindeo solo (una fecha, tipicamente) daria 0 en cada lectura. Igual
+!  que en BG:Filter, se bindea el archivo primero.
+#IF(%bgFileUsed)
+  Access:%bgFileUsed.BindFields()
+#ENDIF
 !  EN CERO, A MANO. En Clarion AUTO quiere decir SIN INICIALIZAR: la variable
 !  se reserva en el stack y arranca con lo que hubiera ahi. Y n gobierna las
 !  tres decisiones de este bucle - si ya se leyo algo, si se paso del tope, y
@@ -2770,19 +2929,29 @@ off  LONG,AUTO
     n += 1
     IF n > BG:MaxScan THEN BREAK.
     v = CLIP(LEFT(EVALUATE(nm)))
-    VQ.Val = v
-    GET(VQ,+VQ.Val)                                           ! sorted, so this dedupes as it goes
+!  UNA FECHA se guarda como numero de dias: se muestra con el picture de la
+!  columna (dv), pero se deduplica y se filtra por el numero crudo (v), que
+!  es lo que la expresion sabe comparar.
+    IF %bgObject:IsDate[%bgObject:SortCol + 1] AND %bgObject:Pic[%bgObject:SortCol + 1] AND NUMERIC(v)
+      dv = CLIP(LEFT(FORMAT(DEFORMAT(CLIP(v)),CLIP(%bgObject:Pic[%bgObject:SortCol + 1]))))
+    ELSE
+      dv = v
+    END
+    VQ.RawV = v
+    VQ.Val  = dv
+    GET(VQ,+VQ.RawV)                                          ! sorted, so this dedupes as it goes
     ge = ERRORCODE()
 !  ES DUPLICADO SOLO SI LO QUE VOLVIO ES ESTE VALOR. Preguntarle nada mas al
 !  ERRORCODE es confiar en que un GET por clave sobre una cola siempre falle
 !  cuando no hay coincidencia exacta; si vuelve sin error con OTRO registro,
 !  la condicion no se cumple nunca, no se agrega nada nunca, y la lista
 !  termina vacia despues de haber leido el archivo entero.
-    IF ge OR VQ.Val <> v
-      VQ.Val  = v
+    IF ge OR VQ.RawV <> v
+      VQ.RawV = v
+      VQ.Val  = dv
       VQ.On   = 1
       VQ.Mark = ' X'
-      ADD(VQ,+VQ.Val)
+      ADD(VQ,+VQ.RawV)
       ae = ERRORCODE()
       IF RECORDS(VQ) >= BG:MaxVals THEN BREAK.
     END
@@ -2858,11 +3027,16 @@ off  LONG,AUTO
           GET(VQ,i)
           IF (on <= off AND ~VQ.On) OR (on > off AND VQ.On) THEN CYCLE.
           IF LEN(CLIP(expr)) > BG:MaxExpr THEN BREAK.         ! no entra: se avisa abajo
+!  El separador y el campo en la MISMA asignacion. Partirlo - CLIP(expr) & ' OR '
+!  y despues CLIP(expr) & campo - hace que el segundo CLIP se coma el espacio y
+!  quede ' ORIVAVTA:FECHA', con el OR pegado al prefijo.
           IF expr
-            expr = CLIP(expr) & CHOOSE(on <= off,' OR ',' AND ')
+            expr = CLIP(expr) & CHOOSE(on <= off,' OR ',' AND ') & CLIP(nm)       |
+                 & CHOOSE(on <= off,' = ',' <> ') & '''' & BG_Quote(CLIP(VQ.RawV)) & ''''
+          ELSE
+            expr = CLIP(nm) & CHOOSE(on <= off,' = ',' <> ')                      |
+                 & '''' & BG_Quote(CLIP(VQ.RawV)) & ''''
           END
-          expr = CLIP(expr) & CLIP(nm) & CHOOSE(on <= off,' = ',' <> ')          |
-               & '''' & BG_Quote(CLIP(VQ.Val)) & ''''
         END
         IF LEN(CLIP(expr)) > BG:MaxExpr
           MESSAGE('%bgTTooMany','BrowseGrid',ICON:Exclamation)
