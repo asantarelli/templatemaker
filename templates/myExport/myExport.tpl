@@ -1,9 +1,10 @@
-#TEMPLATE(myExport,'myExport - Export any browse or list to CSV / TSV / XML / JSON / Excel - v1.2'),FAMILY('ABC')
+#TEMPLATE(myExport,'myExport - Export any browse or list to CSV / TSV / XML / JSON / Excel / PDF / Print - v1.4'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  myExport template set  -  puts an "Export..." button on any browse or list.
 #!
 #!  Press it and a modal dialog asks for the FORMAT and for the FOLDER + FILE
-#!  NAME (with a real Save-As browser), then writes the file:
+#!  NAME (with a real Save-As browser), then writes the file - or, for Print,
+#!  sends it straight to the printer instead:
 #!
 #!      CSV             comma separated, the machine's code page
 #!      CSV (UTF-8)     comma separated, UTF-8 with a BOM - accents survive Excel
@@ -13,15 +14,26 @@
 #!      Excel .xlsx     a REAL OOXML workbook - frozen heading row, auto-filter,
 #!                      on-screen column widths, numbers as numbers
 #!      HTML            a styled table, ready to print or paste
+#!      PDF             a real, paginated PDF - hand-built, nothing embedded
+#!      Print           straight to a Windows printer - no file at all
 #!
-#!  NO external program is needed for the Excel format. An .xlsx is a ZIP of XML
-#!  parts, and ExportClass builds both - so there is no helper .exe, no Python,
-#!  no COM automation, no Excel installation and nothing extra to deploy.
+#!  NO external program is needed for the Excel or PDF formats, and Print needs
+#!  no REPORT structure. An .xlsx is a ZIP of XML parts and a PDF is a set of
+#!  objects + a cross-reference table - ExportClass builds both by hand. Print
+#!  is plain GDI (CreateDC on the target printer, then StartDoc/StartPage/
+#!  TextOut) - deliberately with no Win32 struct involved, so there is nothing
+#!  whose binary layout has to be guessed. There is no interactive Print
+#!  dialog; set Exporter1.PrinterName to target a specific printer, or leave
+#!  it blank for the Windows default.
+#!  So there is no helper .exe, no Python, no COM automation, no Office or
+#!  Acrobat installation and nothing extra to deploy.
 #!
 #!  It exports EXACTLY WHAT THE USER SEES. At run time it reads the LIST's own
 #!  FORMAT (PROPLIST:Exists / FieldNo / Header / Picture) and pulls the values
 #!  with WHAT(Queue,FieldNo) - so re-ordered, resized or hidden columns, and any
-#!  column pictures, all carry across without you configuring a thing.
+#!  column pictures, all carry across without you configuring a thing. PDF and
+#!  Print lay columns out proportionally to those same on-screen widths and
+#!  paginate automatically, repeating the heading row on every page.
 #!
 #!  THE TEMPLATES
 #!    myExportGlobal (APPLICATION) - INCLUDEs ExportClass and decides where its
@@ -47,6 +59,9 @@
 #!    Exporter1.ExportQueue()  write every record in the queue
 #!    Exporter1.Run()          Ask + ExportQueue
 #!    Exporter1.StartFile() / .AddRow() / .EndFile()   drive the rows yourself
+#!    Exporter1.PrintOut()     every record, straight to the printer, no dialog
+#!    Exporter1.PreviewOut()   every record, to a temp PDF, opened in your PDF viewer
+#!    Exporter1.PageSetup()    small dialog for orientation / paper / margins
 #!-----------------------------------------------------------------------------
 #!#############################################################################
 #!  GLOBAL EXTENSION - myExportGlobal
@@ -55,7 +70,7 @@
 #SHEET
   #TAB('&General')
     #BOXED('myExport')
-      #DISPLAY('myExport Global - Version 1.2')
+      #DISPLAY('myExport Global - Version 1.4')
       #DISPLAY('Makes ExportClass available to every procedure in the app.')
       #DISPLAY('')
       #DISPLAY('IMPORTANT: copy ExportClass.inc and ExportClass.clw to the')
@@ -225,6 +240,8 @@ myExportLanguage     BYTE,EXTERNAL,DLL(dll_mode)           ! it lives in the dat
       #PROMPT('&JSON document',CHECK),%xbJSON,DEFAULT(1),AT(10)
       #PROMPT('&Excel workbook (.xlsx)',CHECK),%xbXLSX,DEFAULT(1),AT(10)
       #PROMPT('&HTML table',CHECK),%xbHTML,DEFAULT(1),AT(10)
+      #PROMPT('PD&F document',CHECK),%xbPDF,DEFAULT(1),AT(10)
+      #PROMPT('Pri&nt (straight to a Windows printer)',CHECK),%xbPrint,DEFAULT(1),AT(10)
     #ENDBOXED
     #BOXED('About the Excel format')
       #DISPLAY('The .xlsx is written here, in Clarion - a real OOXML workbook')
@@ -236,6 +253,38 @@ myExportLanguage     BYTE,EXTERNAL,DLL(dll_mode)           ! it lives in the dat
       #DISPLAY('For a smaller file on very large exports, set _ExportDeflate_')
       #DISPLAY('to 1 at the top of ExportClass.inc and put CompressClass.inc /')
       #DISPLAY('.clw (the myCompress template) on the redirection path.')
+    #ENDBOXED
+    #BOXED('About PDF and Print')
+      #DISPLAY('Both are hand-built too: PDF is a set of objects and a cross-')
+      #DISPLAY('reference table (Helvetica/Helvetica-Bold - the standard PDF')
+      #DISPLAY('fonts, so nothing is embedded); Print is plain GDI, straight to')
+      #DISPLAY('a printer (CreateDC, StartDoc/StartPage/TextOut). Neither needs')
+      #DISPLAY('a REPORT structure, Acrobat, or anything else installed.')
+      #DISPLAY('')
+      #DISPLAY('Picking Print in the dialog hides "Save to" (there is no file)')
+      #DISPLAY('and relabels the button "Print" - there is no printer-choice')
+      #DISPLAY('dialog; it prints to Exporter1.PrinterName, or the Windows')
+      #DISPLAY('default printer when that is left blank.')
+      #DISPLAY('')
+      #DISPLAY('Use the Page setup tab to set PDF''s page size/orientation and')
+      #DISPLAY('the margins both formats use.')
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Page setup')
+    #BOXED('PDF page (Print follows the printer''s own driver instead)')
+      #PROMPT('&Orientation:',DROP('Portrait[1]|Landscape[2]')),%xbOrient,DEFAULT('2')
+      #PROMPT('&Paper size:',DROP('Letter[1]|A4[2]')),%xbPaper,DEFAULT('1')
+    #ENDBOXED
+    #BOXED('Margins, in inches (both PDF and Print)')
+      #PROMPT('&Left:',@n5.2),%xbMarginL,DEFAULT('0.50')
+      #PROMPT('&Top:',@n5.2),%xbMarginT,DEFAULT('0.50')
+      #PROMPT('&Right:',@n5.2),%xbMarginR,DEFAULT('0.50')
+      #PROMPT('&Bottom:',@n5.2),%xbMarginB,DEFAULT('0.50')
+    #ENDBOXED
+    #BOXED('Type')
+      #PROMPT('&Font face (blank = Arial/Helvetica):',@s32),%xbFontFace,DEFAULT('')
+      #PROMPT('Bod&y size (points):',@n3),%xbFontSize,DEFAULT('9')
+      #PROMPT('Titl&e size (points):',@n3),%xbTitleSize,DEFAULT('14')
     #ENDBOXED
   #ENDTAB
   #TAB('&Options')
@@ -320,8 +369,14 @@ myExportLanguage     BYTE,EXTERNAL,DLL(dll_mode)           ! it lives in the dat
   #IF(%xbHTML)
     #SET(%xbMask,%xbMask+64)
   #ENDIF
+  #IF(%xbPrint)
+    #SET(%xbMask,%xbMask+128)
+  #ENDIF
+  #IF(%xbPDF)
+    #SET(%xbMask,%xbMask+256)
+  #ENDIF
   #IF(%xbMask=0)
-    #SET(%xbMask,127)
+    #SET(%xbMask,511)
   #ENDIF
 #ENDAT
 #!
@@ -357,6 +412,17 @@ INCLUDE('ExportClass.INC'),ONCE
   %xbObject.OpenWhenDone = %xbOpenAfter
   %xbObject.Confirm      = %xbConfirm
   %xbObject.Allow        = %xbMask
+#IF(%xbFontFace)
+  %xbObject.FontFace     = '%xbFontFace'
+#ENDIF
+  %xbObject.FontSize     = %xbFontSize
+  %xbObject.TitleSize    = %xbTitleSize
+  %xbObject.PageOrient   = %xbOrient
+  %xbObject.PagePaper    = %xbPaper
+  %xbObject.MarginLeft   = %xbMarginL * 1440
+  %xbObject.MarginTop    = %xbMarginT * 1440
+  %xbObject.MarginRight  = %xbMarginR * 1440
+  %xbObject.MarginBottom = %xbMarginB * 1440
 #IF(%xbPersist)
   %xbObject.Persist      = 1                               ! restore/save the choices between runs
 #IF(%xbProfile)
@@ -407,10 +473,21 @@ INCLUDE('ExportClass.INC'),ONCE
     #BOXED('Object')
       #PROMPT('&Object name:',@s64),%xcObject,REQ,DEFAULT('Exporter' & %ActiveTemplateInstance)
     #ENDBOXED
+    #BOXED('What this does when it runs')
+      #PROMPT('&Action:',DROP('Show the export dialog (format + file name)[1]|Print immediately - no dialog, no file[2]|Preview (PDF) immediately - no dialog, opens in your PDF viewer[3]')),%xcAction,DEFAULT('1')
+      #DISPLAY('Print/Preview immediately only exports the rows currently loaded')
+      #DISPLAY('in the list''s queue (on-screen) - there is no dialog to pick')
+      #DISPLAY('"every record in the browse" from. For that, use "Show the')
+      #DISPLAY('export dialog" instead, or call %xcObject.PrintOut() / .PreviewOut()')
+      #DISPLAY('from your own code after walking the browse yourself into')
+      #DISPLAY('StartFile()/AddRow()/EndFile().')
+    #ENDBOXED
     #BOXED('What to export')
       #PROMPT('&List control to export:',CONTROL),%xcList,REQ
-      #PROMPT('&Records:',DROP('Every record in the browse - walks the view[1]|Only the rows currently loaded in the list queue[0]')),%xcScope,DEFAULT('1')
-      #ENABLE(%xcScope='1')
+      #ENABLE(%xcAction='1')
+        #PROMPT('&Records:',DROP('Every record in the browse - walks the view[1]|Only the rows currently loaded in the list queue[0]')),%xcScope,DEFAULT('1')
+      #ENDENABLE
+      #ENABLE(%xcAction='1' AND %xcScope='1')
         #PROMPT('&Browse object:',@s64),%xcBrowse,DEFAULT('BRW1')
       #ENDENABLE
       #PROMPT('&Queue (blank = read it from the list''s FROM):',@s64),%xcQueueOver,DEFAULT('')
@@ -425,6 +502,25 @@ INCLUDE('ExportClass.INC'),ONCE
       #PROMPT('&JSON document',CHECK),%xcJSON,DEFAULT(1),AT(10)
       #PROMPT('&Excel workbook (.xlsx)',CHECK),%xcXLSX,DEFAULT(1),AT(10)
       #PROMPT('&HTML table',CHECK),%xcHTML,DEFAULT(1),AT(10)
+      #PROMPT('PD&F document',CHECK),%xcPDF,DEFAULT(1),AT(10)
+      #PROMPT('Pri&nt (straight to a Windows printer)',CHECK),%xcPrint,DEFAULT(1),AT(10)
+    #ENDBOXED
+  #ENDTAB
+  #TAB('&Page setup')
+    #BOXED('PDF page (Print follows the printer''s own driver instead)')
+      #PROMPT('&Orientation:',DROP('Portrait[1]|Landscape[2]')),%xcOrient,DEFAULT('2')
+      #PROMPT('&Paper size:',DROP('Letter[1]|A4[2]')),%xcPaper,DEFAULT('1')
+    #ENDBOXED
+    #BOXED('Margins, in inches (both PDF and Print)')
+      #PROMPT('&Left:',@n5.2),%xcMarginL,DEFAULT('0.50')
+      #PROMPT('&Top:',@n5.2),%xcMarginT,DEFAULT('0.50')
+      #PROMPT('&Right:',@n5.2),%xcMarginR,DEFAULT('0.50')
+      #PROMPT('&Bottom:',@n5.2),%xcMarginB,DEFAULT('0.50')
+    #ENDBOXED
+    #BOXED('Type')
+      #PROMPT('&Font face (blank = Arial/Helvetica):',@s32),%xcFontFace,DEFAULT('')
+      #PROMPT('Bod&y size (points):',@n3),%xcFontSize,DEFAULT('9')
+      #PROMPT('Titl&e size (points):',@n3),%xcTitleSize,DEFAULT('14')
     #ENDBOXED
   #ENDTAB
   #TAB('&Options')
@@ -485,8 +581,14 @@ INCLUDE('ExportClass.INC'),ONCE
   #IF(%xcHTML)
     #SET(%xcMask,%xcMask+64)
   #ENDIF
+  #IF(%xcPrint)
+    #SET(%xcMask,%xcMask+128)
+  #ENDIF
+  #IF(%xcPDF)
+    #SET(%xcMask,%xcMask+256)
+  #ENDIF
   #IF(%xcMask=0)
-    #SET(%xcMask,127)
+    #SET(%xcMask,511)
   #ENDIF
 #ENDAT
 #!
@@ -520,6 +622,17 @@ INCLUDE('ExportClass.INC'),ONCE
 %xcObject.OpenWhenDone = %xcOpenAfter
 %xcObject.Confirm      = %xcConfirm
 %xcObject.Allow        = %xcMask
+#IF(%xcFontFace)
+%xcObject.FontFace     = '%xcFontFace'
+#ENDIF
+%xcObject.FontSize     = %xcFontSize
+%xcObject.TitleSize    = %xcTitleSize
+%xcObject.PageOrient   = %xcOrient
+%xcObject.PagePaper    = %xcPaper
+%xcObject.MarginLeft   = %xcMarginL * 1440
+%xcObject.MarginTop    = %xcMarginT * 1440
+%xcObject.MarginRight  = %xcMarginR * 1440
+%xcObject.MarginBottom = %xcMarginB * 1440
 #IF(%xcPersist)
 %xcObject.Persist      = 1
 #IF(%xcProfile)
@@ -533,6 +646,7 @@ IF ~%xcObject.FileName
   %xcObject.FileName = CLIP('%xcFolder') & '\' & %xcObject.SuggestName()
 END
 #ENDIF
+#IF(%xcAction='1')
 IF %xcObject.Ask()
 #IF(%xcScope='1')
   IF %xcObject.StartFile()
@@ -550,6 +664,17 @@ IF %xcObject.Ask()
   %xcObject.ExportQueue()
 #ENDIF
 END
+#ELSE
+  #IF(%xcAction='2')
+!  StartFile()/EndFile() already show a message on failure (Confirm above),
+!  and PrintOut() only ever prints the rows currently in the queue.
+%xcObject.PrintOut()
+  #ELSE
+!  Same as PrintOut() above, but writes a temp PDF and opens it instead of
+!  sending it to the printer - see ExportClass.PreviewOut().
+%xcObject.PreviewOut()
+  #ENDIF
+#ENDIF
 #ELSE
 ! myExport: pick a List control in the code template's prompts, and give it a
 ! Queue if the list has no FROM() attribute for the template to read.

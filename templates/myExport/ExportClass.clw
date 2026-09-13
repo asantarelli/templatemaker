@@ -14,8 +14,55 @@
       exWC2MB( UNSIGNED CodePage, ULONG dwFlags, *STRING lpWideCharStr, SIGNED cchWideChar, *STRING lpMultiByteStr, SIGNED cbMultiByte, LONG lpDefaultChar, LONG lpUsedDefault ),SIGNED,RAW,PASCAL,NAME('WideCharToMultiByte')
       exShellExec( LONG hwnd, *CSTRING lpOperation, *CSTRING lpFile, *CSTRING lpParameters, *CSTRING lpDirectory, SIGNED nShowCmd ),ULONG,PASCAL,RAW,PROC,NAME('ShellExecuteA')
       exModuleFile( LONG hModule, *CSTRING lpFilename, ULONG nSize ),ULONG,RAW,PASCAL,NAME('GetModuleFileNameA')
+      exGetTempPath( ULONG nSize,*CSTRING pBuf ),ULONG,RAW,PASCAL,NAME('GetTempPathA')
+      exMoveFileEx( *CSTRING lpExistingFileName, *CSTRING lpNewFileName, ULONG dwFlags ),LONG,RAW,PASCAL,NAME('MoveFileExA')
+      exDeleteFile( *CSTRING lpFileName ),LONG,RAW,PASCAL,PROC,NAME('DeleteFileA')
+!     ---- printing: plain GDI, no complex Win32 structs -----------------
+      exGetDefaultPrinter( *CSTRING pBuf,*LONG pSize ),LONG,RAW,PASCAL,NAME('GetDefaultPrinterA')
+      exCreateDC( *CSTRING pDriver,*CSTRING pDevice,LONG pOutput,LONG pInitData ),LONG,RAW,PASCAL,NAME('CreateDCA')
+      exStartDoc( LONG hDC,*GROUP pDI ),SIGNED,RAW,PASCAL,NAME('StartDocA')
+      exEndDoc( LONG hDC ),SIGNED,RAW,PASCAL,PROC,NAME('EndDoc')
+      exStartPage( LONG hDC ),SIGNED,RAW,PASCAL,PROC,NAME('StartPage')
+      exEndPage( LONG hDC ),SIGNED,RAW,PASCAL,PROC,NAME('EndPage')
+      exDeleteDC( LONG hDC ),SIGNED,RAW,PASCAL,PROC,NAME('DeleteDC')
+      exCreateFont( SIGNED nHeight,SIGNED nWidth,SIGNED nEsc,SIGNED nOrient,SIGNED nWeight, |
+                    ULONG bItalic,ULONG bUnder,ULONG bStrike,ULONG nCharSet,ULONG nOutPrec, |
+                    ULONG nClipPrec,ULONG nQuality,ULONG nPitch,*CSTRING pFace ),LONG,RAW,PASCAL,NAME('CreateFontA')
+      exSelectObject( LONG hDC,LONG hObj ),LONG,RAW,PASCAL,PROC,NAME('SelectObject')
+      exDeleteObject( LONG hObj ),SIGNED,RAW,PASCAL,PROC,NAME('DeleteObject')
+      exGetDeviceCaps( LONG hDC,SIGNED nIndex ),SIGNED,RAW,PASCAL,NAME('GetDeviceCaps')
+      exTextOut( LONG hDC,SIGNED x,SIGNED y,*CSTRING pStr,SIGNED nCount ),SIGNED,RAW,PASCAL,PROC,NAME('TextOutA')
+      exGetTextExtent( LONG hDC,*CSTRING pStr,SIGNED nCount,*GROUP pSize ),SIGNED,RAW,PASCAL,PROC,NAME('GetTextExtentPoint32A')
+      exSetBkMode( LONG hDC,SIGNED nMode ),SIGNED,RAW,PASCAL,PROC,NAME('SetBkMode')
+!     ---- "Email it when it is done": Outlook (or whatever mail client) would
+!     ---- otherwise only flash on the taskbar rather than actually coming to
+!     ---- the front - Windows' foreground-lock, by design, stops a background
+!     ---- process from stealing focus outright. This tells Windows "let
+!     ---- whichever process asks next have it" - called right before
+!     ---- MAPISendMail, in EmailFile().
+      exAllowSetForegroundWindow( LONG dwProcessId ),SIGNED,RAW,PASCAL,PROC,NAME('AllowSetForegroundWindow')
+    END
+    MODULE('MAPI32.DLL')
+!     ---- "Email it when it is done": Simple MAPI, whatever mail client is
+!     ---- registered as the default (Outlook, Windows Mail, etc.). This is a
+!     ---- normal DLL import, resolved by the LINKER against an import
+!     ---- library for MAPISendMail - same as any other external Windows API
+!     ---- call. The PRAGMA('link(mapi32.lib)') right after this MAP adds
+!     ---- MAPI32.LIB to the project automatically - nothing to configure by
+!     ---- hand.
+      exMAPISendMail( LONG lhSession, LONG ulUIParam, *GROUP lpMessage, ULONG flFlags, ULONG ulReserved ), |
+                      ULONG,RAW,PASCAL,NAME('MAPISendMail'),DLL(1)
     END
   END
+
+!  Embeds a linker directive directly in this module, so anyone who links
+!  ExportClass.clw into their project gets MAPI32.LIB automatically - no
+!  manual "add this to my linker libraries" step, no risk of forgetting it
+!  and hitting "Unresolved External MAPISendMail" at link time. Per the
+!  Clarion help, PRAGMA('link(string)') is shorthand for
+!  PRAGMA('project(#pragma link(string))') - a project-system statement
+!  emitted from source, taking effect for this compile.
+  PRAGMA('link(mapi32.lib)')
 
   INCLUDE('ExportClass.INC'),ONCE
   INCLUDE('EQUATES.CLW'),ONCE
@@ -24,20 +71,34 @@
 Exp:CP_ACP         EQUATE(0)                    ! the machine's ANSI code page
 Exp:CP_UTF8        EQUATE(65001)
 Exp:MinChunk       EQUATE(65536)                ! the buffers never start smaller than this
+Exp:PdfPageCap     EQUATE(2000)                 ! PdfPageObjs' DIM size - see PdfNewPage for what happens past this
 Exp:BOM            EQUATE('<239,187,191>')      ! UTF-8 byte order mark
 Exp:CRLF           EQUATE('<13,10>')
 Exp:TAB            EQUATE('<9>')
+
+! ---- GDI constants used only by Print ---------------------------------
+Prn:LOGPIXELSX          EQUATE(88)
+Prn:LOGPIXELSY          EQUATE(90)
+Prn:HORZRES             EQUATE(8)
+Prn:VERTRES             EQUATE(10)
+Prn:TRANSPARENT         EQUATE(1)
 
 ! ############################################################################
 !  Lifetime
 ! ############################################################################
 ExportClass.Construct PROCEDURE
   CODE
-  SELF.Cols  &= NEW ExportColumnQueue
-  SELF.Parts &= NEW ExportZipQueue
+  SELF.Cols    &= NEW ExportColumnQueue
+  SELF.Parts   &= NEW ExportZipQueue
+  SELF.PdfObjs &= NEW ExportPdfQueue
   SELF.Delim  = ','
   SELF.RowTag = 'Row'
   SELF.Title  = 'Data'
+  SELF.TotalsLabel = 'Total'
+  SELF.AvgLabel    = 'Average'
+  SELF.MinLabel    = 'Minimum'
+  SELF.MaxLabel    = 'Maximum'
+  SELF.CntLabel    = 'Count'
 
 
 ExportClass.Destruct PROCEDURE
@@ -62,6 +123,10 @@ ExportClass.Kill PROCEDURE
   IF ~SELF.Parts &= NULL
     FREE(SELF.Parts)
     DISPOSE(SELF.Parts)
+  END
+  IF ~SELF.PdfObjs &= NULL
+    FREE(SELF.PdfObjs)
+    DISPOSE(SELF.PdfObjs)
   END
 
 
@@ -108,6 +173,7 @@ h    CSTRING(129)
     f = SELF.ListControl{PROPLIST:FieldNo,c}
     IF ~f THEN CYCLE .                                    ! a decoration, not a data column
     w  = SELF.ListControl{PROPLIST:Width,c}
+    IF SELF.HideZeroWidth AND ~w THEN CYCLE .             ! leave it out of the picker entirely, not just unticked
     ic = SELF.ListControl{PROPLIST:Icon,c}
     it = SELF.ListControl{PROPLIST:IconTrn,c}
     n += 1
@@ -272,14 +338,23 @@ sect  CSTRING(80)
 fold  CSTRING(261)
 v     CSTRING(161)
 i     LONG,AUTO
+gotGroup BYTE,AUTO
   CODE
   SELF.Loaded = 1
   f    = SELF.IniPath()
   sect = SELF.IniSection()
   SELF.Fmt          = GETINI(sect,'Fmt',SELF.Fmt,f)
   SELF.Headers      = GETINI(sect,'Headers',SELF.Headers,f)
+  SELF.PageOrient   = GETINI(sect,'PageOrient',SELF.PageOrient,f)
+  SELF.EmailToFront = GETINI(sect,'EmailToFront',SELF.EmailToFront,f)
   SELF.Pictures     = GETINI(sect,'Pictures',SELF.Pictures,f)
   SELF.OpenWhenDone = GETINI(sect,'OpenWhenDone',SELF.OpenWhenDone,f)
+  SELF.EmailWhenDone = GETINI(sect,'EmailWhenDone',SELF.EmailWhenDone,f)
+  SELF.Totals       = GETINI(sect,'Totals',SELF.Totals,f)
+  SELF.TotalsAvg    = GETINI(sect,'TotalsAvg',SELF.TotalsAvg,f)
+  SELF.TotalsMin    = GETINI(sect,'TotalsMin',SELF.TotalsMin,f)
+  SELF.TotalsMax    = GETINI(sect,'TotalsMax',SELF.TotalsMax,f)
+  SELF.TotalsCnt    = GETINI(sect,'TotalsCnt',SELF.TotalsCnt,f)
   fold = GETINI(sect,'Folder','',f)
   IF CLIP(fold)                                           ! same folder, a freshly-dated name
     SELF.FileName = CLIP(fold) & '\' & SELF.SuggestName()
@@ -298,6 +373,26 @@ i     LONG,AUTO
     END
     PUT(SELF.Cols)
     SELF.Classify(i)
+    GET(SELF.Cols,i)                                        ! Classify() re-derives IsNum - read it back
+    IF ~ERRORCODE()
+      SELF.Cols.Total = GETINI(sect,'C' & i & '.Total',SELF.Cols.Total,f)
+      IF ~SELF.Cols.IsNum THEN SELF.Cols.Total = 0 .          ! a saved layout may have changed since
+      SELF.Cols.GroupBy = GETINI(sect,'C' & i & '.GroupBy',SELF.Cols.GroupBy,f)
+      PUT(SELF.Cols)
+    END
+  END
+  gotGroup = 0                                                ! in case the INI somehow had more than one
+  LOOP i = 1 TO SELF.Columns()
+    GET(SELF.Cols,i)
+    IF ERRORCODE() THEN CYCLE .
+    IF SELF.Cols.GroupBy
+      IF gotGroup
+        SELF.Cols.GroupBy = 0
+        PUT(SELF.Cols)
+      ELSE
+        gotGroup = 1
+      END
+    END
   END
 
 
@@ -310,8 +405,16 @@ i     LONG,AUTO
   sect = SELF.IniSection()
   PUTINI(sect,'Fmt',SELF.Fmt,f)
   PUTINI(sect,'Headers',SELF.Headers,f)
+  PUTINI(sect,'PageOrient',SELF.PageOrient,f)
+  PUTINI(sect,'EmailToFront',SELF.EmailToFront,f)
   PUTINI(sect,'Pictures',SELF.Pictures,f)
   PUTINI(sect,'OpenWhenDone',SELF.OpenWhenDone,f)
+  PUTINI(sect,'EmailWhenDone',SELF.EmailWhenDone,f)
+  PUTINI(sect,'Totals',SELF.Totals,f)
+  PUTINI(sect,'TotalsAvg',SELF.TotalsAvg,f)
+  PUTINI(sect,'TotalsMin',SELF.TotalsMin,f)
+  PUTINI(sect,'TotalsMax',SELF.TotalsMax,f)
+  PUTINI(sect,'TotalsCnt',SELF.TotalsCnt,f)
   PUTINI(sect,'Folder',SELF.FolderOf(SELF.FileName),f)
   PUTINI(sect,'Sig',SELF.SigKey(),f)
   LOOP i = 1 TO SELF.Columns()
@@ -328,6 +431,8 @@ i     LONG,AUTO
     ELSE
       PUTINI(sect,'C' & i & '.Pic','',f)
     END
+    PUTINI(sect,'C' & i & '.Total',SELF.Cols.Total,f)
+    PUTINI(sect,'C' & i & '.GroupBy',SELF.Cols.GroupBy,f)
   END
 
 
@@ -340,10 +445,17 @@ i     LONG,AUTO
   sect = SELF.IniSection()
   PUTINI(sect,'Sig','',f)                                 ! kills the column half on the next load
   PUTINI(sect,'Folder','',f)
+  PUTINI(sect,'Totals','',f)
+  PUTINI(sect,'TotalsAvg','',f)
+  PUTINI(sect,'TotalsMin','',f)
+  PUTINI(sect,'TotalsMax','',f)
+  PUTINI(sect,'TotalsCnt','',f)
   LOOP i = 1 TO SELF.Columns()
     PUTINI(sect,'C' & i & '.Use','',f)
     PUTINI(sect,'C' & i & '.Head','',f)
     PUTINI(sect,'C' & i & '.Pic','',f)
+    PUTINI(sect,'C' & i & '.Total','',f)
+    PUTINI(sect,'C' & i & '.GroupBy','',f)
   END
   SELF.Loaded = 0
 
@@ -451,6 +563,76 @@ ExportClass.ColumnOn PROCEDURE(LONG pCol)
   RETURN SELF.Cols.Use
 
 
+ExportClass.ColumnIsNum PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN 0 .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN 0 .
+  RETURN SELF.Cols.IsNum
+
+
+!  Only a numeric column can go in the Totals row - a text column has nothing
+!  to sum, so pOn=1 is silently ignored (and the flag cleared) when IsNum=0.
+ExportClass.ColumnTotal PROCEDURE(LONG pCol,BYTE pOn)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN .
+  IF pOn AND ~SELF.Cols.IsNum THEN RETURN .
+  SELF.Cols.Total = CHOOSE(pOn <> 0,1,0)
+  PUT(SELF.Cols)
+
+
+ExportClass.ColumnTotalOn PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN 0 .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN 0 .
+  RETURN SELF.Cols.Total
+
+
+ExportClass.TotalsCount PROCEDURE()
+i  LONG,AUTO
+n  LONG(0)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN 0 .
+  LOOP i = 1 TO RECORDS(SELF.Cols)
+    GET(SELF.Cols,i)
+    IF ~ERRORCODE() AND SELF.Cols.Use AND SELF.Cols.IsNum AND SELF.Cols.Total THEN n += 1 .
+  END
+  RETURN n
+
+
+!  Only one column can be the group-by column at a time - ticking a new one
+!  clears whichever was ticked before, the same way a radio button would.
+ExportClass.ColumnGroupBy PROCEDURE(LONG pCol,BYTE pOn)
+i  LONG,AUTO
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN .
+  IF pOn
+    LOOP i = 1 TO RECORDS(SELF.Cols)
+      GET(SELF.Cols,i)
+      IF ERRORCODE() THEN CYCLE .
+      IF SELF.Cols.GroupBy AND i <> pCol
+        SELF.Cols.GroupBy = 0
+        PUT(SELF.Cols)
+      END
+    END
+  END
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN .
+  SELF.Cols.GroupBy = CHOOSE(pOn <> 0,1,0)
+  PUT(SELF.Cols)
+
+
+ExportClass.ColumnGroupOn PROCEDURE(LONG pCol)
+  CODE
+  IF SELF.Cols &= NULL THEN RETURN 0 .
+  GET(SELF.Cols,pCol)
+  IF ERRORCODE() THEN RETURN 0 .
+  RETURN SELF.Cols.GroupBy
+
+
 ! ############################################################################
 !  Format descriptions
 ! ############################################################################
@@ -464,6 +646,8 @@ ExportClass.FormatName PROCEDURE(LONG pFmt)
   OF Exp:JSON    ; RETURN SELF.Txt(Txt:FmtJSON)
   OF Exp:XLSX    ; RETURN SELF.Txt(Txt:FmtXLSX)
   OF Exp:HTML    ; RETURN SELF.Txt(Txt:FmtHTML)
+  OF Exp:Print   ; RETURN SELF.Txt(Txt:FmtPrint)
+  OF Exp:PDF     ; RETURN SELF.Txt(Txt:FmtPDF)
   END
   RETURN ''
 
@@ -478,6 +662,8 @@ ExportClass.FormatExt PROCEDURE(LONG pFmt)
   OF Exp:JSON    ; RETURN '.json'
   OF Exp:XLSX    ; RETURN '.xlsx'
   OF Exp:HTML    ; RETURN '.html'
+  OF Exp:Print   ; RETURN ''                     ! no file
+  OF Exp:PDF     ; RETURN '.pdf'
   END
   RETURN '.txt'
 
@@ -499,6 +685,8 @@ ExportClass.FormatMask PROCEDURE(LONG pFmt)
     RETURN SELF.Txt(Txt:MaskXLSX) & '|*.xlsx|' & SELF.Txt(Txt:MaskAll) & '|*.*'
   OF Exp:HTML
     RETURN SELF.Txt(Txt:MaskHTML) & '|*.html;*.htm|' & SELF.Txt(Txt:MaskAll) & '|*.*'
+  OF Exp:PDF
+    RETURN SELF.Txt(Txt:MaskPDF) & '|*.pdf|' & SELF.Txt(Txt:MaskAll) & '|*.*'
   END
   RETURN SELF.Txt(Txt:MaskAll) & '|*.*'
 
@@ -513,6 +701,8 @@ ExportClass.FormatHint PROCEDURE(LONG pFmt)
   OF Exp:JSON    ; RETURN SELF.Txt(Txt:HintJSON)
   OF Exp:XLSX    ; RETURN SELF.Txt(Txt:HintXLSX)
   OF Exp:HTML    ; RETURN SELF.Txt(Txt:HintHTML)
+  OF Exp:Print   ; RETURN SELF.Txt(Txt:HintPrint)
+  OF Exp:PDF     ; RETURN SELF.Txt(Txt:HintPDF)
   END
   RETURN ''
 
@@ -543,6 +733,7 @@ n    CSTRING(261)
 i    LONG,AUTO
 cut  LONG(0)
   CODE
+  IF pFmt = Exp:Print THEN RETURN .             ! Print writes no file - nothing to retarget
   n = CLIP(LEFT(SELF.FileName))
   IF ~n THEN RETURN .
   LOOP i = LEN(n) TO 1 BY -1
@@ -636,6 +827,8 @@ ExportClass.Txt PROCEDURE(LONG pId)
     OF Txt:FmtJSON       ; RETURN 'Documento JSON (*.json)'
     OF Txt:FmtXLSX       ; RETURN 'Libro de Excel (*.xlsx)'
     OF Txt:FmtHTML       ; RETURN 'Tabla HTML (*.html)'
+    OF Txt:FmtPrint      ; RETURN 'Imprimir'
+    OF Txt:FmtPDF        ; RETURN 'Documento PDF (*.pdf)'
 !    the Save-As file types
     OF Txt:MaskCSV       ; RETURN 'Separado por comas'
     OF Txt:MaskTSV       ; RETURN 'Separado por tabuladores'
@@ -645,6 +838,7 @@ ExportClass.Txt PROCEDURE(LONG pId)
     OF Txt:MaskHTML      ; RETURN 'P<225>ginas web'
     OF Txt:MaskText      ; RETURN 'Archivos de texto'
     OF Txt:MaskAll       ; RETURN 'Todos los archivos'
+    OF Txt:MaskPDF       ; RETURN 'Documentos PDF'
 !    the one-liner under the dialog
     OF Txt:HintCSV       ; RETURN 'S<243>lo se entrecomillan los valores que lo necesitan (RFC 4180).'
     OF Txt:HintCSVU      ; RETURN 'Lleva marca UTF-8 (BOM), as<237> Excel lee bien los acentos.'
@@ -653,6 +847,46 @@ ExportClass.Txt PROCEDURE(LONG pId)
     OF Txt:HintJSON      ; RETURN 'UTF-8. Las columnas num<233>ricas se escriben como n<250>meros, no como texto.'
     OF Txt:HintXLSX      ; RETURN 'Un libro de verdad: n<250>meros como n<250>meros, encabezados fijos y autofiltro.'
     OF Txt:HintHTML      ; RETURN 'Una tabla con estilo: impr<237>mela o p<233>gala en Word o Excel.'
+    OF Txt:HintPrint     ; RETURN 'Imprime directamente - la impresora predeterminada si no defines PrinterName.'
+    OF Txt:HintPDF       ; RETURN 'Un PDF de verdad, paginado, sin depender de nada m<225>s.'
+!    Print
+    OF Txt:PrintBtn      ; RETURN '&Imprimir'
+    OF Txt:NoPrinter     ; RETURN 'No se eligi<243> ninguna impresora.'
+    OF Txt:RowsPrinted   ; RETURN ' fila(s) impresas en '
+    OF Txt:PageWord      ; RETURN ' p<225>gina(s)'
+    OF Txt:PreviewChk    ; RETURN '&Vista previa antes de imprimir'
+    OF Txt:PageSetupBtn  ; RETURN 'Config&urar p<225>gina...'
+!    Totals row (Excel .xlsx only)
+    OF Txt:ColTotal      ; RETURN 'Tot'
+    OF Txt:TotalBtn      ; RETURN 'Act&ivar total'
+    OF Txt:TotalsChk     ; RETURN 'A<241>adir una fila de &totales (suma las columnas marcadas)'
+    OF Txt:TotalsTip     ; RETURN 'A<241>ade una fila en negrita con f<243>rmulas SUMA() bajo los datos - solo Excel .xlsx'
+    OF Txt:NotNumeric    ; RETURN 'Solo se puede sumar una columna num<233>rica.'
+!    Average / Minimum / Maximum summary rows
+    OF Txt:SummaryLbl    ; RETURN 'Filas de resumen:'
+    OF Txt:SumChk        ; RETURN '&Suma'
+    OF Txt:AvgChk        ; RETURN 'Pro&medio'
+    OF Txt:MinChk        ; RETURN 'M<237>&n'
+    OF Txt:MaxChk        ; RETURN 'M<225>&x'
+!    Email when done (Simple MAPI)
+    OF Txt:EmailChk      ; RETURN '&Enviar el archivo por correo al terminar'
+    OF Txt:CantEmail     ; RETURN 'No se pudo abrir un mensaje de correo para el archivo.'
+    OF Txt:EmailFailTitle ; RETURN 'No se pudo enviar el correo'
+!    Subtotal / group rows
+    OF Txt:ColGroup      ; RETURN 'Grp'
+    OF Txt:GroupBtn      ; RETURN 'Activar &grupo'
+!    Multiple sheets in one workbook
+    OF Txt:XlsxOnly      ; RETURN 'Las hojas m<250>ltiples solo existen en Excel .xlsx.'
+    OF Txt:NotInWorkbook ; RETURN 'StartSheet() se llam<243> sin StartWorkbook() antes.'
+    OF Txt:TooManySheets ; RETURN 'Este libro no admite m<225>s de 100 hojas.'
+    OF Txt:NoSheets      ; RETURN 'No se gener<243> ninguna hoja antes de EndWorkbook().'
+    OF Txt:SplitChk      ; RETURN 'Dividir en &hojas'
+    OF Txt:CntChk        ; RETURN 'C&ant'
+    OF Txt:PdfTruncTitle ; RETURN 'PDF incompleto'
+    OF Txt:PdfTruncMsg   ; RETURN 'A este PDF se le acabaron las p<225>ginas antes de que cupieran todas las ' & |
+                                   'filas, y las restantes se omitieron. Probar con Excel o CSV en su lugar ' & |
+                                   'para un conjunto de datos tan grande.'
+    OF Txt:EmailFrontChk ; RETURN 'Traer correo al &frente'
 !    messages
     OF Txt:MsgTitle      ; RETURN 'Exportar'
     OF Txt:NoColumns     ; RETURN 'No hay nada que exportar: esta lista no tiene columnas de datos.'
@@ -727,6 +961,8 @@ ExportClass.Txt PROCEDURE(LONG pId)
   OF Txt:FmtJSON       ; RETURN 'JSON document (*.json)'
   OF Txt:FmtXLSX       ; RETURN 'Excel workbook (*.xlsx)'
   OF Txt:FmtHTML       ; RETURN 'HTML table (*.html)'
+  OF Txt:FmtPrint      ; RETURN 'Print'
+  OF Txt:FmtPDF        ; RETURN 'PDF document (*.pdf)'
 !  the Save-As file types
   OF Txt:MaskCSV       ; RETURN 'Comma separated'
   OF Txt:MaskTSV       ; RETURN 'Tab separated'
@@ -736,6 +972,7 @@ ExportClass.Txt PROCEDURE(LONG pId)
   OF Txt:MaskHTML      ; RETURN 'Web pages'
   OF Txt:MaskText      ; RETURN 'Text files'
   OF Txt:MaskAll       ; RETURN 'All files'
+  OF Txt:MaskPDF       ; RETURN 'PDF documents'
 !  the one-liner under the dialog
   OF Txt:HintCSV       ; RETURN 'Values are quoted only where they have to be (RFC 4180).'
   OF Txt:HintCSVU      ; RETURN 'Carries a UTF-8 byte-order mark, so Excel reads accented text correctly.'
@@ -744,6 +981,45 @@ ExportClass.Txt PROCEDURE(LONG pId)
   OF Txt:HintJSON      ; RETURN 'UTF-8. Numeric columns are written as numbers, not strings.'
   OF Txt:HintXLSX      ; RETURN 'A real workbook: numbers as numbers, frozen headings and an auto-filter.'
   OF Txt:HintHTML      ; RETURN 'A styled table - print it, or paste it into Word or Excel.'
+  OF Txt:HintPrint     ; RETURN 'Prints straight to paper - the default printer unless you set PrinterName.'
+  OF Txt:HintPDF       ; RETURN 'A real, paginated PDF - nothing else needed to read it.'
+!  Print
+  OF Txt:PrintBtn      ; RETURN '&Print'
+  OF Txt:NoPrinter     ; RETURN 'No printer was chosen.'
+  OF Txt:RowsPrinted   ; RETURN ' row(s) printed on '
+  OF Txt:PageWord      ; RETURN ' page(s)'
+  OF Txt:PreviewChk    ; RETURN 'Pre&view before printing'
+  OF Txt:PageSetupBtn  ; RETURN 'Page &Setup...'
+!  Totals row (Excel .xlsx only)
+  OF Txt:ColTotal      ; RETURN 'Tot'
+  OF Txt:TotalBtn      ; RETURN 'Toggle t&otal'
+  OF Txt:TotalsChk     ; RETURN 'Add a &totals row (sums the ticked columns)'
+  OF Txt:TotalsTip     ; RETURN 'Adds a bold row with SUM() formulas under the data - Excel .xlsx only'
+  OF Txt:NotNumeric    ; RETURN 'Only a numeric column can be summed.'
+!  Average / Minimum / Maximum summary rows
+  OF Txt:SummaryLbl    ; RETURN 'Summary rows:'
+  OF Txt:SumChk        ; RETURN '&Sum'
+  OF Txt:AvgChk        ; RETURN '&Avg'
+  OF Txt:MinChk        ; RETURN 'M&in'
+  OF Txt:MaxChk        ; RETURN 'Ma&x'
+!  Email when done (Simple MAPI)
+  OF Txt:EmailChk      ; RETURN '&Email the file when it is done'
+  OF Txt:CantEmail     ; RETURN 'Could not open a mail message for the file.'
+  OF Txt:EmailFailTitle ; RETURN 'Could not send email'
+!  Subtotal / group rows
+  OF Txt:ColGroup      ; RETURN 'Grp'
+  OF Txt:GroupBtn      ; RETURN 'Toggle &group'
+!  Multiple sheets in one workbook
+  OF Txt:XlsxOnly      ; RETURN 'Multiple sheets only exist in Excel .xlsx.'
+  OF Txt:NotInWorkbook ; RETURN 'StartSheet() was called without StartWorkbook() first.'
+  OF Txt:TooManySheets ; RETURN 'This workbook cannot hold more than 100 sheets.'
+  OF Txt:NoSheets      ; RETURN 'No sheet was ever built before EndWorkbook().'
+  OF Txt:SplitChk      ; RETURN 'Split &sheets'
+  OF Txt:CntChk        ; RETURN 'C&nt'
+  OF Txt:PdfTruncTitle ; RETURN 'PDF incomplete'
+  OF Txt:PdfTruncMsg   ; RETURN 'This PDF ran out of pages before all the rows fit, and the remaining rows ' & |
+                                 'were left out. Try Excel or CSV instead for a data set this large.'
+  OF Txt:EmailFrontChk ; RETURN 'Bring email to &front'
 !  messages
   OF Txt:MsgTitle      ; RETURN 'Export'
   OF Txt:NoColumns     ; RETURN 'There is nothing to export - this list has no data columns.'
@@ -789,6 +1065,8 @@ Mark             STRING(3)                            ! 'X' when the column is i
 Num              LONG
 Head             STRING(64)                           ! what the file will call it
 Pic              STRING(32)
+Tot              STRING(3)                            ! 'X' when ticked for the xlsx Totals row
+Grp              STRING(3)                            ! 'X' when this is THE group-by/subtotal column
 Src              STRING(64)                           ! what the LIST calls it
                END
 i              LONG,AUTO
@@ -800,14 +1078,22 @@ ExpFile        CSTRING(261)
 ExpHdrs        BYTE
 ExpPics        BYTE
 ExpOpen        BYTE
+ExpEmail       BYTE
+ExpEmailFront  BYTE
+ExpTotals      BYTE
+ExpAvg         BYTE
+ExpMin         BYTE
+ExpMax         BYTE
+ExpCnt         BYTE
+ExpSplit       BYTE
 EdHead         CSTRING(129)
 EdPic          CSTRING(33)
 EdOk           BYTE
-BtnFeq         LONG,DIM(5)                          ! the column-picker button row
+BtnFeq         LONG,DIM(7)                          ! the column-picker button row
 BtnCap         CSTRING(65)
 BtnX           LONG
 BtnW           LONG
-ExpWnd WINDOW('Export data'),AT(,,436,344),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
+ExpWnd WINDOW('Export data'),AT(,,436,370),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
          PANEL,AT(0,0,436,36),USE(?ExpBand),FILL(0603A1FH)
          STRING('Export data'),AT(14,7),USE(?ExpT1),FONT('Segoe UI',12,COLOR:White,FONT:bold),TRN
          STRING('Choose a format and a destination, then pick the columns.'),AT(14,23),USE(?ExpT2), |
@@ -822,20 +1108,32 @@ ExpWnd WINDOW('Export data'),AT(,,436,344),FONT('Segoe UI',9,,FONT:regular,CHARS
          STRING('Double-click or press Space to include or exclude.'),AT(242,92,180,10),USE(?ExpHint), |
            FONT('Segoe UI',8,0757575H),TRN
          LIST,AT(14,104,408,118),USE(?ExpCols),FROM(ColQ),VSCROLL,ALRT(MouseLeft2),ALRT(SpaceKey), |
-           FORMAT('20C|M~Use~@s3@24R(2)|M~#~@n3@136L(2)|M~Heading in the file~@s64@' & |
-                  '62L(2)|M~Picture~@s32@136L(2)|M~Column on the list~@s64@')
+           FORMAT('20C|M~Use~@s3@24R(2)|M~#~@n3@112L(2)|M~Heading in the file~@s64@' & |
+                  '62L(2)|M~Picture~@s32@20C|M~Tot~@s3@20C|M~Grp~@s3@112L(2)|M~Column on the list~@s64@')
          BUTTON('&Include / exclude'),AT(14,226,68,13),USE(?ExpToggle)
          BUTTON('&Rename / picture...'),AT(86,226,74,13),USE(?ExpEdit)
          BUTTON('&All'),AT(164,226,30,13),USE(?ExpAll)
          BUTTON('&None'),AT(198,226,30,13),USE(?ExpNone)
          BUTTON('&Defaults'),AT(232,226,40,13),USE(?ExpDef),TIP('Put every heading and picture back the way the list has it')
+         BUTTON('Toggle t&otal'),AT(276,226,70,13),USE(?ExpTotal),TIP('Sum or unsum the highlighted numeric column in the Totals row')
+         BUTTON('Toggle &group'),AT(350,226,70,13),USE(?ExpGroup),TIP('Set (or clear) the highlighted column as the one to subtotal/group by')
          CHECK('Include the column &headings'),AT(14,250),USE(ExpHdrs)
          CHECK('Apply each column''s &picture'),AT(14,262),USE(ExpPics),TIP('Off = raw values, on = exactly what the list shows')
          CHECK('&Open the file when it is done'),AT(14,274),USE(ExpOpen)
-         PANEL,AT(14,294,408,1),USE(?ExpRule),FILL(0D4D0CCH)
-         STRING(''),AT(14,302,408,10),USE(?ExpInfo),FONT('Segoe UI',8,0757575H),TRN
-         BUTTON('&Export'),AT(308,320,54,14),USE(?ExpOk),DEFAULT
-         BUTTON('Cancel'),AT(366,320,54,14),USE(?ExpCancel)
+         BUTTON('Page &Setup...'),AT(280,274,142,13),USE(?ExpPageSetup),TIP('Orientation, paper size and margins')
+         CHECK('&Email the file when it is done'),AT(14,286),USE(ExpEmail),TIP('Opens a new message with the file attached, in your default mail program - you still press Send')
+         CHECK('Bring email to &front'),AT(230,286,150,10),USE(ExpEmailFront),TIP('Try to bring the mail program''s own window forward, instead of it just flashing on the taskbar')
+         PROMPT('Summary rows:'),AT(14,300),USE(?ExpSumP)
+         CHECK('&Sum'),AT(100,298,45,10),USE(ExpTotals),TIP('Adds a bold Sum row under the data - Excel .xlsx only')
+         CHECK('&Avg'),AT(148,298,45,10),USE(ExpAvg),TIP('Adds a bold Average row under the data - Excel .xlsx only')
+         CHECK('M&in'),AT(196,298,45,10),USE(ExpMin),TIP('Adds a bold Minimum row under the data - Excel .xlsx only')
+         CHECK('Ma&x'),AT(244,298,45,10),USE(ExpMax),TIP('Adds a bold Maximum row under the data - Excel .xlsx only')
+         CHECK('C&nt'),AT(292,298,45,10),USE(ExpCnt),TIP('Adds a bold Count row under the data - Excel .xlsx only')
+         CHECK('Split &sheets'),AT(340,298,82,10),USE(ExpSplit),TIP('Also write one extra sheet per distinct group value, alongside the main sheet - needs a Grp column')
+         PANEL,AT(14,320,408,1),USE(?ExpRule),FILL(0D4D0CCH)
+         STRING(''),AT(14,328,408,10),USE(?ExpInfo),FONT('Segoe UI',8,0757575H),TRN
+         BUTTON('&Export'),AT(308,346,54,14),USE(?ExpOk),DEFAULT
+         BUTTON('Cancel'),AT(366,346,54,14),USE(?ExpCancel)
        END
 EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
          PANEL,AT(0,0,258,28),USE(?EdBand),FILL(0603A1FH)
@@ -889,10 +1187,20 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
   ExpHdrs = SELF.Headers
   ExpPics = SELF.Pictures
   ExpOpen = SELF.OpenWhenDone
+  ExpEmail = SELF.EmailWhenDone
+  ExpEmailFront = SELF.EmailToFront
+  ExpTotals = SELF.Totals
+  ExpAvg    = SELF.TotalsAvg
+  ExpMin    = SELF.TotalsMin
+  ExpMax    = SELF.TotalsMax
+  ExpCnt    = SELF.TotalsCnt
+  ExpSplit  = SELF.SplitByGroup
   OPEN(ExpWnd)
   DO SpeakDialog                                          ! every caption, in SELF.Language
   ?ExpFmt{PROP:Selected} = Sel
   DO FillCols
+  DO SyncFmtMode                                          ! Print has no file - hide "Save to"
+  DO SyncEmailFront                                        ! "Bring email to front" only makes sense once Email is on
   IF ~SELF.AllowColumns THEN DO HideCols .
   ACCEPT
     CASE EVENT()
@@ -913,6 +1221,7 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
             ExpFile       = SELF.FileName
             DISPLAY(?ExpFile)
             DO ShowInfo
+            DO SyncFmtMode
           END
         END
       END
@@ -925,6 +1234,8 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
           DISPLAY(?ExpFile)
         END
       END
+    OF ?ExpPageSetup
+      IF EVENT() = EVENT:Accepted THEN SELF.PageSetup() .
     OF ?ExpCols
       CASE EVENT()
       OF EVENT:AlertKey
@@ -952,10 +1263,16 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
         SELF.ResetColumns()
         DO FillCols
       END
+    OF ?ExpTotal
+      IF EVENT() = EVENT:Accepted THEN DO ToggleTotal .
+    OF ?ExpGroup
+      IF EVENT() = EVENT:Accepted THEN DO ToggleGroup .
+    OF ?ExpEmail
+      IF EVENT() = EVENT:Accepted THEN DO SyncEmailFront .
     OF ?ExpOk
       CASE EVENT()
       OF EVENT:Accepted
-        IF ~CLIP(LEFT(ExpFile))
+        IF SELF.Fmt <> Exp:Print AND ~CLIP(LEFT(ExpFile))
           SELF.Note(SELF.Txt(Txt:NeedFile),SELF.Txt(Txt:MsgTitle),ICON:Exclamation)
           SELECT(?ExpFile)
           CYCLE
@@ -981,6 +1298,14 @@ EdWnd  WINDOW('Column'),AT(,,258,124),FONT('Segoe UI',9,,FONT:regular,CHARSET:AN
     SELF.Headers      = ExpHdrs
     SELF.Pictures     = ExpPics
     SELF.OpenWhenDone = ExpOpen
+    SELF.EmailWhenDone = ExpEmail
+    SELF.EmailToFront = ExpEmailFront
+    SELF.Totals       = ExpTotals
+    SELF.TotalsAvg    = ExpAvg
+    SELF.TotalsMin    = ExpMin
+    SELF.TotalsMax    = ExpMax
+    SELF.TotalsCnt    = ExpCnt
+    SELF.SplitByGroup = ExpSplit
     SELF.ForceExt(SELF.Fmt)
   END
   RETURN Ok
@@ -1004,17 +1329,31 @@ SpeakDialog ROUTINE
   ?ExpCols{PROPLIST:Header,2} = SELF.Txt(Txt:ColNum)
   ?ExpCols{PROPLIST:Header,3} = SELF.Txt(Txt:ColHeadFile)
   ?ExpCols{PROPLIST:Header,4} = SELF.Txt(Txt:ColPicture)
-  ?ExpCols{PROPLIST:Header,5} = SELF.Txt(Txt:ColOnList)
+  ?ExpCols{PROPLIST:Header,5} = SELF.Txt(Txt:ColTotal)
+  ?ExpCols{PROPLIST:Header,6} = SELF.Txt(Txt:ColGroup)
+  ?ExpCols{PROPLIST:Header,7} = SELF.Txt(Txt:ColOnList)
   ?ExpToggle{PROP:Text} = SELF.Txt(Txt:ToggleBtn)
   ?ExpEdit{PROP:Text}   = SELF.Txt(Txt:EditBtn)
   ?ExpAll{PROP:Text}    = SELF.Txt(Txt:AllBtn)
   ?ExpNone{PROP:Text}   = SELF.Txt(Txt:NoneBtn)
   ?ExpDef{PROP:Text}    = SELF.Txt(Txt:DefBtn)
   ?ExpDef{PROP:Tip}     = SELF.Txt(Txt:DefTip)
+  ?ExpTotal{PROP:Text}  = SELF.Txt(Txt:TotalBtn)
+  ?ExpGroup{PROP:Text}  = SELF.Txt(Txt:GroupBtn)
   ?ExpHdrs{PROP:Text}   = SELF.Txt(Txt:IncHeadings)
   ?ExpPics{PROP:Text}   = SELF.Txt(Txt:ApplyPics)
   ?ExpPics{PROP:Tip}    = SELF.Txt(Txt:ApplyPicsTip)
   ?ExpOpen{PROP:Text}   = SELF.Txt(Txt:OpenAfter)
+  ?ExpEmail{PROP:Text}  = SELF.Txt(Txt:EmailChk)
+  ?ExpEmailFront{PROP:Text}  = SELF.Txt(Txt:EmailFrontChk)
+  ?ExpPageSetup{PROP:Text} = SELF.Txt(Txt:PageSetupBtn)
+  ?ExpTotals{PROP:Text} = SELF.Txt(Txt:SumChk)
+  ?ExpSumP{PROP:Text}   = SELF.Txt(Txt:SummaryLbl)
+  ?ExpAvg{PROP:Text}    = SELF.Txt(Txt:AvgChk)
+  ?ExpMin{PROP:Text}    = SELF.Txt(Txt:MinChk)
+  ?ExpMax{PROP:Text}    = SELF.Txt(Txt:MaxChk)
+  ?ExpCnt{PROP:Text}    = SELF.Txt(Txt:CntChk)
+  ?ExpSplit{PROP:Text}  = SELF.Txt(Txt:SplitChk)
   ?ExpOk{PROP:Text}     = SELF.Txt(Txt:ExportBtn)
   ?ExpCancel{PROP:Text} = SELF.Txt(Txt:Cancel)
   DO SizeButtons
@@ -1037,8 +1376,10 @@ SizeButtons ROUTINE
   BtnFeq[3] = ?ExpAll
   BtnFeq[4] = ?ExpNone
   BtnFeq[5] = ?ExpDef
+  BtnFeq[6] = ?ExpTotal
+  BtnFeq[7] = ?ExpGroup
   BtnX = 14
-  LOOP i = 1 TO 5
+  LOOP i = 1 TO 7
     BtnCap = BtnFeq[i]{PROP:Text}
     BtnW   = LEN(CLIP(BtnCap))
     IF INSTRING('&',BtnCap,1,1) THEN BtnW -= 1 .          ! the accelerator marker
@@ -1078,6 +1419,8 @@ c     LONG,AUTO
     CQ:Num  = c
     CQ:Head = SELF.Cols.Head
     CQ:Pic  = SELF.Cols.Pic
+    CQ:Tot  = CHOOSE(SELF.Cols.IsNum = 1 AND SELF.Cols.Total = 1,'X','')
+    CQ:Grp  = CHOOSE(SELF.Cols.GroupBy = 1,'X','')
     CQ:Src  = SELF.Cols.HeadDef
     ADD(ColQ)
   END
@@ -1090,12 +1433,85 @@ ShowInfo ROUTINE
                          SELF.Columns() & SELF.Txt(Txt:SelectedWord)
   ?ExpInfo{PROP:Text}  = SELF.FormatHint(SELF.Fmt)
 
+!  ---- Print writes no file - hide "Save to" and relabel the OK button. It
+!  ---- prints straight to SELF.PrinterName or the Windows default printer
+!  ---- when the export runs (StartFile -> PrnBegin) - no dialog appears.
+!  ---- "Page Setup..." matters for Print and PDF alike (margins for both,
+!  ---- orientation/paper for PDF).
+SyncFmtMode ROUTINE
+  IF SELF.Fmt = Exp:Print
+    ?ExpP2{PROP:Hide}      = 1
+    ?ExpFile{PROP:Hide}    = 1
+    ?ExpPick{PROP:Hide}    = 1
+    ?ExpOk{PROP:Text}      = SELF.Txt(Txt:PrintBtn)
+  ELSE
+    ?ExpP2{PROP:Hide}      = 0
+    ?ExpFile{PROP:Hide}    = 0
+    ?ExpPick{PROP:Hide}    = 0
+    ?ExpOk{PROP:Text}      = SELF.Txt(Txt:ExportBtn)
+  END
+  IF SELF.Fmt = Exp:Print OR SELF.Fmt = Exp:PDF
+    ?ExpPageSetup{PROP:Hide} = 0
+  ELSE
+    ?ExpPageSetup{PROP:Hide} = 1
+  END
+!  The summary rows only exist in the .xlsx writer - grey the picker button
+!  and the four checkboxes out for every other format, rather than hide them,
+!  so the dialog doesn't jump around as the user tries formats.
+  IF SELF.Fmt = Exp:XLSX
+    ?ExpTotal{PROP:Disable}  = 0
+    ?ExpGroup{PROP:Disable}  = 0
+    ?ExpSumP{PROP:Disable}   = 0
+    ?ExpTotals{PROP:Disable} = 0
+    ?ExpAvg{PROP:Disable}    = 0
+    ?ExpMin{PROP:Disable}    = 0
+    ?ExpMax{PROP:Disable}    = 0
+    ?ExpCnt{PROP:Disable}    = 0
+    ?ExpSplit{PROP:Disable}  = 0
+  ELSE
+    ?ExpTotal{PROP:Disable}  = 1
+    ?ExpGroup{PROP:Disable}  = 1
+    ?ExpSumP{PROP:Disable}   = 1
+    ?ExpTotals{PROP:Disable} = 1
+    ?ExpAvg{PROP:Disable}    = 1
+    ?ExpMin{PROP:Disable}    = 1
+    ?ExpMax{PROP:Disable}    = 1
+    ?ExpCnt{PROP:Disable}    = 1
+    ?ExpSplit{PROP:Disable}  = 1
+  END
+
 !  ---- include / exclude the highlighted column -----------------------------
 ToggleRow ROUTINE
   row = CHOICE(?ExpCols)
   IF ~row THEN EXIT .
   SELF.ColumnUse(row,1 - SELF.ColumnOn(row))
   DO FillCols
+
+!  ---- tick / untick it for the xlsx Totals row (numeric columns only) ------
+ToggleTotal ROUTINE
+  row = CHOICE(?ExpCols)
+  IF ~row THEN EXIT .
+  IF ~SELF.ColumnIsNum(row)
+    SELF.Note(SELF.Txt(Txt:NotNumeric),SELF.Txt(Txt:MsgTitle),ICON:Exclamation)
+    EXIT
+  END
+  SELF.ColumnTotal(row,1 - SELF.ColumnTotalOn(row))
+  DO FillCols
+
+!  ---- set (or clear) it as THE column to subtotal/group by - any column, --
+!  ---- numeric or not, and only one at a time (ticking a new one clears the
+!  ---- old one, same as FillCols already shows via ColumnGroupBy itself) ----
+ToggleGroup ROUTINE
+  row = CHOICE(?ExpCols)
+  IF ~row THEN EXIT .
+  SELF.ColumnGroupBy(row,1 - SELF.ColumnGroupOn(row))
+  DO FillCols
+
+!  ---- "Bring email to front" only means anything once Email is ticked ------
+!  ---- hidden (not disabled) when Email is off, so it doesn't sit there
+!  ---- greyed out taking up space for something that isn't relevant yet -----
+SyncEmailFront ROUTINE
+  ?ExpEmailFront{PROP:Hide} = CHOOSE(ExpEmail <> 0,0,1)
 
 !  ---- rename it, or give it a different picture ----------------------------
 EditRow ROUTINE
@@ -1156,13 +1572,25 @@ HideCols ROUTINE
   ?ExpAll{PROP:Hide}   = 1
   ?ExpNone{PROP:Hide}  = 1
   ?ExpDef{PROP:Hide}   = 1
-  ?ExpHdrs{PROP:Ypos}  = 250 - Shrink
-  ?ExpPics{PROP:Ypos}  = 262 - Shrink
-  ?ExpOpen{PROP:Ypos}  = 274 - Shrink
-  ?ExpRule{PROP:Ypos}  = 294 - Shrink
-  ?ExpInfo{PROP:Ypos}  = 302 - Shrink
-  ?ExpOk{PROP:Ypos}    = 320 - Shrink
-  ?ExpCancel{PROP:Ypos}= 320 - Shrink
+  ?ExpTotal{PROP:Hide} = 1
+  ?ExpGroup{PROP:Hide} = 1
+  ?ExpHdrs{PROP:Ypos}    = 250 - Shrink
+  ?ExpPics{PROP:Ypos}    = 262 - Shrink
+  ?ExpOpen{PROP:Ypos}    = 274 - Shrink
+  ?ExpPageSetup{PROP:Ypos} = 274 - Shrink
+  ?ExpEmail{PROP:Ypos}   = 286 - Shrink
+  ?ExpEmailFront{PROP:Ypos}   = 286 - Shrink
+  ?ExpSumP{PROP:Ypos}    = 300 - Shrink
+  ?ExpTotals{PROP:Ypos}  = 298 - Shrink
+  ?ExpAvg{PROP:Ypos}     = 298 - Shrink
+  ?ExpMin{PROP:Ypos}     = 298 - Shrink
+  ?ExpMax{PROP:Ypos}     = 298 - Shrink
+  ?ExpCnt{PROP:Ypos}     = 298 - Shrink
+  ?ExpSplit{PROP:Ypos}   = 298 - Shrink
+  ?ExpRule{PROP:Ypos}    = 320 - Shrink
+  ?ExpInfo{PROP:Ypos}    = 328 - Shrink
+  ?ExpOk{PROP:Ypos}      = 346 - Shrink
+  ?ExpCancel{PROP:Ypos}  = 346 - Shrink
   0{PROP:Height}       = 0{PROP:Height} - Shrink
   0{PROP:Ypos}         = 0{PROP:Ypos} + Shrink / 2        ! stay centred
 
@@ -1235,20 +1663,23 @@ dlm   STRING(1)
   IF ~n
     SELF.ErrCode = 1
     SELF.ErrText = SELF.Txt(Txt:NoColumns)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
     RETURN 0
   END
   IF ~SELF.Selected()
     SELF.ErrCode = 3
     SELF.ErrText = SELF.Txt(Txt:NoneSelected)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
     RETURN 0
   END
-  IF ~CLIP(LEFT(SELF.FileName))
-    SELF.ErrCode = 2
+  IF SELF.Fmt <> Exp:Print AND ~SELF.InWorkbook AND ~CLIP(LEFT(SELF.FileName))  ! Print writes no file; a workbook's
+    SELF.ErrCode = 2                                                            ! FileName is only needed by EndWorkbook()
     SELF.ErrText = SELF.Txt(Txt:NoFileName)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
     RETURN 0
   END
-  SELF.FreeBuffers()
-  SELF.Need(Exp:MinChunk)
+  IF ~SELF.InWorkbook THEN SELF.FreeBuffers() .              ! mid-workbook, FreeBuffers() would wipe the sheets already stashed
+  IF SELF.Fmt <> Exp:Print THEN SELF.Need(Exp:MinChunk) .    ! Print never touches SELF.Buf
   SELF.Started = 1
   dlm = SELF.Sep()
 
@@ -1287,14 +1718,14 @@ dlm   STRING(1)
     SELF.CatHtmlText(CLIP(SELF.Title))
     SELF.Cat('</title>' & Exp:CRLF)
     SELF.Cat('<style>' & |
-             'body{font:14px "Segoe UI",Arial,sans-serif;color:#23303b;background:#f5f7fa;margin:24px}' & |
-             'h1{font-size:19px;font-weight:600;color:#1f3a60;margin:0 0 4px}' & |
-             'p.meta{margin:0 0 18px;color:#6b7a88;font-size:12px}' & |
-             'table{border-collapse:collapse;background:#fff;box-shadow:0 1px 3px rgba(31,58,96,.12);font-size:13px}' & |
-             'th{background:#1f3a60;color:#fff;text-align:left;font-weight:600;padding:8px 12px;white-space:nowrap}' & |
-             'td{padding:6px 12px;border-bottom:1px solid #e3e9ef}' & |
-             'tr:nth-child(even) td{background:#f7f9fc}' & |
-             'td.n{text-align:right;font-variant-numeric:tabular-nums}' & |
+             'body{{font:14px "Segoe UI",Arial,sans-serif;color:#23303b;background:#f5f7fa;margin:24px}' & |
+             'h1{{font-size:19px;font-weight:600;color:#1f3a60;margin:0 0 4px}' & |
+             'p.meta{{margin:0 0 18px;color:#6b7a88;font-size:12px}' & |
+             'table{{border-collapse:collapse;background:#fff;box-shadow:0 1px 3px rgba(31,58,96,.12);font-size:13px}' & |
+             'th{{background:#1f3a60;color:#fff;text-align:left;font-weight:600;padding:8px 12px;white-space:nowrap}' & |
+             'td{{padding:6px 12px;border-bottom:1px solid #e3e9ef}' & |
+             'tr:nth-child(even) td{{background:#f7f9fc}' & |
+             'td.n{{text-align:right;font-variant-numeric:tabular-nums}' & |
              '</style></head><body>' & Exp:CRLF)
     SELF.Cat('<h1>')
     SELF.CatHtmlText(CLIP(SELF.Title))
@@ -1316,38 +1747,22 @@ dlm   STRING(1)
 
 !  ---- Excel .xlsx : the worksheet part -----------------------------------
   OF Exp:XLSX
-    SELF.Cat('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & Exp:CRLF)
-    SELF.Cat('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">')
-    IF SELF.Headers                                       ! keep the heading row on screen
-      SELF.Cat('<sheetViews><sheetView workbookViewId="0">' & |
-               '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' & |
-               '</sheetView></sheetViews>')
+    SELF.XlsxSheetBegin()
+
+!  ---- Print: no buffer at all - StartDoc + StartPage + the heading row -----
+  OF Exp:Print
+    IF ~SELF.PrnBegin()
+      SELF.Started = 0
+      IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+      RETURN 0
     END
-    SELF.Cat('<sheetFormatPr defaultRowHeight="15"/>')
-    SELF.Cat('<cols>')                                    ! carry the on-screen widths across
-    out = 0
-    LOOP i = 1 TO n
-      GET(SELF.Cols,i)
-      IF ~SELF.Cols.Use THEN CYCLE .
-      out += 1
-      w = SELF.Cols.Width / 4 + 2
-      IF w < 6  THEN w = 6  .
-      IF w > 70 THEN w = 70 .
-      SELF.Cat('<col min="' & out & '" max="' & out & '" width="' & w & '" customWidth="1"/>')
-    END
-    SELF.Cat('</cols><sheetData>')
-    IF SELF.Headers
-      SELF.Cat('<row r="1">')
-      out = 0
-      LOOP i = 1 TO n
-        GET(SELF.Cols,i)
-        IF ~SELF.Cols.Use THEN CYCLE .
-        out += 1
-        SELF.Cat('<c r="' & SELF.ColRef(out) & '1" s="1" t="inlineStr"><is><t>')
-        SELF.CatXmlText(SELF.HeaderText(i))
-        SELF.Cat('</t></is></c>')
-      END
-      SELF.Cat('</row>')
+
+!  ---- PDF: catalog/font objects, page 1, and the heading row ---------------
+  OF Exp:PDF
+    IF ~SELF.PdfBegin()
+      SELF.Started = 0
+      IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+      RETURN 0
     END
   END
   RETURN 1
@@ -1363,7 +1778,10 @@ n     LONG,AUTO
 out   LONG,AUTO
 num   BYTE,AUTO
 rw    LONG,AUTO
+grw   LONG,AUTO                                            ! the CURRENT group's own row number, for SplitByGroup
 dlm   STRING(1)
+d     DECIMAL(20,6),AUTO                                   ! CellNumber() -> DECIMAL, for the Totals row
+curGroupVal CSTRING(261)                                    ! this row's group-by value, if grouping is on
   CODE
   IF ~SELF.Started THEN RETURN .
   n = SELF.Columns()
@@ -1400,7 +1818,7 @@ dlm   STRING(1)
 
   OF Exp:JSON
     IF SELF.RowsOut THEN SELF.Cat(',') .
-    SELF.Cat(Exp:CRLF & '  {')
+    SELF.Cat(Exp:CRLF & '  {{')
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
       IF ~SELF.Cols.Use THEN CYCLE .
@@ -1436,8 +1854,40 @@ dlm   STRING(1)
     SELF.Cat('</tr>' & Exp:CRLF)
 
   OF Exp:XLSX
-    rw = SELF.RowsOut + 1
-    IF SELF.Headers THEN rw += 1 .
+!   ---- subtotal / group rows: peek this row's group value, handle a break --
+    IF SELF.GroupCol
+      curGroupVal = ''
+      out = 0
+      LOOP i = 1 TO n
+        GET(SELF.Cols,i)
+        IF ~SELF.Cols.Use THEN CYCLE .
+        out += 1
+        IF out = SELF.GroupCol
+          curGroupVal = SELF.CellText(i)
+          BREAK
+        END
+      END
+      IF SELF.GroupHasRow AND curGroupVal <> SELF.GroupPrev
+        SELF.XlsxSubtotalRow(SELF.GroupPrev,SELF.GroupFirstRow,SELF.XlsxRow - 1)
+        IF SELF.SplitByGroup                                ! close the FINISHED group's own separate sheet too
+          SELF.GrpSheetEnd(SELF.GrpFirstRow,SELF.GrpXlsxRow - 1)
+          SELF.GrpStashSheet(SELF.GroupPrev)
+        END
+        LOOP i = 1 TO 64
+          SELF.GrpSum[i] = 0 ; SELF.GrpMin[i] = 0 ; SELF.GrpMax[i] = 0 ; SELF.GrpCount[i] = 0
+        END
+        SELF.GroupFirstRow = SELF.XlsxRow
+        IF SELF.SplitByGroup THEN SELF.GrpSheetBegin() .    ! ... and start the NEW group's
+      ELSIF ~SELF.GroupHasRow
+        SELF.GroupFirstRow = SELF.XlsxRow
+        IF SELF.SplitByGroup THEN SELF.GrpSheetBegin() .    ! the very first group's sheet
+      END
+      SELF.GroupPrev   = curGroupVal
+      SELF.GroupHasRow = 1
+    END
+
+    rw = SELF.XlsxRow
+    out = 0
     SELF.Cat('<row r="' & rw & '">')
     LOOP i = 1 TO n
       GET(SELF.Cols,i)
@@ -1445,7 +1895,34 @@ dlm   STRING(1)
       num = SELF.Cols.IsNum
       out += 1
       IF num                                              ! a true numeric cell: sums, sorts, charts
-        SELF.Cat('<c r="' & SELF.ColRef(out) & rw & '"><v>' & SELF.CellNumber(i) & '</v></c>')
+        IF out <= 64 AND SELF.ColStyleN[out]
+          SELF.Cat('<c r="' & SELF.ColRef(out) & rw & '" s="' & SELF.ColStyleN[out] & '"><v>' & SELF.CellNumber(i) & '</v></c>')
+        ELSE
+          SELF.Cat('<c r="' & SELF.ColRef(out) & rw & '"><v>' & SELF.CellNumber(i) & '</v></c>')
+        END
+        IF (SELF.Totals OR SELF.TotalsAvg OR SELF.TotalsMin OR SELF.TotalsMax OR SELF.TotalsCnt) AND SELF.Cols.Total AND out <= 64
+          d = SELF.CellNumber(i)                          ! STRING -> DECIMAL
+          IF SELF.ColCount[out] = 0                       ! first value seen for this column
+            SELF.ColMin[out] = d
+            SELF.ColMax[out] = d
+          ELSE
+            IF d < SELF.ColMin[out] THEN SELF.ColMin[out] = d .
+            IF d > SELF.ColMax[out] THEN SELF.ColMax[out] = d .
+          END
+          SELF.ColSum[out]   += d                          ! running sum for this column
+          SELF.ColCount[out] += 1                          ! how many values went into it (for the average)
+          IF SELF.GroupCol                                 ! the same, but reset at every group break
+            IF SELF.GrpCount[out] = 0
+              SELF.GrpMin[out] = d
+              SELF.GrpMax[out] = d
+            ELSE
+              IF d < SELF.GrpMin[out] THEN SELF.GrpMin[out] = d .
+              IF d > SELF.GrpMax[out] THEN SELF.GrpMax[out] = d .
+            END
+            SELF.GrpSum[out]   += d
+            SELF.GrpCount[out] += 1
+          END
+        END
       ELSE
         SELF.Cat('<c r="' & SELF.ColRef(out) & rw & '" t="inlineStr"><is><t>')
         SELF.CatXmlText(SELF.CellText(i))
@@ -1453,13 +1930,46 @@ dlm   STRING(1)
       END
     END
     SELF.Cat('</row>')
+    SELF.XlsxRow += 1
+
+!   ---- SplitByGroup: this SAME row, again, into the CURRENT group's own ----
+!   ---- sheet - a second, independent copy, not a reference to the above ----
+    IF SELF.SplitByGroup AND SELF.GroupCol
+      grw = SELF.GrpXlsxRow
+      out = 0
+      SELF.GrpCat('<row r="' & grw & '">')
+      LOOP i = 1 TO n
+        GET(SELF.Cols,i)
+        IF ~SELF.Cols.Use THEN CYCLE .
+        num = SELF.Cols.IsNum
+        out += 1
+        IF num
+          IF out <= 64 AND SELF.ColStyleN[out]
+            SELF.GrpCat('<c r="' & SELF.ColRef(out) & grw & '" s="' & SELF.ColStyleN[out] & '"><v>' & SELF.CellNumber(i) & '</v></c>')
+          ELSE
+            SELF.GrpCat('<c r="' & SELF.ColRef(out) & grw & '"><v>' & SELF.CellNumber(i) & '</v></c>')
+          END
+        ELSE
+          SELF.GrpCat('<c r="' & SELF.ColRef(out) & grw & '" t="inlineStr"><is><t>')
+          SELF.GrpCatXmlText(SELF.CellText(i))
+          SELF.GrpCat('</t></is></c>')
+        END
+      END
+      SELF.GrpCat('</row>')
+      SELF.GrpXlsxRow += 1
+    END
+
+  OF Exp:Print
+    SELF.PrnRow()
+
+  OF Exp:PDF
+    SELF.PdfRow()
   END
   SELF.RowsOut += 1
 
 
 ExportClass.EndFile PROCEDURE()
 n     LONG,AUTO
-last  LONG,AUTO
 ok    BYTE(0)
   CODE
   IF ~SELF.Started
@@ -1481,17 +1991,18 @@ ok    BYTE(0)
     SELF.Cat('<p class="meta">' & CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & SELF.Txt(Txt:RowsHtml) & '</p>' & Exp:CRLF)
     SELF.Cat('</body></html>' & Exp:CRLF)
   OF Exp:XLSX
-    SELF.Cat('</sheetData>')
-    IF SELF.Headers AND SELF.RowsOut
-      last = SELF.RowsOut + 1
-      SELF.Cat('<autoFilter ref="A1:' & SELF.ColRef(SELF.Selected()) & last & '"/>')
-    END
-    SELF.Cat('</worksheet>')
+    SELF.XlsxSheetEnd()
+    SELF.XlsxStashSheet(SELF.Title)                         ! single-sheet export: exactly one entry for XlsxWrite() to zip
+    IF SELF.SplitByGroup AND SELF.GroupCol THEN SELF.XlsxMoveLastToFirst() .  ! the main sheet stays the FIRST tab
   END
 
   CASE SELF.Fmt
   OF Exp:XLSX
     ok = SELF.XlsxWrite()
+  OF Exp:Print
+    ok = SELF.PrnEnd()                                    ! EndPage/EndDoc - no file at all
+  OF Exp:PDF
+    ok = SELF.PdfFinish()                                 ! Pages tree + xref + trailer -> disk
   OF Exp:CSVUTF8 OROF Exp:XML OROF Exp:JSON OROF Exp:HTML
     SELF.ToUTF8(SELF.Buf,SELF.BufLen)                     ! these formats declare UTF-8
     IF SELF.Fmt = Exp:CSVUTF8                             ! Excel needs the BOM to trust it
@@ -1515,10 +2026,123 @@ ok    BYTE(0)
   END
   IF SELF.Persist THEN SELF.SaveSettings() .              ! remember how they left it
   IF SELF.Confirm
-    SELF.Note(CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & SELF.Txt(Txt:RowsExported) & Exp:CRLF & Exp:CRLF & |
+    IF SELF.Fmt = Exp:Print                                ! no file - report pages instead
+      SELF.Note(CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & SELF.Txt(Txt:RowsPrinted) & |
+                CLIP(LEFT(FORMAT(SELF.PagesOut,@n_11))) & SELF.Txt(Txt:PageWord), |
+                SELF.Txt(Txt:DoneTitle),ICON:Asterisk)
+    ELSE
+      SELF.Note(CLIP(LEFT(FORMAT(SELF.RowsOut,@n_11))) & SELF.Txt(Txt:RowsExported) & Exp:CRLF & Exp:CRLF & |
+                CLIP(SELF.FileName),SELF.Txt(Txt:DoneTitle),ICON:Asterisk)
+    END
+    IF SELF.PdfTruncated                                  ! shown AFTER the normal completion popup, not instead of it
+      SELF.Note(SELF.Txt(Txt:PdfTruncMsg),SELF.Txt(Txt:PdfTruncTitle),ICON:Exclamation)
+    END
+  END
+  IF SELF.Fmt <> Exp:Print AND SELF.OpenWhenDone THEN SELF.ShellOpen(SELF.FileName) .
+  IF SELF.Fmt <> Exp:Print AND SELF.EmailWhenDone THEN SELF.EmailFile(SELF.FileName) .
+  RETURN 1
+
+
+! ############################################################################
+!  Multiple sheets in one workbook - code-driven only, no Ask() dialog for it
+! ############################################################################
+!  Once, before the first sheet. Resets everything (including any sheets left
+!  over from an earlier, abandoned attempt) and switches StartFile() into
+!  "leave the buffers and the sheet stash alone between sheets" mode.
+ExportClass.StartWorkbook PROCEDURE()
+  CODE
+  SELF.ErrCode = 0
+  SELF.ErrText = ''
+  IF SELF.Fmt <> Exp:XLSX
+    SELF.ErrCode = 20
+    SELF.ErrText = SELF.Txt(Txt:XlsxOnly)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  IF ~CLIP(LEFT(SELF.FileName))
+    SELF.ErrCode = 2
+    SELF.ErrText = SELF.Txt(Txt:NoFileName)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  SELF.FreeBuffers()
+  SELF.InWorkbook      = 1
+  SELF.WorkbookRowsOut = 0
+  RETURN 1
+
+
+!  Like StartFile(), scoped to one sheet: call Init() first if this sheet's
+!  columns/list are different from the last one, then this, then the usual
+!  AddRow() loop, then EndSheet(). Up to 100 sheets - comfortably more than
+!  any real workbook needs, and keeps the fixed-size parts XlsxWrite() builds
+!  safely within their buffers regardless.
+ExportClass.StartSheet PROCEDURE(STRING pName)
+  CODE
+  SELF.ErrCode = 0
+  SELF.ErrText = ''
+  IF SELF.Fmt <> Exp:XLSX
+    SELF.ErrCode = 20
+    SELF.ErrText = SELF.Txt(Txt:XlsxOnly)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  IF ~SELF.InWorkbook
+    SELF.ErrCode = 21
+    SELF.ErrText = SELF.Txt(Txt:NotInWorkbook)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  IF ~SELF.Sheets &= NULL AND RECORDS(SELF.Sheets) >= 100
+    SELF.ErrCode = 22
+    SELF.ErrText = SELF.Txt(Txt:TooManySheets)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  SELF.CurSheetName = pName
+  RETURN SELF.StartFile()
+
+
+!  Closes this sheet's worksheet XML and stashes it - the workbook itself
+!  isn't written until EndWorkbook(). SELF.RowsOut folds into
+!  SELF.WorkbookRowsOut first, for one true row count across every sheet in
+!  EndWorkbook()'s completion popup.
+ExportClass.EndSheet PROCEDURE()
+  CODE
+  IF SELF.Fmt <> Exp:XLSX OR ~SELF.InWorkbook OR ~SELF.Started THEN RETURN 0 .
+  SELF.XlsxSheetEnd()
+  SELF.WorkbookRowsOut += SELF.RowsOut
+  SELF.XlsxStashSheet(SELF.CurSheetName)
+  SELF.Started = 0
+  RETURN 1
+
+
+!  Assembles every sheet EndSheet() stashed into one real .xlsx and writes it
+!  to disk - the workbook-level equivalent of EndFile(). Ends "in workbook
+!  mode" either way, so a failed attempt doesn't wedge the next StartWorkbook().
+ExportClass.EndWorkbook PROCEDURE()
+ok  BYTE(0)
+  CODE
+  IF SELF.Fmt <> Exp:XLSX OR ~SELF.InWorkbook THEN RETURN 0 .
+  IF SELF.Sheets &= NULL OR RECORDS(SELF.Sheets) = 0
+    SELF.ErrCode = 23
+    SELF.ErrText = SELF.Txt(Txt:NoSheets)
+    SELF.InWorkbook = 0
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  ok = SELF.XlsxWrite()
+  SELF.FreeBuffers()
+  SELF.InWorkbook = 0
+  IF ~ok
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:FailTitle),ICON:Hand) .
+    RETURN 0
+  END
+  IF SELF.Confirm
+    SELF.Note(CLIP(LEFT(FORMAT(SELF.WorkbookRowsOut,@n_11))) & SELF.Txt(Txt:RowsExported) & Exp:CRLF & Exp:CRLF & |
               CLIP(SELF.FileName),SELF.Txt(Txt:DoneTitle),ICON:Asterisk)
   END
-  IF SELF.OpenWhenDone THEN SELF.ShellOpen(SELF.FileName) .
+  IF SELF.OpenWhenDone  THEN SELF.ShellOpen(SELF.FileName) .
+  IF SELF.EmailWhenDone THEN SELF.EmailFile(SELF.FileName) .
   RETURN 1
 
 
@@ -1542,6 +2166,189 @@ ExportClass.Run PROCEDURE()
   CODE
   IF ~SELF.Ask() THEN RETURN 0 .
   RETURN SELF.ExportQueue()
+
+
+! ############################################################################
+!  Printing - the one-call version for hand-coded use. Sets Fmt to Exp:Print
+!  and drives the same StartFile/AddRow/EndFile engine everything else uses,
+!  so a browse walked through StartFile()/AddRow()/EndFile() by hand (see the
+!  header comment) prints exactly as easily as it exports.
+!  Named PrintOut, not Print - PRINT is a reserved Clarion intrinsic statement.
+! ############################################################################
+ExportClass.PrintOut PROCEDURE()
+i  LONG,AUTO
+  CODE
+  SELF.Fmt = Exp:Print
+  IF ~SELF.StartFile() THEN RETURN 0 .                    ! opens the printer
+  IF ~SELF.Q &= NULL
+    LOOP i = 1 TO RECORDS(SELF.Q)
+      GET(SELF.Q,i)
+      IF ERRORCODE() THEN BREAK .
+      SELF.AddRow()
+    END
+  END
+  RETURN SELF.EndFile()
+
+
+!  No REPORT structure means no built-in Clarion PrintPreviewClass - instead,
+!  this builds the SAME PDF Exp:PDF would (temporarily switching Fmt/FileName)
+!  into the user's temp folder, then lets EndFile()'s own OpenWhenDone handling
+!  open it - so whatever the machine's default PDF viewer is becomes the
+!  preview UI, at zero extra Win32 risk. Fmt/FileName/OpenWhenDone/EmailWhenDone
+!  are restored afterwards, so this never disturbs how the caller has the
+!  exporter set up - and the scratch file in TEMP never gets emailed.
+ExportClass.PreviewOut PROCEDURE()
+savedFmt      LONG,AUTO
+savedFile     CSTRING(261),AUTO
+savedOpen     BYTE,AUTO
+savedEmail    BYTE,AUTO
+tmp           CSTRING(261)
+tsize         ULONG,AUTO
+i             LONG,AUTO
+ok            BYTE,AUTO
+  CODE
+  savedFmt  = SELF.Fmt
+  savedFile = SELF.FileName
+  savedOpen = SELF.OpenWhenDone
+  savedEmail = SELF.EmailWhenDone
+
+  tmp = ''
+  tsize = exGetTempPath(SIZE(tmp),tmp)
+  IF ~tsize OR tsize > SIZE(tmp)
+    tmp = LONGPATH()                                    ! temp folder unavailable - use this instead
+  END
+  tmp = CLIP(tmp)
+  IF LEN(tmp) AND tmp[LEN(tmp)] <> '\'
+    tmp = CLIP(tmp) & '\'
+  END
+  tmp = CLIP(tmp) & 'ExportPreview.pdf'
+
+  SELF.Fmt          = Exp:PDF
+  SELF.FileName     = tmp
+  SELF.OpenWhenDone = 1                                  ! EndFile() opens it for us
+  SELF.EmailWhenDone = 0                                 ! never email a scratch file from TEMP
+
+  ok = SELF.StartFile()
+  IF ok
+    IF ~SELF.Q &= NULL
+      LOOP i = 1 TO RECORDS(SELF.Q)
+        GET(SELF.Q,i)
+        IF ERRORCODE() THEN BREAK .
+        SELF.AddRow()
+      END
+    END
+    ok = SELF.EndFile()
+  END
+
+  SELF.Fmt          = savedFmt
+  SELF.FileName     = savedFile
+  SELF.OpenWhenDone = savedOpen
+  SELF.EmailWhenDone = savedEmail
+  RETURN ok
+
+
+!  A small, pure-Clarion page-setup dialog - no PAGESETUPDLG struct, so nothing
+!  here depends on the exact byte layout of a Win32 DEVMODE. PDF honours all of
+!  it; Print honours the margins and font size, but not orientation/paper -
+!  a printed page follows the target printer's own configured default.
+!  Orientation/Paper use a DROP list bound to a small QUEUE - the same idiom
+!  Ask() uses for ?ExpFmt - rather than an OPTION/RADIO group, which some
+!  Clarion versions insist on a literal string VALUE() for even when the bound
+!  field is numeric.
+ExportClass.PageSetup PROCEDURE()
+OrientQ   QUEUE,PRE(OQ)
+FName       STRING(20)
+FId         LONG
+          END
+PaperQ    QUEUE,PRE(PQ)
+FName       STRING(20)
+FId         LONG
+          END
+Ok        BYTE(0)
+Sel       LONG,AUTO
+mL        REAL
+mT        REAL
+mR        REAL
+mB        REAL
+i         LONG,AUTO
+PSWnd  WINDOW('Page setup'),AT(,,220,150),FONT('Segoe UI',9,,FONT:regular,CHARSET:ANSI),CENTER,GRAY,SYSTEM,MODAL
+         PROMPT('&Orientation:'),AT(10,12),USE(?PsP1)
+         LIST,AT(10,24,120,10),USE(?PsOrient),DROP(5),FROM(OrientQ),FORMAT('116L(2)@s20@')
+         PROMPT('&Paper (PDF only):'),AT(10,44),USE(?PsP2)
+         LIST,AT(10,56,120,10),USE(?PsPaper),DROP(5),FROM(PaperQ),FORMAT('116L(2)@s20@')
+         PROMPT('Margins, in inches:'),AT(140,10),USE(?PsP3)
+         PROMPT('&Left'),AT(140,26),USE(?PsP4)
+         ENTRY(@n5.2),AT(178,24,36,10),USE(mL)
+         PROMPT('&Top'),AT(140,40),USE(?PsP5)
+         ENTRY(@n5.2),AT(178,38,36,10),USE(mT)
+         PROMPT('&Right'),AT(140,54),USE(?PsP6)
+         ENTRY(@n5.2),AT(178,52,36,10),USE(mR)
+         PROMPT('&Bottom'),AT(140,68),USE(?PsP7)
+         ENTRY(@n5.2),AT(178,66,36,10),USE(mB)
+         BUTTON('OK'),AT(94,124,54,14),USE(?PsOk),DEFAULT
+         BUTTON('Cancel'),AT(154,124,54,14),USE(?PsCancel)
+       END
+  CODE
+  OQ:FName = 'Portrait'  ; OQ:FId = Exp:Portrait  ; ADD(OrientQ)
+  OQ:FName = 'Landscape' ; OQ:FId = Exp:Landscape ; ADD(OrientQ)
+  PQ:FName = 'Letter'    ; PQ:FId = Exp:Letter    ; ADD(PaperQ)
+  PQ:FName = 'A4'        ; PQ:FId = Exp:A4        ; ADD(PaperQ)
+  mL = SELF.MarginLeft   / 1440.0
+  mT = SELF.MarginTop    / 1440.0
+  mR = SELF.MarginRight  / 1440.0
+  mB = SELF.MarginBottom / 1440.0
+  OPEN(PSWnd)
+  Sel = 1
+  LOOP i = 1 TO RECORDS(OrientQ)
+    GET(OrientQ,i)
+    IF OQ:FId = SELF.PageOrient THEN Sel = i ; BREAK .
+  END
+  ?PsOrient{PROP:Selected} = Sel
+  Sel = 1
+  LOOP i = 1 TO RECORDS(PaperQ)
+    GET(PaperQ,i)
+    IF PQ:FId = SELF.PagePaper THEN Sel = i ; BREAK .
+  END
+  ?PsPaper{PROP:Selected} = Sel
+  ACCEPT
+    CASE FIELD()
+    OF ?PsOk
+      IF EVENT() = EVENT:Accepted
+        Ok = 1
+        POST(EVENT:CloseWindow)
+      END
+    OF ?PsCancel
+      IF EVENT() = EVENT:Accepted THEN POST(EVENT:CloseWindow) .
+    END
+  END
+  IF Ok
+    Sel = CHOICE(?PsOrient)                                 ! read the LIST while the window is still
+    IF Sel                                                   ! open - CHOICE() after CLOSE() returns nothing
+      GET(OrientQ,Sel)
+      IF ~ERRORCODE() THEN SELF.PageOrient = OQ:FId .
+    END
+    Sel = CHOICE(?PsPaper)
+    IF Sel
+      GET(PaperQ,Sel)
+      IF ~ERRORCODE() THEN SELF.PagePaper = PQ:FId .
+    END
+  END
+  CLOSE(PSWnd)
+  IF Ok
+    IF mL < 0 THEN mL = 0 .
+    IF mL > 5 THEN mL = 5 .
+    IF mT < 0 THEN mT = 0 .
+    IF mT > 5 THEN mT = 5 .
+    IF mR < 0 THEN mR = 0 .
+    IF mR > 5 THEN mR = 5 .
+    IF mB < 0 THEN mB = 0 .
+    IF mB > 5 THEN mB = 5 .
+    SELF.MarginLeft   = mL * 1440
+    SELF.MarginTop    = mT * 1440
+    SELF.MarginRight  = mR * 1440
+    SELF.MarginBottom = mB * 1440
+  END
+  RETURN Ok
 
 
 ! ############################################################################
@@ -1572,6 +2379,37 @@ l  LONG,AUTO
   SELF.Need(l)
   SELF.Buf[SELF.BufLen+1 : SELF.BufLen+l] = pText[1 : l]
   SELF.BufLen += l
+
+
+!  GrpBuf's own Need()/Cat() - SplitByGroup's per-group sheet is built up
+!  entirely separately from the main sheet in SELF.Buf, on purpose: the two
+!  are never in any way mixed, so nothing about the already-tested main-sheet
+!  path (or any other format) is touched by this feature at all.
+ExportClass.GrpNeed PROCEDURE(LONG pAdd)
+cap  LONG,AUTO
+nb   &STRING
+  CODE
+  IF SELF.GrpBufLen + pAdd <= SELF.GrpBufCap THEN RETURN .
+  cap = SELF.GrpBufCap
+  IF cap < Exp:MinChunk THEN cap = Exp:MinChunk .
+  LOOP WHILE cap < SELF.GrpBufLen + pAdd
+    cap += cap
+  END
+  nb &= NEW STRING(cap)
+  IF SELF.GrpBufLen THEN nb[1 : SELF.GrpBufLen] = SELF.GrpBuf[1 : SELF.GrpBufLen] .
+  IF ~SELF.GrpBuf &= NULL THEN DISPOSE(SELF.GrpBuf) .
+  SELF.GrpBuf    &= nb
+  SELF.GrpBufCap = cap
+
+
+ExportClass.GrpCat PROCEDURE(STRING pText)
+l  LONG,AUTO
+  CODE
+  l = LEN(pText)
+  IF l <= 0 THEN RETURN .
+  SELF.GrpNeed(l)
+  SELF.GrpBuf[SELF.GrpBufLen+1 : SELF.GrpBufLen+l] = pText[1 : l]
+  SELF.GrpBufLen += l
 
 
 ExportClass.ArcNeed PROCEDURE(LONG pAdd)
@@ -1610,14 +2448,29 @@ ExportClass.U8Need PROCEDURE(LONG pSize)
 
 
 ExportClass.FreeBuffers PROCEDURE
+i  LONG,AUTO
   CODE
   IF ~SELF.Buf &= NULL THEN DISPOSE(SELF.Buf) .
   IF ~SELF.Arc &= NULL THEN DISPOSE(SELF.Arc) .
   IF ~SELF.U8  &= NULL THEN DISPOSE(SELF.U8)  .
+  IF ~SELF.PdfContent &= NULL THEN DISPOSE(SELF.PdfContent) .
+  IF ~SELF.GrpBuf &= NULL THEN DISPOSE(SELF.GrpBuf) .
   SELF.BufLen = 0 ; SELF.BufCap = 0
   SELF.ArcLen = 0 ; SELF.ArcCap = 0
   SELF.U8Len  = 0 ; SELF.U8Cap  = 0
-  IF ~SELF.Parts &= NULL THEN FREE(SELF.Parts) .
+  SELF.PdfContLen = 0 ; SELF.PdfContCap = 0
+  SELF.GrpBufLen = 0 ; SELF.GrpBufCap = 0
+  IF ~SELF.Parts   &= NULL THEN FREE(SELF.Parts)   .
+  IF ~SELF.PdfObjs &= NULL THEN FREE(SELF.PdfObjs) .
+  IF ~SELF.Sheets &= NULL
+    LOOP i = 1 TO RECORDS(SELF.Sheets)
+      GET(SELF.Sheets,i)
+      IF ERRORCODE() THEN CYCLE .
+      IF ~SELF.Sheets.SData &= NULL THEN DISPOSE(SELF.Sheets.SData) .
+    END
+    FREE(SELF.Sheets)
+  END
+  IF ~SELF.NumFmts &= NULL THEN FREE(SELF.NumFmts) .
 
 
 ExportClass.Sep PROCEDURE()
@@ -1718,6 +2571,39 @@ esc  CSTRING(9)
     END
   END
   IF l >= run THEN SELF.Cat(pText[run : l]) .
+
+
+!  GrpBuf's own CatXmlText() - identical escaping, into GrpBuf via GrpCat()
+!  instead of Buf via Cat(), same reason GrpNeed()/GrpCat() exist at all.
+ExportClass.GrpCatXmlText PROCEDURE(STRING pText)
+l    LONG,AUTO
+i    LONG,AUTO
+run  LONG,AUTO
+v    LONG,AUTO
+esc  CSTRING(9)
+  CODE
+  l = LEN(pText)
+  IF ~l THEN RETURN .
+  run = 1
+  LOOP i = 1 TO l
+    v   = VAL(pText[i])
+    esc = ''
+    CASE v
+    OF 38 ; esc = '&amp;'
+    OF 60 ; esc = '&lt;'
+    OF 62 ; esc = '&gt;'
+    OF 34 ; esc = '&quot;'
+    OF 39 ; esc = '&apos;'
+    ELSE
+      IF v < 32 AND v <> 9 AND v <> 10 AND v <> 13 THEN esc = ' ' . ! illegal in XML 1.0
+    END
+    IF esc
+      IF i > run THEN SELF.GrpCat(pText[run : i-1]) .
+      SELF.GrpCat(esc)
+      run = i + 1
+    END
+  END
+  IF l >= run THEN SELF.GrpCat(pText[run : l]) .
 
 
 ExportClass.CatJsonText PROCEDURE(STRING pText)
@@ -1895,13 +2781,24 @@ W   &STRING
 ! ############################################################################
 !  Disk
 ! ############################################################################
+!  Writes to a TEMP file next to the target, then swaps it into place with one
+!  atomic MoveFileEx (MOVEFILE_REPLACE_EXISTING). A viewer that still has the
+!  target open from a previous export (SELF.OpenWhenDone opens it right after
+!  writing) never sees a half-written file this way - it keeps reading its
+!  already-open handle to the old content until it re-opens the path, at
+!  which point the swap is long since complete. Writing straight over the
+!  live path with CREATE_ALWAYS truncates it to 0 bytes the instant it opens,
+!  which a viewer can catch mid-write and report as "failed to load".
 ExportClass.WriteDisk PROCEDURE(STRING pFile,*STRING pData,LONG pLen)
 h     LONG,AUTO
 nm    CSTRING(261)
+tmp   CSTRING(265)
 wr    ULONG,AUTO
   CODE
-  nm = CLIP(LEFT(pFile))
-  h  = exCreateFile(nm,40000000h,0,0,2,80h,0)             ! GENERIC_WRITE, CREATE_ALWAYS, NORMAL
+  nm  = CLIP(LEFT(pFile))
+  tmp = CLIP(nm) & '.tmp'
+
+  h  = exCreateFile(tmp,40000000h,7,0,2,80h,0)              ! GENERIC_WRITE, CREATE_ALWAYS, NORMAL
   IF h = 0 OR h = -1
     SELF.ErrCode = 10
     SELF.ErrText = SELF.Txt(Txt:CantCreate) & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
@@ -1912,6 +2809,7 @@ wr    ULONG,AUTO
     wr = 0
     IF ~exWriteFile(h,pData,pLen,wr,0) OR wr <> pLen
       exCloseHandle(h)
+      exDeleteFile(tmp)
       SELF.ErrCode = 11
       SELF.ErrText = SELF.Txt(Txt:CantWrite) & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
                      SELF.Txt(Txt:CantWrite2)
@@ -1919,6 +2817,14 @@ wr    ULONG,AUTO
     END
   END
   exCloseHandle(h)
+
+  IF ~exMoveFileEx(tmp,nm,9)                                ! MOVEFILE_REPLACE_EXISTING + MOVEFILE_WRITE_THROUGH
+    exDeleteFile(tmp)
+    SELF.ErrCode = 12
+    SELF.ErrText = SELF.Txt(Txt:CantWrite) & Exp:CRLF & Exp:CRLF & CLIP(nm) & Exp:CRLF & Exp:CRLF & |
+                   SELF.Txt(Txt:CantWrite2)
+    RETURN 0
+  END
   RETURN 1
 
 
@@ -1934,6 +2840,68 @@ dr  CSTRING(2)
   dr = ''
   IF ~fn THEN RETURN .
   exShellExec(0,op,fn,pm,dr,1)                            ! SW_SHOWNORMAL
+
+
+!  Opens a new message in whatever mail client is registered as the default
+!  Simple MAPI provider (Outlook, Windows Mail, and most others), with pFile
+!  already attached, SELF.EmailSubject (blank = SELF.Title) as the subject and
+!  SELF.EmailBody as the note text. MAPI_DIALOG (flag 8) leaves the compose
+!  window open for the user to pick a recipient and press Send themselves -
+!  nothing goes out silently. Result 1 means the user closed that window
+!  without sending, which is not a failure; anything else is reported the
+!  same way a write failure would be, but without undoing an export that
+!  already wrote its file successfully.
+ExportClass.EmailFile PROCEDURE(STRING pFile)
+Fd    GROUP,PRE(Fd)
+ulReserved          ULONG
+flFlags             ULONG
+nPosition           LONG
+lpszPathName        LONG
+lpszFileName        LONG
+lpFileType          LONG
+      END
+Mm    GROUP,PRE(Mm)
+ulReserved          ULONG
+lpszSubject         LONG
+lpszNoteText        LONG
+lpszMessageType     LONG
+lpszDateReceived    LONG
+lpszConversationID  LONG
+flFlags             ULONG
+lpOriginator        LONG
+nRecipCount         ULONG
+lpRecips            LONG
+nFileCount          ULONG
+lpFiles             LONG
+      END
+nm    CSTRING(261)
+subj  CSTRING(129)
+body  CSTRING(1025)
+rc    LONG,AUTO
+  CODE
+  nm = CLIP(LEFT(pFile))
+  IF ~nm THEN RETURN .
+  subj = CLIP(SELF.EmailSubject)
+  IF ~subj THEN subj = CLIP(SELF.Title) .
+  body = SELF.EmailBody
+
+  CLEAR(Fd)
+  Fd:lpszPathName = ADDRESS(nm)
+  Fd:nPosition    = -1                                    ! "just attach it" - no inline OLE position
+
+  CLEAR(Mm)
+  Mm:lpszSubject  = ADDRESS(subj)
+  Mm:lpszNoteText = ADDRESS(body)
+  Mm:nFileCount   = 1
+  Mm:lpFiles      = ADDRESS(Fd)
+
+  IF SELF.EmailToFront THEN rc = exAllowSetForegroundWindow(-1) .  ! -1 = ASFW_ANY - let Outlook's own window win the foreground fight
+  rc = exMAPISendMail(0,0,Mm,8,0)                         ! flag 8 = MAPI_DIALOG
+  IF rc <> 0 AND rc <> 1                                  ! 0 = handed to the client, 1 = user cancelled - neither is a failure
+    SELF.ErrCode = 13
+    SELF.ErrText = SELF.Txt(Txt:CantEmail)
+    IF SELF.Confirm THEN SELF.Note(SELF.ErrText,SELF.Txt(Txt:EmailFailTitle),ICON:Exclamation) .
+  END
 
 
 ! ############################################################################
@@ -2112,31 +3080,698 @@ cdLen ULONG,AUTO
 ! ############################################################################
 !  .xlsx  -  a real OOXML workbook, assembled here
 ! ############################################################################
+!  Everything StartFile() used to do for Exp:XLSX directly, factored out so
+!  StartSheet() can call it too, once per sheet, in a multi-sheet workbook -
+!  resets the running totals/grouping state and writes the worksheet preamble
+!  (<worksheet>, the frozen heading pane, <cols>, <sheetData>, the heading row
+!  itself) into SELF.Buf. A single-sheet export ends up calling this exactly
+!  once, the same as it always has.
+ExportClass.XlsxSheetBegin PROCEDURE()
+i     LONG,AUTO
+n     LONG,AUTO
+out   LONG,AUTO
+w     LONG,AUTO
+dec   LONG,AUTO
+fmtIdx LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  IF SELF.Totals OR SELF.TotalsAvg OR SELF.TotalsMin OR SELF.TotalsMax OR SELF.TotalsCnt   ! zero the per-column running stats
+    LOOP i = 1 TO 64                                     ! DIM(64), same cap as the USED columns
+      SELF.ColSum[i]   = 0
+      SELF.ColMin[i]   = 0
+      SELF.ColMax[i]   = 0
+      SELF.ColCount[i] = 0
+    END
+  END
+!   ---- subtotal / group rows: find which USED column (if any) breaks on ----
+  SELF.GroupCol      = 0
+  SELF.GroupPrev     = ''
+  SELF.GroupFirstRow = 0
+  SELF.GroupHasRow   = 0
+  LOOP i = 1 TO 64
+    SELF.GrpSum[i] = 0 ; SELF.GrpMin[i] = 0 ; SELF.GrpMax[i] = 0 ; SELF.GrpCount[i] = 0
+  END
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    IF SELF.Cols.GroupBy THEN SELF.GroupCol = out .
+!   ---- decimal-preserving / parenthesised-negative number format, if this
+!   ---- column actually needs one - everything else keeps today's default
+    IF out <= 64
+      SELF.ColStyleN[out] = 0                             ! today's default: no style attribute at all
+      SELF.ColStyleT[out] = 2                              ! today's default: the bold/bordered total style
+      IF SELF.Cols.IsNum
+        dec = SELF.PicDecimals(SELF.Cols.Pic)
+        IF dec > 0 OR SELF.NegativeParens
+          fmtIdx = SELF.XlsxRegisterNumFmt(dec)
+          GET(SELF.NumFmts,fmtIdx)
+          SELF.ColStyleN[out] = SELF.NumFmts.StyleN
+          SELF.ColStyleT[out] = SELF.NumFmts.StyleT
+        END
+      END
+    END
+  END
+  SELF.XlsxRow = CHOOSE(SELF.Headers <> 0,2,1)              ! next row to write - right after the heading, if any
+  SELF.Cat('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & Exp:CRLF)
+  SELF.Cat('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">')
+  IF SELF.Headers                                       ! keep the heading row on screen
+    SELF.Cat('<sheetViews><sheetView workbookViewId="0">' & |
+             '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' & |
+             '</sheetView></sheetViews>')
+  END
+  SELF.Cat('<sheetFormatPr defaultRowHeight="15"/>')
+  SELF.Cat('<cols>')                                    ! carry the on-screen widths across
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    w = SELF.Cols.Width / 4 + 2
+    IF w < 6  THEN w = 6  .
+    IF w > 70 THEN w = 70 .
+    SELF.Cat('<col min="' & out & '" max="' & out & '" width="' & w & '" customWidth="1"/>')
+  END
+  SELF.Cat('</cols><sheetData>')
+  IF SELF.Headers
+    SELF.Cat('<row r="1">')
+    out = 0
+    LOOP i = 1 TO n
+      GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
+      out += 1
+      SELF.Cat('<c r="' & SELF.ColRef(out) & '1" s="1" t="inlineStr"><is><t>')
+      SELF.CatXmlText(SELF.HeaderText(i))
+      SELF.Cat('</t></is></c>')
+    END
+    SELF.Cat('</row>')
+  END
+
+
+!  Everything EndFile() used to do for Exp:XLSX directly, factored out so
+!  EndSheet() can call it too: the final group's subtotal, the grand total
+!  row(s), and closing </sheetData>/<autoFilter/>/</worksheet>. Leaves the
+!  finished sheet sitting in SELF.Buf - XlsxStashSheet() moves it from there.
+ExportClass.XlsxSheetEnd PROCEDURE()
+last  LONG,AUTO
+  CODE
+  IF SELF.GroupCol AND SELF.GroupHasRow                   ! the last group never saw a "next row" to trigger its break
+    SELF.XlsxSubtotalRow(SELF.GroupPrev,SELF.GroupFirstRow,SELF.XlsxRow - 1)
+    IF SELF.SplitByGroup                                  ! and its own separate sheet needs closing too
+      SELF.GrpSheetEnd(SELF.GrpFirstRow,SELF.GrpXlsxRow - 1)
+      SELF.GrpStashSheet(SELF.GroupPrev)
+    END
+  END
+  IF SELF.Headers AND SELF.RowsOut                         ! the true last row BEFORE any grand-total rows are added
+    last = SELF.XlsxRow - 1
+  END
+  IF (SELF.Totals OR SELF.TotalsAvg OR SELF.TotalsMin OR SELF.TotalsMax OR SELF.TotalsCnt) AND SELF.RowsOut AND SELF.TotalsCount()
+    SELF.XlsxTotalsRow()                                  ! must land INSIDE <sheetData> - before it closes
+  END
+  SELF.Cat('</sheetData>')
+  IF SELF.Headers AND SELF.RowsOut                         ! <autoFilter> must be a sibling AFTER </sheetData>, per the OOXML schema's fixed child order
+    SELF.Cat('<autoFilter ref="A1:' & SELF.ColRef(SELF.Selected()) & last & '"/>')
+  END
+  SELF.Cat('</worksheet>')
+
+
+!  Writes one bold row summarising the group that just finished - one cell per
+!  USED column, in the SAME row: every Tot-ticked numeric column gets a
+!  SUBTOTAL() formula (whichever of Sum/Avg/Min/Max/Count is enabled, all in
+!  the same row since a group only gets one line) over just that group's own
+!  row range; the LEFTMOST column always gets "<label> <group value>" (e.g.
+!  "Total East") regardless of which column is actually the group-by column;
+!  and every other column gets an empty but STYLED cell, so the row's top
+!  border draws as one continuous line across the whole width rather than
+!  breaking wherever a column has nothing to show.
+!  SUBTOTAL(), not a plain SUM()/COUNT()/etc, even though a single group's own
+!  range never contains another subtotal and so would compute an identical
+!  value either way - the grand total's own SUBTOTAL() call, spanning every
+!  group's row here, only skips a cell it recognises as ANOTHER SUBTOTAL()
+!  formula. Excel's nested-exclusion triggers off the cell's OWN formula,
+!  never off what that formula computes, so a plain function here would
+!  silently let the grand total double-count every group.
+!  Consumes and advances SELF.XlsxRow itself, the same way a data row does.
+ExportClass.XlsxSubtotalRow PROCEDURE(STRING pGroupLabel,LONG pFrow,LONG pLrow)
+i      LONG,AUTO
+n      LONG,AUTO
+out    LONG,AUTO
+trow   LONG,AUTO
+kind   LONG,AUTO
+enabled BYTE,AUTO
+subN   CSTRING(3)                                            ! SUBTOTAL()'s function_num for this row's kind
+val    DECIMAL(20,6),AUTO
+  CODE
+  IF pLrow < pFrow THEN RETURN .                            ! an empty group (shouldn't happen, but stay safe)
+  n = SELF.Columns()
+  IF ~n THEN RETURN .
+  trow = SELF.XlsxRow
+
+  SELF.Cat('<row r="' & trow & '">')
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ERRORCODE() THEN CYCLE .
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    IF out > 64 THEN BREAK .
+    IF out = 1                                              ! always the leftmost column, not the group column itself
+      SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '" t="inlineStr"><is><t>')
+      SELF.CatXmlText(CLIP(SELF.TotalsLabel) & ' ' & CLIP(pGroupLabel))
+      SELF.Cat('</t></is></c>')
+    ELSIF SELF.Cols.IsNum AND SELF.Cols.Total AND SELF.GrpCount[out] > 0
+!     one cell, one line, but it may need to show more than one kind's value -
+!     Excel cells only hold one formula, so where more than one of Sum/Avg/
+!     Min/Max/Count is enabled, the cell shows the FIRST enabled kind's
+!     formula (Sum takes priority, then Average, then Min, then Max, then
+!     Count).
+      LOOP kind = 1 TO 5
+        CASE kind
+        OF 1 ; enabled = SELF.Totals    ; subN = '9' ; val = SELF.GrpSum[out]
+        OF 2 ; enabled = SELF.TotalsAvg ; subN = '1' ; val = SELF.GrpSum[out] / SELF.GrpCount[out]
+        OF 3 ; enabled = SELF.TotalsMin ; subN = '5' ; val = SELF.GrpMin[out]
+        OF 4 ; enabled = SELF.TotalsMax ; subN = '4' ; val = SELF.GrpMax[out]
+        OF 5 ; enabled = SELF.TotalsCnt ; subN = '2' ; val = SELF.GrpCount[out]
+        END
+        IF enabled THEN BREAK .
+      END
+      IF enabled
+!       SUBTOTAL(), not a plain function - a single group's own range never
+!       contains ANOTHER subtotal, so this computes the identical value a
+!       plain SUM()/COUNT()/etc would - but it ALSO makes this cell
+!       recognisable to the GRAND total's own SUBTOTAL() call later, which
+!       spans every group's row here and needs to skip it to avoid double-
+!       counting. A plain function here would defeat that entirely: Excel's
+!       nested-exclusion only ever triggers off another cell ALSO being a
+!       SUBTOTAL() formula, never off what that formula happens to compute.
+        SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '"><f>SUBTOTAL(' & CLIP(subN) & ',' & |
+                 SELF.ColRef(out) & pFrow & ':' & SELF.ColRef(out) & pLrow & ')</f><v>' & |
+                 CLIP(LEFT(val)) & '</v></c>')
+      ELSE
+        SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '"/>')     ! nothing to show here, but still bordered
+      END
+    ELSE
+      SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '"/>')       ! blank, styled - keeps the line unbroken
+    END
+  END
+  SELF.Cat('</row>')
+  SELF.XlsxRow += 1
+
+
+!  Appends up to five bold rows under the data, one row per enabled summary
+!  kind (Sum, Average, Minimum, Maximum, Count, always in that order), one
+!  cell per USED column in each row:
+!    - a numeric column ticked for totals gets a real formula for that row's
+!      kind - =SUM(), =AVERAGE(), =MIN(), =MAX(), or =COUNT() over the data
+!      range, or the equivalent =SUBTOTAL(n,...) form when subtotal/group
+!      rows are also in use, since SUBTOTAL() ignores any other SUBTOTAL()
+!      results already inside its own range - the grand total this way still
+!      comes out correct instead of double-counting every group's own
+!      subtotal - with the value AddRow() already accumulated as the cached
+!      <v> (so a reader that never recalculates still shows a number)
+!    - the first column NOT part of that row's calculation gets that row's
+!      label (SELF.TotalsLabel / AvgLabel / MinLabel / MaxLabel / CntLabel)
+!    - every other column is left blank
+!  Called from EndFile(), between </sheetData> and </worksheet>, only when at
+!  least one of the five is turned on and at least one USED numeric column is
+!  ticked.
+ExportClass.XlsxTotalsRow PROCEDURE()
+i      LONG,AUTO
+n      LONG,AUTO
+out    LONG,AUTO
+frow   LONG,AUTO                                            ! first data row (after the heading, if any)
+lrow   LONG,AUTO                                            ! last data row actually written (incl. subtotal rows)
+trow   LONG,AUTO                                            ! the row currently being written
+wrote  BYTE,AUTO                                             ! this row's label has been placed
+kind   LONG,AUTO                                             ! 1=Sum 2=Average 3=Minimum 4=Maximum 5=Count
+enabled BYTE,AUTO
+fn     CSTRING(11)                                           ! the Excel function name for this row
+subN   CSTRING(3)                                            ! SUBTOTAL()'s function_num for this row's kind
+lbl    CSTRING(41)                                           ! this row's label
+val    DECIMAL(20,6),AUTO
+  CODE
+  n = SELF.Columns()
+  IF ~n THEN RETURN .
+  frow = CHOOSE(SELF.Headers <> 0,2,1)
+  lrow = SELF.XlsxRow - 1                                    ! whatever was actually last written - data or a subtotal row
+  trow = lrow
+
+  LOOP kind = 1 TO 5
+    CASE kind
+    OF 1 ; enabled = SELF.Totals    ; fn = 'SUM'     ; subN = '9' ; lbl = SELF.TotalsLabel
+    OF 2 ; enabled = SELF.TotalsAvg ; fn = 'AVERAGE' ; subN = '1' ; lbl = SELF.AvgLabel
+    OF 3 ; enabled = SELF.TotalsMin ; fn = 'MIN'     ; subN = '5' ; lbl = SELF.MinLabel
+    OF 4 ; enabled = SELF.TotalsMax ; fn = 'MAX'     ; subN = '4' ; lbl = SELF.MaxLabel
+    OF 5 ; enabled = SELF.TotalsCnt ; fn = 'COUNT'   ; subN = '2' ; lbl = SELF.CntLabel
+    END
+    IF ~enabled THEN CYCLE .
+
+    trow += 1
+    wrote = 0
+    out = 0
+    SELF.Cat('<row r="' & trow & '">')
+    LOOP i = 1 TO n
+      GET(SELF.Cols,i)
+      IF ERRORCODE() THEN CYCLE .
+      IF ~SELF.Cols.Use THEN CYCLE .
+      out += 1
+      IF out > 64 THEN BREAK .                              ! ColSum's cap - matches the USED-column cap elsewhere
+      IF SELF.Cols.IsNum AND SELF.Cols.Total AND SELF.ColCount[out] > 0
+        CASE kind
+        OF 1 ; val = SELF.ColSum[out]
+        OF 2 ; val = SELF.ColSum[out] / SELF.ColCount[out]
+        OF 3 ; val = SELF.ColMin[out]
+        OF 4 ; val = SELF.ColMax[out]
+        OF 5 ; val = SELF.ColCount[out]
+        END
+        IF SELF.GroupCol                                    ! subtotal rows are mixed into this range - use SUBTOTAL()
+          SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '"><f>SUBTOTAL(' & CLIP(subN) & ',' & |
+                   SELF.ColRef(out) & frow & ':' & SELF.ColRef(out) & lrow & ')</f><v>' & |
+                   CLIP(LEFT(val)) & '</v></c>')
+        ELSE
+          SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '"><f>' & CLIP(fn) & '(' & |
+                   SELF.ColRef(out) & frow & ':' & SELF.ColRef(out) & lrow & ')</f><v>' & |
+                   CLIP(LEFT(val)) & '</v></c>')
+        END
+      ELSIF ~wrote AND CLIP(lbl)
+        wrote = 1
+        SELF.Cat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '" t="inlineStr"><is><t>')
+        SELF.CatXmlText(CLIP(lbl))
+        SELF.Cat('</t></is></c>')
+      END
+    END
+    SELF.Cat('</row>')
+  END
+
+
+!  Escapes a short value (a sheet name, for instance) for use INSIDE an XML
+!  attribute - the same five characters CatXmlText handles for element text,
+!  just returned as a STRING instead of appended to SELF.Buf, since this is
+!  needed while a small fixed part like workbook.xml is still being built up
+!  in a local CSTRING rather than streamed straight into the buffer.
+ExportClass.XmlAttr PROCEDURE(STRING pText)
+o   CSTRING(200)
+l   LONG,AUTO
+i   LONG,AUTO
+v   LONG,AUTO
+  CODE
+  l = LEN(pText)
+  o = ''
+  LOOP i = 1 TO l
+    v = VAL(pText[i])
+    CASE v
+    OF 38 ; o = CLIP(o) & '&amp;'
+    OF 60 ; o = CLIP(o) & '&lt;'
+    OF 62 ; o = CLIP(o) & '&gt;'
+    OF 34 ; o = CLIP(o) & '&quot;'
+    OF 39 ; o = CLIP(o) & '&apos;'
+    ELSE
+      IF v < 32 AND v <> 9 THEN CYCLE .                   ! illegal in XML 1.0
+      o = CLIP(o) & pText[i]
+    END
+  END
+  RETURN CLIP(o)
+
+
+!  Moves the sheet StartSheet()/StartFile() just built in SELF.Buf into
+!  SELF.Sheets, UTF-8 already applied, and frees SELF.Buf so the next sheet
+!  (or nothing, for a single-sheet export) starts clean. Also de-duplicates
+!  the tab name against every sheet already stashed - Excel refuses a
+!  workbook with two identically-named tabs - by appending " (2)", " (3)"
+!  and so on, same idea as Windows renaming a second copy of a file.
+ExportClass.XlsxStashSheet PROCEDURE(STRING pName)
+nm    CSTRING(65)
+base  CSTRING(65)
+n     LONG,AUTO
+i     LONG,AUTO
+dup   BYTE,AUTO
+  CODE
+  IF SELF.Sheets &= NULL THEN SELF.Sheets &= NEW ExportSheetQueue .
+  base = SELF.SheetName(pName)
+  nm   = base
+  n    = 1
+  LOOP                                                     ! keep trying until nm doesn't collide
+    dup = 0
+    LOOP i = 1 TO RECORDS(SELF.Sheets)
+      GET(SELF.Sheets,i)
+      IF ERRORCODE() THEN CYCLE .
+      IF UPPER(CLIP(SELF.Sheets.SName)) = UPPER(CLIP(nm))
+        dup = 1
+        BREAK
+      END
+    END
+    IF ~dup THEN BREAK .
+    n += 1
+    nm = SUB(base,1,31 - LEN(CLIP(' (' & n & ')'))) & ' (' & n & ')'
+  END
+
+  SELF.ToUTF8(SELF.Buf,SELF.BufLen)                        ! this sheet's XML -> UTF-8
+  SELF.Sheets.SName = nm
+  SELF.Sheets.SData &= NEW STRING(CHOOSE(SELF.U8Len > 0,SELF.U8Len,1))
+  IF SELF.U8Len THEN SELF.Sheets.SData[1 : SELF.U8Len] = SELF.U8[1 : SELF.U8Len] .
+  SELF.Sheets.SLen = SELF.U8Len
+  ADD(SELF.Sheets)
+
+  IF ~SELF.Buf &= NULL THEN DISPOSE(SELF.Buf) .            ! ready for the next sheet
+  SELF.BufLen = 0 ; SELF.BufCap = 0
+  IF ~SELF.U8 &= NULL THEN DISPOSE(SELF.U8) .
+  SELF.U8Len = 0 ; SELF.U8Cap = 0
+
+
+! ############################################################################
+!  SplitByGroup - one EXTRA sheet per distinct group value, alongside the
+!  main sheet, built as the SAME AddRow() walk goes past (no second pass over
+!  the data, no separate StartSheet()/EndSheet() calls from the caller - the
+!  group-break detection AddRow() already does for the inline subtotal rows
+!  triggers this too). Everything here works on GrpBuf/GrpXlsxRow, entirely
+!  separate from SELF.Buf/SELF.XlsxRow, so none of it can affect the main
+!  sheet even if something here were wrong.
+! ############################################################################
+
+!  The worksheet preamble for the group whose first row AddRow() just saw -
+!  same shape as XlsxSheetBegin(), into GrpBuf instead of SELF.Buf. Does NOT
+!  touch SELF.GroupCol/ColSum/etc - those are the MAIN sheet's own state,
+!  already set up by XlsxSheetBegin() once at the start of the whole export.
+ExportClass.GrpSheetBegin PROCEDURE()
+i     LONG,AUTO
+n     LONG,AUTO
+out   LONG,AUTO
+w     LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  SELF.GrpXlsxRow = CHOOSE(SELF.Headers <> 0,2,1)
+  SELF.GrpFirstRow = SELF.GrpXlsxRow                        ! THIS sheet's own first data row - never the main sheet's coordinate
+  SELF.GrpCat('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & Exp:CRLF)
+  SELF.GrpCat('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">')
+  IF SELF.Headers
+    SELF.GrpCat('<sheetViews><sheetView workbookViewId="0">' & |
+                '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' & |
+                '</sheetView></sheetViews>')
+  END
+  SELF.GrpCat('<sheetFormatPr defaultRowHeight="15"/>')
+  SELF.GrpCat('<cols>')
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    w = SELF.Cols.Width / 4 + 2
+    IF w < 6  THEN w = 6  .
+    IF w > 70 THEN w = 70 .
+    SELF.GrpCat('<col min="' & out & '" max="' & out & '" width="' & w & '" customWidth="1"/>')
+  END
+  SELF.GrpCat('</cols><sheetData>')
+  IF SELF.Headers
+    SELF.GrpCat('<row r="1">')
+    out = 0
+    LOOP i = 1 TO n
+      GET(SELF.Cols,i)
+      IF ~SELF.Cols.Use THEN CYCLE .
+      out += 1
+      SELF.GrpCat('<c r="' & SELF.ColRef(out) & '1" s="1" t="inlineStr"><is><t>')
+      SELF.GrpCatXmlText(SELF.HeaderText(i))
+      SELF.GrpCat('</t></is></c>')
+    END
+    SELF.GrpCat('</row>')
+  END
+
+
+!  This group's own Sum/Avg/Min/Max row(s) (whichever are enabled - the SAME
+!  four checkboxes the main sheet and its inline subtotal rows already use),
+!  then closes the sheet. A plain SUM()/AVERAGE()/MIN()/MAX() is correct
+!  here, not SUBTOTAL() - this sheet holds exactly one group's own rows, so
+!  there is no other subtotal anywhere inside its own range to double-count.
+ExportClass.GrpSheetEnd PROCEDURE(LONG pFrow,LONG pLrow)
+i      LONG,AUTO
+n      LONG,AUTO
+out    LONG,AUTO
+trow   LONG,AUTO
+kind   LONG,AUTO
+enabled BYTE,AUTO
+fn     CSTRING(11)
+lbl    CSTRING(41)
+val    DECIMAL(20,6),AUTO
+wrote  BYTE,AUTO
+  CODE
+  n = SELF.Columns()
+  IF n AND (SELF.Totals OR SELF.TotalsAvg OR SELF.TotalsMin OR SELF.TotalsMax OR SELF.TotalsCnt) AND pLrow >= pFrow
+    trow = SELF.GrpXlsxRow
+    LOOP kind = 1 TO 5
+      CASE kind
+      OF 1 ; enabled = SELF.Totals    ; fn = 'SUM'     ; lbl = SELF.TotalsLabel
+      OF 2 ; enabled = SELF.TotalsAvg ; fn = 'AVERAGE' ; lbl = SELF.AvgLabel
+      OF 3 ; enabled = SELF.TotalsMin ; fn = 'MIN'     ; lbl = SELF.MinLabel
+      OF 4 ; enabled = SELF.TotalsMax ; fn = 'MAX'     ; lbl = SELF.MaxLabel
+      OF 5 ; enabled = SELF.TotalsCnt ; fn = 'COUNT'   ; lbl = SELF.CntLabel
+      END
+      IF ~enabled THEN CYCLE .
+      trow += 1
+      wrote = 0
+      out = 0
+      SELF.GrpCat('<row r="' & trow & '">')
+      LOOP i = 1 TO n
+        GET(SELF.Cols,i)
+        IF ERRORCODE() THEN CYCLE .
+        IF ~SELF.Cols.Use THEN CYCLE .
+        out += 1
+        IF out > 64 THEN BREAK .
+        IF SELF.Cols.IsNum AND SELF.Cols.Total AND SELF.GrpCount[out] > 0
+          CASE kind
+          OF 1 ; val = SELF.GrpSum[out]
+          OF 2 ; val = SELF.GrpSum[out] / SELF.GrpCount[out]
+          OF 3 ; val = SELF.GrpMin[out]
+          OF 4 ; val = SELF.GrpMax[out]
+          OF 5 ; val = SELF.GrpCount[out]
+          END
+          SELF.GrpCat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '"><f>' & CLIP(fn) & '(' & |
+                      SELF.ColRef(out) & pFrow & ':' & SELF.ColRef(out) & pLrow & ')</f><v>' & |
+                      CLIP(LEFT(val)) & '</v></c>')
+        ELSIF ~wrote AND CLIP(lbl)
+          wrote = 1
+          SELF.GrpCat('<c r="' & SELF.ColRef(out) & trow & '" s="' & SELF.ColStyleT[out] & '" t="inlineStr"><is><t>')
+          SELF.GrpCatXmlText(CLIP(lbl))
+          SELF.GrpCat('</t></is></c>')
+        END
+      END
+      SELF.GrpCat('</row>')
+    END
+    SELF.GrpXlsxRow = trow + 1
+  END
+  SELF.GrpCat('</sheetData>')
+  IF SELF.Headers AND pLrow >= pFrow
+    SELF.GrpCat('<autoFilter ref="A1:' & SELF.ColRef(SELF.Selected()) & (pLrow) & '"/>')
+  END
+  SELF.GrpCat('</worksheet>')
+
+
+!  Moves GrpBuf into SELF.Sheets, named after the group's own value (through
+!  the same SheetName()/dedup logic XlsxStashSheet() uses, so a group sheet
+!  can never collide with the main sheet's tab name either). Frees GrpBuf
+!  afterwards so the next group starts clean.
+ExportClass.GrpStashSheet PROCEDURE(STRING pGroupValue)
+nm    CSTRING(65)
+base  CSTRING(65)
+n     LONG,AUTO
+i     LONG,AUTO
+dup   BYTE,AUTO
+  CODE
+  IF SELF.Sheets &= NULL THEN SELF.Sheets &= NEW ExportSheetQueue .
+  base = SELF.SheetName(pGroupValue)
+  nm   = base
+  n    = 1
+  LOOP
+    dup = 0
+    LOOP i = 1 TO RECORDS(SELF.Sheets)
+      GET(SELF.Sheets,i)
+      IF ERRORCODE() THEN CYCLE .
+      IF UPPER(CLIP(SELF.Sheets.SName)) = UPPER(CLIP(nm))
+        dup = 1
+        BREAK
+      END
+    END
+    IF ~dup THEN BREAK .
+    n += 1
+    nm = SUB(base,1,31 - LEN(CLIP(' (' & n & ')'))) & ' (' & n & ')'
+  END
+
+  SELF.ToUTF8(SELF.GrpBuf,SELF.GrpBufLen)
+  SELF.Sheets.SName = nm
+  SELF.Sheets.SData &= NEW STRING(CHOOSE(SELF.U8Len > 0,SELF.U8Len,1))
+  IF SELF.U8Len THEN SELF.Sheets.SData[1 : SELF.U8Len] = SELF.U8[1 : SELF.U8Len] .
+  SELF.Sheets.SLen = SELF.U8Len
+  ADD(SELF.Sheets)
+
+  IF ~SELF.GrpBuf &= NULL THEN DISPOSE(SELF.GrpBuf) .
+  SELF.GrpBufLen = 0 ; SELF.GrpBufCap = 0
+  IF ~SELF.U8 &= NULL THEN DISPOSE(SELF.U8) .
+  SELF.U8Len = 0 ; SELF.U8Cap = 0
+
+
+!  SplitByGroup stashes each group's sheet as its own break happens, which
+!  always finishes BEFORE the main sheet gets its own turn at EndFile() - so
+!  by the time the main sheet is stashed, it lands at the END of SELF.Sheets,
+!  not the front. This shifts every OTHER entry down one slot and puts the
+!  just-stashed last entry (the main sheet) back at position 1, so it stays
+!  the workbook's first, default tab - "keep the main sheet as is" means its
+!  position too, not just its content.
+ExportClass.XlsxMoveLastToFirst PROCEDURE()
+n        LONG,AUTO
+i        LONG,AUTO
+mainName CSTRING(65)
+mainData &STRING
+mainLen  LONG,AUTO
+tmpName  CSTRING(65)
+tmpData  &STRING
+tmpLen   LONG,AUTO
+  CODE
+  n = RECORDS(SELF.Sheets)
+  IF n <= 1 THEN RETURN .
+
+  GET(SELF.Sheets,n)                                      ! the main sheet - just stashed, currently last
+  mainName = SELF.Sheets.SName
+  mainData &= SELF.Sheets.SData
+  mainLen  = SELF.Sheets.SLen
+
+  LOOP i = n TO 2 BY -1                                   ! shift every other entry down one position
+    GET(SELF.Sheets,i-1)
+    tmpName = SELF.Sheets.SName
+    tmpData &= SELF.Sheets.SData
+    tmpLen  = SELF.Sheets.SLen
+    GET(SELF.Sheets,i)
+    SELF.Sheets.SName = tmpName
+    SELF.Sheets.SData &= tmpData
+    SELF.Sheets.SLen  = tmpLen
+    PUT(SELF.Sheets)
+  END
+
+  GET(SELF.Sheets,1)
+  SELF.Sheets.SName = mainName
+  SELF.Sheets.SData &= mainData
+  SELF.Sheets.SLen  = mainLen
+  PUT(SELF.Sheets)
+
+
+!  How many decimal places a Clarion @N picture shows. The digits right
+!  after the picture's own '.' (however that picture spells its sign/width -
+!  @n-15.2, @n_9.2, @n6.2 all read the same here) are a NUMBER, not a count
+!  of characters - "@n6.2" means 2 decimal places, from parsing "2" as the
+!  value two, not from there being one digit character in the token. That
+!  distinction only stops mattering by coincidence for single-digit decimal
+!  counts (1-9) and matters for real once anything shows 10+ decimal places.
+!  Blank or a picture with no '.' at all means 0 - an integer column, which
+!  needs no custom format since Excel's own General already shows it
+!  correctly.
+ExportClass.PicDecimals PROCEDURE(STRING pPic)
+p    CSTRING(33)
+i    LONG,AUTO
+dot  LONG,AUTO
+endp LONG,AUTO
+n    LONG,AUTO
+  CODE
+  p = CLIP(pPic)
+  IF ~p THEN RETURN 0 .
+  dot = INSTRING('.',p,1,1)
+  IF ~dot THEN RETURN 0 .
+  endp = dot
+  LOOP i = dot+1 TO LEN(p)
+    IF p[i] >= '0' AND p[i] <= '9'
+      endp = i
+    ELSE
+      BREAK
+    END
+  END
+  IF endp = dot THEN RETURN 0 .                             ! nothing but non-digits after the '.'
+  n = SUB(p,dot+1,endp-dot)                                 ! the digit run's VALUE, not its length
+  RETURN n
+
+
+!  '0', '0.00', '0.000' ... for pDecimals = 0, 2, 3 ... - the bare Excel
+!  format code, before SELF.NegativeParens' extra ';(...)' section (added by
+!  the caller, since that section is the SAME code repeated in parentheses).
+ExportClass.XlsxNumFmtCode PROCEDURE(LONG pDecimals)
+s   CSTRING(21)
+i   LONG,AUTO
+  CODE
+  s = '0'
+  IF pDecimals > 0
+    s = CLIP(s) & '.'
+    LOOP i = 1 TO pDecimals
+      s = CLIP(s) & '0'
+    END
+  END
+  RETURN CLIP(s)
+
+
+!  Finds the SELF.NumFmts row already covering (pDecimals, SELF.NegativeParens
+!  as it stands right now), or creates one - a fresh numFmtId in Excel's
+!  custom range (164+), and a pair of cellXfs indices (StyleN for an ordinary
+!  cell, StyleT for a bold/bordered total cell) that XlsxWrite() will turn
+!  into real <numFmt>/<xf> entries once, for the whole workbook, however many
+!  sheets shared it. Returns the row's OWN position, used as a lookup handle.
+ExportClass.XlsxRegisterNumFmt PROCEDURE(LONG pDecimals)
+i  LONG,AUTO
+n  LONG,AUTO
+  CODE
+  IF SELF.NumFmts &= NULL THEN SELF.NumFmts &= NEW ExportNumFmtQueue .
+  LOOP i = 1 TO RECORDS(SELF.NumFmts)
+    GET(SELF.NumFmts,i)
+    IF ERRORCODE() THEN CYCLE .
+    IF SELF.NumFmts.Decimals = pDecimals AND SELF.NumFmts.Parens = SELF.NegativeParens
+      RETURN i
+    END
+  END
+  n = RECORDS(SELF.NumFmts)
+  SELF.NumFmts.Decimals = pDecimals
+  SELF.NumFmts.Parens   = SELF.NegativeParens
+  SELF.NumFmts.NumFmtId = 164 + n
+  SELF.NumFmts.StyleN   = 3 + n * 2                       ! styles 0,1,2 already exist - these start right after
+  SELF.NumFmts.StyleT   = 4 + n * 2
+  ADD(SELF.NumFmts)
+  RETURN n + 1
+
+
 !  The worksheet is already sitting in SELF.Buf (StartFile/AddRow/EndFile built
 !  it).  The five remaining parts are small and fixed, so they are put together
 !  here and everything is zipped in one pass.
 !  tmp builds each part, then it is copied into the fixed STRING the ZipAdd /
 !  ToUTF8 *STRING parameters need (a CSTRING will not bind to *STRING).
+!  Zips whatever is waiting in SELF.Sheets - one entry for a plain single-
+!  sheet export, or however many StartSheet()/EndSheet() built for a
+!  workbook. tmp is sized generously (content-types and workbook.xml both
+!  grow with the sheet count) but StartSheet() already refuses a 101st sheet,
+!  so this never has more than 100 short, similar lines to hold.
 ExportClass.XlsxWrite PROCEDURE()
-tmp   CSTRING(4097)
-part  STRING(4096)
+tmp   CSTRING(32768)
+part  STRING(32768)
 plen  LONG,AUTO
-sheet CSTRING(65)
+i     LONG,AUTO
+n     LONG,AUTO
+nf    LONG,AUTO
+code  CSTRING(21)
+fmtStr CSTRING(45)
+numFmtsXml CSTRING(8192)
+extraXfs   CSTRING(16384)
+xfCount    LONG,AUTO
   CODE
   IF SELF.Parts &= NULL THEN RETURN 0 .
   FREE(SELF.Parts)
   SELF.ArcLen = 0
-  sheet = SELF.SheetName(SELF.Title)
+  n = RECORDS(SELF.Sheets)
+  IF ~n THEN RETURN 0 .                                   ! nothing was ever stashed - StartSheet()/EndSheet() never ran
 
   tmp = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & |
          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' & |
          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' & |
          '<Default Extension="xml" ContentType="application/xml"/>' & |
          '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' & |
-         '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' & |
-         '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' & |
-         '</Types>'
-  plen = LEN(tmp)
+         '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+  LOOP i = 1 TO n
+    tmp = CLIP(tmp) & '<Override PartName="/xl/worksheets/sheet' & i & |
+          '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+  END
+  tmp = CLIP(tmp) & '</Types>'
+  plen = LEN(CLIP(tmp))
   part = tmp
   SELF.ZipAdd('[Content_Types].xml',part,plen)
 
@@ -2151,52 +3786,727 @@ sheet CSTRING(65)
   tmp = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & |
          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' & |
          ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' & |
-         '<sheets><sheet name="' & sheet & '" sheetId="1" r:id="rId1"/></sheets></workbook>'
-  plen = LEN(tmp)
+         '<sheets>'
+  LOOP i = 1 TO n
+    GET(SELF.Sheets,i)
+    tmp = CLIP(tmp) & '<sheet name="' & SELF.XmlAttr(CLIP(SELF.Sheets.SName)) & '" sheetId="' & i & '" r:id="rId' & i & '"/>'
+  END
+  tmp = CLIP(tmp) & '</sheets></workbook>'
+  plen = LEN(CLIP(tmp))
   part = tmp
-  SELF.ToUTF8(part,plen)                                  ! the sheet name may not be ASCII
+  SELF.ToUTF8(part,plen)                                  ! a sheet name may not be ASCII
   SELF.ZipAdd('xl/workbook.xml',SELF.U8,SELF.U8Len)
 
   tmp = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & |
-         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' & |
-         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' & |
-         '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' & |
-         '</Relationships>'
-  plen = LEN(tmp)
+         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+  LOOP i = 1 TO n
+    tmp = CLIP(tmp) & '<Relationship Id="rId' & i & |
+          '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' & i & '.xml"/>'
+  END
+  tmp = CLIP(tmp) & '<Relationship Id="rId' & (n+1) & |
+        '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' & |
+        '</Relationships>'
+  plen = LEN(CLIP(tmp))
   part = tmp
   SELF.ZipAdd('xl/_rels/workbook.xml.rels',part,plen)
 
+  numFmtsXml = ''
+  extraXfs   = ''
+  IF ~SELF.NumFmts &= NULL
+    LOOP nf = 1 TO RECORDS(SELF.NumFmts)
+      GET(SELF.NumFmts,nf)
+      IF ERRORCODE() THEN CYCLE .
+      code = SELF.XlsxNumFmtCode(SELF.NumFmts.Decimals)
+      fmtStr = code
+      IF SELF.NumFmts.Parens THEN fmtStr = CLIP(fmtStr) & ';(' & CLIP(code) & ')' .
+      numFmtsXml = CLIP(numFmtsXml) & '<numFmt numFmtId="' & SELF.NumFmts.NumFmtId & '" formatCode="' & SELF.XmlAttr(fmtStr) & '"/>'
+      extraXfs = CLIP(extraXfs) & '<xf numFmtId="' & SELF.NumFmts.NumFmtId & '" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+      extraXfs = CLIP(extraXfs) & '<xf numFmtId="' & SELF.NumFmts.NumFmtId & '" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>'
+    END
+  END
+  xfCount = 3 + RECORDS(SELF.NumFmts) * 2
+
   tmp = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' & |
-         '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' & |
+         '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+  IF RECORDS(SELF.NumFmts) > 0
+    tmp = CLIP(tmp) & '<numFmts count="' & RECORDS(SELF.NumFmts) & '">' & CLIP(numFmtsXml) & '</numFmts>'
+  END
+  tmp = CLIP(tmp) & |
          '<fonts count="2">' & |
          '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font>' & |
          '<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font>' & |
          '</fonts>' & |
          '<fills count="2"><fill><patternFill patternType="none"/></fill>' & |
          '<fill><patternFill patternType="gray125"/></fill></fills>' & |
-         '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' & |
+         '<borders count="2">' & |
+         '<border><left/><right/><top/><bottom/><diagonal/></border>' & |
+         '<border><left/><right/><top style="thin"><color indexed="64"/></top><bottom/><diagonal/></border>' & |
+         '</borders>' & |
          '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' & |
-         '<cellXfs count="2">' & |
+         '<cellXfs count="' & xfCount & '">' & |
          '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' & |
          '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' & |
+         '<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>' & |
+         CLIP(extraXfs) & |
          '</cellXfs>' & |
          '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' & |
          '</styleSheet>'
-  plen = LEN(tmp)
+  plen = LEN(CLIP(tmp))
   part = tmp
   SELF.ZipAdd('xl/styles.xml',part,plen)
 
-  SELF.ToUTF8(SELF.Buf,SELF.BufLen)                       ! the sheet, last and largest
-  IF ~SELF.Buf &= NULL                                    ! release it before the archive grows
-    DISPOSE(SELF.Buf)
-    SELF.BufLen = 0
-    SELF.BufCap = 0
+  LOOP i = 1 TO n                                          ! each sheet, last and largest, in order
+    GET(SELF.Sheets,i)
+    SELF.ZipAdd('xl/worksheets/sheet' & i & '.xml',SELF.Sheets.SData,SELF.Sheets.SLen)
   END
-  SELF.ZipAdd('xl/worksheets/sheet1.xml',SELF.U8,SELF.U8Len)
-  IF ~SELF.U8 &= NULL
-    DISPOSE(SELF.U8)
-    SELF.U8Len = 0
-    SELF.U8Cap = 0
+
+  LOOP i = 1 TO n                                          ! done with every stashed sheet now
+    GET(SELF.Sheets,i)
+    IF ~SELF.Sheets.SData &= NULL THEN DISPOSE(SELF.Sheets.SData) .
   END
+  FREE(SELF.Sheets)
+
   SELF.ZipFinish()
   RETURN SELF.WriteDisk(SELF.FileName,SELF.Arc,SELF.ArcLen)
+
+
+! ############################################################################
+!  Print  -  plain GDI: CreateDC on SELF.PrinterName or the Windows default
+!  printer, then StartDoc/StartPage/TextOut/EndPage/EndDoc. No REPORT
+!  structure and no Win32 struct of any kind (deliberately - a hand-laid-out
+!  PRINTDLGA was tried here first and crashed; CreateDCA takes plain strings
+!  instead, so there is nothing left whose binary layout has to be guessed).
+!  The column widths come from the LIST's own on-screen widths, exactly the
+!  way the .xlsx column widths do.
+! ############################################################################
+
+!  Cols.Width (dialog units) -> PrnColX/PrnColW (device pixels), proportional,
+!  filling the printable width. Same idea as the .xlsx <col> widths.
+ExportClass.PrnColumnWidths PROCEDURE()
+i    LONG,AUTO
+n    LONG,AUTO
+tot  LONG,AUTO
+x    LONG,AUTO
+w    LONG,AUTO
+out  LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  tot = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    w = SELF.Cols.Width
+    IF w < 20 THEN w = 20 .                               ! a hidden column still gets a fair share
+    tot += w
+  END
+  IF ~tot THEN tot = 1 .
+  x = SELF.PrnMarginL
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    IF out > 64 THEN BREAK .                              ! PrnColX/W DIM(64) ceiling
+    w = SELF.Cols.Width
+    IF w < 20 THEN w = 20 .
+    SELF.PrnColX[out] = x
+    SELF.PrnColW[out] = SELF.PrnPageW * w / tot
+    x += SELF.PrnColW[out]
+  END
+  SELF.PrnColN = out
+
+
+!  Opens a device context on the printer and starts the print job. No Win32
+!  struct is involved at all - GetDefaultPrinterA fills a plain buffer, and
+!  CreateDCA takes plain string parameters - so there is nothing here whose
+!  binary layout has to be guessed. This trades away the OS Print common
+!  dialog (which needs the much larger, harder-to-verify PRINTDLGA structure)
+!  for reliability: it prints straight to SELF.PrinterName, or to Windows'
+!  configured default printer when that is blank.
+ExportClass.PrnBegin PROCEDURE()
+Di   GROUP
+cbSize               LONG
+lpszDocName          LONG
+lpszOutput           LONG
+lpszDatatype         LONG
+fwType               LONG
+     END
+face   CSTRING(33)
+doc    CSTRING(65)
+pname  CSTRING(261)
+drv    CSTRING(9)
+psize  LONG
+  CODE
+  drv = 'WINSPOOL'
+  IF CLIP(SELF.PrinterName)
+    pname = CLIP(SELF.PrinterName)
+  ELSE
+    pname = ''
+    psize = SIZE(pname)
+    IF ~exGetDefaultPrinter(pname,psize)
+      SELF.ErrCode = 20
+      SELF.ErrText = SELF.Txt(Txt:NoPrinter)
+      RETURN 0
+    END
+  END
+
+  SELF.PrnDC = exCreateDC(drv,pname,0,0)
+  IF ~SELF.PrnDC
+    SELF.ErrCode = 20
+    SELF.ErrText = SELF.Txt(Txt:NoPrinter)
+    RETURN 0
+  END
+
+  face = CLIP(SELF.FontFace)
+  IF ~face THEN face = 'Arial' .
+  SELF.PrnDpiX = exGetDeviceCaps(SELF.PrnDC,Prn:LOGPIXELSX)
+  SELF.PrnDpiY = exGetDeviceCaps(SELF.PrnDC,Prn:LOGPIXELSY)
+  IF SELF.PrnDpiX < 1 THEN SELF.PrnDpiX = 96 .
+  IF SELF.PrnDpiY < 1 THEN SELF.PrnDpiY = 96 .
+  SELF.PrnFont  = exCreateFont(-(SELF.FontSize * SELF.PrnDpiY / 72),0,0,0,400,0,0,0,0,0,0,0,0,face)
+  SELF.PrnFontB = exCreateFont(-(SELF.FontSize * SELF.PrnDpiY / 72),0,0,0,700,0,0,0,0,0,0,0,0,face)
+
+  SELF.PrnMarginL = SELF.MarginLeft   * SELF.PrnDpiX / 1440
+  SELF.PrnMarginT = SELF.MarginTop    * SELF.PrnDpiY / 1440
+  SELF.PrnPageW   = exGetDeviceCaps(SELF.PrnDC,Prn:HORZRES) - SELF.PrnMarginL - |
+                    (SELF.MarginRight  * SELF.PrnDpiX / 1440)
+  SELF.PrnPageH   = exGetDeviceCaps(SELF.PrnDC,Prn:VERTRES) - SELF.PrnMarginT - |
+                    (SELF.MarginBottom * SELF.PrnDpiY / 1440)
+  SELF.PrnRowH    = (SELF.FontSize + 6) * SELF.PrnDpiY / 72
+  SELF.PrnColumnWidths()
+
+  doc = CLIP(SELF.Title)
+  IF ~doc THEN doc = SELF.Txt(Txt:ExportWord) .
+  CLEAR(Di)
+  Di.cbSize = SIZE(Di)
+  Di.lpszDocName = ADDRESS(doc)
+  IF exStartDoc(SELF.PrnDC,Di) <= 0
+    exDeleteDC(SELF.PrnDC)
+    SELF.PrnDC = 0
+    SELF.ErrCode = 21
+    SELF.ErrText = SELF.Txt(Txt:NoPrinter)
+    RETURN 0
+  END
+
+  SELF.PrnPage = 0
+  SELF.PrnNewPage()
+  RETURN 1
+
+
+!  StartPage, and repeat the heading row on every page but the first's blank
+!  start (PrnPage=0 means "no page open yet", so nothing to EndPage first).
+ExportClass.PrnNewPage PROCEDURE()
+  CODE
+  IF SELF.PrnPage THEN exEndPage(SELF.PrnDC) .
+  exStartPage(SELF.PrnDC)
+  SELF.PrnPage += 1
+  SELF.PrnY = SELF.PrnMarginT
+  IF SELF.Headers THEN SELF.PrnHeader() .
+
+
+ExportClass.PrnHeader PROCEDURE()
+i    LONG,AUTO
+n    LONG,AUTO
+out  LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    SELF.PrnCell(out,SELF.HeaderText(i),1)
+  END
+  SELF.PrnY += SELF.PrnRowH
+
+
+!  One row from the QUEUE BUFFER, paginating first if it will not fit.
+ExportClass.PrnRow PROCEDURE()
+i    LONG,AUTO
+n    LONG,AUTO
+out  LONG,AUTO
+  CODE
+  IF ~SELF.PrnDC THEN RETURN .
+  n = SELF.Columns()
+  IF SELF.PrnY + SELF.PrnRowH > SELF.PrnMarginT + SELF.PrnPageH THEN SELF.PrnNewPage() .
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    SELF.PrnCell(out,SELF.CellText(i),0)
+  END
+  SELF.PrnY += SELF.PrnRowH
+
+
+!  One cell, left-aligned, clipped (by character count, measured against the
+!  real selected font) so nothing overruns into the next column.
+ExportClass.PrnCell PROCEDURE(LONG pCol,STRING pText,BYTE pBold)
+Sz    GROUP
+cx      LONG
+cy      LONG
+      END
+s     CSTRING(261)
+prev  LONG,AUTO
+pad   LONG,AUTO
+  CODE
+  IF pCol < 1 OR pCol > SELF.PrnColN THEN RETURN .
+  IF pBold
+    prev = exSelectObject(SELF.PrnDC,SELF.PrnFontB)
+  ELSE
+    prev = exSelectObject(SELF.PrnDC,SELF.PrnFont)
+  END
+  exSetBkMode(SELF.PrnDC,Prn:TRANSPARENT)
+  s = CLIP(LEFT(pText))
+  pad = SELF.PrnDpiX / 36                                 ! ~2pt of breathing room each side
+  LOOP WHILE LEN(CLIP(s)) > 1
+    exGetTextExtent(SELF.PrnDC,s,LEN(CLIP(s)),Sz)
+    IF Sz.cx <= SELF.PrnColW[pCol] - pad * 2 THEN BREAK .
+    s = SUB(s,1,LEN(CLIP(s))-1)
+  END
+  exTextOut(SELF.PrnDC,SELF.PrnColX[pCol] + pad,SELF.PrnY,s,LEN(CLIP(s)))
+  exSelectObject(SELF.PrnDC,prev)
+
+
+!  EndPage/EndDoc, release the fonts and the DC. Always safe to call even if
+!  PrnBegin never got as far as opening a DC (StartFile already checked, but
+!  EndFile calls this unconditionally once Started was ever set).
+ExportClass.PrnEnd PROCEDURE()
+  CODE
+  IF ~SELF.PrnDC
+    SELF.PagesOut = 0
+    RETURN 0
+  END
+  exEndPage(SELF.PrnDC)
+  exEndDoc(SELF.PrnDC)
+  IF SELF.PrnFont  THEN exDeleteObject(SELF.PrnFont)  .
+  IF SELF.PrnFontB THEN exDeleteObject(SELF.PrnFontB) .
+  exDeleteDC(SELF.PrnDC)
+  SELF.PagesOut = SELF.PrnPage
+  SELF.PrnDC    = 0
+  SELF.PrnFont  = 0
+  SELF.PrnFontB = 0
+  RETURN 1
+
+
+! ############################################################################
+!  PDF  -  a hand-built file: objects + a cross-reference table, the same
+!  technique as the .xlsx ZIP above. Base-14 standard fonts (Helvetica /
+!  Helvetica-Bold) - nothing is embedded, so every PDF reader already has them.
+!
+!  Object numbers are fixed up front (1=Catalog, 2=Pages, 3=Helvetica,
+!  4=Helvetica-Bold, 5.. = one Page + one Content stream per printed page), so
+!  every reference is correct the moment it is written - only the Pages tree's
+!  Kids/Count and the xref table itself have to wait for the last page.
+! ############################################################################
+
+!  Cols.Width -> PdfColX/PdfColW, in points, proportional - same idea as Print.
+ExportClass.PdfColumnWidths PROCEDURE()
+i       LONG,AUTO
+n       LONG,AUTO
+tot     LONG,AUTO
+x       LONG,AUTO
+w       LONG,AUTO
+out     LONG,AUTO
+usableW LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  tot = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    w = SELF.Cols.Width
+    IF w < 20 THEN w = 20 .
+    tot += w
+  END
+  IF ~tot THEN tot = 1 .
+  usableW = SELF.PdfPageW - (SELF.MarginLeft/20) - (SELF.MarginRight/20)
+  x = SELF.MarginLeft/20
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    IF out > 64 THEN BREAK .                              ! PdfColX/W DIM(64) ceiling
+    w = SELF.Cols.Width
+    IF w < 20 THEN w = 20 .
+    SELF.PdfColX[out] = x
+    SELF.PdfColW[out] = usableW * w / tot
+    x += SELF.PdfColW[out]
+  END
+  SELF.PdfColN = out
+
+
+!  Page size/margins, the two font objects (Catalog and Pages come last, once
+!  Kids/Count are known - see PdfFinish), and the first page.
+ExportClass.PdfBegin PROCEDURE()
+  CODE
+  IF SELF.PagePaper = Exp:A4
+    IF SELF.PageOrient = Exp:Landscape
+      SELF.PdfPageW = 842 ; SELF.PdfPageH = 595
+    ELSE
+      SELF.PdfPageW = 595 ; SELF.PdfPageH = 842
+    END
+  ELSE                                                     ! Letter
+    IF SELF.PageOrient = Exp:Landscape
+      SELF.PdfPageW = 792 ; SELF.PdfPageH = 612
+    ELSE
+      SELF.PdfPageW = 612 ; SELF.PdfPageH = 792
+    END
+  END
+  SELF.PdfRowH       = SELF.FontSize + 6
+  SELF.PdfCatalogObj = 1
+  SELF.PdfPagesObj   = 2
+  SELF.PdfFontObj    = 3
+  SELF.PdfFontBObj   = 4
+  SELF.PdfNextObj    = 5
+  SELF.PdfKids       = ''
+  SELF.PdfPage       = 0
+  SELF.PdfTruncated  = 0
+  SELF.PdfContLen    = 0
+  SELF.ArcLen        = 0
+  SELF.PdfDictOpen   = CHR(60) & CHR(60)                  ! '<<' built at runtime - see the .inc comment on this field
+  IF ~SELF.PdfObjs &= NULL THEN FREE(SELF.PdfObjs) .
+
+  SELF.ArcCat('%PDF-1.4' & Exp:CRLF & '%' & CHR(226) & CHR(227) & CHR(207) & CHR(211) & Exp:CRLF)
+  SELF.PdfBeginObj(SELF.PdfFontObj)
+  SELF.ArcCat(SELF.PdfDictOpen & ' /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>' & |
+              Exp:CRLF & 'endobj' & Exp:CRLF)
+  SELF.PdfBeginObj(SELF.PdfFontBObj)
+  SELF.ArcCat(SELF.PdfDictOpen & ' /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>' & |
+              Exp:CRLF & 'endobj' & Exp:CRLF)
+
+  SELF.PdfColumnWidths()
+  SELF.PdfNewPage()
+  RETURN 1
+
+
+!  Close the page in progress (if any), open the next Page object (its number
+!  is fixed now, so /Contents already points at the right place), and start
+!  its content stream with the title (page 1 only) and the heading row.
+ExportClass.PdfNewPage PROCEDURE()
+pageObj  LONG,AUTO
+  CODE
+  IF SELF.PdfPage THEN SELF.PdfClosePage() .
+  SELF.PdfPage += 1
+  IF SELF.PdfPage > Exp:PdfPageCap                        ! PdfPageObjs' DIM ceiling - stop making new pages,
+    SELF.PdfTruncated = 1                                 ! but PdfPage itself keeps counting so PdfFinish knows
+    RETURN                                                ! how many rows never got a page at all
+  END
+  pageObj = SELF.PdfNextObj ; SELF.PdfNextObj += 1
+  SELF.PdfContObj = SELF.PdfNextObj ; SELF.PdfNextObj += 1
+  SELF.PdfPageObjs[SELF.PdfPage] = pageObj
+  SELF.PdfKids = SELF.PdfKids & SELF.PdfNum(pageObj) & ' 0 R '  ! NEVER CLIP() the left side here - it would eat
+                                                                  ! the trailing space this line just added, and
+                                                                  ! the NEXT entry would run straight into this
+                                                                  ! one's 'R' with no separator: '5 0 R7 0 R9 0 R'
+                                                                  ! instead of '5 0 R 7 0 R 9 0 R' - exactly the
+                                                                  ! corruption a strict PDF reader chokes on.
+
+  SELF.PdfBeginObj(pageObj)
+  SELF.ArcCat(SELF.PdfDictOpen & ' /Type /Page /Parent ' & SELF.PdfNum(SELF.PdfPagesObj) & ' 0 R /MediaBox [0 0 ' & |
+              SELF.PdfNum(SELF.PdfPageW) & ' ' & SELF.PdfNum(SELF.PdfPageH) & ']' & |
+              ' /Resources ' & SELF.PdfDictOpen & ' /Font ' & SELF.PdfDictOpen & ' /F1 ' & SELF.PdfNum(SELF.PdfFontObj) & ' 0 R /F2 ' & SELF.PdfNum(SELF.PdfFontBObj) & ' 0 R >> >>' & |
+              ' /Contents ' & SELF.PdfNum(SELF.PdfContObj) & ' 0 R >>' & Exp:CRLF & 'endobj' & Exp:CRLF)
+
+  SELF.PdfContLen = 0
+  IF ~SELF.PdfContent &= NULL
+    DISPOSE(SELF.PdfContent)
+    SELF.PdfContCap = 0
+  END
+  SELF.PdfY = SELF.MarginTop / 20
+  IF SELF.PdfPage = 1 AND CLIP(SELF.Title)
+    SELF.PdfContCat('BT /F2 ' & SELF.PdfNum(SELF.TitleSize) & ' Tf 1 0 0 1 ' & SELF.PdfNum(SELF.MarginLeft/20) & ' ' & |
+                     SELF.PdfNum(SELF.PdfPageH - SELF.PdfY - SELF.TitleSize) & ' Tm (' & |
+                     SELF.PdfEscape(CLIP(SELF.Title)) & ') Tj ET' & Exp:CRLF)
+    SELF.PdfY += SELF.TitleSize + 6
+  END
+  IF SELF.Headers THEN SELF.PdfHeader() .
+
+
+!  Flush the just-finished page's content stream into its own PDF object.
+!  Safe to call with nothing open (PdfFinish calls it unconditionally).
+ExportClass.PdfClosePage PROCEDURE()
+  CODE
+  IF ~SELF.PdfContObj THEN RETURN .
+  SELF.PdfBeginObj(SELF.PdfContObj)
+  SELF.ArcCat(SELF.PdfDictOpen & ' /Length ' & SELF.PdfNum(SELF.PdfContLen) & ' >>' & Exp:CRLF & 'stream' & Exp:CRLF)
+  IF SELF.PdfContLen > 0 THEN SELF.ArcCat(SELF.PdfContent[1 : SELF.PdfContLen]) .
+  SELF.ArcCat(Exp:CRLF & 'endstream' & Exp:CRLF & 'endobj' & Exp:CRLF)
+  SELF.PdfContObj = 0
+
+
+ExportClass.PdfHeader PROCEDURE()
+i    LONG,AUTO
+n    LONG,AUTO
+out  LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    SELF.PdfCell(out,SELF.HeaderText(i),1)
+  END
+  SELF.PdfY += SELF.PdfRowH
+
+
+!  One row from the QUEUE BUFFER, paginating first if it will not fit.
+ExportClass.PdfRow PROCEDURE()
+i    LONG,AUTO
+n    LONG,AUTO
+out  LONG,AUTO
+  CODE
+  n = SELF.Columns()
+  IF SELF.PdfY + SELF.PdfRowH > SELF.PdfPageH - (SELF.MarginBottom/20) THEN SELF.PdfNewPage() .
+  out = 0
+  LOOP i = 1 TO n
+    GET(SELF.Cols,i)
+    IF ~SELF.Cols.Use THEN CYCLE .
+    out += 1
+    SELF.PdfCell(out,SELF.CellText(i),0)
+  END
+  SELF.PdfY += SELF.PdfRowH
+
+
+!  One cell: clip it to the column width (Helvetica AFM metrics), then emit an
+!  absolutely-positioned BT..Tm..Tj..ET block - simpler and safer than relative
+!  Td moves shared across many cells.
+ExportClass.PdfCell PROCEDURE(LONG pCol,STRING pText,BYTE pBold)
+s    CSTRING(261)
+x    LONG,AUTO
+y    LONG,AUTO
+fnt  CSTRING(3)
+  CODE
+  IF ~SELF.PdfContObj THEN RETURN .                       ! no page is open - past the cap, nothing left to write into
+  IF pCol < 1 OR pCol > SELF.PdfColN THEN RETURN .
+  s = SELF.PdfClip(CLIP(LEFT(pText)),SELF.FontSize,pBold,SELF.PdfColW[pCol] - 4)
+  IF ~CLIP(s) THEN RETURN .
+  x = SELF.PdfColX[pCol] + 2
+  y = SELF.PdfPageH - (SELF.PdfY + SELF.FontSize + 2)
+  fnt = CHOOSE(pBold = 1,'F2','F1')
+  SELF.PdfContCat('BT /' & fnt & ' ' & SELF.PdfNum(SELF.FontSize) & ' Tf 1 0 0 1 ' & SELF.PdfNum(x) & ' ' & SELF.PdfNum(y) & ' Tm (' & |
+                   SELF.PdfEscape(s) & ') Tj ET' & Exp:CRLF)
+
+
+!  Flush the last page, write the Pages tree and Catalog (their Kids/Count are
+!  only known now), then the cross-reference table and trailer, and the file.
+ExportClass.PdfFinish PROCEDURE()
+i        LONG,AUTO
+j        LONG,AUTO
+maxObj   LONG,AUTO
+xrefOfs  ULONG,AUTO
+ofs      ULONG,AUTO
+found    BYTE,AUTO
+realPages LONG,AUTO                                        ! how many pages actually GOT created - Kids/Count and
+                                                             ! PagesOut all need to agree with reality, not with
+                                                             ! however many times PdfNewPage() was ever CALLED
+  CODE
+  SELF.PdfClosePage()
+  realPages = CHOOSE(SELF.PdfPage < Exp:PdfPageCap,SELF.PdfPage,Exp:PdfPageCap)
+  SELF.PdfBeginObj(SELF.PdfPagesObj)
+  SELF.ArcCat(SELF.PdfDictOpen & ' /Type /Pages /Kids [' & CLIP(SELF.PdfKids) & '] /Count ' & SELF.PdfNum(realPages) & ' >>' & |
+              Exp:CRLF & 'endobj' & Exp:CRLF)
+  SELF.PdfBeginObj(SELF.PdfCatalogObj)
+  SELF.ArcCat(SELF.PdfDictOpen & ' /Type /Catalog /Pages ' & SELF.PdfNum(SELF.PdfPagesObj) & ' 0 R >>' & Exp:CRLF & 'endobj' & Exp:CRLF)
+
+  maxObj = 0
+  LOOP i = 1 TO RECORDS(SELF.PdfObjs)
+    GET(SELF.PdfObjs,i)
+    IF SELF.PdfObjs.PNum > maxObj THEN maxObj = SELF.PdfObjs.PNum .
+  END
+
+  xrefOfs = SELF.ArcLen
+  SELF.ArcCat('xref' & Exp:CRLF & '0 ' & SELF.PdfNum(maxObj+1) & Exp:CRLF)
+  SELF.ArcCat('0000000000 65535 f' & Exp:CRLF)
+  LOOP i = 1 TO maxObj
+    found = 0
+    LOOP j = 1 TO RECORDS(SELF.PdfObjs)
+      GET(SELF.PdfObjs,j)
+      IF SELF.PdfObjs.PNum = i
+        ofs = SELF.PdfObjs.POfs
+        found = 1
+        BREAK
+      END
+    END
+    IF found
+      SELF.ArcCat(SELF.PdfPad10(ofs) & ' 00000 n' & Exp:CRLF)
+    ELSE
+      SELF.ArcCat('0000000000 00000 f' & Exp:CRLF)
+    END
+  END
+  SELF.ArcCat('trailer' & Exp:CRLF & SELF.PdfDictOpen & ' /Size ' & SELF.PdfNum(maxObj+1) & ' /Root ' & SELF.PdfNum(SELF.PdfCatalogObj) & ' 0 R >>' & Exp:CRLF)
+  SELF.ArcCat('startxref' & Exp:CRLF & SELF.PdfNum(xrefOfs) & Exp:CRLF & '%%EOF' & Exp:CRLF)
+
+  SELF.PagesOut = realPages
+  RETURN SELF.WriteDisk(SELF.FileName,SELF.Arc,SELF.ArcLen)
+
+
+!  A LONG turned into a plain decimal string by hand - no leading/trailing
+!  padding, no thousands separator, nothing Clarion's own default numeric-to-
+!  string conversion might otherwise apply when a number is concatenated with
+!  '&'. A strict reader like Chrome's PDFium has none of Acrobat's tolerance
+!  for a stray padded or grouped digit sequence in an object number, /Length,
+!  a coordinate, or an xref count - so every number written into the PDF goes
+!  through this instead of a raw '&'.
+ExportClass.PdfNum PROCEDURE(LONG pVal)
+s     STRING(16)
+v     LONG,AUTO
+neg   BYTE,AUTO
+d     LONG,AUTO
+  CODE
+  v = pVal
+  neg = 0
+  IF v < 0
+    neg = 1
+    v = -v
+  END
+  IF v = 0 THEN RETURN '0' .
+  s = ''
+  LOOP WHILE v > 0
+    d = v - INT(v/10)*10
+    s = CHR(48+d) & CLIP(s)
+    v = INT(v/10)
+  END
+  IF neg THEN RETURN '-' & CLIP(s) .
+  RETURN CLIP(s)
+
+
+!  "N 0 obj" - records where it starts (SELF.Arc's current length) so PdfFinish
+!  can build the cross-reference table afterwards.
+ExportClass.PdfBeginObj PROCEDURE(LONG pNum)
+  CODE
+  IF SELF.PdfObjs &= NULL THEN SELF.PdfObjs &= NEW ExportPdfQueue .
+  SELF.PdfObjs.PNum = pNum
+  SELF.PdfObjs.POfs = SELF.ArcLen
+  ADD(SELF.PdfObjs)
+  SELF.ArcCat(SELF.PdfNum(pNum) & ' 0 obj' & Exp:CRLF)
+
+
+!  A byte offset, zero-padded to exactly 10 digits - the xref table's format.
+ExportClass.PdfPad10 PROCEDURE(ULONG pVal)
+s  STRING(10)
+v  ULONG,AUTO
+d  LONG,AUTO
+i  LONG,AUTO
+  CODE
+  s = '0000000000'
+  v = pVal
+  i = 10
+  LOOP WHILE v > 0 AND i >= 1
+    d = v - INT(v/10)*10
+    s[i] = CHR(48 + d)
+    v = INT(v/10)
+    i -= 1
+  END
+  RETURN s
+
+
+ExportClass.PdfContNeed PROCEDURE(LONG pAdd)
+cap  LONG,AUTO
+nb   &STRING
+  CODE
+  IF SELF.PdfContLen + pAdd <= SELF.PdfContCap THEN RETURN .
+  cap = SELF.PdfContCap
+  IF cap < 4096 THEN cap = 4096 .
+  LOOP WHILE cap < SELF.PdfContLen + pAdd
+    cap += cap
+  END
+  nb &= NEW STRING(cap)
+  IF SELF.PdfContLen THEN nb[1 : SELF.PdfContLen] = SELF.PdfContent[1 : SELF.PdfContLen] .
+  IF ~SELF.PdfContent &= NULL THEN DISPOSE(SELF.PdfContent) .
+  SELF.PdfContent &= nb
+  SELF.PdfContCap = cap
+
+
+ExportClass.PdfContCat PROCEDURE(STRING pText)
+l  LONG,AUTO
+  CODE
+  l = LEN(pText)
+  IF l <= 0 THEN RETURN .
+  SELF.PdfContNeed(l)
+  SELF.PdfContent[SELF.PdfContLen+1 : SELF.PdfContLen+l] = pText[1 : l]
+  SELF.PdfContLen += l
+
+
+!  Backslash, parentheses and raw line breaks are the only things PDF's literal
+!  string syntax requires escaping. Values come from FORMAT()/CLIP() in the
+!  machine's own code page; that is close enough to WinAnsiEncoding for the
+!  Latin-1 range every European code page shares with it.
+ExportClass.PdfEscape PROCEDURE(STRING pText)
+l  LONG,AUTO
+i  LONG,AUTO
+o  CSTRING(521)
+c  STRING(1)
+  CODE
+  o = ''
+  l = LEN(pText)
+  LOOP i = 1 TO l
+    IF LEN(CLIP(o)) > 500 THEN BREAK .
+    c = pText[i]
+    CASE c
+    OF '(' ; o = CLIP(o) & '\('
+    OF ')' ; o = CLIP(o) & '\)'
+    OF '\' ; o = CLIP(o) & '\\'
+    OF '<13>' OROF '<10>' ; o = CLIP(o) & ' '
+    ELSE
+      o = CLIP(o) & c
+    END
+  END
+  RETURN o
+
+
+!  Helvetica's standard AFM widths (1/1000 em) for printable ASCII. Bold is
+!  approximated as 8% wider - close enough for clipping decisions, which is
+!  all this is used for; it never affects file validity, only where a long
+!  value gets cut off.
+ExportClass.PdfStrWidth PROCEDURE(STRING pText,LONG pSize,BYTE pBold)
+Wid  LONG,DIM(95)
+i    LONG,AUTO
+v    LONG,AUTO
+tot  LONG,AUTO
+  CODE
+  Wid[1]  = 278 ; Wid[2]  = 278 ; Wid[3]  = 355 ; Wid[4]  = 556 ; Wid[5]  = 556   ! sp ! " # $
+  Wid[6]  = 889 ; Wid[7]  = 667 ; Wid[8]  = 191 ; Wid[9]  = 333 ; Wid[10] = 333   ! % & ' ( )
+  Wid[11] = 389 ; Wid[12] = 584 ; Wid[13] = 278 ; Wid[14] = 333 ; Wid[15] = 278   ! * + , - .
+  Wid[16] = 278 ; Wid[17] = 556 ; Wid[18] = 556 ; Wid[19] = 556 ; Wid[20] = 556   ! / 0 1 2 3
+  Wid[21] = 556 ; Wid[22] = 556 ; Wid[23] = 556 ; Wid[24] = 556 ; Wid[25] = 556   ! 4 5 6 7 8
+  Wid[26] = 556 ; Wid[27] = 278 ; Wid[28] = 278 ; Wid[29] = 584 ; Wid[30] = 584   ! 9 : ; < =
+  Wid[31] = 584 ; Wid[32] = 556 ; Wid[33] = 1015; Wid[34] = 667 ; Wid[35] = 667   ! > ? @ A B
+  Wid[36] = 722 ; Wid[37] = 722 ; Wid[38] = 667 ; Wid[39] = 611 ; Wid[40] = 778   ! C D E F G
+  Wid[41] = 722 ; Wid[42] = 278 ; Wid[43] = 500 ; Wid[44] = 667 ; Wid[45] = 556   ! H I J K L
+  Wid[46] = 833 ; Wid[47] = 722 ; Wid[48] = 778 ; Wid[49] = 667 ; Wid[50] = 778   ! M N O P Q
+  Wid[51] = 722 ; Wid[52] = 667 ; Wid[53] = 611 ; Wid[54] = 722 ; Wid[55] = 667   ! R S T U V
+  Wid[56] = 944 ; Wid[57] = 667 ; Wid[58] = 667 ; Wid[59] = 611 ; Wid[60] = 278   ! W X Y Z [
+  Wid[61] = 278 ; Wid[62] = 278 ; Wid[63] = 469 ; Wid[64] = 556 ; Wid[65] = 333   ! \ ] ^ _ `
+  Wid[66] = 556 ; Wid[67] = 556 ; Wid[68] = 500 ; Wid[69] = 556 ; Wid[70] = 556   ! a b c d e
+  Wid[71] = 278 ; Wid[72] = 556 ; Wid[73] = 556 ; Wid[74] = 222 ; Wid[75] = 222   ! f g h i j
+  Wid[76] = 500 ; Wid[77] = 222 ; Wid[78] = 833 ; Wid[79] = 556 ; Wid[80] = 556   ! k l m n o
+  Wid[81] = 556 ; Wid[82] = 556 ; Wid[83] = 333 ; Wid[84] = 500 ; Wid[85] = 278   ! p q r s t
+  Wid[86] = 556 ; Wid[87] = 500 ; Wid[88] = 722 ; Wid[89] = 500 ; Wid[90] = 500   ! u v w x y
+  Wid[91] = 500 ; Wid[92] = 334 ; Wid[93] = 260 ; Wid[94] = 334 ; Wid[95] = 584   ! z { | } ~
+
+  tot = 0
+  LOOP i = 1 TO LEN(pText)
+    v = VAL(pText[i]) - 31                                ! index into Wid[], 1 = space(32)
+    IF v < 1 OR v > 95 THEN v = 5 .                        ! outside 32..126 - use "$"-ish average
+    tot += Wid[v]
+  END
+  IF pBold THEN tot = tot * 108 / 100 .
+  RETURN tot * pSize / 1000
+
+
+!  Truncate a value so it fits pMaxWidth points at pSize/pBold - used instead
+!  of a PDF clipping path, which would need its own graphics-state save/restore
+!  around every cell for no visible benefit at this column width.
+ExportClass.PdfClip PROCEDURE(STRING pText,LONG pSize,BYTE pBold,LONG pMaxWidth)
+s  CSTRING(261)
+  CODE
+  IF pMaxWidth <= 0 THEN RETURN '' .
+  s = CLIP(LEFT(pText))
+  LOOP WHILE LEN(CLIP(s)) > 1
+    IF SELF.PdfStrWidth(CLIP(s),pSize,pBold) <= pMaxWidth THEN BREAK .
+    s = SUB(s,1,LEN(CLIP(s))-1)
+  END
+  RETURN s
