@@ -629,7 +629,8 @@ serial underneath, so *Find text…* used to ask for that number. Now it opens a
 value…* and the *Filter on ‹value›* menu label show the date through the column's own picture while the filter
 keeps comparing the serial. Every file of the procedure is `BIND`'d once at window `Init`, so a date filter
 works from any sort-order tab, not only the one whose order uses the field. It also found the `CLIP` separator
-bug independently &mdash; the `ORINSTRING` of v1.28 has a twin, `ANDIVAVTA:FECHA`, in the values dialog.
+bug independently &mdash; the `ORINSTRING` of v1.28 has a twin, `ANDIVAVTA:FECHA`, in the values dialog. **v1.37** routes that dialog's captions (*Find by date*, *From*, *To*, and the two calendar titles) through the
+same EN/ES text table as every other dialog; they had arrived in Spanish only.
 
 #37 (v1.36) and #38 landed a week apart on the same routines; merging them by hand kept both. Two things
 changed in the reconciliation: the new `BG:DateFind` routine is generated under the *local-or-inherited*

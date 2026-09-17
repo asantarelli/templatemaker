@@ -1,4 +1,4 @@
-#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.36'),FAMILY('ABC')
+#TEMPLATE(BrowseGrid,'BrowseGrid - draw any browse with Direct2D - v1.37'),FAMILY('ABC')
 #!-----------------------------------------------------------------------------
 #!  BrowseGrid  -  a browse that does not look like 1995.
 #!
@@ -34,7 +34,7 @@
 #SHEET
   #TAB('General')
     #BOXED('BrowseGrid')
-      #DISPLAY('BrowseGrid - Version 1.36')
+      #DISPLAY('BrowseGrid - Version 1.37')
       #DISPLAY('Draws an ABC browse with Direct2D and DirectWrite instead of')
       #DISPLAY('the runtime LIST, without touching the browse underneath.')
       #DISPLAY('')
@@ -1265,6 +1265,11 @@ c LONG,AUTO
   #DECLARE(%bgTFindLbl)
   #DECLARE(%bgTFindAll)
   #DECLARE(%bgTFindNone)
+  #DECLARE(%bgTDateTitle)
+  #DECLARE(%bgTDateFrom)
+  #DECLARE(%bgTDateTo)
+  #DECLARE(%bgTDateFromCal)
+  #DECLARE(%bgTDateToCal)
   #IF(%bgLangUsed = 'EN')
     #SET(%bgTSortAsc,'Sort &Ascending')
     #SET(%bgTSortDesc,'Sort &Descending')
@@ -1316,6 +1321,11 @@ c LONG,AUTO
     #SET(%bgTFindLbl,'&Text:')
     #SET(%bgTFindAll,'In &all columns')
     #SET(%bgTFindNone,'There is no column to look for that text in.')
+    #SET(%bgTDateTitle,'Find by date')
+    #SET(%bgTDateFrom,'&From:')
+    #SET(%bgTDateTo,'&To:')
+    #SET(%bgTDateFromCal,'From')
+    #SET(%bgTDateToCal,'To')
 #IF(%bgTotals)
     #SET(%bgTColsHint,'Tick the columns to show, and which ones carry a total.')
 #ELSE
@@ -1372,6 +1382,11 @@ c LONG,AUTO
     #SET(%bgTFindLbl,'&Texto:')
     #SET(%bgTFindAll,'En to&das las columnas')
     #SET(%bgTFindNone,'No hay ninguna columna en la que buscar ese texto.')
+    #SET(%bgTDateTitle,'Buscar por fecha')
+    #SET(%bgTDateFrom,'&Desde:')
+    #SET(%bgTDateTo,'&Hasta:')
+    #SET(%bgTDateFromCal,'Desde')
+    #SET(%bgTDateToCal,'Hasta')
 #IF(%bgTotals)
     #SET(%bgTColsHint,'Marque las columnas que quiere ver, y cuáles llevan total.')
 #ELSE
@@ -3544,11 +3559,11 @@ BG:DateFind:%bgObject ROUTINE
 DFrom LONG
 DTo   LONG
 DCal  CalendarClass
-DW   WINDOW('Buscar por fecha'),AT(,,182,102),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
-       PROMPT('&Desde:'),AT(8,15,30,10),USE(?DFromLbl)
+DW   WINDOW('%bgTDateTitle'),AT(,,182,102),GRAY,SYSTEM,CENTER,FONT('Segoe UI',9)
+       PROMPT('%bgTDateFrom'),AT(8,15,30,10),USE(?DFromLbl)
        ENTRY(@d17),AT(40,13,94,13),USE(DFrom)
        BUTTON('...'),AT(138,13,16,13),USE(?DFromCal)
-       PROMPT('&Hasta:'),AT(8,35,30,10),USE(?DToLbl)
+       PROMPT('%bgTDateTo'),AT(8,35,30,10),USE(?DToLbl)
        ENTRY(@d17),AT(40,33,94,13),USE(DTo)
        BUTTON('...'),AT(138,33,16,13),USE(?DToCal)
        PANEL,AT(0,76,182,26),BEVEL(1)
@@ -3578,13 +3593,13 @@ dtmp  LONG
   ACCEPT
     CASE ACCEPTED()
     OF ?DFromCal
-      dtmp = DCal.Ask('Desde',CHOOSE(DFrom > 0,DFrom,TODAY()))
+      dtmp = DCal.Ask('%bgTDateFromCal',CHOOSE(DFrom > 0,DFrom,TODAY()))
       IF DCal.Response = RequestCompleted
         DFrom = dtmp
         DISPLAY(?DFrom)
       END
     OF ?DToCal
-      dtmp = DCal.Ask('Hasta',CHOOSE(DTo > 0,DTo,CHOOSE(DFrom > 0,DFrom,TODAY())))
+      dtmp = DCal.Ask('%bgTDateToCal',CHOOSE(DTo > 0,DTo,CHOOSE(DFrom > 0,DFrom,TODAY())))
       IF DCal.Response = RequestCompleted
         DTo = dtmp
         DISPLAY(?DTo)
