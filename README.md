@@ -593,6 +593,52 @@ was loaded, drawn, and then clipped away behind the bar: selectable with the arr
 see. The **Overlay** style was never affected, because that bar floats over the rows and takes no height
 from anything.
 
+**What v1.28 fixed.** *Find text* across several columns built a filter that would not parse. The clause
+was joined in two steps &mdash; `expr = CLIP(expr) & ' OR '` and then `expr = CLIP(expr) & CLIP(one)` &mdash;
+and the second `CLIP` eats the space the first one had just added, so the expression came out as
+`...1,1) ORINSTRING(...)`. The evaluator reads that run-together token as one identifier and the view
+opens with *BIND has not been called for ORINSTRING (1011)*, filters and ranges ignored. It is built as a
+single expression now. Only *In all columns* reproduced it &mdash; with one column there is no `OR` to run
+together, which is why the same field of a related table searched fine on its own.
+
+**What v1.36 adds and fixes.** Three fixes first, because they are defects rather than features. The
+**selected row landed in the two-pixel sliver**: `BG:Fill` mixed the count of rows that fit *entirely*
+with the count it *draws* — one more, painted deliberately so scrolling can be by pixel — and used the
+drawing count for the scroll arithmetic, so arrowing past the last whole row put the selection somewhere
+it could not be seen. The **grid read thinner than the LIST beside it** with the same typeface
+configured, and that was neither contrast nor hinting: `"Roboto Medium"` is a *family* to GDI, which
+resolves it to the Medium face, while DirectWrite hands that family its 400-weight member — two
+different **faces**, not two renderings. The weight is now read from the last word of the family name.
+And **saved column layouts were saved empty**: their loops sat inside the dialog's `ACCEPT`, where a
+field equate resolves against *that* window, so `%bgList` read a control of the dialog and wrote nothing
+— without erroring.
+
+Then the features. **Settings shared by every browse**: three groups — the heading menu, the look
+(Look + Colours + Variables, inherited together because Variables overrides the other two), and the
+mouse — set once on the global extension and inherited with one tick each. Column numbers that also get
+the click are deliberately excluded: they belong to *that* browse. **Column layouts**, saved under a
+name and recalled, storing widths, which columns are visible and which carry a total — no filters (an
+expression that will not parse is a run-time error at window open) and no order (the grid does not
+reorder). Drivable from an embed (`Grid1:SchName` + `DO BG:SchLoad:Grid1`) and from a **code template**,
+for the layout that follows from who opened the window rather than from a button. Plus **GDI text
+rendering**, a **font weight** prompt, and each heading-menu option can be switched off individually.
+
+**A date column filters from a calendar** (#38, DCortassa). A column with an `@d` picture keeps the Clarion day
+serial underneath, so *Find text…* used to ask for that number. Now it opens a From / To dialog with an ABC
+`CalendarClass` popup on each field and builds `FIELD >= from AND FIELD <= to` over the serials; *Filter by
+value…* and the *Filter on ‹value›* menu label show the date through the column's own picture while the filter
+keeps comparing the serial. Every file of the procedure is `BIND`'d once at window `Init`, so a date filter
+works from any sort-order tab, not only the one whose order uses the field. It also found the `CLIP` separator
+bug independently &mdash; the `ORINSTRING` of v1.28 has a twin, `ANDIVAVTA:FECHA`, in the values dialog.
+
+#37 (v1.36) and #38 landed a week apart on the same routines; merging them by hand kept both. Two things
+changed in the reconciliation: the new `BG:DateFind` routine is generated under the *local-or-inherited*
+symbol that guards `BG:Find`, or a browse inheriting its menu from the global extension would call a routine
+that was never written; and the `Init` loop binds the files of **this procedure** (`%ProcFilesUsed`) rather
+than asking `%FileIsUsed()`, a global-scope question that answers *no* from a procedure whenever *Generate
+all file declarations* is off &mdash; proved by generating an app from a TXA: zero `BIND`s with the old loop,
+one per file with this one.
+
 Measured on a real application: a fill costs **under 200 µs** — 1.2 % of a 60 Hz frame — and the generated
 code makes **three file accesses**, none of them on the drawing path. The one to know about is *Filter by
 value*, which scans the file sequentially in the foreground; it can be taken off the menu from the prompts.
@@ -2139,7 +2185,8 @@ the numbers, so the work can be read in full.
 | **[Dinko Bačun](https://github.com/bdinko)** <sub>(Indicio d.o.o.)</sub> | Made the toolkit work on **somebody else's machine**: the Clarion install auto-detected instead of hardcoded to `C:\clarion12`, `<CLARION_ROOT>` placeholders through the skill and agent docs so the corpus paths survive a different version, an installer that ships *every* template together with the classes they need to compile, and the `d2gridleg.c` rename that let the installer stage both grids at once.<br><sub>[#1](https://github.com/robertorenz/templatemaker/pull/1) · [#22](https://github.com/robertorenz/templatemaker/pull/22) · [#28](https://github.com/robertorenz/templatemaker/pull/28) · [#31](https://github.com/robertorenz/templatemaker/pull/31)</sub> |
 | **[Carl T. Barnes](https://github.com/CarlTBarnes)** <sub>([carlbarnes.com](https://www.carlbarnes.com))</sub> | Read the Clarion source the way only long practice lets you: `SetTarget(Window, Image)` in **myQRDraw** so the symbol lands on the control instead of at the window origin — with a test program to prove it — and `STRING` in place of `*CSTRING` through the class and the barcode method parameters. Plus the **myGauge** and **myPie** reports below.<br><sub>[#19](https://github.com/robertorenz/templatemaker/pull/19) · [#20](https://github.com/robertorenz/templatemaker/pull/20) · [#21](https://github.com/robertorenz/templatemaker/pull/21)</sub> |
 | **[John Hickey](https://github.com/ClarionLive)** <sub>(ClarionLive)</sub> | The **Legacy (CW20) chain**: `BrowseGridLeg`, the Direct2D grid carried over to a chain that has no ABC objects to hang it on, with word wrap and rows that grow only as far as their text needs — and the corrections and Legacy/CW20 chapter that the port turned up in the `clarion-template` skill. Also the **myFilter** bug where a filter whose name contained `=` could never be loaded back.<br><sub>[#26](https://github.com/robertorenz/templatemaker/pull/26) · [#27](https://github.com/robertorenz/templatemaker/pull/27) · [#29](https://github.com/robertorenz/templatemaker/pull/29)</sub> |
-| **[Adrian E. Santarelli](https://github.com/asantarelli)** <sub>([SDigitales](https://www.sdigitales.com.ar))</sub> | **SDAspecto** — one look for every window in a program, from a cascading rule engine whose rules live in an INI rather than in code. **BrowseGrid v1.24**: totals, text search, check-box columns, auto-fit widths and the help page the template had been missing — then **v1.25**, where `d2g_PageSize` was the one row-area measurement that did not take the horizontal scrollbar off, so the browse loaded a last record it then drew behind the bar. And **graficaBarra v2.1**, the **combo chart**: a series told to draw as a **line** over the bars off the same value axis, taking no room in the category slot and keyed in the legend with a line rather than a block; a cell that can hold **no value**, so a trend breaks instead of diving to zero next to an average bar; the chart carrying **its own type**, with the layout scaling to the size so labels thin out rather than collide; and the *Look* tab split in three once thirty prompts had run off the screen.<br><sub>[#32](https://github.com/robertorenz/templatemaker/pull/32) · [#33](https://github.com/robertorenz/templatemaker/pull/33) · [#34](https://github.com/robertorenz/templatemaker/pull/34) · [#35](https://github.com/robertorenz/templatemaker/pull/35)</sub> |
+| **[Adrian E. Santarelli](https://github.com/asantarelli)** <sub>([SDigitales](https://www.sdigitales.com.ar))</sub> | **SDAspecto** — one look for every window in a program, from a cascading rule engine whose rules live in an INI rather than in code. **BrowseGrid v1.24**: totals, text search, check-box columns, auto-fit widths and the help page the template had been missing — then **v1.25**, where `d2g_PageSize` was the one row-area measurement that did not take the horizontal scrollbar off, so the browse loaded a last record it then drew behind the bar. And **graficaBarra v2.1**, the **combo chart**: a series told to draw as a **line** over the bars off the same value axis, taking no room in the category slot and keyed in the legend with a line rather than a block; a cell that can hold **no value**, so a trend breaks instead of diving to zero next to an average bar; the chart carrying **its own type**, with the layout scaling to the size so labels thin out rather than collide; and the *Look* tab split in three once thirty prompts had run off the screen. Then **BrowseGrid v1.36**: three defects found by using it &mdash; the selected row drawn in the two-pixel sliver below the last whole row, `"Roboto Medium"` resolving to two different faces under GDI and DirectWrite, and column layouts saved empty because a field equate inside a dialog's `ACCEPT` resolves against the dialog &mdash; plus settings shared by every browse from the global extension, named column layouts drivable from a code template, and every heading-menu option switchable on its own.<br><sub>[#32](https://github.com/robertorenz/templatemaker/pull/32) · [#33](https://github.com/robertorenz/templatemaker/pull/33) · [#34](https://github.com/robertorenz/templatemaker/pull/34) · [#35](https://github.com/robertorenz/templatemaker/pull/35) · [#37](https://github.com/robertorenz/templatemaker/pull/37)</sub> |
+| **[DCortassa](https://github.com/DCortassa)** | **BrowseGrid's date filter**: a column with an `@d` picture stored the day serial underneath, so filtering a date meant typing that number. Now *Find text…* on such a column opens a From / To dialog with an ABC calendar on each field, *Filter by value…* and the menu label show the date through the column's picture, and every file of the procedure is bound at window `Init` so the filter works from any sort-order tab. Found the `CLIP`-eats-the-separator bug on the way &mdash; `... AND` & `IVAVTA:FECHA` glued into one identifier and the VIEW would not open.<br><sub>[#38](https://github.com/robertorenz/templatemaker/pull/38)</sub> |
 
 **Bugs found and reported.** [Carl T. Barnes](https://github.com/CarlTBarnes) on `myPie` positioning the pie at
 `(0,0)` instead of the image's own X,Y ([#5](https://github.com/robertorenz/templatemaker/issues/5)), and on
