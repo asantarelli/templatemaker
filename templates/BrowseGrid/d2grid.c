@@ -25,10 +25,18 @@
  *  first - not remembered. They are named once, here, and nowhere else:
  *
  *    ID2D1Factory            2 Release  14 CreateHwndRenderTarget
- *    ID2D1HwndRenderTarget   2 Release   8 CreateSolidColorBrush
- *                           15 DrawLine 17 FillRectangle  27 DrawText
+ *    ID2D1HwndRenderTarget   2 Release   4 CreateBitmap   8 CreateSolidColorBrush
+ *                           15 DrawLine 17 FillRectangle  26 DrawBitmap  27 DrawText
  *                           30 SetTransform 45 PushAxisAlignedClip
  *                           46 PopAxisAlignedClip 47 Clear 48 BeginDraw
+ *    ID2D1Bitmap             2 Release
+ *
+ *  ICON COLUMNS (v1.38). A column with icons of its own - not the two-shape
+ *  tick box above, a real set the developer configured for a condition - is
+ *  loaded and drawn as what it is, through CreateBitmap/DrawBitmap same as
+ *  the tick box was NOT: an .ico is Windows' own format, so GDI decodes it
+ *  (LoadImage/GetIconInfo/GetDIBits) rather than pulling in WIC for a second
+ *  set of hand-declared interfaces. See loadIcon() below.
  *                           49 EndDraw 58 Resize
  *    ID2D1SolidColorBrush    2 Release   8 SetColor
  *    IDWriteFactory          2 Release  15 CreateTextFormat
@@ -79,6 +87,34 @@ BOOL    WINAPI EndPaint(HWND, const void*);
 BOOL    WINAPI IsWindow(HWND);
 int     WINAPI MultiByteToWideChar(UINT, DWORD, const char*, int, WCHAR*, int);
 
+/* ---- GDI, for decoding a .ico (icon columns, v1.38) ----------------------- */
+void*   WINAPI GetModuleHandleA(const char*);
+void*   WINAPI LoadImageA(void*, const char*, UINT, int, int, UINT);
+BOOL    WINAPI GetIconInfo(void*, void*);
+int     WINAPI GetObjectA(void*, int, void*);
+void*   WINAPI CreateCompatibleDC(void*);
+BOOL    WINAPI DeleteDC(void*);
+int     WINAPI GetDIBits(void*, void*, UINT, UINT, void*, void*, UINT);
+BOOL    WINAPI DeleteObject(void*);
+BOOL    WINAPI DestroyIcon(void*);
+
+typedef struct { long bmType, bmWidth, bmHeight, bmWidthBytes;
+                 unsigned short bmPlanes, bmBitsPixel; void* bmBits; } BITMAP;
+typedef struct { unsigned long biSize; long biWidth, biHeight;
+                 unsigned short biPlanes, biBitCount; unsigned long biCompression,
+                 biSizeImage; long biXPelsPerMeter, biYPelsPerMeter;
+                 unsigned long biClrUsed, biClrImportant; } BITMAPINFOHEADER;
+typedef struct { BITMAPINFOHEADER bmiHeader; unsigned long bmiColors[1]; } BITMAPINFO;
+typedef struct { int fIcon; unsigned long xHotspot, yHotspot;
+                 void* hbmMask; void* hbmColor; } ICONINFO;
+
+#define IMG_ICON         1     /* IMAGE_ICON                                */
+#define LR_LOADFROMFILE  0x10
+#define D2G_ICONPX       32    /* the size asked of LoadImage - plenty for a
+                                   grid row, and small enough that a modern
+                                   icon's PNG-compressed large frames, which
+                                   GDI cannot decode, are never the one picked */
+
 /* ---- Direct2D / DirectWrite types, exactly as the SDK lays them out ------ */
 typedef struct { unsigned int w, h; }                SIZEU;
 typedef struct { float l, t, r, b; }                 RECTF;
@@ -100,6 +136,10 @@ typedef struct { HWND hwnd; SIZEU size; int present; } HRTPROPS;
 
 #define DXGI_B8G8R8A8_UNORM  87
 #define ALPHA_IGNORE          3
+#define ALPHA_PREMULT         1     /* D2D1_ALPHA_MODE_PREMULTIPLIED - icons carry real transparency */
+#define INTERP_NEAREST        0     /* D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR */
+#define INTERP_LINEAR         1     /* ...LINEAR                                                    */
+typedef struct { PIXFMT pf; float dpiX, dpiY; }      BMPPROPS;  /* for CreateBitmap */
 #define FACTORY_SINGLE        0
 #define DW_FACTORY_SHARED     0
 #define FONT_NORMAL         400
@@ -123,6 +163,7 @@ typedef HRESULT (WINAPI *PFN_DWriteCreateFactory)(int, const GUID*, void**);
 
 #define G_MAX     16            /* grids at once                              */
 #define G_COLS    64            /* columns                                    */
+#define G_ICONS   16            /* PROP:IconList's own ceiling - one image list per LIST */
 /* A CEILING, not a reservation. The rows on screen are asked for when the
    shape is known, so this only says where a bug stops being a bug and starts
    being a request for a gigabyte. Nothing is reserved for rows nobody has.  */
@@ -183,6 +224,26 @@ typedef struct {
        for the column. Cheap enough to keep for every column - four ints - and
        read once per column instead of once per cell. -1 is 'none' here too. */
     int   colCheck[G_COLS];     /* draw a tick box instead of the text?     */
+    /* ---- icon columns (v1.38) --------------------------------------------
+       A column of the developer's OWN icons, not the tick box above. What
+       each of the LIST's up-to-16 icons is called is remembered here; the
+       bitmap is decoded from it, once, the first time a cell actually needs
+       to paint that icon - not at column-setup time, and not for an icon
+       nobody's rows ever select. cellIcon carries which one (1..G_ICONS,
+       0 = none) each cell shows, same shape and same lazy allocation as
+       cellCol below. */
+    char  iconName[G_ICONS + 1][260];
+    void* iconBmp[G_ICONS + 1]; /* ID2D1Bitmap*, 0 = not decoded yet (or failed) */
+    int   iconW[G_ICONS + 1], iconH[G_ICONS + 1];
+    /* WHERE loadIcon gave up, for the diagnostics line - Clarion cannot see
+       inside a C function otherwise. 0 not attempted, 1 ok, else which step:
+       2 no name  3 LoadImage (both tries)  4 GetIconInfo  5 GetObject
+       6 GetDIBits(colour)  7 CreateBitmap (hr in iconHr)                    */
+    int   iconErr[G_ICONS + 1];
+    HRESULT iconHr[G_ICONS + 1];
+    int   iconBpp[G_ICONS + 1];  /* the icon's own colour depth, as GetObject saw it */
+    int   iconMask[G_ICONS + 1]; /* 1 = no real alpha, fell back to the AND mask       */
+    int*  cellIcon;              /* rowCap * colCap ints, or 0               */
     /* A row of totals along the bottom. Asked for like the cells and for the
        same reason: one string per column is small, but a grid that never
        shows totals should not carry it. footH is 0 when there is no footer,
@@ -262,6 +323,7 @@ typedef struct {
    keeps its shape when a column is hidden and the count drops. */
 #define CELL(c,r,k) ((c)->cells + (((r) * (c)->colCap + (k)) * G_TEXT))
 #define CELLCOL(c,r,k) ((c)->cellCol + (((r) * (c)->colCap + (k)) * 4))
+#define CELLICON(c,r,k) ((c)->cellIcon[(r) * (c)->colCap + (k)])
 #define FOOT(c,k)      ((c)->footTxt + ((k) * G_TEXT))
 
 #define D2G_BARW 15
@@ -383,6 +445,19 @@ static int ensureColours(Grid* c) {
     return 1;
 }
 
+/* Same idea as ensureColours - asked for only once a fill actually writes an
+   icon index, and dropped with the cells whenever the shape changes. Zeroed
+   by LocalAlloc's own LPTR, which is what 'no icon in this cell' already is,
+   so there is no unsetAll to call here. */
+static int ensureIcons(Grid* c) {
+    long n;
+    if (c->cellIcon) return 1;
+    if (!c->cells)   return 0;
+    n = (long)c->rowCap * (long)c->colCap;
+    c->cellIcon = (int*)LocalAlloc(LPTR, n * (long)sizeof(int));
+    return c->cellIcon ? 1 : 0;
+}
+
 /* The footer is indexed by COLUMN and by nothing else, so it follows the
    column count and not the shape of the cell block. Tying it to the cells -
    which is what this did - meant every fill that needed one more row threw
@@ -422,6 +497,11 @@ static int ensureCells(Grid* c, int rows, int cols) {
         LocalFree(c->cellCol);
         c->cellCol = 0;
         ensureColours(c);
+    }
+    if (c->cellIcon) {
+        LocalFree(c->cellIcon);
+        c->cellIcon = 0;
+        ensureIcons(c);
     }
     return 1;
 }
@@ -732,13 +812,175 @@ static void checkBox(Grid* c, int row, int col, float l, float t, float r,
     }
 }
 
-/* One cell: its colour worked out, then either a tick box or its text. The
-   three places that draw a cell - scrolling, frozen, and frozen inside a
-   group - all come through here, so the padding is in one place. */
+/* ---- icon columns (v1.38) -------------------------------------------------
+   Decode one of the LIST's OWN icons - a real condition of the developer's,
+   not the two-shape tick box above - and hand it to Direct2D. Called lazily,
+   the first time that icon index is actually painted, and kept for the
+   grid's life (or until a device reset drops it - see the EndDraw failure
+   branch further down, which clears iconBmp but not iconName, so the next
+   paint decodes it again against the rebuilt target). */
+static int loadIcon(Grid* c, int idx) {
+    void*      hIcon;
+    ICONINFO   ii;
+    BITMAP     bm;
+    void*      memDC;
+    BITMAPINFO bi;
+    BYTE*      bits;
+    long       n, i;
+    BMPPROPS   bp;
+    HRESULT    hr;
+
+    if (idx < 1 || idx > G_ICONS) return 0;
+    c->iconErr[idx] = 2;                        /* 'no name' until proven otherwise below */
+    c->iconHr[idx]  = 0;
+    if (!c->iconName[idx][0]) return 0;
+    if (!c->rt && !d2g_MakeTarget(c)) return 0;
+
+    /* First as a resource baked into this exe - which is how Clarion ships
+       every icon PROP:IconList names, under that exact filename string, so
+       there is nothing extra to deploy in the common case. Then, in case it
+       really is a path on disk, as a file. */
+    hIcon = LoadImageA(GetModuleHandleA(0), c->iconName[idx], IMG_ICON,
+                       D2G_ICONPX, D2G_ICONPX, 0);
+    if (!hIcon)
+        hIcon = LoadImageA(0, c->iconName[idx], IMG_ICON,
+                           D2G_ICONPX, D2G_ICONPX, LR_LOADFROMFILE);
+    if (!hIcon) { c->iconErr[idx] = 3; return 0; }
+
+    if (!GetIconInfo(hIcon, &ii)) { c->iconErr[idx] = 4; DestroyIcon(hIcon); return 0; }
+    if (!GetObjectA(ii.hbmColor, sizeof(BITMAP), &bm) || bm.bmWidth < 1 || bm.bmHeight < 1) {
+        c->iconErr[idx] = 5;
+        if (ii.hbmColor) DeleteObject(ii.hbmColor);
+        if (ii.hbmMask)  DeleteObject(ii.hbmMask);
+        DestroyIcon(hIcon);
+        return 0;
+    }
+    c->iconBpp[idx] = bm.bmBitsPixel;
+
+    n = (long)bm.bmWidth * (long)bm.bmHeight * 4L;
+    bits = (BYTE*)LocalAlloc(LPTR, (unsigned long)n);
+    if (!bits) {
+        c->iconErr[idx] = 8;
+        DeleteObject(ii.hbmColor); if (ii.hbmMask) DeleteObject(ii.hbmMask);
+        DestroyIcon(hIcon); return 0;
+    }
+
+    memDC = CreateCompatibleDC(0);
+    for (i = 0; i < (long)sizeof(BITMAPINFO); i++) ((BYTE*)&bi)[i] = 0;
+    bi.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth       = bm.bmWidth;
+    bi.bmiHeader.biHeight      = -bm.bmHeight;     /* negative: top-down, no flip needed */
+    bi.bmiHeader.biPlanes      = 1;
+    bi.bmiHeader.biBitCount    = 32;
+    if (!GetDIBits(memDC, ii.hbmColor, 0, (UINT)bm.bmHeight, bits, &bi, 0)) {
+        c->iconErr[idx] = 6;
+        LocalFree(bits); DeleteDC(memDC);
+        DeleteObject(ii.hbmColor); if (ii.hbmMask) DeleteObject(ii.hbmMask);
+        DestroyIcon(hIcon); return 0;
+    }
+
+    /* An icon with no real alpha channel - every classic one, and any modern
+       one GDI could only give us as 24-bit-plus-mask - comes back with 255 in
+       every alpha byte, which paints a solid square. Its 1-bit AND mask is
+       the only transparency it has, so it is folded in: outside the shape,
+       alpha drops to 0. A genuine 32-bit icon's own alpha is left alone. */
+    { int hasAlpha = 0;
+      for (i = 3; i < n; i += 4) if (bits[i]) { hasAlpha = 1; break; }
+      c->iconMask[idx] = (!hasAlpha && ii.hbmMask) ? 1 : 0;
+      if (!hasAlpha && ii.hbmMask) {
+          BITMAPINFO mi; long mw; BYTE* mask;
+          mw = ((long)bm.bmWidth + 31) / 32 * 4;           /* 1bpp row, DWORD-aligned */
+          mask = (BYTE*)LocalAlloc(LPTR, (unsigned long)(mw * bm.bmHeight));
+          if (mask) {
+              int z; for (z = 0; z < (long)sizeof(BITMAPINFO); z++) ((BYTE*)&mi)[z] = 0;
+              mi.bmiHeader.biSize     = sizeof(BITMAPINFOHEADER);
+              mi.bmiHeader.biWidth    = bm.bmWidth;
+              mi.bmiHeader.biHeight   = -bm.bmHeight;
+              mi.bmiHeader.biPlanes   = 1;
+              mi.bmiHeader.biBitCount = 1;
+              if (GetDIBits(memDC, ii.hbmMask, 0, (UINT)bm.bmHeight, mask, &mi, 0)) {
+                  int x, y;
+                  for (y = 0; y < bm.bmHeight; y++)
+                      for (x = 0; x < bm.bmWidth; x++) {
+                          int bit = (mask[y * mw + x / 8] >> (7 - (x % 8))) & 1;
+                          bits[(y * bm.bmWidth + x) * 4 + 3] = (BYTE)(bit ? 0 : 255);
+                      }
+              }
+              LocalFree(mask);
+          }
+      }
+    }
+
+    /* Direct2D wants its BGRA premultiplied; CreateBitmap does not do that
+       itself, and an icon (unlike the photos this same call draws for
+       allImageRead) is not opaque, so ALPHA_IGNORE is not an option here. */
+    for (i = 0; i < n; i += 4) {
+        BYTE a = bits[i + 3];
+        bits[i]     = (BYTE)((int)bits[i]     * a / 255);
+        bits[i + 1] = (BYTE)((int)bits[i + 1] * a / 255);
+        bits[i + 2] = (BYTE)((int)bits[i + 2] * a / 255);
+    }
+
+    bp.pf.format    = DXGI_B8G8R8A8_UNORM;
+    bp.pf.alphaMode = ALPHA_PREMULT;
+    bp.dpiX = 96.0f; bp.dpiY = 96.0f;
+    /* ID2D1RenderTarget::CreateBitmap - slot 4. */
+    hr = ((HRESULT (WINAPI*)(void*, unsigned, unsigned, const void*, unsigned,
+                             const BMPPROPS*, void**))VT(c->rt)[4])
+         (c->rt, (unsigned)bm.bmWidth, (unsigned)bm.bmHeight, bits,
+          (unsigned)(bm.bmWidth * 4), &bp, &c->iconBmp[idx]);
+
+    LocalFree(bits);
+    DeleteDC(memDC);
+    DeleteObject(ii.hbmColor);
+    if (ii.hbmMask) DeleteObject(ii.hbmMask);
+    DestroyIcon(hIcon);
+
+    if (hr < 0) { c->iconErr[idx] = 7; c->iconHr[idx] = hr; c->iconBmp[idx] = 0; return 0; }
+    c->iconW[idx] = bm.bmWidth;
+    c->iconH[idx] = bm.bmHeight;
+    c->iconErr[idx] = 1;                         /* ok */
+    return 1;
+}
+
+/* Centred, scaled to fit inside the cell with its aspect kept and a little
+   air around it - the same feel as the tick box, which leaves room too. An
+   icon that failed to decode draws nothing, on purpose: the same choice the
+   naming heuristic above already makes for a column it cannot place. */
+static void iconGlyph(Grid* c, int idx, float l, float t, float r, float b) {
+    float cw, ch, pad, scale, w, h, x0, y0;
+    RECTF dst;
+    if (idx < 1 || idx > G_ICONS) return;
+    if (!c->iconBmp[idx] && !loadIcon(c, idx)) return;
+    if (!c->iconBmp[idx]) return;
+    cw = r - l; ch = b - t;
+    pad = ch * 0.15f; if (pad < 1.0f) pad = 1.0f;
+    cw -= pad * 2.0f; ch -= pad * 2.0f;
+    if (cw < 1.0f || ch < 1.0f) return;
+    scale = cw / (float)c->iconW[idx];
+    if (ch / (float)c->iconH[idx] < scale) scale = ch / (float)c->iconH[idx];
+    w = (float)c->iconW[idx] * scale;
+    h = (float)c->iconH[idx] * scale;
+    x0 = (l + r) / 2.0f - w / 2.0f;
+    y0 = (t + b) / 2.0f - h / 2.0f;
+    dst.l = x0; dst.t = y0; dst.r = x0 + w; dst.b = y0 + h;
+    /* DrawBitmap(bmp, destRect, opacity, interpolation, srcRect=NULL) - slot 26. */
+    ((void (WINAPI*)(void*, void*, const RECTF*, float, int, const RECTF*))
+     VT(c->rt)[26])(c->rt, c->iconBmp[idx], &dst, 1.0f, INTERP_LINEAR, 0);
+}
+
+/* One cell: its colour worked out, then a tick box, an icon of its own, or
+   its text. The three places that draw a cell - scrolling, frozen, and
+   frozen inside a group - all come through here, so the padding is in one
+   place. */
 static void cellOut(Grid* c, int row, int col, int sel, unsigned int rowFore,
                     float l, float t, float r, float b, int align) {
     unsigned int fore = cellColour(c, row, col, sel, rowFore, l, t, r, b);
     if (c->colCheck[col]) { checkBox(c, row, col, l, t, r, b, fore); return; }
+    if (c->cellIcon) {
+        int idx = CELLICON(c, row, col);
+        if (idx > 0) { iconGlyph(c, idx, l, t, r, b); return; }
+    }
     text(c, CELL(c, row, col), l + 4.0f, t + 1.0f, r - 4.0f, b,
          fore, align, c->fmt, c->wrap);
 }
@@ -1055,6 +1297,14 @@ static void d2g_Draw(Grid* c) {
 
     if (((HRESULT (WINAPI*)(void*, void*, void*))VT(c->rt)[49])(c->rt, 0, 0) < 0) {
         if (c->brush) { ((unsigned long (WINAPI*)(void*))VT(c->brush)[2])(c->brush); c->brush = 0; }
+        /* Icon bitmaps belong to the device, same as the brush - a lost device
+           takes them with it. iconName is kept, so loadIcon decodes them again,
+           lazily, against the target d2g_MakeTarget rebuilds below. */
+        { int k; for (k = 1; k <= G_ICONS; k++)
+            if (c->iconBmp[k]) {
+                ((unsigned long (WINAPI*)(void*))VT(c->iconBmp[k])[2])(c->iconBmp[k]);
+                c->iconBmp[k] = 0;
+            } }
         if (c->rt)    { ((unsigned long (WINAPI*)(void*))VT(c->rt)[2])(c->rt);       c->rt = 0; }
         InvalidateRect(c->hwnd, 0, 0);
     }
@@ -1085,12 +1335,17 @@ int d2g_Attach(void* hwnd, const char* face, int pt) {
     if (i > G_MAX) return 0;
     c = &g_g[i];
     c->used = 1; c->hwnd = (HWND)hwnd; c->rt = 0; c->brush = 0;
-    c->cells = 0; c->rowCap = 0; c->colCap = 0; c->cellCol = 0;
+    c->cells = 0; c->rowCap = 0; c->colCap = 0; c->cellCol = 0; c->cellIcon = 0;
     c->footH = 0; c->footTxt = 0; c->footCap = 0;
     { int k; for (k = 0; k < G_COLS; k++) {
         c->colCheck[k] = 0;
         c->colFg[k] = -1; c->colBg[k] = -1;
         c->colSFg[k] = -1; c->colSBg[k] = -1; } }
+    { int k; for (k = 0; k <= G_ICONS; k++) {
+        c->iconName[k][0] = 0; c->iconBmp[k] = 0;
+        c->iconW[k] = 0; c->iconH[k] = 0;
+        c->iconErr[k] = 0; c->iconHr[k] = 0;
+        c->iconBpp[k] = 0; c->iconMask[k] = 0; } }
     c->sortCol = -1; c->sortDir = 1;
     { int k; for (k = 0; k < G_COLS; k++) c->colFilt[k] = 0; }
     c->grps = 0; c->lines = 1; c->wrapLines = 1; c->btns = 0;
@@ -1128,10 +1383,13 @@ void d2g_Detach(int h) {
     if (c->fmt)    ((unsigned long (WINAPI*)(void*))VT(c->fmt)[2])(c->fmt);
     if (c->fmtHdr) ((unsigned long (WINAPI*)(void*))VT(c->fmtHdr)[2])(c->fmtHdr);
     if (c->rt)     ((unsigned long (WINAPI*)(void*))VT(c->rt)[2])(c->rt);
+    { int k; for (k = 1; k <= G_ICONS; k++)
+        if (c->iconBmp[k]) ((unsigned long (WINAPI*)(void*))VT(c->iconBmp[k])[2])(c->iconBmp[k]); }
     if (c->cells)   LocalFree(c->cells);
     if (c->cellCol) LocalFree(c->cellCol);
+    if (c->cellIcon)LocalFree(c->cellIcon);
     if (c->footTxt) LocalFree(c->footTxt);
-    c->cells = 0; c->rowCap = 0; c->colCap = 0; c->cellCol = 0;
+    c->cells = 0; c->rowCap = 0; c->colCap = 0; c->cellCol = 0; c->cellIcon = 0;
     c->footH = 0; c->footTxt = 0; c->footCap = 0;
     c->used = 0; c->hwnd = 0; c->rt = 0; c->brush = 0;
 }
@@ -1268,6 +1526,71 @@ void d2g_CheckCol(int h, int col, int on) {
     Grid* c = slot(h);
     if (!c || col < 0 || col >= G_COLS) return;
     c->colCheck[col] = on ? 1 : 0;
+}
+
+/* What icon slot idx (1..G_ICONS) is called - the same string the Clarion
+   side read off PROP:IconList. Cheap and idempotent: a name that has not
+   changed since last time is left alone, bitmap and all, so re-registering
+   the same icons on every refill costs nothing. A name that HAS changed
+   drops the old bitmap - it belongs to a file that is not this slot's icon
+   any more - and the next paint decodes the new one. */
+void d2g_IconName(int h, int idx, const char* name) {
+    Grid* c = slot(h);
+    int   i, changed;
+    if (!c || idx < 1 || idx > G_ICONS) return;
+    changed = 0;
+    for (i = 0; i < 259; i++) {
+        char ch = (name && name[i]) ? name[i] : 0;
+        if (c->iconName[idx][i] != ch) changed = 1;
+        if (!ch) break;
+    }
+    if (!changed) return;
+    for (i = 0; i < 259 && name && name[i]; i++) c->iconName[idx][i] = name[i];
+    c->iconName[idx][i] = 0;
+    c->iconErr[idx] = 0;                          /* a different file: decode it again */
+    if (c->iconBmp[idx]) {
+        ((unsigned long (WINAPI*)(void*))VT(c->iconBmp[idx])[2])(c->iconBmp[idx]);
+        c->iconBmp[idx] = 0;
+    }
+}
+
+/* Which of those icons (1..G_ICONS, 0 = none) this cell shows. Same shape,
+   same lazy allocation, as d2g_CellColour just below. */
+void d2g_CellIcon(int h, int visRow, int col, int idx) {
+    Grid* c = slot(h);
+    if (!c || !c->cells) return;
+    if (visRow < 0 || visRow >= c->rowCap || col < 0 || col >= c->colCap) return;
+    if (idx < 0 || idx > G_ICONS) idx = 0;
+    if (!idx) {
+        if (!c->cellIcon) return;          /* already 'no icon': nothing to clear */
+    } else if (!ensureIcons(c)) return;
+    CELLICON(c, visRow, col) = idx;
+}
+
+/* ---- icon diagnostics (v1.38) --------------------------------------------
+   What loadIcon found out about slot idx, for %bgDiag to log - see the code
+   comment on Grid.iconErr for what each number means. All -1 for a bad
+   handle or an idx outside 1..G_ICONS, so a diagnostics loop can run 1..16
+   unconditionally without asking first whether the grid has that many. */
+int d2g_IconErr(int h, int idx) {
+    Grid* c = slot(h);
+    return (c && idx >= 1 && idx <= G_ICONS) ? c->iconErr[idx] : -1;
+}
+int d2g_IconW(int h, int idx) {
+    Grid* c = slot(h);
+    return (c && idx >= 1 && idx <= G_ICONS) ? c->iconW[idx] : 0;
+}
+int d2g_IconH(int h, int idx) {
+    Grid* c = slot(h);
+    return (c && idx >= 1 && idx <= G_ICONS) ? c->iconH[idx] : 0;
+}
+int d2g_IconBpp(int h, int idx) {
+    Grid* c = slot(h);
+    return (c && idx >= 1 && idx <= G_ICONS) ? c->iconBpp[idx] : 0;
+}
+int d2g_IconMask(int h, int idx) {
+    Grid* c = slot(h);
+    return (c && idx >= 1 && idx <= G_ICONS) ? c->iconMask[idx] : 0;
 }
 
 void d2g_ColumnColour(int h, int col, int fg, int bg, int sfg, int sbg) {
