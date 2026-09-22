@@ -4779,8 +4779,9 @@ imap  CSTRING(650)
 !
 !  0 nunca se intento (perezoso: recien se decodifica la primera vez que se
 !  pinta, asi que la PRIMERA pasada de este log casi siempre va a mostrar 0
-!  en todo). 1 ok. 2 sin nombre. 3 LoadImage fallo, recurso Y archivo. 4
-!  GetIconInfo. 5 GetObject. 6 GetDIBits del color. 7 CreateBitmap - mirar
+!  en todo). 1 ok. 2 sin nombre. 3 LoadImage fallo en los tres intentos -
+!  recurso del exe, ruta guardada y carpeta del exe. 4 GetIconInfo. 5
+!  GetObject. 6 GetDIBits del color. 7 CreateBitmap - mirar
 !  bpp y msk al lado. 8 sin memoria. bpp es la profundidad de color que el
 !  .ico tenia ANTES de convertirlo (24, 32, ...). msk=1 quiere decir que no
 !  traia canal alfa propio y se uso la mascara blanco/negro en su lugar.
