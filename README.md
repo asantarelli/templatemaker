@@ -99,9 +99,9 @@ templates/                      # ready-to-register Clarion templates
     cal16.ico                   #     the little calendar on the button
     myCalendar.tpl              #     global extension + button control + code template
     myCalendar.zip              #     the four files above, zipped for easy distribution
-  myExport/                     #   export any browse/list to 7 file formats (see below)
+  myExport/                     #   export any browse/list to 7 file formats, PDF or a printer (see below)
     ExportClass.inc             #     the export engine (config + method prototypes)
-    ExportClass.clw             #     the implementation (dialog + 7 writers + ZIP + UTF-8)
+    ExportClass.clw             #     the implementation (dialog + 9 writers + ZIP + UTF-8)
     ExportClass.exp             #     export list, for a hand-coded multi-DLL build only
     myExport.tpl                #     global extension + Export-button control + code template
     myExport.zip                #     the four files above, zipped for easy distribution
@@ -162,7 +162,7 @@ README.md
 | **Mail** | [**emailTo**](#t-emailto) &nbsp;<sub>send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs</sub> |
 | **Charts & gauges** | [**graficaBarra**](#t-graficabarra) &nbsp;<sub>thirteen chart types on windows and reports (vector on PDF)</sub><br>[**myPie**](#t-mypie) &nbsp;<sub>pie chart on a window</sub><br>[**myGauge**](#t-mygauge) &nbsp;<sub>analog gauges/dials on windows and reports</sub><br>[**myGaugePlus**](#t-mygaugeplus) &nbsp;<sub>antialiased (GDI+) gauges/dials on windows</sub> |
 | **Images & codes** | [**myImage**](#t-myimage) &nbsp;<sub>twelve image formats in, nine out, every colour format</sub><br>[**allImageRead**](#t-allimageread) &nbsp;<sub>any picture, from anywhere, on a window or a report</sub><br>[**myQR**](#t-myqr) &nbsp;<sub>QR code into an image control</sub><br>[**myQRDraw**](#t-myqrdraw) &nbsp;<sub>offline QR code drawn with BOX primitives</sub><br>[**myBarcodeGen**](#t-mybarcodegen) &nbsp;<sub>nine barcode types, offline, drawn with BOX primitives</sub> |
-| **Browses & lists** | [**BrowseGrid**](#t-browsegrid) &nbsp;<sub>take over any ABC browse and draw it with Direct2D</sub><br>[**BrowseGridLeg**](#t-browsegridleg) &nbsp;<sub>the same grid for the Legacy (CW20) chain</sub><br>[**myFilter**](#t-myfilter) &nbsp;<sub>build filters for any browse</sub><br>[**myExport**](#t-myexport) &nbsp;<sub>export any browse or list to seven file formats</sub> |
+| **Browses & lists** | [**BrowseGrid**](#t-browsegrid) &nbsp;<sub>take over any ABC browse and draw it with Direct2D</sub><br>[**BrowseGridLeg**](#t-browsegridleg) &nbsp;<sub>the same grid for the Legacy (CW20) chain</sub><br>[**myFilter**](#t-myfilter) &nbsp;<sub>build filters for any browse</sub><br>[**myExport**](#t-myexport) &nbsp;<sub>export any browse or list to seven file formats, PDF or a printer</sub> |
 | **Beside a field** | [**myCalc**](#t-mycalc) &nbsp;<sub>a pop-up calculator beside any numeric field</sub><br>[**myCalendar**](#t-mycalendar) &nbsp;<sub>a pop-up date picker beside any date field</sub> |
 | **Files & data** | [**myCompress**](#t-mycompress) &nbsp;<sub>pure-Clarion compression (memory + files)</sub><br>[**myPdfSign**](#t-mypdfsign) &nbsp;<sub>read a signed PDF and see who signed it</sub> |
 | **Look & feel** | [**SDAspecto**](#t-sdaspecto) &nbsp;<sub>one look for every window: rules, typography and rescaling</sub><br>[**myFontChanger**](#t-myfontchanger) &nbsp;<sub>global + per-list font picker</sub><br>[**myBackground**](#t-mybackground) &nbsp;<sub>global default + per-window background color / image</sub><br>[**weatherWidget**](#t-weatherwidget) &nbsp;<sub>the weather, on a card at start-up</sub><br>[**my3D**](#t-my3d) &nbsp;<sub>real WebGL2 3D scenes driven from Clarion</sub><br>[**myYuru**](#t-myyuru) &nbsp;<sub>yuruyurau animated flow-field art on a window</sub> |
@@ -639,6 +639,15 @@ that was never written; and the `Init` loop binds the files of **this procedure*
 than asking `%FileIsUsed()`, a global-scope question that answers *no* from a procedure whenever *Generate
 all file declarations* is off &mdash; proved by generating an app from a TXA: zero `BIND`s with the old loop,
 one per file with this one.
+
+**v1.38 — icon columns** ([#39](https://github.com/robertorenz/templatemaker/pull/39),
+[#40](https://github.com/robertorenz/templatemaker/pull/40), DCortassa). A column with conditional icons of its own
+&mdash; a two-state status, say &mdash; used to be taken for a tick box because its icon list happened to hold two
+entries; now only icons *named* like a tick box are, and any other icon column draws the developer's own icons,
+decoded from the `.ico` and handed to Direct2D. The icon and colour fields are found in the queue **by name**
+(`<field>_Icon`, `<field>_NormalFG`) instead of at a guessed offset, which was wrong as soon as a column had both.
+And the icons now show on every machine, not only the one that built the app: Clarion compiles `azul.ico` into the
+exe as the resource `AZUL_ICO`, so that is the name asked for, with the path and the exe's folder as fallbacks.
 
 Measured on a real application: a fill costs **under 200 µs** — 1.2 % of a 60 Hz frame — and the generated
 code makes **three file accesses**, none of them on the drawing path. The one to know about is *Filter by
@@ -1160,11 +1169,23 @@ a button or menu you already have) and **myFilterGlobal** (the class, the langua
 Copy `MyFilterClass.inc` and `MyFilterClass.clw` (**ANSI, CRLF** — they are pure ASCII) to the redirection path.
 
 <a id="t-myexport"></a>
-### `templates/myExport/` — export any browse or list to seven file formats
+### `templates/myExport/` — export any browse or list to seven file formats, PDF or a printer
 Drag **myExport - Export button** onto a browse window and you get a wired-up **Export…** button. Pressing it
 opens a modal dialog that asks for the **format**, the **folder and file name** (through the standard Windows
 Save-As browser) and **which columns to send** — then writes **CSV**, **CSV UTF-8** (with the BOM Excel needs
-before it trusts accents), **TSV**, **XML**, **JSON**, **HTML** or a real **Excel `.xlsx`** workbook.
+before it trusts accents), **TSV**, **XML**, **JSON**, **HTML** or a real **Excel `.xlsx`** workbook — or, since
+v1.4, a paginated **PDF** or straight to a **printer**.
+
+**v1.4 — paper, totals and e-mail** (contributed by [antonnagel](https://github.com/antonnagel),
+[#41](https://github.com/robertorenz/templatemaker/pull/41)). **PDF** is hand-built (Helvetica, real metrics, column
+headings repeated on every page) and **Print** goes straight to a Windows printer with no file at all, both through
+a **Page Setup…** dialog for orientation, Letter/A4 and margins. Tick **Tot** on a numeric column and the export gets
+**summary rows** — Sum, Average, Count, Minimum, Maximum — and tick **Grp** on a column to break the rows into
+**groups with their own subtotal rows**; `SplitByGroup` also puts every group on its **own worksheet** of the
+`.xlsx`, next to the main sheet, and `StartWorkbook`/`StartSheet` let you combine several lists into one workbook
+yourself. Numeric cells keep their picture as a real Excel number format, negatives included. **Email it when it's
+done** hands the finished file to the default mail client through Simple MAPI; `MAPI32.DLL` is loaded the first
+time it is used rather than linked, so there is still nothing to add to a project.
 
 **The column picker.** Every data column is listed with a tick box, so the user can leave columns out,
 **rename** one for the file, or give it a **different picture** — with the list's own heading shown alongside
@@ -1219,7 +1240,7 @@ ASCII and can't be mangled by a UTF-8 editor.
 **myExportGlobal** registers that category with the ABC chain (`%AddCategory` + `%SetCategoryLocationFromPrompts`).
 That hands the whole job to the shipped machinery: `ABPROGRM.TPW` writes the `_myExportLinkMode_` /
 `_myExportDllMode_` project defines the class's `LINK()` and `DLL()` attributes read, and `ABBLDEXP.TPW` — while
-building a DLL's `.EXP` — walks the class registry and emits `VMT$`, `TYPE$` and all 71 methods, name-mangled by
+building a DLL's `.EXP` — walks the class registry and emits `VMT$`, `TYPE$` and all 125 methods, name-mangled by
 `LINKNAME()`. **Nothing to configure:** it follows each application's own *External* setting, so the app that
 owns the data compiles the class in and exports it, and every app set to *External → DLL* imports it instead of
 carrying its own copy. Add the global extension to **every app in the suite** — placing a class is a
@@ -1230,7 +1251,7 @@ list for hand-coded projects that have no AppGen to generate one. **Upgrading fr
 (no `(MYEXPORT)` on its tag) files the class under the ABC category instead, which only misbehaves once the two
 locations disagree. With neither define present — a single EXE, or
 the demo — the class is simply linked in, exactly as before. Verified both ways: a generated ABC DLL app really
-does emit the 73 export lines, and an EXE built with `_myExportDllMode_=>1` imports the class from a DLL and
+does emit the export lines (73 at the time; 127 as of v1.4), and an EXE built with `_myExportDllMode_=>1` imports the class from a DLL and
 writes a valid `.xlsx` with none of the class's code in it.
 
 Three registrations: **myExportButton** (the drag-on control template, `MULTI`, self-contained),
@@ -2187,7 +2208,8 @@ the numbers, so the work can be read in full.
 | **[Carl T. Barnes](https://github.com/CarlTBarnes)** <sub>([carlbarnes.com](https://www.carlbarnes.com))</sub> | Read the Clarion source the way only long practice lets you: `SetTarget(Window, Image)` in **myQRDraw** so the symbol lands on the control instead of at the window origin — with a test program to prove it — and `STRING` in place of `*CSTRING` through the class and the barcode method parameters. Plus the **myGauge** and **myPie** reports below.<br><sub>[#19](https://github.com/robertorenz/templatemaker/pull/19) · [#20](https://github.com/robertorenz/templatemaker/pull/20) · [#21](https://github.com/robertorenz/templatemaker/pull/21)</sub> |
 | **[John Hickey](https://github.com/ClarionLive)** <sub>(ClarionLive)</sub> | The **Legacy (CW20) chain**: `BrowseGridLeg`, the Direct2D grid carried over to a chain that has no ABC objects to hang it on, with word wrap and rows that grow only as far as their text needs — and the corrections and Legacy/CW20 chapter that the port turned up in the `clarion-template` skill. Also the **myFilter** bug where a filter whose name contained `=` could never be loaded back.<br><sub>[#26](https://github.com/robertorenz/templatemaker/pull/26) · [#27](https://github.com/robertorenz/templatemaker/pull/27) · [#29](https://github.com/robertorenz/templatemaker/pull/29)</sub> |
 | **[Adrian E. Santarelli](https://github.com/asantarelli)** <sub>([SDigitales](https://www.sdigitales.com.ar))</sub> | **SDAspecto** — one look for every window in a program, from a cascading rule engine whose rules live in an INI rather than in code. **BrowseGrid v1.24**: totals, text search, check-box columns, auto-fit widths and the help page the template had been missing — then **v1.25**, where `d2g_PageSize` was the one row-area measurement that did not take the horizontal scrollbar off, so the browse loaded a last record it then drew behind the bar. And **graficaBarra v2.1**, the **combo chart**: a series told to draw as a **line** over the bars off the same value axis, taking no room in the category slot and keyed in the legend with a line rather than a block; a cell that can hold **no value**, so a trend breaks instead of diving to zero next to an average bar; the chart carrying **its own type**, with the layout scaling to the size so labels thin out rather than collide; and the *Look* tab split in three once thirty prompts had run off the screen. Then **BrowseGrid v1.36**: three defects found by using it &mdash; the selected row drawn in the two-pixel sliver below the last whole row, `"Roboto Medium"` resolving to two different faces under GDI and DirectWrite, and column layouts saved empty because a field equate inside a dialog's `ACCEPT` resolves against the dialog &mdash; plus settings shared by every browse from the global extension, named column layouts drivable from a code template, and every heading-menu option switchable on its own.<br><sub>[#32](https://github.com/robertorenz/templatemaker/pull/32) · [#33](https://github.com/robertorenz/templatemaker/pull/33) · [#34](https://github.com/robertorenz/templatemaker/pull/34) · [#35](https://github.com/robertorenz/templatemaker/pull/35) · [#37](https://github.com/robertorenz/templatemaker/pull/37)</sub> |
-| **[DCortassa](https://github.com/DCortassa)** | **BrowseGrid's date filter**: a column with an `@d` picture stored the day serial underneath, so filtering a date meant typing that number. Now *Find text…* on such a column opens a From / To dialog with an ABC calendar on each field, *Filter by value…* and the menu label show the date through the column's picture, and every file of the procedure is bound at window `Init` so the filter works from any sort-order tab. Found the `CLIP`-eats-the-separator bug on the way &mdash; `... AND` & `IVAVTA:FECHA` glued into one identifier and the VIEW would not open.<br><sub>[#38](https://github.com/robertorenz/templatemaker/pull/38)</sub> |
+| **[DCortassa](https://github.com/DCortassa)** | **BrowseGrid's date filter**: a column with an `@d` picture stored the day serial underneath, so filtering a date meant typing that number. Now *Find text…* on such a column opens a From / To dialog with an ABC calendar on each field, *Filter by value…* and the menu label show the date through the column's picture, and every file of the procedure is bound at window `Init` so the filter works from any sort-order tab. Found the `CLIP`-eats-the-separator bug on the way &mdash; `... AND` & `IVAVTA:FECHA` glued into one identifier and the VIEW would not open. Then **BrowseGrid's icon columns** (v1.38): a column with conditional icons of its own now draws *those* icons instead of being mistaken for a tick box &mdash; the colour and icon fields found in the queue by name rather than by a guessed offset &mdash; and an icon that only showed on the machine that built the app, because it was looked up as `azul.ico` when Clarion compiles it into the exe as `AZUL_ICO`.<br><sub>[#38](https://github.com/robertorenz/templatemaker/pull/38) · [#39](https://github.com/robertorenz/templatemaker/pull/39) · [#40](https://github.com/robertorenz/templatemaker/pull/40)</sub> |
+| **[antonnagel](https://github.com/antonnagel)** | **myExport v1.4**: the two outputs a file export leaves out &mdash; a paginated **PDF** written by hand and **Print** straight to a Windows printer &mdash; behind a Page Setup dialog; **summary rows** (Sum, Average, Count, Minimum, Maximum) and **group subtotals**, with each group optionally split onto its own `.xlsx` worksheet; Excel number formats carried over from the pictures; handing the finished file to the mail client; and the bilingual documentation for all of it. Before that, the `ExportClass.inc` and BrowseGrid reports.<br><sub>[#23](https://github.com/robertorenz/templatemaker/issues/23) · [#25](https://github.com/robertorenz/templatemaker/issues/25) · [#41](https://github.com/robertorenz/templatemaker/pull/41)</sub> |
 
 **Bugs found and reported.** [Carl T. Barnes](https://github.com/CarlTBarnes) on `myPie` positioning the pie at
 `(0,0)` instead of the image's own X,Y ([#5](https://github.com/robertorenz/templatemaker/issues/5)), and on
@@ -2199,9 +2221,6 @@ for 90° ([#18](https://github.com/robertorenz/templatemaker/issues/18)).
 ([#10](https://github.com/robertorenz/templatemaker/issues/10)), described precisely enough to be fixed from the
 report alone. [Dinko Bačun](https://github.com/bdinko) on the installer failing because two templates each
 shipped a different `d2grid.c` ([#30](https://github.com/robertorenz/templatemaker/issues/30)).
-[antonnagel](https://github.com/antonnagel) on `ExportClass.inc`
-([#23](https://github.com/robertorenz/templatemaker/issues/23)) and on BrowseGrid
-([#25](https://github.com/robertorenz/templatemaker/issues/25)).
 [golmedo](https://github.com/golmedo) proposed the `graficaBarra` per-category legend detail, percent-of-total
 and left-aligned labels ([#24](https://github.com/robertorenz/templatemaker/pull/24)).
 

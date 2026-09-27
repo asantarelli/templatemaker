@@ -41,28 +41,25 @@
 !     ---- whichever process asks next have it" - called right before
 !     ---- MAPISendMail, in EmailFile().
       exAllowSetForegroundWindow( LONG dwProcessId ),SIGNED,RAW,PASCAL,PROC,NAME('AllowSetForegroundWindow')
+      exLoadLibrary( *CSTRING lpLibFileName ),LONG,RAW,PASCAL,NAME('LoadLibraryA')
+      exGetProcAddress( LONG hModule,*CSTRING lpProcName ),LONG,RAW,PASCAL,NAME('GetProcAddress')
     END
     MODULE('MAPI32.DLL')
 !     ---- "Email it when it is done": Simple MAPI, whatever mail client is
-!     ---- registered as the default (Outlook, Windows Mail, etc.). This is a
-!     ---- normal DLL import, resolved by the LINKER against an import
-!     ---- library for MAPISendMail - same as any other external Windows API
-!     ---- call. The PRAGMA('link(mapi32.lib)') right after this MAP adds
-!     ---- MAPI32.LIB to the project automatically - nothing to configure by
-!     ---- hand.
+!     ---- registered as the default (Outlook, Windows Mail, etc.). Loaded at
+!     ---- RUN time, not linked: Clarion ships no MAPI32.LIB, so a link-time
+!     ---- import broke the build of every app that uses ExportClass on a
+!     ---- machine without one. DLL(1) + a NAME shared with exMAPISendMailFp
+!     ---- below makes this a call through that pointer - the StringTheory
+!     ---- recipe for zlib. EmailFile() fills it with GetProcAddress.
       exMAPISendMail( LONG lhSession, LONG ulUIParam, *GROUP lpMessage, ULONG flFlags, ULONG ulReserved ), |
-                      ULONG,RAW,PASCAL,NAME('MAPISendMail'),DLL(1)
+                      ULONG,RAW,PASCAL,DLL(1),NAME('exMAPISendMailFp')
     END
   END
 
-!  Embeds a linker directive directly in this module, so anyone who links
-!  ExportClass.clw into their project gets MAPI32.LIB automatically - no
-!  manual "add this to my linker libraries" step, no risk of forgetting it
-!  and hitting "Unresolved External MAPISendMail" at link time. Per the
-!  Clarion help, PRAGMA('link(string)') is shorthand for
-!  PRAGMA('project(#pragma link(string))') - a project-system statement
-!  emitted from source, taking effect for this compile.
-  PRAGMA('link(mapi32.lib)')
+!  MAPISendMail, found at run time the first time an export is e-mailed.
+!  0 until then; still 0 if the machine has no Simple MAPI at all.
+exMAPISendMailFp   LONG,NAME('exMAPISendMailFp')
 
   INCLUDE('ExportClass.INC'),ONCE
   INCLUDE('EQUATES.CLW'),ONCE
@@ -2877,6 +2874,9 @@ lpFiles             LONG
 nm    CSTRING(261)
 subj  CSTRING(129)
 body  CSTRING(1025)
+dll   CSTRING(16)
+fn    CSTRING(16)
+hMapi LONG,AUTO
 rc    LONG,AUTO
   CODE
   nm = CLIP(LEFT(pFile))
@@ -2896,7 +2896,17 @@ rc    LONG,AUTO
   Mm:lpFiles      = ADDRESS(Fd)
 
   IF SELF.EmailToFront THEN rc = exAllowSetForegroundWindow(-1) .  ! -1 = ASFW_ANY - let Outlook's own window win the foreground fight
-  rc = exMAPISendMail(0,0,Mm,8,0)                         ! flag 8 = MAPI_DIALOG
+  IF ~exMAPISendMailFp
+    dll = 'MAPI32.DLL'
+    fn  = 'MAPISendMail'
+    hMapi = exLoadLibrary(dll)
+    IF hMapi THEN exMAPISendMailFp = exGetProcAddress(hMapi,fn) .
+  END
+  IF exMAPISendMailFp
+    rc = exMAPISendMail(0,0,Mm,8,0)                         ! flag 8 = MAPI_DIALOG
+  ELSE
+    rc = 2                                                ! no Simple MAPI on this machine - reported like any failure
+  END
   IF rc <> 0 AND rc <> 1                                  ! 0 = handed to the client, 1 = user cancelled - neither is a failure
     SELF.ErrCode = 13
     SELF.ErrText = SELF.Txt(Txt:CantEmail)
