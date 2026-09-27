@@ -89,6 +89,7 @@ int     WINAPI MultiByteToWideChar(UINT, DWORD, const char*, int, WCHAR*, int);
 
 /* ---- GDI, for decoding a .ico (icon columns, v1.38) ----------------------- */
 void*   WINAPI GetModuleHandleA(const char*);
+DWORD   WINAPI GetModuleFileNameA(void*, char*, DWORD);
 void*   WINAPI LoadImageA(void*, const char*, UINT, int, int, UINT);
 BOOL    WINAPI GetIconInfo(void*, void*);
 int     WINAPI GetObjectA(void*, int, void*);
@@ -237,7 +238,7 @@ typedef struct {
     int   iconW[G_ICONS + 1], iconH[G_ICONS + 1];
     /* WHERE loadIcon gave up, for the diagnostics line - Clarion cannot see
        inside a C function otherwise. 0 not attempted, 1 ok, else which step:
-       2 no name  3 LoadImage (both tries)  4 GetIconInfo  5 GetObject
+       2 no name  3 LoadImage (all three tries)  4 GetIconInfo  5 GetObject
        6 GetDIBits(colour)  7 CreateBitmap (hr in iconHr)                    */
     int   iconErr[G_ICONS + 1];
     HRESULT iconHr[G_ICONS + 1];
@@ -812,6 +813,56 @@ static void checkBox(Grid* c, int row, int col, float l, float t, float r,
     }
 }
 
+/* Just the filename. PROP:IconList can hold a full path - whatever the
+   developer's file-browse dialog put there when the icon was not already
+   somewhere Clarion's own search path would have found it - and a full path
+   is not how Clarion NAMES the resource it compiled into the exe. Strips
+   back to the part after the last slash, either kind. */
+static void baseName(const char* path, char* out, int outSize) {
+    int i, start = 0, len;
+    for (i = 0; path[i]; i++)
+        if (path[i] == '\\' || path[i] == '/') start = i + 1;
+    for (i = start, len = 0; path[i] && len < outSize - 1; i++, len++) out[len] = path[i];
+    out[len] = 0;
+}
+
+/* Clarion's OWN resource-naming rule for a file it compiled in: upper-case,
+   and the LAST '.' - the one just before the extension - becomes '_'. So
+   'azul.ico' is baked in as the resource 'AZUL_ICO', never 'azul.ico' -
+   confirmed by walking a built exe's own RT_GROUP_ICON resource names.
+   Windows' own resource-name lookup is already case-insensitive, but '.' vs
+   '_' is not a case difference, so this still has to be built by hand. */
+static void resName(const char* name, char* out, int outSize) {
+    int i, len, dot = -1;
+    for (i = 0; name[i] && i < outSize - 1; i++) {
+        out[i] = name[i];
+        if (name[i] == '.') dot = i;
+    }
+    len = i;
+    out[len] = 0;
+    if (dot >= 0) out[dot] = '_';
+    for (i = 0; i < len; i++)
+        if (out[i] >= 'a' && out[i] <= 'z') out[i] = (char)(out[i] - 'a' + 'A');
+}
+
+/* The folder the running exe is IN, trailing slash kept - so an icon that
+   is not a compiled-in resource, and not at the exact path the developer's
+   machine had it at, can still be found if it simply travelled next to the
+   exe, the ordinary way to hand an app an extra file. */
+static int exeDir(char* out, int outSize) {
+    char full[260];
+    DWORD n;
+    int   i, cut;
+    n = GetModuleFileNameA(0, full, sizeof(full));
+    if (!n || (int)n >= (int)sizeof(full)) return 0;
+    cut = -1;
+    for (i = 0; i < (int)n; i++) if (full[i] == '\\' || full[i] == '/') cut = i;
+    if (cut < 0 || cut >= outSize - 1) return 0;
+    for (i = 0; i <= cut; i++) out[i] = full[i];
+    out[cut + 1] = 0;
+    return 1;
+}
+
 /* ---- icon columns (v1.38) -------------------------------------------------
    Decode one of the LIST's OWN icons - a real condition of the developer's,
    not the two-shape tick box above - and hand it to Direct2D. Called lazily,
@@ -836,15 +887,36 @@ static int loadIcon(Grid* c, int idx) {
     if (!c->iconName[idx][0]) return 0;
     if (!c->rt && !d2g_MakeTarget(c)) return 0;
 
-    /* First as a resource baked into this exe - which is how Clarion ships
-       every icon PROP:IconList names, under that exact filename string, so
-       there is nothing extra to deploy in the common case. Then, in case it
-       really is a path on disk, as a file. */
-    hIcon = LoadImageA(GetModuleHandleA(0), c->iconName[idx], IMG_ICON,
-                       D2G_ICONPX, D2G_ICONPX, 0);
-    if (!hIcon)
-        hIcon = LoadImageA(0, c->iconName[idx], IMG_ICON,
-                           D2G_ICONPX, D2G_ICONPX, LR_LOADFROMFILE);
+    /* Three tries, in the order they are worth trying.
+       1. As a resource baked into this exe - which is how Clarion ships
+          every file an ICON control property named, and the common case:
+          nothing extra to deploy, works on any machine the exe reaches. Not
+          under its filename either, but Clarion's OWN resource name for it
+          (resName - upper-case, '.' turned '_') - PROP:IconList may hold a
+          whole path on top of that.
+       2. The exact string PROP:IconList held, in case it really is a path
+          and that path exists on this machine - true on whoever's machine
+          built the app, not installs elsewhere, but cheap to still try.
+       3. That same bare filename, next to the exe that is actually running
+          - the ordinary way to hand a Clarion app an extra file, and a
+          fallback for an icon that, for whatever reason, did not end up
+          compiled in. */
+    { char bn[260], rn[260], dir[260], full[520];
+      baseName(c->iconName[idx], bn, sizeof(bn));
+      resName(bn, rn, sizeof(rn));
+      hIcon = LoadImageA(GetModuleHandleA(0), rn, IMG_ICON,
+                         D2G_ICONPX, D2G_ICONPX, 0);
+      if (!hIcon)
+          hIcon = LoadImageA(0, c->iconName[idx], IMG_ICON,
+                             D2G_ICONPX, D2G_ICONPX, LR_LOADFROMFILE);
+      if (!hIcon && bn[0] && exeDir(dir, sizeof(dir))) {
+          int di, fi = 0;
+          for (di = 0; dir[di]; di++) full[fi++] = dir[di];
+          for (di = 0; bn[di] && fi < (int)sizeof(full) - 1; di++) full[fi++] = bn[di];
+          full[fi] = 0;
+          hIcon = LoadImageA(0, full, IMG_ICON, D2G_ICONPX, D2G_ICONPX, LR_LOADFROMFILE);
+      }
+    }
     if (!hIcon) { c->iconErr[idx] = 3; return 0; }
 
     if (!GetIconInfo(hIcon, &ii)) { c->iconErr[idx] = 4; DestroyIcon(hIcon); return 0; }
