@@ -227,7 +227,7 @@ public partial class MainWindow : Window
         sb.AppendLine("    OF Notify:Dismissed");
         sb.AppendLine("      ! Notifier.DismissReason: Notify:UserCanceled / Notify:TimedOut / Notify:AppHidden");
         sb.AppendLine("    OF Notify:Failed");
-        sb.AppendLine("      ! Notifier.FailCode is the Windows error");
+        sb.AppendLine("      ! Notifier.FailText() says why, e.g. notifications turned off in Settings");
         sb.AppendLine("    END");
         sb.AppendLine("  END");
         return sb.ToString();

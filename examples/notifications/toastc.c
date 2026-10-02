@@ -97,6 +97,8 @@ typedef long (WINAPI *PFN_RegCreateKeyExA)(HKEY, const char*, DWORD, char*, DWOR
 typedef long (WINAPI *PFN_RegSetValueExA)(HKEY, const char*, DWORD, DWORD, const BYTE*, DWORD);
 typedef long (WINAPI *PFN_RegCloseKey)(HKEY);
 typedef long (WINAPI *PFN_RegDeleteKeyA)(HKEY, const char*);
+typedef long (WINAPI *PFN_RegOpenKeyExA)(HKEY, const char*, DWORD, DWORD, HKEY*);
+typedef long (WINAPI *PFN_RegQueryValueExA)(HKEY, const char*, DWORD*, DWORD*, BYTE*, DWORD*);
 typedef HRESULT (WINAPI *PFN_SetAppId)(const WCHAR*);
 
 static PFN_RoInitialize              pRoInitialize;
@@ -109,6 +111,8 @@ static PFN_RegCreateKeyExA           pRegCreateKeyExA;
 static PFN_RegSetValueExA            pRegSetValueExA;
 static PFN_RegCloseKey               pRegCloseKey;
 static PFN_RegDeleteKeyA             pRegDeleteKeyA;
+static PFN_RegOpenKeyExA             pRegOpenKeyExA;
+static PFN_RegQueryValueExA          pRegQueryValueExA;
 
 /* ---- generic vtable calls ---------------------------------------------------- */
 #define VT(o, i) ((*(void***)(o))[i])
@@ -216,9 +220,11 @@ static int Bind(void)
     pRegSetValueExA            = (PFN_RegSetValueExA)GetProcAddress(adv, "RegSetValueExA");
     pRegCloseKey               = (PFN_RegCloseKey)GetProcAddress(adv, "RegCloseKey");
     pRegDeleteKeyA             = (PFN_RegDeleteKeyA)GetProcAddress(adv, "RegDeleteKeyA");
+    pRegOpenKeyExA             = (PFN_RegOpenKeyExA)GetProcAddress(adv, "RegOpenKeyExA");
+    pRegQueryValueExA          = (PFN_RegQueryValueExA)GetProcAddress(adv, "RegQueryValueExA");
     if (!pRoInitialize || !pRoGetActivationFactory || !pRoActivateInstance || !pWindowsCreateString ||
         !pWindowsDeleteString || !pWindowsGetStringRawBuffer || !pRegCreateKeyExA || !pRegSetValueExA ||
-        !pRegCloseKey || !pRegDeleteKeyA) { Fail(1, E_FAIL); return 0; }
+        !pRegCloseKey || !pRegDeleteKeyA || !pRegOpenKeyExA || !pRegQueryValueExA) { Fail(1, E_FAIL); return 0; }
     InitializeCriticalSection(&gLock);
     gTls = TlsAlloc();
     gReady = 1;
@@ -589,14 +595,36 @@ int toastc_unregister(const char* appId)
     return pRegDeleteKeyA(HKCU, key) == 0 ? 1 : 0;
 }
 
-/* 0 enabled, 1 off for this app, 2 off for this user, 3 off by policy, 4 off by manifest, -1 unknown */
+/* A DWORD under HKCU, or -1 when it is not there. */
+static long RegDword(const char* key, const char* name)
+{
+    HKEY hk = 0;
+    DWORD v = 0, type = 0, size = 4;
+    long r = -1;
+    if (pRegOpenKeyExA(HKCU, key, 0, 0x20019 /* KEY_READ */, &hk) != 0) return -1;
+    if (pRegQueryValueExA(hk, name, 0, &type, (BYTE*)&v, &size) == 0 && type == 4 /* REG_DWORD */) r = (long)v;
+    pRegCloseKey(hk);
+    return r;
+}
+
+/* 0 enabled, 1 off for this app, 2 off for this user, 3 off by policy, 4 off by manifest.
+   Windows will not answer get_Setting for an unpackaged program, so the two switches
+   Settings > System > Notifications writes are read instead. */
 int toastc_setting(void)
 {
     int s = -1;
+    char key[400];
+    int n = 0;
     if (!gInited) return -1;
     Apartment();
-    if (((F_P)VT(gNotifier, 8))(gNotifier, &s) != S_OK) return -1;
-    return s;
+    if (((F_P)VT(gNotifier, 8))(gNotifier, &s) == S_OK) return s;
+    if (RegDword("Software\\Policies\\Microsoft\\Windows\\CurrentVersion\\PushNotifications", "NoToastApplicationNotification") == 1) return 3;
+    if (RegDword("Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications", "ToastEnabled") == 0) return 2;
+    CopyA(key, sizeof(key), "Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings\\");
+    while (key[n]) n++;
+    { int i = 0; while (gAppId[i] && n < (int)sizeof(key) - 1) key[n++] = (char)gAppId[i++]; key[n] = 0; }
+    if (RegDword(key, "Enabled") == 0) return 1;
+    return 0;
 }
 
 /* Show a notification from toast XML. tag/group may be '' (tag max 64 chars).

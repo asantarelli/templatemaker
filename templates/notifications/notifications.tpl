@@ -430,7 +430,7 @@ INCLUDE('NotificationClass.INC'),ONCE
   #ENDIF
         OF Notify:Dismissed                                 ! closed, timed out, or hidden
           #EMBED(%neDismissed,'Notification events - dismissed')
-        OF Notify:Failed                                    ! Windows would not show it
+        OF Notify:Failed                                    ! Windows would not show it: %neObject.FailText() says why
           #EMBED(%neFailed,'Notification events - failed')
         END
       END

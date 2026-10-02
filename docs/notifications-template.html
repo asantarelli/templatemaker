@@ -243,7 +243,7 @@
       <p><code>examples/notifications</code> holds two programs and the sample designs:</p>
       <div class="filetree">examples/notifications/<br>
 &nbsp;&nbsp;NotifyDemo.clw / .cwproj &nbsp;&nbsp;the template's code written out by hand, every line annotated with its embed<br>
-&nbsp;&nbsp;NotifyTest.clw / .cwproj &nbsp;&nbsp;windowless self-test: 30 checks, XML byte for byte + live Windows calls<br>
+&nbsp;&nbsp;NotifyTest.clw / .cwproj &nbsp;&nbsp;windowless self-test: 31 checks, XML byte for byte + live Windows calls<br>
 &nbsp;&nbsp;*.ntf, *-es.ntf &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the seven presets, English and Spanish<br>
 &nbsp;&nbsp;images\ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logo, avatar, calendar, warning, hero (make-images.ps1 draws them)<br>
 &nbsp;&nbsp;shoot.ps1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the screenshots on this page, regenerated<br>
@@ -256,7 +256,7 @@
       <p><code>examples/notifications</code> contiene dos programas y los diseños de ejemplo:</p>
       <div class="filetree">examples/notifications/<br>
 &nbsp;&nbsp;NotifyDemo.clw / .cwproj &nbsp;&nbsp;el código de la plantilla escrito a mano, cada línea anotada con su embed<br>
-&nbsp;&nbsp;NotifyTest.clw / .cwproj &nbsp;&nbsp;autoprueba sin ventana: 30 comprobaciones, el XML byte a byte + llamadas reales a Windows<br>
+&nbsp;&nbsp;NotifyTest.clw / .cwproj &nbsp;&nbsp;autoprueba sin ventana: 31 comprobaciones, el XML byte a byte + llamadas reales a Windows<br>
 &nbsp;&nbsp;*.ntf, *-es.ntf &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;los siete diseños de ejemplo, en inglés y en español<br>
 &nbsp;&nbsp;images\ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logo, avatar, calendario, aviso, imagen principal (las dibuja make-images.ps1)<br>
 &nbsp;&nbsp;shoot.ps1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;regenera las capturas de esta página<br>
@@ -883,11 +883,12 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
         <tr><th>Method</th><th>Does</th></tr>
         <tr><td><code>Init(appId, [name], [icon], [iconBack]),BYTE</code></td><td>Registers the id for this user and creates the notifier. A relative icon is taken from the program's folder. FALSE + <code>ErrorText()</code> on failure.</td></tr>
         <tr><td><code>Ready(),BYTE</code></td><td>Has <code>Init</code> succeeded (in any thread)</td></tr>
-        <tr><td><code>Enabled(),BYTE</code></td><td>FALSE when the user or policy switched them off; TRUE when Windows will not say (see quirks)</td></tr>
+        <tr><td><code>Enabled(),BYTE</code></td><td>FALSE when the user (globally or for this program) or a policy switched them off</td></tr>
         <tr><td><code>UseUtf8([on])</code></td><td>Strings in and out are UTF-8 instead of the ANSI code page</td></tr>
         <tr><td><code>Unregister()</code></td><td>Deletes the registry key</td></tr>
         <tr><td><code>Kill()</code></td><td>Releases everything; shown notifications stay in the centre</td></tr>
         <tr><td><code>ErrorText(),STRING</code></td><td>The stage that failed and the HRESULT, e.g. <i>reading the notification XML (0xC00CE556)</i></td></tr>
+        <tr><td><code>FailText([code]),STRING</code></td><td>Plain words for a <code>Notify:Failed</code> code (default: the last event's <code>FailCode</code>)</td></tr>
       </table>
       <h3>Build</h3>
       <table>
@@ -929,11 +930,12 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
         <tr><th>Método</th><th>Hace</th></tr>
         <tr><td><code>Init(appId, [nombre], [icono], [fondoIcono]),BYTE</code></td><td>Registra el id para este usuario y crea el notificador. Un icono relativo se toma de la carpeta del programa. FALSE + <code>ErrorText()</code> si falla.</td></tr>
         <tr><td><code>Ready(),BYTE</code></td><td>¿Tuvo éxito <code>Init</code>? (en cualquier hilo)</td></tr>
-        <tr><td><code>Enabled(),BYTE</code></td><td>FALSE si el usuario o una directiva las desactivó; TRUE si Windows no lo dice (ver rarezas)</td></tr>
+        <tr><td><code>Enabled(),BYTE</code></td><td>FALSE si el usuario (en general o para este programa) o una directiva las desactivó</td></tr>
         <tr><td><code>UseUtf8([on])</code></td><td>Las cadenas de entrada y salida son UTF-8 en lugar de la página ANSI</td></tr>
         <tr><td><code>Unregister()</code></td><td>Borra la clave del registro</td></tr>
         <tr><td><code>Kill()</code></td><td>Libera todo; las notificaciones mostradas siguen en el centro</td></tr>
         <tr><td><code>ErrorText(),STRING</code></td><td>La etapa que falló y el HRESULT, p. ej. <i>reading the notification XML (0xC00CE556)</i></td></tr>
+        <tr><td><code>FailText([código]),STRING</code></td><td>Palabras claras para un código de <code>Notify:Failed</code> (por defecto, el <code>FailCode</code> del último evento)</td></tr>
       </table>
       <h3>Construir</h3>
       <table>
@@ -1037,7 +1039,7 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
         <tr><th>What</th><th>How</th><th>Result</th></tr>
         <tr><td>The class and engine</td><td><code>NotifyTest.exe</code>: the XML byte for byte (escaping, builder, placeholders,
           pictures, arguments), then real Windows calls — show, update, update a missing tag, remove, refuse bad XML, a
-          design with bindings and no tag</td><td>30 / 30</td></tr>
+          design with bindings and no tag</td><td>31 / 31</td></tr>
         <tr><td>The designer's logic</td><td>xUnit: writer, reader, round trips, ASCII output, Clarion-builder XML, validator,
           paths, presets, the Show-on-Windows XML</td><td>26 / 26</td></tr>
         <tr><td>The templates</td><td><code>gen/build.sh</code>: a TXA using all five templates is imported, generated by AppGen,
@@ -1053,7 +1055,7 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
         <tr><th>Qué</th><th>Cómo</th><th>Resultado</th></tr>
         <tr><td>La clase y el motor</td><td><code>NotifyTest.exe</code>: el XML byte a byte (escapes, constructor, marcadores,
           imágenes, argumentos) y luego llamadas reales a Windows: mostrar, actualizar, actualizar una etiqueta inexistente,
-          quitar, rechazar XML erróneo, un diseño con enlaces y sin etiqueta</td><td>30 / 30</td></tr>
+          quitar, rechazar XML erróneo, un diseño con enlaces y sin etiqueta</td><td>31 / 31</td></tr>
         <tr><td>La lógica del diseñador</td><td>xUnit: escritor, lector, ida y vuelta, salida ASCII, XML del constructor de
           Clarion, validador, rutas, diseños de ejemplo, el XML de Show on Windows</td><td>26 / 26</td></tr>
         <tr><td>Las plantillas</td><td><code>gen/build.sh</code>: un TXA con las cinco plantillas se importa, AppGen lo genera,
@@ -1072,10 +1074,12 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
       <div class="en">
       <table>
         <tr><th>Where</th><th>What</th><th>Workaround</th></tr>
-        <tr><td>toastc.c:594 / NotificationClass.clw:140</td><td>For an unpackaged program Windows answers
-          <code>IToastNotifier.get_Setting</code> with an error, so <code>Enabled()</code> cannot know; it returns TRUE then.
-          A notification the user switched off simply never appears (no <code>Failed</code> event either).</td><td>Tell users
-          where the switch is: Settings → System → Notifications → your program name.</td></tr>
+        <tr><td>toastc.c (toastc_setting)</td><td>For an unpackaged program Windows answers
+          <code>IToastNotifier.get_Setting</code> with an error, so the engine reads the switches Settings writes instead:
+          the policy, the global <i>Notifications</i> toggle (<code>PushNotifications\ToastEnabled</code>) and the
+          program's own toggle. Do Not Disturb is not among them — it holds notifications back without failing them.</td>
+          <td>Check <code>Enabled()</code> at start-up and tell the user; a refused notification arrives as
+          <code>Notify:Failed</code>, and <code>FailText()</code> names the cause.</td></tr>
         <tr><td>by design</td><td><b>A click after the program has closed does nothing.</b> Relaunching on click needs a COM
           activator class registered for the program, which this version does not install.</td><td>Use
           <i>Clear the program's notifications when it closes</i>, or Link buttons (Windows opens those itself).</td></tr>
@@ -1102,10 +1106,12 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
       <div class="es">
       <table>
         <tr><th>Dónde</th><th>Qué</th><th>Solución</th></tr>
-        <tr><td>toastc.c:594 / NotificationClass.clw:140</td><td>Para un programa no empaquetado Windows responde a
-          <code>IToastNotifier.get_Setting</code> con un error, así que <code>Enabled()</code> no puede saberlo y devuelve
-          TRUE. Una notificación que el usuario desactivó simplemente no aparece (tampoco hay evento <code>Failed</code>).</td>
-          <td>Indique a los usuarios dónde está el interruptor: Configuración → Sistema → Notificaciones → el nombre de su programa.</td></tr>
+        <tr><td>toastc.c (toastc_setting)</td><td>Para un programa no empaquetado Windows responde a
+          <code>IToastNotifier.get_Setting</code> con un error, así que el motor lee los interruptores que escribe
+          Configuración: la directiva, el interruptor global <i>Notificaciones</i> (<code>PushNotifications\ToastEnabled</code>)
+          y el del propio programa. No molestar no está entre ellos: retiene las notificaciones sin hacerlas fallar.</td>
+          <td>Compruebe <code>Enabled()</code> al arrancar y avise al usuario; una notificación rechazada llega como
+          <code>Notify:Failed</code>, y <code>FailText()</code> dice la causa.</td></tr>
         <tr><td>por diseño</td><td><b>Un clic con el programa ya cerrado no hace nada.</b> Relanzar al hacer clic exige
           registrar una clase COM activadora para el programa, y esta versión no la instala.</td><td>Use <i>Clear the
           program's notifications when it closes</i>, o botones de enlace (esos los abre Windows).</td></tr>
@@ -1138,6 +1144,9 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
       <div class="en">
       <table>
         <tr><th>Symptom</th><th>Cause</th></tr>
+        <tr><td><code>Notify:Failed</code>, <code>FailText()</code> = <i>Windows notifications are turned off</i>
+          (<code>0x803E0114</code>)</td><td>The main <i>Notifications</i> switch in Settings → System → Notifications is off:
+          Windows refuses every program's notifications. <code>Enabled()</code> is FALSE.</td></tr>
         <tr><td>Nothing appears, <code>ShowToast</code> returned an id</td><td>Notifications for the program (or Do Not Disturb)
           are off in Settings; or another notification of the program is still on screen (they queue).</td></tr>
         <tr><td><code>ShowToast</code> returns 0, <i>reading the notification XML</i></td><td>The XML is not well formed — a
@@ -1156,6 +1165,9 @@ Notifier  NotificationClass,<span class="k">THREAD</span>
       <div class="es">
       <table>
         <tr><th>Síntoma</th><th>Causa</th></tr>
+        <tr><td><code>Notify:Failed</code>, <code>FailText()</code> = <i>Windows notifications are turned off</i>
+          (<code>0x803E0114</code>)</td><td>El interruptor principal <i>Notificaciones</i> de Configuración → Sistema →
+          Notificaciones está apagado: Windows rechaza las notificaciones de todos los programas. <code>Enabled()</code> es FALSE.</td></tr>
         <tr><td>No aparece nada y <code>ShowToast</code> devolvió un id</td><td>Las notificaciones del programa (o No molestar)
           están desactivadas en Configuración; u otra notificación del programa sigue en pantalla (hacen cola).</td></tr>
         <tr><td><code>ShowToast</code> devuelve 0, <i>reading the notification XML</i></td><td>El XML no está bien formado: un

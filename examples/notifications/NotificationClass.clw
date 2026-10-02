@@ -187,6 +187,30 @@ stage  STRING(40)
   END
   RETURN CLIP(stage) & ' (0x' & hex & ')'
 
+! What a Notify:Failed code means. pCode 0 = the last event's FailCode.
+! The WPN_E_ codes are 0x803E01xx; their offset is found with LONG
+! arithmetic (0x803E0100 is -2143420160 as a LONG).
+NotificationClass.FailText PROCEDURE(LONG pCode=0)
+c    LONG
+hex  STRING(8)
+u    ULONG
+i    LONG
+  CODE
+  c = CHOOSE(pCode = 0, SELF.FailCode, pCode)
+  CASE c + 2143420160
+  OF 05H ; RETURN 'The Windows notification platform is not available'
+  OF 11H ; RETURN 'Notifications from this program are turned off (Settings > System > Notifications)'
+  OF 14H ; RETURN 'Windows notifications are turned off (Settings > System > Notifications)'
+  OF 15H ; RETURN 'The notification is too large'
+  OF 16H ; RETURN 'The tag or group is too long (64 characters at most)'
+  END
+  u = c
+  LOOP i = 8 TO 1 BY -1
+    hex[i] = SUB('0123456789ABCDEF', u % 16 + 1, 1)
+    u = INT(u / 16)
+  END
+  RETURN 'Windows did not show the notification (0x' & hex & ')'
+
 !=== quick ===================================================================
 NotificationClass.Toast PROCEDURE(STRING pTitle, <STRING pBody>, <STRING pImage>, <STRING pTag>)
   CODE

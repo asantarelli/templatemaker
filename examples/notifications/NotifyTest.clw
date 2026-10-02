@@ -20,6 +20,7 @@ Failed   LONG
 Ini      STRING('.\NotifyTest.ini')
 id       LONG
 r        LONG
+Delivered LONG
 
   CODE
   REMOVE(Ini)
@@ -90,7 +91,11 @@ r        LONG
     Check('init', N.ErrorText(), 'ok')
   ELSE
     Check('ready', N.Ready(), 1)
-    Check('enabled', N.Enabled(), 1)
+    Delivered = CHOOSE(N.Enabled(), 0, 2)                 ! notifications off in Settings: nothing is delivered
+    PUTINI('result', 'notifications', CHOOSE(N.Enabled(), 'on', 'OFF in Settings - delivery checks expect gone'), Ini)
+    ! Enabled() must agree with the switch in Settings (read here straight from the registry)
+    Check('enabled matches Settings', N.Enabled(), CHOOSE(GETREG(REG_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\PushNotifications', 'ToastEnabled') = '0', 0, 1))
+    Check('fail text', N.FailText(-2143420140), 'Windows notifications are turned off (Settings > System > Notifications)')
     id = N.Toast('NotifyTest', 'Part 2 of the self-test', , 'selftest')
     Check('toast shown', CHOOSE(id > 0, 'yes', 'no ' & N.ErrorText()), 'yes')
     N.NewToast()
@@ -99,7 +104,7 @@ r        LONG
     id = N.ShowToast('prog1', 'tests', TRUE)
     Check('progress shown', CHOOSE(id > 0, 'yes', 'no ' & N.ErrorText()), 'yes')
     r = N.UpdateProgress(0.6, 'Almost', '60%', 'prog1', 'tests')
-    Check('progress update', r, 0)
+    Check('progress update', r, Delivered)                 ! 2 = gone: Windows dropped it
     r = N.UpdateProgress(0.9, 'Nearly', '90%', 'missing-tag', 'tests')
     Check('update missing', r, 2)
     Check('remove', N.Remove('prog1', 'tests'), 1)
@@ -110,7 +115,7 @@ r        LONG
     id = N.ShowToast(, , TRUE)
     Check('live design shown', CHOOSE(id > 0, 'yes', 'no ' & N.ErrorText()), 'yes')
     Check('live design got a tag', CHOOSE(N.LastTag <> '', 'yes', 'no'), 'yes')
-    Check('live design updates', N.UpdateProgress(0.5, 'Half'), 0)
+    Check('live design updates', N.UpdateProgress(0.5, 'Half'), Delivered)
     N.Reset()
     N.AddXml('<<toast><<visual><<this-is-not-closed>')
     Check('bad xml refused', N.ShowToast(), 0)

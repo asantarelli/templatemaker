@@ -124,7 +124,7 @@ Window WINDOW('notifications'),AT(,,470,236),CENTER,GRAY,SYSTEM,FONT('Segoe UI',
                          T('by the program', 'por el programa'), T('timed out', 'por tiempo')) & '  (id ' & Notifier.EventId & ')'
             ADD(Heard, 1)
           OF Notify:Failed
-            Heard.Line = FORMAT(CLOCK(), @T4) & '  failed   ' & Notifier.ErrorText()
+            Heard.Line = FORMAT(CLOCK(), @T4) & '  failed   ' & Notifier.FailText()
             ADD(Heard, 1)
           END
         END

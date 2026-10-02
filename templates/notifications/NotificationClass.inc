@@ -119,6 +119,7 @@ Enabled                PROCEDURE(),BYTE              ! has the user switched us 
 Unregister             PROCEDURE()                   ! remove the per-user registration
 UseUtf8                PROCEDURE(BYTE pOn=1)         ! strings are UTF-8 instead of ANSI
 ErrorText              PROCEDURE(),STRING
+FailText               PROCEDURE(LONG pCode=0),STRING   ! words for FailCode (Notify:Failed)
 
 ! --- quick ---
 Toast                  PROCEDURE(STRING pTitle, <STRING pBody>, <STRING pImage>, <STRING pTag>),LONG,PROC
