@@ -147,19 +147,32 @@ templates/                      # ready-to-register Clarion templates
     emailToTables.dct           #     the same, prebuilt, if you would rather copy tables across
     emailToTables.txd           #     Report Writer's format - for ClarionCL /di only
     emailTo.zip                 #     all of the above, zipped for easy distribution
+  notifications/                #   real Windows notifications (toasts), designed visually
+                                #     (see below)
+    toastc.c                    #     the engine: WinRT Windows.UI.Notifications through raw
+                                #       COM vtables, compiled into the program by Clacpp
+    NotificationClass.inc/.clw  #     the class: builder, designs, placeholders, events
+    notifications.tpl           #     global extension + 3 code templates + window extension
+    notifications.zip           #     the four files above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
+designer/NotificationDesigner/  # the Notification Designer (WPF): live Windows 11 preview,
+                                #   presets, Show on Windows; saves .ntf designs
+designer/NotificationDesigner.Tests/  # its xUnit tests (XML writer/reader, validator, paths)
 installer/                      # builds the installer + a portable single-file exe
   emailTo/                      #   and a stand-alone one for emailTo alone, Clarion 10+
+  build-notification-designer.ps1  # tests + publishes NotificationDesigner.exe to run\
+                                #   (-Deploy: into <Clarion>\accessory\bin too)
 README.md
 ```
 
 ## Included templates
 
-**Jump to a template.** 29 of them; each links to its own section below.
+**Jump to a template.** 30 of them; each links to its own section below.
 
 | | |
 |---|---|
 | **Mail** | [**emailTo**](#t-emailto) &nbsp;<sub>send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs</sub> |
+| **Notify the user** | [**notifications**](#t-notifications) &nbsp;<sub>real Windows notifications, designed in a visual designer: buttons, replies, live progress</sub> |
 | **Charts & gauges** | [**graficaBarra**](#t-graficabarra) &nbsp;<sub>thirteen chart types on windows and reports (vector on PDF)</sub><br>[**myPie**](#t-mypie) &nbsp;<sub>pie chart on a window</sub><br>[**myGauge**](#t-mygauge) &nbsp;<sub>analog gauges/dials on windows and reports</sub><br>[**myGaugePlus**](#t-mygaugeplus) &nbsp;<sub>antialiased (GDI+) gauges/dials on windows</sub> |
 | **Images & codes** | [**myImage**](#t-myimage) &nbsp;<sub>twelve image formats in, nine out, every colour format</sub><br>[**allImageRead**](#t-allimageread) &nbsp;<sub>any picture, from anywhere, on a window or a report</sub><br>[**myQR**](#t-myqr) &nbsp;<sub>QR code into an image control</sub><br>[**myQRDraw**](#t-myqrdraw) &nbsp;<sub>offline QR code drawn with BOX primitives</sub><br>[**myBarcodeGen**](#t-mybarcodegen) &nbsp;<sub>nine barcode types, offline, drawn with BOX primitives</sub> |
 | **Browses & lists** | [**BrowseGrid**](#t-browsegrid) &nbsp;<sub>take over any ABC browse and draw it with Direct2D</sub><br>[**BrowseGridLeg**](#t-browsegridleg) &nbsp;<sub>the same grid for the Legacy (CW20) chain</sub><br>[**myFilter**](#t-myfilter) &nbsp;<sub>build filters for any browse</sub><br>[**myExport**](#t-myexport) &nbsp;<sub>export any browse or list to seven file formats, PDF or a printer</sub> |
@@ -1433,6 +1446,55 @@ hand-coded project that omits the `_myWeatherLinkMode_` / `_myWeatherDllMode_` p
 import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
+
+<a id="t-notifications"></a>
+### `templates/notifications/` — real Windows notifications, designed visually
+The notifications that slide in at the bottom-right of the screen and wait in the Windows notification centre,
+the way Outlook's and Teams' do — from a Clarion program, with **no DLL, no OCX and no .NET at run time**.
+Title and text, a round or square logo, a hero picture across the top, an inline picture, a progress bar the
+program moves, up to five buttons, a reply box, a choice list, sounds, and the reminder / alarm / urgent kinds.
+
+![A real notification from the demo: logo, text, attribution, two buttons](docs/notifications-invoice.png)
+![A chat notification with a reply box and a Send button](docs/notifications-chat.png)
+
+**Design them, don't code them.** The **Notification Designer** (`designer/NotificationDesigner`, a WPF
+program) edits a notification with a live Windows 11 preview in light and dark, checks it against the rules
+Windows enforces, sends it to Windows for real with one button, and shows what your program would receive when
+you click it. It saves a `.ntf` file — which *is* Windows toast XML, written one element per line and pure
+ASCII (accents as `&#243;`), so the template can embed it in the program at generate time.
+
+![The Notification Designer](docs/notifications-designer.png)
+
+**Five templates.** *notifications - Global* registers the program with Windows at start-up (name, icon,
+AppUserModelID — per user, no admin, no Start-menu shortcut) and declares `Notifier`. *Show a notification* is a
+code template with a **Design...** button that opens the designer; it embeds the design (one `AddXml` per line)
+or loads it at run time, and fills each `{Placeholder}` from a Clarion expression — and reports, while
+generating, any placeholder you forgot. *Move a live progress bar* and *Remove notifications* do what they
+say. *React when a notification is clicked* goes on the frame: on its timer it drains the event queue into
+embeds — one per `action=` value your designs send — with the button's arguments, the reply text and the
+choice picked.
+
+**How it talks to Windows.** `toastc.c` is compiled into the program by Clarion's own C compiler. It binds
+`combase.dll` at run time and drives `Windows.UI.Notifications` through raw COM vtables (slot numbers from the
+Windows SDK headers; the three parameterised event-handler IIDs computed with WinRT's `GuidGenerator`). The
+event handlers are agile objects that only queue what Windows reports, under a critical section; nothing ever
+calls back into the Clarion run time from Windows' thread.
+
+![Live progress, moved by the program](docs/notifications-progress.png)
+![Urgent: a red Critical button](docs/notifications-urgent.png)
+
+Verified, not just registered: a windowless self-test (`examples/notifications/NotifyTest.clw`, **30/30**)
+checks the XML byte for byte and then shows, updates and removes real notifications; the designer's logic has
+**26** xUnit tests; and `examples/notifications/gen/build.sh` imports a TXA that uses all five templates,
+generates it with AppGen, compiles it and runs it — every screenshot above is a real Windows notification,
+photographed off the screen by `shoot.ps1`, in English and Spanish.
+
+Install: `notifications.tpl` to `accessory\template\win`; `NotificationClass.inc`, `NotificationClass.clw` and
+`toastc.c` to `accessory\libsrc\win`; and `installer\build-notification-designer.ps1 -Deploy` puts
+`NotificationDesigner.exe` (self-contained, nothing to install) in `accessory\bin`, where the Design button looks.
+Full programmer's documentation, English and Spanish:
+[`docs/notifications-template.html`](docs/notifications-template.html); runnable demo:
+[`examples/notifications/NotifyDemo.clw`](examples/notifications/NotifyDemo.clw).
 
 <a id="t-emailto"></a>
 ### `templates/emailTo/` — send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs
