@@ -1483,8 +1483,15 @@ calls back into the Clarion run time from Windows' thread.
 ![Live progress, moved by the program](docs/notifications-progress.png)
 ![Urgent: a red Critical button](docs/notifications-urgent.png)
 
-Verified, not just registered: a windowless self-test (`examples/notifications/NotifyTest.clw`, **30/30**)
-checks the XML byte for byte and then shows, updates and removes real notifications; the designer's logic has
+**It says why when Windows refuses.** Windows will not tell an unpackaged program whether its notifications
+are allowed, so `Notifier.Enabled()` reads the switches Settings writes — the global *Notifications* toggle,
+the program's own toggle and any policy — and is FALSE when any of them is off. A refused notification arrives
+as `Notify:Failed`, and `Notifier.FailText()` turns the code into words: `0x803E0114` becomes *Windows
+notifications are turned off (Settings > System > Notifications)*, the single most likely reason nothing appears.
+
+Verified, not just registered: a windowless self-test (`examples/notifications/NotifyTest.clw`, **31/31**)
+checks the XML byte for byte and then shows, updates and removes real notifications (and checks `Enabled()`
+against the registry, expecting nothing delivered when Settings has notifications off); the designer's logic has
 **26** xUnit tests; and `examples/notifications/gen/build.sh` imports a TXA that uses all five templates,
 generates it with AppGen, compiles it and runs it — every screenshot above is a real Windows notification,
 photographed off the screen by `shoot.ps1`, in English and Spanish.
@@ -1495,6 +1502,15 @@ Install: `notifications.tpl` to `accessory\template\win`; `NotificationClass.inc
 Full programmer's documentation, English and Spanish:
 [`docs/notifications-template.html`](docs/notifications-template.html); runnable demo:
 [`examples/notifications/NotifyDemo.clw`](examples/notifications/NotifyDemo.clw).
+
+**A ready-made test application.** [`examples/notifications/NotifyLab`](examples/notifications/NotifyLab) is an ABC
+application that uses every template in the set, to open in the IDE, generate and run: a frame whose
+*Notifications* menu shows each design (two embedded in the program, three read from `.ntf` files at run time),
+starts and advances a live progress bar (**F8**) and removes them all; the events extension on the frame with
+all ten actions wired; and a small modal *HeardPopup* window that shows what each click delivered — the
+arguments, the reply text, the button pressed. It warns at start-up if Windows notifications are switched off.
+`make-txa.py` writes `NotifyLab.txa`; import it with `ClarionCL -win -au -ai NotifyLab.app NotifyLab.txa` to
+rebuild the `.app` (the app itself is not kept in git).
 
 <a id="t-emailto"></a>
 ### `templates/emailTo/` — send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs
