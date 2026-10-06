@@ -51,6 +51,7 @@ UsingD2D               PROCEDURE(),BYTE
 
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
 Clicks               LONG
+MtT1                 LONG
 LastClick            STRING(120)
 
   CODE
@@ -228,6 +229,12 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       TP.ShowPanel()
       AppFrame{PROP:StatusText, 2} = CHOOSE(Arg('lang') = 'es', 'Motor: ', 'Engine: ') & CHOOSE(TP.UsingD2D() = MTP:DirectX, 'DirectX', 'Clarion (GDI)')
       IF Arg('flyout') THEN 0{PROP:Timer} = 60.          ! open a submenu as a pop-up, for a screenshot
+      IF Arg('mt')                                     ! three child panels on three threads
+        MtT1 = START(BrowseWin, 25000, 'Customers')
+        START(BrowseWin, 25000, 'Products')
+        START(BrowseWin, 25000, 'Suppliers')
+        0{PROP:Timer} = 150
+      END
       IF Arg('child')
         START(BrowseWin, 25000, CHOOSE(Arg('lang') = 'es', 'Clientes', 'Customers'))
         START(BrowseWin, 25000, CHOOSE(Arg('lang') = 'es', 'Productos', 'Products'))
@@ -236,6 +243,12 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
     OF EVENT:User + 1
       SelfTest()                                       ! ends by clicking "Customers"
     OF EVENT:Timer                                     ! auto: the posted clicks have had time
+      IF Arg('mt') AND MtT1                            ! close one child: its Kill must not hurt the others
+        POST(EVENT:CloseWindow, , MtT1)
+        MtT1 = 0
+        0{PROP:Timer} = 0
+        TP.Expand(TP.FindText('Exports', 0), 0)      ! and make the frame's panel repaint afterwards
+      END
       IF Arg('flyout')
         0{PROP:Timer} = 0
         TP.ShowFlyout(TP.FindText(CHOOSE(Arg('lang') = 'es', 'Geograf<237>a', 'Geography'), 0 + TP.FindText(CHOOSE(Arg('lang') = 'es', 'Cat<225>logos', 'Catalogs'), 0)))
@@ -574,6 +587,8 @@ win     WINDOW('Customer'),AT(,,260,120),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY,R
 
 !-----------------------------------------------------------------------------
 BrowseWin PROCEDURE(STRING title)
+CP     MyTaskPanelClass                         ! a panel on this MDI child's own thread
+cg     LONG
 Q      QUEUE
 Name     STRING(40)
 City     STRING(30)
@@ -596,8 +611,24 @@ win    WINDOW('Browse'),AT(,,300,170),MDI,SYSTEM,RESIZE,FONT('Segoe UI',9),MAX
     ?List{PROPLIST:Header, 2} = 'Ciudad'
     ?Close{PROP:Text} = '&Cerrar'
   END
-  ACCEPT
+  IF Arg('childpanel') OR Arg('mt')
+    CP.Init(win, CHOOSE(Arg('engine') = 'dx', MTP:DirectX, MTP:Clarion))
+    CP.Title = title
+    CP.PanelWidth = 170
+    CP.SetTheme(MTP:Teal)
+    cg = CP.AddGroup('Record', 'doc', 1, 1)
+    CP.AddItem(cg, 'Insert', 'plus')
+    CP.AddItem(cg, 'Change', 'doc')
+    CP.AddItem(cg, 'Print', 'print')
+    CP.ShowPanel()
   END
+  ACCEPT
+    IF EVENT() = MTP:Event
+      LOOP WHILE CP.NextClick()
+      END
+    END
+  END
+  CP.Kill()
 
 AboutWin PROCEDURE
 win    WINDOW('About'),AT(,,200,80),CENTER,MDI,SYSTEM,FONT('Segoe UI',9)

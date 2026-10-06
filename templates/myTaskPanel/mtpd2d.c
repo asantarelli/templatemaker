@@ -36,6 +36,10 @@ typedef struct { long left, top, right, bottom; } RECT;
 extern "C" {
 
 HMODULE WINAPI LoadLibraryA(const char*);
+DWORD   WINAPI GetCurrentThreadId(void);
+void    WINAPI InitializeCriticalSection(void*);
+void    WINAPI EnterCriticalSection(void*);
+void    WINAPI LeaveCriticalSection(void*);
 FARPROC WINAPI GetProcAddress(HMODULE, const char*);
 int     WINAPI MultiByteToWideChar(UINT, DWORD, const char*, int, WCHAR*, int);
 
@@ -169,13 +173,35 @@ static GUID IID_ID2D1Factory   = {0x06152247,0x6f50,0x465a,{0x92,0x45,0x11,0x8b,
 static GUID IID_IDWriteFactory = {0xb859ee5a,0xd838,0x4b5b,{0xa2,0xe8,0x1a,0xdc,0x7d,0x93,0xdb,0x48}};
 
 static int                g_ready = 0;     /* 1 = factories made, -n = failed at step n */
-static ID2D1Factory*      g_d2d   = 0;
+static ID2D1Factory*      g_d2d   = 0;     /* MULTI_THREADED: panels live on several threads */
 static IDWriteFactory*    g_dw    = 0;
-static ID2D1RenderTarget* g_rt    = 0;     /* one DC target, rebound to each frame's DC */
-static ID2D1Brush*        g_brush = 0;     /* one solid brush, recoloured per call */
-static int                g_drawing = 0;
 static HRESULT            g_hr    = 0;
-static int                g_clips = 0;
+static long               g_lock[8];       /* a CRITICAL_SECTION (24 bytes on Win32) */
+
+/*  One render target per THREAD. A Clarion program runs a frame and each MDI
+    child on its own thread, each with its own panel; a single shared target
+    was rebound from two threads at once, and one panel's Kill released it
+    under the others. Each thread now has its own target, brush and clip
+    depth, found by GetCurrentThreadId(). */
+#define MTP_THREADS 64
+static struct { DWORD tid; ID2D1RenderTarget* rt; ID2D1Brush* brush; int drawing; int clips; } g_th[MTP_THREADS];
+
+/* this thread's slot (made on first use); 0 when the table is full */
+static int slot(int make)
+{
+    int i, free_ = -1;
+    DWORD me = GetCurrentThreadId();
+    for (i = 0; i < MTP_THREADS; i++) {
+        if (g_th[i].tid == me) return i + 1;
+        if (!g_th[i].tid && free_ < 0) free_ = i;
+    }
+    if (!make || free_ < 0) return 0;
+    EnterCriticalSection(g_lock);
+    if (g_th[free_].tid) { LeaveCriticalSection(g_lock); return 0; }
+    g_th[free_].tid = me;
+    LeaveCriticalSection(g_lock);
+    return free_ + 1;
+}
 
 /* text formats, cached by face + size + weight + alignment */
 #define MTP_FMTS 24
@@ -204,12 +230,13 @@ static D2D1_RECT_F rc(double x, double y, double w, double h)
 static int s_eq(const char* a, const char* b) { while (*a && *a == *b) { a++; b++; } return *a == *b; }
 static void s_cpy(char* d, const char* s, int max) { int i = 0; while (s[i] && i < max-1) { d[i] = s[i]; i++; } d[i] = 0; }
 
-static void drop_target(void)
+static void drop_target(int k)
 {
-    rel(g_brush); g_brush = 0;
-    rel(g_rt);    g_rt = 0;
-    g_drawing = 0;
-    g_clips = 0;
+    if (k < 1) return;
+    rel(g_th[k-1].brush); g_th[k-1].brush = 0;
+    rel(g_th[k-1].rt);    g_th[k-1].rt = 0;
+    g_th[k-1].drawing = 0;
+    g_th[k-1].clips = 0;
 }
 
 /* 1 = ready. Safe to call every frame. */
@@ -219,12 +246,13 @@ int mtpd2d_init(void)
     PFN_D2D1CreateFactory pD2D;
     PFN_DWriteCreateFactory pDW;
     if (g_ready) return g_ready;
+    InitializeCriticalSection(g_lock);
     hD2D = LoadLibraryA("d2d1.dll");   if (!hD2D) { g_ready = -1; return g_ready; }
     hDW  = LoadLibraryA("dwrite.dll"); if (!hDW)  { g_ready = -2; return g_ready; }
     *(FARPROC*)&pD2D = GetProcAddress(hD2D, "D2D1CreateFactory");
     *(FARPROC*)&pDW  = GetProcAddress(hDW,  "DWriteCreateFactory");
     if (!pD2D || !pDW) { g_ready = -3; return g_ready; }
-    g_hr = pD2D(0 /*SINGLE_THREADED*/, &IID_ID2D1Factory, 0, (void**)&g_d2d);
+    g_hr = pD2D(1 /*MULTI_THREADED*/, &IID_ID2D1Factory, 0, (void**)&g_d2d);
     if (g_hr != S_OK || !g_d2d) { g_ready = -4; return g_ready; }
     g_hr = pDW(0 /*SHARED*/, &IID_IDWriteFactory, (void**)&g_dw);
     if (g_hr != S_OK || !g_dw) { g_ready = -5; return g_ready; }
@@ -234,94 +262,112 @@ int mtpd2d_init(void)
 
 long mtpd2d_last_hr(void) { return g_hr; }
 
-/* Starts a frame on an existing (memory) DC. 1 = drawing. */
+/* Starts a frame on an existing (memory) DC, on this thread's target. 1 = drawing. */
 int mtpd2d_begin(long hdc, long w, long h)
 {
     D2D1_RENDER_TARGET_PROPERTIES p;
     D2D1_COLOR_F c;
     RECT r;
+    int k;
     if (mtpd2d_init() != 1) return 0;
-    if (!g_rt) {
+    k = slot(1);
+    if (!k) return 0;
+    if (!g_th[k-1].rt) {
         p.type = 0;                         /* DEFAULT */
         p.pixelFormat.format = 87;          /* DXGI_FORMAT_B8G8R8A8_UNORM */
         p.pixelFormat.alphaMode = 3;        /* IGNORE - lets text use ClearType */
         p.dpiX = 96; p.dpiY = 96;           /* one unit = one pixel */
         p.usage = 0; p.minLevel = 0;
-        g_hr = g_d2d->v->CreateDCRenderTarget(g_d2d, &p, &g_rt);
-        if (g_hr != S_OK || !g_rt) { g_rt = 0; return 0; }
+        g_hr = g_d2d->v->CreateDCRenderTarget(g_d2d, &p, &g_th[k-1].rt);
+        if (g_hr != S_OK || !g_th[k-1].rt) { g_th[k-1].rt = 0; return 0; }
         c.r = 0; c.g = 0; c.b = 0; c.a = 1;
-        g_hr = g_rt->v->CreateSolidColorBrush(g_rt, &c, 0, &g_brush);
-        if (g_hr != S_OK || !g_brush) { drop_target(); return 0; }
+        g_hr = g_th[k-1].rt->v->CreateSolidColorBrush(g_th[k-1].rt, &c, 0, &g_th[k-1].brush);
+        if (g_hr != S_OK || !g_th[k-1].brush) { drop_target(k); return 0; }
     }
     r.left = 0; r.top = 0; r.right = w; r.bottom = h;
-    g_hr = g_rt->v->BindDC(g_rt, (void*)hdc, &r);
-    if (g_hr != S_OK) { drop_target(); return 0; }
-    g_rt->v->BeginDraw(g_rt);
-    g_rt->v->SetAntialiasMode(g_rt, 0);     /* PER_PRIMITIVE */
-    g_rt->v->SetTextAntialiasMode(g_rt, 1); /* CLEARTYPE */
-    g_drawing = 1;
-    g_clips = 0;
+    g_hr = g_th[k-1].rt->v->BindDC(g_th[k-1].rt, (void*)hdc, &r);
+    if (g_hr != S_OK) { drop_target(k); return 0; }
+    g_th[k-1].rt->v->BeginDraw(g_th[k-1].rt);
+    g_th[k-1].rt->v->SetAntialiasMode(g_th[k-1].rt, 0);     /* PER_PRIMITIVE */
+    g_th[k-1].rt->v->SetTextAntialiasMode(g_th[k-1].rt, 1); /* CLEARTYPE */
+    g_th[k-1].drawing = 1;
+    g_th[k-1].clips = 0;
     return 1;
 }
 
-/* Ends the frame. 0 = fine; otherwise the HRESULT (the target is dropped
-   and rebuilt on the next frame, which covers D2DERR_RECREATE_TARGET). */
+/* this thread's target while a frame is open, else 0 */
+static ID2D1RenderTarget* cur(int* pk)
+{
+    int k = slot(0);
+    *pk = k;
+    if (!k || !g_th[k-1].drawing) return 0;
+    return g_th[k-1].rt;
+}
+
+/* Ends the frame. 0 = fine; otherwise the HRESULT (this thread's target is
+   dropped and rebuilt on the next frame, which covers D2DERR_RECREATE_TARGET). */
 long mtpd2d_end(void)
 {
-    if (!g_rt || !g_drawing) return 0;
-    while (g_clips > 0) { g_rt->v->PopAxisAlignedClip(g_rt); g_clips--; }
-    g_hr = g_rt->v->EndDraw(g_rt, 0, 0);
-    g_drawing = 0;
-    if (g_hr != S_OK) { drop_target(); return g_hr; }
+    int k;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return 0;
+    while (g_th[k-1].clips > 0) { rt->v->PopAxisAlignedClip(rt); g_th[k-1].clips--; }
+    g_hr = rt->v->EndDraw(rt, 0, 0);
+    g_th[k-1].drawing = 0;
+    if (g_hr != S_OK) { drop_target(k); return g_hr; }
     return 0;
 }
 
-static ID2D1Brush* solid(long argb)
+static ID2D1Brush* solid(int k, long argb)
 {
     D2D1_COLOR_F c = col(argb);
-    g_brush->v->SetColor(g_brush, &c);
-    return g_brush;
+    g_th[k-1].brush->v->SetColor(g_th[k-1].brush, &c);
+    return g_th[k-1].brush;
 }
 
 void mtpd2d_fill(double x, double y, double w, double h, long argb)
 {
-    D2D1_RECT_F r;
-    if (!g_drawing) return;
+    int k; D2D1_RECT_F r;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return;
     r = rc(x, y, w, h);
-    g_rt->v->FillRectangle(g_rt, &r, solid(argb));
+    rt->v->FillRectangle(rt, &r, solid(k, argb));
 }
 
 /* Rounded rectangle; fill and/or outline (0 alpha = none). */
 void mtpd2d_round(double x, double y, double w, double h, double rad, long fill, long line, double lw)
 {
-    D2D1_ROUNDED_RECT rr;
-    if (!g_drawing) return;
+    int k; D2D1_ROUNDED_RECT rr;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return;
     rr.rect = rc(x, y, w, h); rr.rx = (float)rad; rr.ry = (float)rad;
-    if (((unsigned long)fill >> 24) != 0) g_rt->v->FillRoundedRectangle(g_rt, &rr, solid(fill));
+    if (((unsigned long)fill >> 24) != 0) rt->v->FillRoundedRectangle(rt, &rr, solid(k, fill));
     if (((unsigned long)line >> 24) != 0) {
         rr.rect = rc(x + lw/2, y + lw/2, w - lw, h - lw);
-        g_rt->v->DrawRoundedRectangle(g_rt, &rr, solid(line), (float)lw, 0);
+        rt->v->DrawRoundedRectangle(rt, &rr, solid(k, line), (float)lw, 0);
     }
 }
 
 /* Vertical gradient c1 (top) -> c2 (bottom), optionally rounded. */
 void mtpd2d_grad(double x, double y, double w, double h, double rad, long c1, long c2)
 {
+    int k;
     D2D1_GRADIENT_STOP st[2];
     D2D1_LINGRAD_PROPS lp;
     ID2D1GradientStops* gs = 0;
     ID2D1Brush* b = 0;
     D2D1_ROUNDED_RECT rr;
-    if (!g_drawing) return;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return;
     st[0].position = 0; st[0].color = col(c1);
     st[1].position = 1; st[1].color = col(c2);
-    if (g_rt->v->CreateGradientStopCollection(g_rt, st, 2, 0, 0, &gs) != S_OK || !gs) return;
+    if (rt->v->CreateGradientStopCollection(rt, st, 2, 0, 0, &gs) != S_OK || !gs) return;
     lp.startPoint.x = (float)x; lp.startPoint.y = (float)y;
     lp.endPoint.x   = (float)x; lp.endPoint.y   = (float)(y + h);
-    if (g_rt->v->CreateLinearGradientBrush(g_rt, &lp, 0, gs, &b) == S_OK && b) {
+    if (rt->v->CreateLinearGradientBrush(rt, &lp, 0, gs, &b) == S_OK && b) {
         rr.rect = rc(x, y, w, h); rr.rx = (float)rad; rr.ry = (float)rad;
-        if (rad > 0) g_rt->v->FillRoundedRectangle(g_rt, &rr, b);
-        else         g_rt->v->FillRectangle(g_rt, &rr.rect, b);
+        if (rad > 0) rt->v->FillRoundedRectangle(rt, &rr, b);
+        else         rt->v->FillRectangle(rt, &rr.rect, b);
     }
     rel(b);
     rel(gs);
@@ -329,37 +375,44 @@ void mtpd2d_grad(double x, double y, double w, double h, double rad, long c1, lo
 
 void mtpd2d_line(double x1, double y1, double x2, double y2, long argb, double lw)
 {
-    D2D1_POINT_2F a, b;
-    if (!g_drawing) return;
+    int k; D2D1_POINT_2F a, b;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return;
     a.x = (float)x1; a.y = (float)y1; b.x = (float)x2; b.y = (float)y2;
-    g_rt->v->DrawLine(g_rt, a, b, solid(argb), (float)lw, 0);
+    rt->v->DrawLine(rt, a, b, solid(k, argb), (float)lw, 0);
 }
 
 void mtpd2d_ellipse(double cx, double cy, double rx, double ry, long fill, long line, double lw)
 {
-    D2D1_ELLIPSE e;
-    if (!g_drawing) return;
+    int k; D2D1_ELLIPSE e;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return;
     e.point.x = (float)cx; e.point.y = (float)cy; e.rx = (float)rx; e.ry = (float)ry;
-    if (((unsigned long)fill >> 24) != 0) g_rt->v->FillEllipse(g_rt, &e, solid(fill));
-    if (((unsigned long)line >> 24) != 0) g_rt->v->DrawEllipse(g_rt, &e, solid(line), (float)lw, 0);
+    if (((unsigned long)fill >> 24) != 0) rt->v->FillEllipse(rt, &e, solid(k, fill));
+    if (((unsigned long)line >> 24) != 0) rt->v->DrawEllipse(rt, &e, solid(k, line), (float)lw, 0);
 }
 
 void mtpd2d_clip(double x, double y, double w, double h)
 {
-    D2D1_RECT_F r;
-    if (!g_drawing) return;
+    int k; D2D1_RECT_F r;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt) return;
     r = rc(x, y, w, h);
-    g_rt->v->PushAxisAlignedClip(g_rt, &r, 0);
-    g_clips++;
+    rt->v->PushAxisAlignedClip(rt, &r, 0);
+    g_th[k-1].clips++;
 }
 
 void mtpd2d_unclip(void)
 {
-    if (!g_drawing || g_clips <= 0) return;
-    g_rt->v->PopAxisAlignedClip(g_rt);
-    g_clips--;
+    int k;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt || g_th[k-1].clips <= 0) return;
+    rt->v->PopAxisAlignedClip(rt);
+    g_th[k-1].clips--;
 }
 
+/* Text formats are shared by every thread (DirectWrite objects are free-
+   threaded once made); the cache itself is guarded. */
 static IDWriteTextFormat* format(const char* face, float size, int bold, int align)
 {
     int i;
@@ -367,12 +420,19 @@ static IDWriteTextFormat* format(const char* face, float size, int bold, int ali
     IDWriteTextFormat* f = 0;
     DWRITE_TRIMMING t;
     void* sign = 0;
+    EnterCriticalSection(g_lock);
     for (i = 0; i < g_nfmt; i++)
-        if (g_fmt[i].size == size && g_fmt[i].bold == bold && g_fmt[i].align == align && s_eq(g_fmt[i].face, face))
-            return g_fmt[i].f;
-    if (g_nfmt >= MTP_FMTS) return g_fmt[0].f;
+        if (g_fmt[i].size == size && g_fmt[i].bold == bold && g_fmt[i].align == align && s_eq(g_fmt[i].face, face)) {
+            f = g_fmt[i].f;
+            LeaveCriticalSection(g_lock);
+            return f;
+        }
+    if (g_nfmt >= MTP_FMTS) { f = g_fmt[0].f; LeaveCriticalSection(g_lock); return f; }
     if (!MultiByteToWideChar(0, 0, face, -1, wface, 48)) { wface[0] = 'S'; wface[1] = 0; }
-    if (g_dw->v->CreateTextFormat(g_dw, wface, 0, bold ? 600 : 400, 0, 5, size, g_locale, &f) != S_OK || !f) return 0;
+    if (g_dw->v->CreateTextFormat(g_dw, wface, 0, bold ? 600 : 400, 0, 5, size, g_locale, &f) != S_OK || !f) {
+        LeaveCriticalSection(g_lock);
+        return 0;
+    }
     f->v->SetWordWrapping(f, 1);                     /* NO_WRAP */
     f->v->SetParagraphAlignment(f, 2);               /* vertical CENTER */
     f->v->SetTextAlignment(f, align == 1 ? 2 : (align == 2 ? 1 : 0)); /* DWrite: LEADING 0, TRAILING 1, CENTER 2 */
@@ -384,6 +444,7 @@ static IDWriteTextFormat* format(const char* face, float size, int bold, int ali
     g_fmt[g_nfmt].bold = bold; g_fmt[g_nfmt].align = align;
     s_cpy(g_fmt[g_nfmt].face, face, 40);
     g_nfmt++;
+    LeaveCriticalSection(g_lock);
     return f;
 }
 
@@ -392,24 +453,27 @@ void mtpd2d_text(long txt, double x, double y, double w, double h, long argb,
                  long face, double size, long bold, long align)
 {
     WCHAR buf[512];
-    int n;
+    int n, k;
     IDWriteTextFormat* f;
     D2D1_RECT_F r;
-    if (!g_drawing || !txt) return;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt || !txt) return;
     f = format(face ? (const char*)face : "Segoe UI", (float)(size * 96.0 / 72.0), bold ? 1 : 0, (int)align);
     if (!f) return;
     n = MultiByteToWideChar(0, 0, (const char*)txt, -1, buf, 512);
     if (n <= 1) return;
     r = rc(x, y, w, h);
-    g_rt->v->DrawText(g_rt, buf, (UINT)(n - 1), f, &r, solid(argb), 2 /*CLIP*/, 0 /*NATURAL*/);
+    rt->v->DrawText(rt, buf, (UINT)(n - 1), f, &r, solid(k, argb), 2 /*CLIP*/, 0 /*NATURAL*/);
 }
 
+/* Releases THIS thread's target only: other panels on other threads keep
+   theirs. The shared factories and text formats live until the process ends. */
 void mtpd2d_kill(void)
 {
-    int i;
-    for (i = 0; i < g_nfmt; i++) { rel(g_fmt[i].sign); rel(g_fmt[i].f); }
-    g_nfmt = 0;
-    drop_target();
+    int k = slot(0);
+    if (!k) return;
+    drop_target(k);
+    g_th[k-1].tid = 0;
 }
 
 } /* extern "C" */
