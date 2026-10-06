@@ -5,7 +5,7 @@
 !  call is marked with the embed point the template emits it at.
 !
 !  Command line (any order):
-!    engine=dx | engine=gdi     which painter (default gdi)
+!    engine=dx | engine=gdi     which painter (default: DirectX in TaskPanelDemoDX, GDI in TaskPanelDemo)
 !    dock=left|right|float      where the panel starts
 !    theme=1..6                 MTP:Slate .. MTP:Forest
 !    sub=flyout                 submenus as pop-up menus instead of in place
@@ -26,6 +26,7 @@ FormDemo      PROCEDURE
 BrowseWin     PROCEDURE(STRING title)
 AboutWin      PROCEDURE
 Arg           PROCEDURE(STRING name),STRING
+Engine        PROCEDURE(),BYTE
 SelfTest      PROCEDURE
     MODULE('Windows API')
 d_FindWindowEx         PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,NAME('FindWindowExA')
@@ -89,6 +90,17 @@ i LONG
     IF SELF.Rows.Id = id THEN RETURN SELF.Rows.Y + SELF.Rows.H / 2.
   END
   RETURN -1
+
+!  The DirectX build (compiled with _MTP_D2D_) draws with DirectX unless told
+!  engine=gdi; the Clarion build always draws with GDI.
+Engine PROCEDURE
+  CODE
+  IF Arg('engine') = 'gdi' THEN RETURN MTP:Clarion.
+  IF Arg('engine') = 'dx' THEN RETURN MTP:DirectX.
+  COMPILE('ENDD2D',_MTP_D2D_)
+  RETURN MTP:DirectX
+  ! ENDD2D
+  RETURN MTP:Clarion
 
 Arg PROCEDURE(STRING name)
 c   STRING(1024)
@@ -163,7 +175,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
     OF EVENT:OpenWindow
       ! ---- %WindowManagerMethodCodeSection 'TakeWindowEvent' / OpenWindow ----
       IF Arg('lang') = 'es' THEN DO Spanish.          ! the frame's own menu too: it is copied below
-      TP.Init(AppFrame, CHOOSE(Arg('engine') = 'dx', MTP:DirectX, MTP:Clarion))
+      TP.Init(AppFrame, Engine())
       TP.Title = CHOOSE(Arg('lang') = 'es', 'Tareas', 'Tasks')
       IF Arg('lang') = 'es' THEN TP.SetLanguage('ES').
       IF Arg('theme') THEN TP.SetTheme(Arg('theme')).
@@ -531,7 +543,7 @@ win     WINDOW('Customer'),AT(,,260,120),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY,R
     OF EVENT:OpenWindow
       d_GetWindowRect(0{PROP:Handle}, ADDRESS(wr))
       d_GetWindowRect(?CusName{PROP:Handle}, ADDRESS(er))
-      FP.Init(win, CHOOSE(Arg('engine') = 'dx', MTP:DirectX, MTP:Clarion))
+      FP.Init(win, Engine())
       FP.Title = 'Customer'
       FP.PanelWidth = 190
       IF Arg('theme') THEN FP.SetTheme(Arg('theme')).
@@ -612,7 +624,7 @@ win    WINDOW('Browse'),AT(,,300,170),MDI,SYSTEM,RESIZE,FONT('Segoe UI',9),MAX
     ?Close{PROP:Text} = '&Cerrar'
   END
   IF Arg('childpanel') OR Arg('mt')
-    CP.Init(win, CHOOSE(Arg('engine') = 'dx', MTP:DirectX, MTP:Clarion))
+    CP.Init(win, Engine())
     CP.Title = title
     CP.PanelWidth = 170
     CP.SetTheme(MTP:Teal)
