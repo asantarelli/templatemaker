@@ -154,6 +154,13 @@ templates/                      # ready-to-register Clarion templates
     NotificationClass.inc/.clw  #     the class: builder, designs, placeholders, events
     notifications.tpl           #     global extension + 3 code templates + window extension
     notifications.zip           #     the four files above, zipped for easy distribution
+  myTaskPanel/                  #   task panels: collapsible groups docked left/right or floating
+                                #     (see below)
+    MyTaskPanel.inc/.clw        #     the class, all Clarion: window, layout, docking, menu copy, GDI
+    mtpd2d.c                    #     the DirectX painter (Direct2D + DirectWrite), compiled in only
+                                #       for the DirectX engine
+    myTaskPanel.tpl             #     global extension + procedure extension (groups, presets, menu)
+    myTaskPanel.zip             #     the four files above, zipped for easy distribution
 designer/ClarionTplDesigner/    # WPF visual designer for the prompt UI (see below)
 designer/NotificationDesigner/  # the Notification Designer (WPF): live Windows 11 preview,
                                 #   presets, Show on Windows; saves .ntf designs
@@ -167,12 +174,13 @@ README.md
 
 ## Included templates
 
-**Jump to a template.** 30 of them; each links to its own section below.
+**Jump to a template.** 31 of them; each links to its own section below.
 
 | | |
 |---|---|
 | **Mail** | [**emailTo**](#t-emailto) &nbsp;<sub>send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs</sub> |
 | **Notify the user** | [**notifications**](#t-notifications) &nbsp;<sub>real Windows notifications, designed in a visual designer: buttons, replies, live progress</sub> |
+| **Navigation** | [**myTaskPanel**](#t-mytaskpanel) &nbsp;<sub>task panels docked left/right or floating, nested submenus, presets, a copy of the system menu; Clarion or DirectX engine</sub> |
 | **Charts & gauges** | [**graficaBarra**](#t-graficabarra) &nbsp;<sub>thirteen chart types on windows and reports (vector on PDF)</sub><br>[**myPie**](#t-mypie) &nbsp;<sub>pie chart on a window</sub><br>[**myGauge**](#t-mygauge) &nbsp;<sub>analog gauges/dials on windows and reports</sub><br>[**myGaugePlus**](#t-mygaugeplus) &nbsp;<sub>antialiased (GDI+) gauges/dials on windows</sub> |
 | **Images & codes** | [**myImage**](#t-myimage) &nbsp;<sub>twelve image formats in, nine out, every colour format</sub><br>[**allImageRead**](#t-allimageread) &nbsp;<sub>any picture, from anywhere, on a window or a report</sub><br>[**myQR**](#t-myqr) &nbsp;<sub>QR code into an image control</sub><br>[**myQRDraw**](#t-myqrdraw) &nbsp;<sub>offline QR code drawn with BOX primitives</sub><br>[**myBarcodeGen**](#t-mybarcodegen) &nbsp;<sub>nine barcode types, offline, drawn with BOX primitives</sub> |
 | **Browses & lists** | [**BrowseGrid**](#t-browsegrid) &nbsp;<sub>take over any ABC browse and draw it with Direct2D</sub><br>[**BrowseGridLeg**](#t-browsegridleg) &nbsp;<sub>the same grid for the Legacy (CW20) chain</sub><br>[**myFilter**](#t-myfilter) &nbsp;<sub>build filters for any browse</sub><br>[**myExport**](#t-myexport) &nbsp;<sub>export any browse or list to seven file formats, PDF or a printer</sub> |
@@ -1446,6 +1454,39 @@ hand-coded project that omits the `_myWeatherLinkMode_` / `_myWeatherDllMode_` p
 import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
+
+<a id="t-mytaskpanel"></a>
+### `templates/myTaskPanel/` — task panels, Clarion or DirectX
+The column of collapsible groups down the side of a window — Catalogs, Reports, Exports, Help — each a card of
+clickable items with submenus nested as deep as you like (opened in place or as pop-up menus). Docked on the
+left or the right of an **MDI frame** (under the toolbar, above the status bar; the MDI area gets narrower) or
+of an **ordinary window** (the window grows by the panel's width), or **floating**. The user drags the title to
+float it, drops it at an edge to dock it, drags the inner edge to resize it, and picks Dock / Float / Hide from
+its own menu; the layout and the open groups are remembered.
+
+![The task panel on an MDI frame](docs/myTaskPanel-hero.png)
+
+**Presets fill in a whole group at a time** — Catalogs, Operations, Reports, Exports, Tools, Window, Help,
+Quick links, Settings, groups built from *this application's* browses and reports, and an editable copy of the
+window's menu — then rename, reorder or delete what you do not want. **The system menu, copied:** one checkbox
+copies the frame's MENUBAR in at run time, three levels deep and more, with shortcut keys; each copied row
+presses the original menu item, so the menu's own code runs.
+
+**Two engines from one global setting:** *Clarion* — nothing but Clarion source (the panel is a real Win32
+window whose window procedure is a Clarion `PASCAL` procedure; GDI through the API), or *DirectX* — Direct2D +
+DirectWrite through `mtpd2d.c`, compiled in by Clarion's own C compiler only when the global adds
+`_MTP_D2D_=>1`. Six themes, 47 built-in vector icons.
+
+![The two engines](docs/myTaskPanel-engines.png)
+
+Verified: the demo's self-test (`examples/myTaskPanel`, `TaskPanelDemo.exe auto`) posts real mouse messages at
+the panel — **11/11 on both engines** (docking, MDI client geometry, splitter drag, drag-to-float, drop-to-dock,
+clicks, a copied menu row reaching its ITEM) plus **3/3** on an ordinary window; `gen/build.sh` generates and
+compiles a real ABC app from a TXA; `presets/build.sh` runs all twelve presets through the generator.
+Full documentation (EN/ES): [`docs/myTaskPanel-template.html`](docs/myTaskPanel-template.html).
+
+Install: `myTaskPanel.tpl` to `accessory	emplate\win`; `MyTaskPanel.inc`, `MyTaskPanel.clw` and `mtpd2d.c` to
+`accessory\libsrc\win`; register; restart the IDE.
 
 <a id="t-notifications"></a>
 ### `templates/notifications/` — real Windows notifications, designed visually

@@ -1,0 +1,346 @@
+!ABCIncludeFile(MYTASKPANEL)
+! ============================================================================
+!  MyTaskPanelClass - task panels for Clarion windows and MDI frames.
+!
+!  A task panel is the column of collapsible groups down the side of a window
+!  (Catalogs, Reports, Exports, Help...), each group a card of clickable items.
+!  Items can have submenus, and those submenus can have submenus, to any
+!  depth - opened in place (a tree) or as a fly-out menu.
+!
+!  WHERE IT LIVES
+!    Docked left or right, or floating in its own small window. On an MDI
+!    frame the MDI client is narrowed to make room (under the toolbar, above
+!    the status bar); on an ordinary window the window's client area is
+!    narrowed and, optionally, the window grows by the panel's width. The user
+!    can drag the panel off to float it, drag the floating panel back to an
+!    edge to dock it, resize the docked panel by its inner edge, and pick
+!    Dock left / Dock right / Float / Hide from the panel's own menu.
+!
+!  TWO ENGINES, ONE API
+!    MTP:Clarion  - everything in Clarion source (GDI through the Windows API).
+!                   No C, no DLL. The default.
+!    MTP:DirectX  - Direct2D + DirectWrite: antialiased shapes, true
+!                   gradients, ClearType text. Painted by mtpd2d.c, compiled
+!                   in by Clarion's own C compiler only when the project
+!                   defines _MTP_D2D_=>1 (the global template does this). If
+!                   it is not compiled in, or Direct2D will not start, the
+!                   panel quietly paints with the Clarion engine instead.
+!
+!  QUICK START (hand code, after the window is open)
+!      TP  MyTaskPanelClass
+!      g   LONG
+!      i   LONG
+!        TP.Init(Window)                       ! or TP.Init(AppFrame, MTP:DirectX)
+!        TP.Title = 'Tasks'
+!        g = TP.AddGroup('Catalogs', 'table')
+!        TP.AddItem(g, 'Customers', 'user', 'cust')
+!        i = TP.AddItem(g, 'Geography', 'globe')       ! has children = a submenu
+!        TP.AddItem(i, 'Countries', , 'countries')
+!        TP.AddItem(i, 'Cities',    , 'cities')
+!        TP.MirrorMenu()                       ! copy the window's MENUBAR in
+!        TP.ShowPanel()
+!    and in the ACCEPT loop:
+!        OF MTP:Event                          ! posted when an item is clicked
+!          LOOP WHILE TP.NextClick()
+!            CASE TP.ClickTag
+!            OF 'cust' ; START(BrowseCustomers, 25000)
+!            END
+!          END
+!    A mirrored menu row needs no code: it POSTs EVENT:Accepted to the
+!    original ITEM, so the menu's own embed code runs.
+!
+!  This file MUST be stored in ANSI with CRLF line endings.
+! ============================================================================
+
+  OMIT('_EndOfInclude_',_MyTaskPanelIncluded_)
+_MyTaskPanelIncluded_ EQUATE(1)
+
+MTP:Event            EQUATE(0400h + 0D7h)  ! EVENT:User + 215: an item was clicked
+
+MTP:Left             EQUATE(1)             ! dock sides
+MTP:Right            EQUATE(2)
+MTP:Float            EQUATE(3)
+
+MTP:Clarion          EQUATE(0)             ! engines
+MTP:DirectX          EQUATE(1)
+
+MTP:Group            EQUATE(1)             ! row kinds
+MTP:Item             EQUATE(2)
+MTP:Separator        EQUATE(3)
+MTP:Label            EQUATE(4)
+
+MTP:Inline           EQUATE(0)             ! how submenus open
+MTP:Flyout           EQUATE(1)
+
+MTP:Slate            EQUATE(1)             ! themes
+MTP:Navy             EQUATE(2)
+MTP:Graphite         EQUATE(3)             ! dark
+MTP:Teal             EQUATE(4)
+MTP:Light            EQUATE(5)
+MTP:Forest           EQUATE(6)
+
+MTP:TileH            EQUATE(1)             ! MdiCommand()
+MTP:TileV            EQUATE(2)
+MTP:Cascade          EQUATE(3)
+MTP:Arrange          EQUATE(4)
+
+MTPItemQ             QUEUE,TYPE
+Id                     LONG
+Parent                 LONG                ! 0 = a group
+Kind                   BYTE                ! MTP:Group / Item / Separator / Label
+Text                   STRING(120)         ! as shown (no & accelerators)
+Shortcut               STRING(32)
+Glyph                  STRING(24)          ! a built-in vector icon name
+IconFile               STRING(255)         ! or an .ico file / linked icon name
+HIcon                  LONG
+Tag                    STRING(64)          ! the developer's key for the item
+Tip                    STRING(255)
+Feq                    LONG                ! <> 0: a click POSTs EVENT:Accepted here
+Mirrored               BYTE                ! copied from the MENUBAR
+Expanded               BYTE
+Enabled                BYTE
+Hidden                 BYTE
+Checked                BYTE
+Bold                   BYTE
+Special                BYTE                ! group drawn in the accent colour
+Reveal                 REAL                ! 0..1 while the group/submenu animates
+                     END
+
+MTPRowQ              QUEUE,TYPE            ! the layout: one row per thing drawn
+Id                     LONG
+Kind                   BYTE                ! MTP:Group = a group header
+Y                      LONG
+H                      LONG
+Level                  BYTE
+ClipT                  LONG                ! visible between ClipT and ClipB
+ClipB                  LONG
+BodyH                  LONG                ! group header: height of its card
+HasKids                BYTE
+                     END
+
+MTPKidQ              QUEUE,TYPE            ! host windows we narrow (MDIClient, ClaChildClient)
+Hwnd                   LONG
+OldProc                LONG
+L                      LONG                ! the rect the host asked for
+T                      LONG
+R                      LONG
+B                      LONG
+                     END
+
+MTPClickQ            QUEUE,TYPE
+Id                     LONG
+                     END
+
+MTPIconQ             QUEUE,TYPE            ! icons waiting for the GDI pass (DirectX engine)
+X                      LONG
+Y                      LONG
+Sz                     LONG
+HIcon                  LONG
+                     END
+
+MyTaskPanelClass     CLASS,TYPE,MODULE('MyTaskPanel.clw'),LINK('MyTaskPanel.clw',_MyTaskPanelLinkMode_),DLL(_MyTaskPanelDllMode_)
+! ---- settings (set before Show, or call Refresh after) ----
+Engine                 BYTE                ! MTP:Clarion / MTP:DirectX (asked for)
+Title                  STRING(80)
+DockSide               BYTE                ! MTP:Left / Right / Float
+PanelWidth             LONG                ! docked width in pixels
+MinWidth               LONG
+MaxWidth               LONG
+SubStyle               BYTE                ! MTP:Inline / MTP:Flyout
+ShowShortcuts          BYTE
+Accordion              BYTE                ! opening a group closes the others
+Animate                BYTE
+AllowFloat             BYTE
+AllowDock              BYTE
+AllowClose             BYTE
+AllowResize            BYTE
+GrowHost               BYTE                ! WINDOW host: widen it by the panel
+FontName               STRING(40)
+FontSize               LONG
+ItemHeight             LONG
+HeaderHeight           LONG
+Radius                 LONG
+IniFile                STRING(260)         ! SaveState/LoadState; blank = off
+IniSection             STRING(60)
+Language               STRING(2)           ! EN / ES (the panel's own menu)
+AutoGlyphs             BYTE                ! mirrored rows guess an icon from their text
+! ---- colours (Clarion COLOR values; SetTheme fills them) ----
+ClrBack                LONG
+ClrTitle1              LONG
+ClrTitle2              LONG
+ClrTitleText           LONG
+ClrHead1               LONG
+ClrHead2               LONG
+ClrHeadText            LONG
+ClrSpecial1            LONG
+ClrSpecial2            LONG
+ClrSpecialText         LONG
+ClrCard                LONG
+ClrCardLine            LONG
+ClrText                LONG
+ClrTextDim             LONG
+ClrHover               LONG
+ClrHoverLine           LONG
+ClrAccent              LONG
+ClrDisabled            LONG
+ClrSep                 LONG
+! ---- the last click (NextClick fills these) ----
+ClickId                LONG
+ClickTag               STRING(64)
+ClickText              STRING(120)
+! ---- data ----
+Items                  &MTPItemQ
+Rows                   &MTPRowQ,PROTECTED
+Kids                   &MTPKidQ,PROTECTED
+Clicks                 &MTPClickQ,PROTECTED
+PendIcons              &MTPIconQ,PROTECTED
+D2DFailed              BYTE,PROTECTED
+Win                    &WINDOW,PROTECTED
+HostHwnd               LONG,PROTECTED
+HostThread             LONG,PROTECTED
+IsFrame                BYTE,PROTECTED
+DockHwnd               LONG,PROTECTED
+FloatHwnd              LONG,PROTECTED
+Visible                BYTE,PROTECTED
+UseD2D                 BYTE,PROTECTED      ! the engine actually painting
+NextId                 LONG,PROTECTED
+Inited                 BYTE,PROTECTED
+Dpi                    LONG,PROTECTED
+DC                     LONG,PROTECTED      ! the DC being painted
+FontN                  LONG,PROTECTED
+FontB                  LONG,PROTECTED
+FontT                  LONG,PROTECTED
+FontS                  LONG,PROTECTED
+CurFont                LONG,PROTECTED
+Hover                  LONG,PROTECTED      ! row id under the mouse (-1 title, -2 menu btn, -3 close)
+Pressed                LONG,PROTECTED
+ScrollY                LONG,PROTECTED
+ContentH               LONG,PROTECTED
+ViewH                  LONG,PROTECTED
+ViewW                  LONG,PROTECTED
+Drag                   BYTE,PROTECTED      ! 1 splitter, 2 title (undock), 3 thumb
+DragX                  LONG,PROTECTED
+DragY                  LONG,PROTECTED
+DragV                  LONG,PROTECTED
+HostMenu               LONG,PROTECTED
+HideMenu               BYTE,PROTECTED
+MenuTicks              BYTE,PROTECTED
+Animating              BYTE,PROTECTED
+FloatX                 LONG,PROTECTED
+FloatY                 LONG,PROTECTED
+FloatW                 LONG,PROTECTED
+FloatH                 LONG,PROTECTED
+Grown                  LONG,PROTECTED
+SnapSide               BYTE,PROTECTED
+InHost                 BYTE,PROTECTED      ! the mouse is over the panel
+Replaying              BYTE,PROTECTED      ! ApplyLayout is pushing the host's rects through
+! ---- life cycle ----
+Construct              PROCEDURE
+Destruct               PROCEDURE,VIRTUAL
+Init                   PROCEDURE(WINDOW host, BYTE engine=0),BYTE,PROC,VIRTUAL
+Kill                   PROCEDURE,VIRTUAL
+ShowPanel              PROCEDURE,VIRTUAL
+HidePanel              PROCEDURE,VIRTUAL
+TogglePanel            PROCEDURE
+IsVisible              PROCEDURE(),BYTE
+Dock                   PROCEDURE(BYTE side),VIRTUAL
+SetWidth               PROCEDURE(LONG px)
+Refresh                PROCEDURE
+EngineInUse            PROCEDURE(),BYTE    ! MTP:Clarion or MTP:DirectX
+SetTheme               PROCEDURE(LONG theme)
+SetAccent              PROCEDURE(LONG clr)
+SetLanguage            PROCEDURE(STRING lang)
+! ---- building ----
+AddGroup               PROCEDURE(STRING text, <STRING glyph>, BYTE expanded=1, BYTE special=0),LONG,PROC
+AddItem                PROCEDURE(LONG pid, STRING text, <STRING glyph>, <STRING tag>, LONG feq=0),LONG,PROC
+AddSeparator           PROCEDURE(LONG pid),LONG,PROC
+AddLabel               PROCEDURE(LONG pid, STRING text),LONG,PROC
+DeleteItem             PROCEDURE(LONG id)
+ClearAll               PROCEDURE
+MirrorMenu             PROCEDURE(BYTE hideMenu=0, <STRING skip>, BYTE oneGroup=0),LONG,PROC
+SyncMirror             PROCEDURE
+! ---- items ----
+SetText                PROCEDURE(LONG id, STRING text)
+SetGlyph               PROCEDURE(LONG id, STRING glyph)
+SetIcon                PROCEDURE(LONG id, STRING iconFile)
+SetShortcut            PROCEDURE(LONG id, STRING txt)
+SetTip                 PROCEDURE(LONG id, STRING txt)
+SetEnabled             PROCEDURE(LONG id, BYTE on)
+SetHidden              PROCEDURE(LONG id, BYTE on)
+SetChecked             PROCEDURE(LONG id, BYTE on)
+SetBold                PROCEDURE(LONG id, BYTE on)
+SetSpecial             PROCEDURE(LONG id, BYTE on)
+SetFeq                 PROCEDURE(LONG id, LONG feq)
+Expand                 PROCEDURE(LONG id, BYTE on=1)
+ExpandAll              PROCEDURE(BYTE on=1)
+IsExpanded             PROCEDURE(LONG id),BYTE
+FindTag                PROCEDURE(STRING tag),LONG
+FindText               PROCEDURE(STRING text, LONG pid=-1),LONG
+ItemCount              PROCEDURE(),LONG
+! ---- clicks ----
+NextClick              PROCEDURE(),BYTE
+TakeItem               PROCEDURE(LONG id, STRING tag),VIRTUAL
+Click                  PROCEDURE(LONG id)  ! as if the user had clicked it
+! ---- helpers ----
+OpenUrl                PROCEDURE(STRING url)
+MdiCommand             PROCEDURE(LONG cmd)
+SaveState              PROCEDURE
+LoadState              PROCEDURE
+IniName                PROCEDURE(),STRING,PROTECTED
+! ---- inside the panel (called by the window procedure) ----
+WndMsg                 PROCEDURE(LONG hwnd, LONG msg, LONG wp, LONG lp, *BYTE handled),LONG,PROTECTED
+KidPosChanging         PROCEDURE(LONG hwnd, LONG lp),PROTECTED
+ForgetKid              PROCEDURE(LONG hwnd),PROTECTED
+Paint                  PROCEDURE(LONG hwnd),PROTECTED
+Render                 PROCEDURE(LONG w, LONG h, BYTE floating),VIRTUAL,PROTECTED
+DrawGroup              PROCEDURE(LONG w, BYTE floating),PROTECTED
+DrawRow                PROCEDURE(LONG w),PROTECTED
+DrawGlyph              PROCEDURE(STRING glyph, REAL x, REAL y, REAL sz, LONG clr),VIRTUAL,PROTECTED
+Layout                 PROCEDURE(LONG w, LONG h, BYTE floating),PROTECTED
+AddRows                PROCEDURE(LONG pid, LONG level, *LONG y, LONG clipT, LONG clipB),PROTECTED
+KidsHeight             PROCEDURE(LONG pid),LONG,PROTECTED
+HasKids                PROCEDURE(LONG id),BYTE,PROTECTED
+HitTest                PROCEDURE(LONG x, LONG y, BYTE floating),LONG,PROTECTED
+OnClickRow             PROCEDURE(LONG id, LONG hwnd),PROTECTED
+OptionsMenu            PROCEDURE(LONG hwnd),PROTECTED
+FlyoutMenu             PROCEDURE(LONG id, LONG hwnd),PROTECTED
+BuildMenu              PROCEDURE(LONG pid),LONG,PROTECTED
+MirrorInto             PROCEDURE(LONG pid, SIGNED menuFeq),PROTECTED
+MenuRank               PROCEDURE(SIGNED feq),LONG,PROTECTED
+MinFeqIn               PROCEDURE(SIGNED menuFeq),LONG,PROTECTED
+FindMenuBar            PROCEDURE(),SIGNED,PROTECTED
+KeyText                PROCEDURE(LONG keycode),STRING,PROTECTED
+GuessGlyph             PROCEDURE(STRING txt),STRING
+CleanText              PROCEDURE(STRING txt),STRING,PROTECTED
+MakeWindows            PROCEDURE,PROTECTED
+ApplyLayout            PROCEDURE,PROTECTED
+HookKids               PROCEDURE,PROTECTED
+UnhookKids             PROCEDURE,PROTECTED
+PlaceDocked            PROCEDURE,PROTECTED
+ReserveW               PROCEDURE(),LONG,PROTECTED
+Invalidate             PROCEDURE,PROTECTED
+StartAnim              PROCEDURE,PROTECTED
+StepAnim               PROCEDURE,PROTECTED
+CheckSnap              PROCEDURE(BYTE final),PROTECTED
+UndockAtCursor         PROCEDURE,PROTECTED
+Txt                    PROCEDURE(STRING en, STRING es),STRING,PROTECTED
+Px                     PROCEDURE(REAL n),LONG,PROTECTED    ! scale for DPI
+Rgb                    PROCEDURE(LONG clr),LONG,PROTECTED  ! system colours resolved
+Argb                   PROCEDURE(LONG clr),LONG,PROTECTED
+Mix                    PROCEDURE(LONG c1, LONG c2, REAL t),LONG
+MakeFonts              PROCEDURE,PROTECTED
+FreeFonts              PROCEDURE,PROTECTED
+LoadIcon               PROCEDURE(),PROTECTED               ! for the current Items record
+! ---- the painter: GDI or Direct2D ----
+PFill                  PROCEDURE(REAL x, REAL y, REAL w, REAL h, LONG clr),PROTECTED
+PRound                 PROCEDURE(REAL x, REAL y, REAL w, REAL h, REAL r, LONG fill, LONG line=-1),PROTECTED
+PGrad                  PROCEDURE(REAL x, REAL y, REAL w, REAL h, REAL r, LONG c1, LONG c2),PROTECTED
+PLine                  PROCEDURE(REAL x1, REAL y1, REAL x2, REAL y2, LONG clr, REAL lw=1),PROTECTED
+PEllipse               PROCEDURE(REAL cx, REAL cy, REAL rx, REAL ry, LONG fill, LONG line=-1, REAL lw=1),PROTECTED
+PText                  PROCEDURE(REAL x, REAL y, REAL w, REAL h, STRING txt, LONG clr, BYTE font=0, BYTE align=0),PROTECTED
+PClip                  PROCEDURE(REAL x, REAL y, REAL w, REAL h),PROTECTED
+PUnclip                PROCEDURE,PROTECTED
+PIcon                  PROCEDURE(LONG hIcon, REAL x, REAL y, REAL sz),PROTECTED
+                     END
+
+  _EndOfInclude_
