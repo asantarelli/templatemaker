@@ -1475,9 +1475,16 @@ presses the original menu item, so the menu's own code runs.
 **Two engines from one global setting:** *Clarion* — nothing but Clarion source (the panel is a real Win32
 window whose window procedure is a Clarion `PASCAL` procedure; GDI through the API), or *DirectX* — Direct2D +
 DirectWrite through `mtpd2d.c`, compiled in by Clarion's own C compiler only when the global adds
-`_MTP_D2D_=>1`. Six themes, 47 built-in vector icons.
+`_MTP_D2D_=>1`. Six themes, 47 built-in vector icons. The DirectX painter keeps one render target per
+thread, so the frame and every MDI child can each carry their own DirectX panel.
 
 ![The two engines](docs/myTaskPanel-engines.png)
+
+**The demo** (`examples/myTaskPanel`, built by `build.sh`): `TaskPanelDemo.exe` is the pure-Clarion build
+(GDI); `TaskPanelDemoDX.exe` is the DirectX build and draws with DirectX when simply double-clicked
+(`engine=gdi` forces GDI). The status bar names the engine in use. Other switches: `dock=left|right|float`,
+`theme=1..6`, `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
+on three MDI children, one closed midway), `auto` (the self-test).
 
 Verified: the demo's self-test (`examples/myTaskPanel`, `TaskPanelDemo.exe auto`) posts real mouse messages at
 the panel — **11/11 on both engines** (docking, MDI client geometry, splitter drag, drag-to-float, drop-to-dock,
