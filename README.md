@@ -1485,7 +1485,7 @@ clicks, a copied menu row reaching its ITEM) plus **3/3** on an ordinary window;
 compiles a real ABC app from a TXA; `presets/build.sh` runs all twelve presets through the generator.
 Full documentation (EN/ES): [`docs/myTaskPanel-template.html`](docs/myTaskPanel-template.html).
 
-Install: `myTaskPanel.tpl` to `accessory	emplate\win`; `MyTaskPanel.inc`, `MyTaskPanel.clw` and `mtpd2d.c` to
+Install: `myTaskPanel.tpl` to `accessory\template\win`; `MyTaskPanel.inc`, `MyTaskPanel.clw` and `mtpd2d.c` to
 `accessory\libsrc\win`; register; restart the IDE.
 
 <a id="t-notifications"></a>
