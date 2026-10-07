@@ -246,6 +246,7 @@ FadeId                 LONG,PROTECTED      ! the row the mouse just left, fading
 FadeT                  REAL,PROTECTED
 Fading                 BYTE,PROTECTED
 Fx                     BYTE,PROTECTED      ! this frame draws the DirectX effects
+BenchEmpty             BYTE,PROTECTED      ! Diag 3: Benchmark times empty frames
 ! ---- life cycle ----
 Construct              PROCEDURE
 Destruct               PROCEDURE,VIRTUAL
@@ -260,6 +261,7 @@ SetWidth               PROCEDURE(LONG px)
 Refresh                PROCEDURE
 EngineInUse            PROCEDURE(),BYTE    ! MTP:Clarion or MTP:DirectX
 Benchmark              PROCEDURE(BYTE engine, LONG frames=200, BYTE effects=1),REAL  ! ms per frame; -1 = engine not available
+Diag                   PROCEDURE(LONG what, LONG value),LONG,PROC,PROTECTED  ! speed-test switches; returns the old value
 SetTheme               PROCEDURE(LONG theme)
 SetAccent              PROCEDURE(LONG clr)
 SetLanguage            PROCEDURE(STRING lang)

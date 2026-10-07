@@ -258,6 +258,7 @@
           <tr><td><code>fx=off</code></td><td>DirectX without the effects (the toolbar's <i>Effects</i> button toggles them live)</td></tr>
           <tr><td><code>badge=off</code></td><td>hides the engine badge</td></tr>
           <tr><td><code>bench</code></td><td>times both engines (see <a href="#speed">Speed</a>), writes <code>TaskPanelBench.ini</code> and exits; the toolbar's <i>Speed test</i> button shows the same in a window</td></tr>
+          <tr><td><code>diag</code></td><td>where a DirectX frame's time goes (Direct2D target type, empty frames, brush cache): <code>TaskPanelDiag.ini</code>, then exits</td></tr>
         </table>
         <p><code>shots.ps1</code> regenerates every picture on this page in both languages.</p></div>
       <div class="es"><h2>La demo</h2>
@@ -278,6 +279,7 @@
           <tr><td><code>fx=off</code></td><td>DirectX sin los efectos (el botón <i>Efectos</i> de la barra los activa y desactiva en vivo)</td></tr>
           <tr><td><code>badge=off</code></td><td>oculta la insignia del motor</td></tr>
           <tr><td><code>bench</code></td><td>mide los dos motores (vea <a href="#speed">Velocidad</a>), escribe <code>TaskPanelBench.ini</code> y sale; el botón <i>Velocidad</i> de la barra muestra lo mismo en una ventana</td></tr>
+          <tr><td><code>diag</code></td><td>en qué se va el tiempo de un cuadro DirectX (tipo de destino Direct2D, cuadros vacíos, caché de pinceles): <code>TaskPanelDiag.ini</code>, y sale</td></tr>
         </table>
         <p><code>shots.ps1</code> regenera cada imagen de esta página en los dos idiomas.</p></div>
     </section>
@@ -634,16 +636,25 @@ tile cascade calendar money cart truck search plus link menu bell phone</pre>
           returns milliseconds per frame. The demo's <i>Speed test</i> runs it three rounds, alternating, best of each,
           300 frames a round. Measured on the demo frame (230 px wide panel, 100 % scaling):</p>
         <table><tr><th>Panel</th><th>Clarion (GDI)</th><th>DirectX, no effects</th><th>DirectX with effects</th></tr>
-          <tr><td>docked, default groups</td><td><b>2.05 ms</b></td><td>2.43 ms (+19 %)</td><td>2.88 ms (+41 %)</td></tr>
-          <tr><td>floating</td><td><b>1.85 ms</b></td><td>2.30 ms</td><td>2.73 ms</td></tr>
-          <tr><td>every group open</td><td><b>2.86 ms</b></td><td>3.09 ms</td><td>3.57 ms</td></tr>
-          <tr><td>Graphite (dark)</td><td><b>2.03 ms</b></td><td>2.49 ms</td><td>2.86 ms</td></tr>
+          <tr><td>docked, default groups</td><td>2.03 ms</td><td><b>1.74 ms</b> (−14 %)</td><td>1.86 ms (−8 %)</td></tr>
+          <tr><td>floating</td><td>1.83 ms</td><td><b>1.64 ms</b></td><td>1.77 ms</td></tr>
+          <tr><td>every group open</td><td>2.80 ms</td><td><b>2.33 ms</b></td><td>2.42 ms</td></tr>
+          <tr><td>Graphite (dark)</td><td>2.02 ms</td><td><b>1.73 ms</b></td><td>1.86 ms</td></tr>
         </table>
-        <p><b>GDI is the faster engine</b>, by about a fifth without effects and two fifths with them. Direct2D draws on
-          the GPU, but a DC render target has to hand every frame back to the memory DC, and on a panel this small that
-          round trip costs more than the drawing saves. Neither is slow: the worst case, about 3.6 ms, is 280 frames a
-          second, and the panel only repaints on a mouse move or during a 15 ms animation step. Pick DirectX for the look,
-          not for speed.</p></div>
+        <p><b>DirectX is the faster engine, even with the effects on.</b> It was not at first: the first version was
+          about 20 % slower than GDI flat and 40 % slower with the effects. The demo's <code>diag</code> switch
+          (<code>Diag()</code> in the class) found out why:</p>
+        <table><tr><th>DirectX frame</th><th>Let Direct2D choose</th><th>Software (CPU)</th><th>Hardware (GPU)</th></tr>
+          <tr><td>empty frame: begin + end, nothing drawn</td><td>0.95 ms</td><td>0.30 ms</td><td>0.94 ms</td></tr>
+          <tr><td>full, a new gradient brush per call</td><td>2.45 / 2.91 ms</td><td>2.44 / 3.03 ms</td><td>2.47 / 2.93 ms</td></tr>
+          <tr><td>full, gradient brushes cached</td><td><b>1.75 / 1.86 ms</b></td><td>1.70 / 1.88 ms</td><td>1.80 / 1.91 ms</td></tr>
+        </table>
+        <p>(flat / with effects.) Making a gradient brush is expensive in Direct2D — it is a device resource with
+          its own stop collection — and every header asked for two, and the glass effect for one more. Keeping the last
+          sixteen brushes by colour pair and only moving their end points cut a frame by 0.7 ms flat and 1 ms with the
+          effects; the picture is pixel-for-pixel the same. Direct2D chooses the GPU on its own (the first and last
+          columns match): an empty frame then costs about 0.95 ms, mostly handing the finished frame back to the
+          memory DC. The CPU renderer has a third of that fixed cost but draws more slowly, and comes out the same.</p></div>
       <div class="es"><h2>Los dos motores</h2>
         <table><tr><th></th><th>Clarion</th><th>DirectX</th></tr>
           <tr><td>Código</td><td>solo Clarion — GDI por la API de Windows</td><td><code>mtpd2d.c</code>, compilado por el compilador C de Clarion; vtables COM declaradas a mano (Clacpp no trae cabeceras de DirectX)</td></tr>
@@ -669,16 +680,25 @@ tile cascade calendar money cart truck search plus link menu bell phone</pre>
           y devuelve milisegundos por cuadro. El botón <i>Velocidad</i> de la demo lo corre tres rondas, alternando, y se queda
           con la mejor de cada una, 300 cuadros por ronda. Medido en el marco de la demo (panel de 230 px de ancho, escala 100 %):</p>
         <table><tr><th>Panel</th><th>Clarion (GDI)</th><th>DirectX sin efectos</th><th>DirectX con efectos</th></tr>
-          <tr><td>acoplado, grupos por omisión</td><td><b>2,05 ms</b></td><td>2,43 ms (+19 %)</td><td>2,88 ms (+41 %)</td></tr>
-          <tr><td>flotante</td><td><b>1,85 ms</b></td><td>2,30 ms</td><td>2,73 ms</td></tr>
-          <tr><td>todos los grupos abiertos</td><td><b>2,86 ms</b></td><td>3,09 ms</td><td>3,57 ms</td></tr>
-          <tr><td>Grafito (oscuro)</td><td><b>2,03 ms</b></td><td>2,49 ms</td><td>2,86 ms</td></tr>
+          <tr><td>acoplado, grupos por omisión</td><td>2,03 ms</td><td><b>1,74 ms</b> (−14 %)</td><td>1,86 ms (−8 %)</td></tr>
+          <tr><td>flotante</td><td>1,83 ms</td><td><b>1,64 ms</b></td><td>1,77 ms</td></tr>
+          <tr><td>todos los grupos abiertos</td><td>2,80 ms</td><td><b>2,33 ms</b></td><td>2,42 ms</td></tr>
+          <tr><td>Grafito (oscuro)</td><td>2,02 ms</td><td><b>1,73 ms</b></td><td>1,86 ms</td></tr>
         </table>
-        <p><b>GDI es el motor más rápido</b>, por una quinta parte sin efectos y dos quintas partes con ellos. Direct2D dibuja
-          en la GPU, pero un render target de DC tiene que devolver cada cuadro al DC de memoria, y en un panel tan chico ese
-          viaje cuesta más de lo que ahorra el dibujo. Ninguno es lento: el peor caso, unos 3,6 ms, son 280 cuadros por segundo,
-          y el panel solo se repinta al mover el ratón o en un paso de animación de 15 ms. Elija DirectX por el aspecto, no
-          por la velocidad.</p></div>
+        <p><b>DirectX es el motor más rápido, incluso con los efectos.</b> Al principio no lo era: la primera versión era
+          un 20 % más lenta que GDI sin efectos y un 40 % con ellos. El argumento <code>diag</code> de la demo
+          (<code>Diag()</code> en la clase) encontró la causa:</p>
+        <table><tr><th>Cuadro DirectX</th><th>Que elija Direct2D</th><th>Software (CPU)</th><th>Hardware (GPU)</th></tr>
+          <tr><td>cuadro vacío: inicio + fin, sin dibujar</td><td>0,95 ms</td><td>0,30 ms</td><td>0,94 ms</td></tr>
+          <tr><td>completo, un pincel de degradado nuevo por llamada</td><td>2,45 / 2,91 ms</td><td>2,44 / 3,03 ms</td><td>2,47 / 2,93 ms</td></tr>
+          <tr><td>completo, pinceles de degradado en caché</td><td><b>1,75 / 1,86 ms</b></td><td>1,70 / 1,88 ms</td><td>1,80 / 1,91 ms</td></tr>
+        </table>
+        <p>(sin efectos / con efectos.) Crear un pincel de degradado es caro en Direct2D — es un recurso del dispositivo con
+          su propia colección de paradas — y cada encabezado pedía dos, y el efecto de vidrio uno más. Guardar los últimos
+          dieciséis pinceles por par de colores y solo mover sus extremos bajó un cuadro 0,7 ms sin efectos y 1 ms con
+          ellos; la imagen es idéntica píxel por píxel. Direct2D elige la GPU por su cuenta (la primera y la última columna
+          coinciden): un cuadro vacío cuesta entonces unos 0,95 ms, sobre todo por devolver el cuadro terminado al DC de
+          memoria. El dibujo por CPU tiene un tercio de ese costo fijo pero dibuja más lento, y termina igual.</p></div>
     </section>
 
     <!-- ================================================================ -->

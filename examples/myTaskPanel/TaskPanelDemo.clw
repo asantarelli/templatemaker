@@ -17,6 +17,7 @@
 !    fx=off                     DirectX without the effects (shadows, glass, fades)
 !    badge=off                  hide the engine badge
 !    bench                      time both engines, write TaskPanelBench.ini, exit
+!    diag                       where a DirectX frame's time goes: TaskPanelDiag.ini, exit
 ! ============================================================================
   PROGRAM
 
@@ -29,6 +30,8 @@ FormDemo      PROCEDURE
 BrowseWin     PROCEDURE(STRING title)
 AboutWin      PROCEDURE
 BenchWin      PROCEDURE(BYTE auto=0)
+DiagRun       PROCEDURE
+DiagBest      PROCEDURE(BYTE engine, BYTE fx),STRING
 Arg           PROCEDURE(STRING name),STRING
 Engine        PROCEDURE(),BYTE
 SelfTest      PROCEDURE
@@ -54,6 +57,7 @@ ShowFlyout             PROCEDURE(LONG id)
 UsingD2D               PROCEDURE(),BYTE
 DragState              PROCEDURE(),LONG
 HitAt                  PROCEDURE(LONG x, LONG y),LONG
+DoDiag                 PROCEDURE(LONG what, LONG value),LONG,PROC
                      END
 
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
@@ -88,6 +92,9 @@ TestPanel.RowCount PROCEDURE
 TestPanel.UsingD2D PROCEDURE
   CODE
   RETURN SELF.EngineInUse()
+TestPanel.DoDiag PROCEDURE(LONG what, LONG value)
+  CODE
+  RETURN SELF.Diag(what, value)
 TestPanel.DragState PROCEDURE
   CODE
   RETURN SELF.Drag
@@ -269,8 +276,12 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       END
       IF Arg('auto') THEN POST(EVENT:User + 1).
       IF Arg('bench') THEN POST(EVENT:User + 2).
+      IF Arg('diag') THEN POST(EVENT:User + 3).
     OF EVENT:User + 2
       BenchWin(1)
+      POST(EVENT:CloseWindow)
+    OF EVENT:User + 3
+      DiagRun()
       POST(EVENT:CloseWindow)
     OF EVENT:User + 1
       SelfTest()                                       ! ends by clicking "Customers"
@@ -754,3 +765,45 @@ win    WINDOW('Speed test'),AT(,,300,112),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY
   END
   ACCEPT
   END
+
+!-----------------------------------------------------------------------------
+!  diag: where a DirectX frame's time goes. For each Direct2D target type
+!  (let it choose / software / hardware): an empty frame (the fixed cost of
+!  begin + end), then full frames with the gradient brush cache off and on,
+!  with and without the effects. GDI's empty and full frames for comparison.
+!  Best of three rounds, 300 frames a round. ms per frame in TaskPanelDiag.ini.
+DiagRun PROCEDURE
+ini    STRING(260)
+t      LONG
+  CODE
+  ini = LONGPATH() & '\TaskPanelDiag.ini'
+  REMOVE(ini)
+  TP.DoDiag(3, 1)
+  PUTINI('gdi', 'empty', DiagBest(MTP:Clarion, 1), ini)
+  TP.DoDiag(3, 0)
+  PUTINI('gdi', 'full', DiagBest(MTP:Clarion, 1), ini)
+  LOOP t = 0 TO 2
+    TP.DoDiag(1, t)
+    TP.DoDiag(3, 1)
+    PUTINI('type' & t, 'empty', DiagBest(MTP:DirectX, 0), ini)
+    TP.DoDiag(3, 0)
+    TP.DoDiag(2, 0)
+    PUTINI('type' & t, 'flat, no cache', DiagBest(MTP:DirectX, 0), ini)
+    PUTINI('type' & t, 'fx, no cache', DiagBest(MTP:DirectX, 1), ini)
+    TP.DoDiag(2, 1)
+    PUTINI('type' & t, 'flat, cache', DiagBest(MTP:DirectX, 0), ini)
+    PUTINI('type' & t, 'fx, cache', DiagBest(MTP:DirectX, 1), ini)
+  END
+  TP.DoDiag(1, 0)
+
+DiagBest PROCEDURE(BYTE engine, BYTE fx)
+r      LONG
+v      REAL
+b      REAL
+  CODE
+  b = 999999
+  LOOP r = 1 TO 3
+    v = TP.Benchmark(engine, 300, fx)
+    IF v < b THEN b = v.
+  END
+  RETURN FORMAT(b, @n8.3)

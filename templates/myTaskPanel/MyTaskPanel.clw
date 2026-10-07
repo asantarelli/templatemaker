@@ -124,6 +124,7 @@ mtp_d2_clip            PROCEDURE(REAL,REAL,REAL,REAL),NAME('_mtpd2d_clip')
 mtp_d2_unclip          PROCEDURE(),NAME('_mtpd2d_unclip')
 mtp_d2_kill            PROCEDURE(),NAME('_mtpd2d_kill')
 mtp_d2_shadow          PROCEDURE(REAL,REAL,REAL,REAL,REAL,REAL,REAL,LONG),NAME('_mtpd2d_shadow')
+mtp_d2_diag            PROCEDURE(LONG,LONG),LONG,PROC,NAME('_mtpd2d_diag')
     END
     ! ENDD2D
 MTP_WndProc            PROCEDURE(LONG hWnd, LONG uMsg, LONG wParam, LONG lParam),LONG,PASCAL
@@ -485,7 +486,7 @@ ms                     REAL
       SELF.Fx = SELF.Effects
       ! ENDD2D
     END
-    SELF.Render(w, h, floating)
+    IF ~SELF.BenchEmpty THEN SELF.Render(w, h, floating).
     COMPILE('ENDD2D',_MTP_D2D_)
     IF SELF.UseD2D THEN mtp_d2_end().
     ! ENDD2D
@@ -517,6 +518,23 @@ ms                     REAL
   IF ~ok THEN RETURN -1.
   ms = ((t1.Hi * 4294967296.0 + t1.Lo) - (t0.Hi * 4294967296.0 + t0.Lo)) * 1000 / (fq.Hi * 4294967296.0 + fq.Lo) / frames
   RETURN ms
+
+!  Switches for the speed test, to see where a DirectX frame's time goes.
+!    1  the Direct2D target type: 0 let Direct2D choose, 1 software (CPU), 2 hardware (GPU)
+!    2  cache gradient brushes (1, the default) or make one per call (0)
+!    3  Benchmark times empty frames (begin + end, nothing drawn): the fixed cost
+MyTaskPanelClass.Diag PROCEDURE(LONG what, LONG value)
+old                    LONG
+  CODE
+  IF what = 3
+    old = SELF.BenchEmpty
+    SELF.BenchEmpty = value
+    RETURN old
+  END
+  COMPILE('ENDD2D',_MTP_D2D_)
+  RETURN mtp_d2_diag(what, value)
+  ! ENDD2D
+  RETURN 0
 
 MyTaskPanelClass.SetLanguage PROCEDURE(STRING lang)
   CODE

@@ -91,6 +91,16 @@ typedef struct {
 } ID2D1BrushVtbl;
 struct ID2D1Brush { ID2D1BrushVtbl* v; };
 
+/* ---- ID2D1LinearGradientBrush: SetStartPoint(8) SetEndPoint(9) ---- */
+typedef struct ID2D1LinBrush ID2D1LinBrush;
+typedef struct {
+    void* QueryInterface; void* AddRef; void* Release; void* GetFactory; /* 0..3 */
+    void* SetOpacity; void* SetTransform; void* GetOpacity; void* GetTransform; /* 4..7 */
+    void (WINAPI* SetStartPoint)(ID2D1LinBrush*, D2D1_POINT_2F);       /* 8 */
+    void (WINAPI* SetEndPoint)(ID2D1LinBrush*, D2D1_POINT_2F);         /* 9 */
+} ID2D1LinBrushVtbl;
+struct ID2D1LinBrush { ID2D1LinBrushVtbl* v; };
+
 /* ---- ID2D1DCRenderTarget : ID2D1RenderTarget ---- */
 typedef struct {
     void* QueryInterface; void* AddRef; void* Release; void* GetFactory; /* 0..3 */
@@ -186,7 +196,14 @@ static long               g_lock[8];       /* a CRITICAL_SECTION (24 bytes on Wi
     under the others. Each thread now has its own target, brush and clip
     depth, found by GetCurrentThreadId(). */
 #define MTP_THREADS 64
-static struct { DWORD tid; ID2D1RenderTarget* rt; ID2D1Brush* brush; int drawing; int clips; } g_th[MTP_THREADS];
+#define MTP_GRADS   16       /* gradient brushes kept per thread, by colour pair */
+typedef struct { long c1, c2; ID2D1LinBrush* b; } MtpGrad;
+static struct { DWORD tid; ID2D1RenderTarget* rt; ID2D1Brush* brush; int drawing; int clips;
+                int rtType; MtpGrad grads[MTP_GRADS]; int nextGrad; } g_th[MTP_THREADS];
+
+/* diagnostics (mtpd2d_diag): the render target type asked for, and the brush cache */
+static int g_wantType  = 0;  /* D2D1_RENDER_TARGET_TYPE: 0 DEFAULT, 1 SOFTWARE, 2 HARDWARE */
+static int g_gradCache = 1;
 
 /* this thread's slot (made on first use); 0 when the table is full */
 static int slot(int make)
@@ -234,7 +251,10 @@ static void s_cpy(char* d, const char* s, int max) { int i = 0; while (s[i] && i
 
 static void drop_target(int k)
 {
+    int i;
     if (k < 1) return;
+    for (i = 0; i < MTP_GRADS; i++) { rel(g_th[k-1].grads[i].b); g_th[k-1].grads[i].b = 0; }
+    g_th[k-1].nextGrad = 0;
     rel(g_th[k-1].brush); g_th[k-1].brush = 0;
     rel(g_th[k-1].rt);    g_th[k-1].rt = 0;
     g_th[k-1].drawing = 0;
@@ -274,8 +294,10 @@ int mtpd2d_begin(long hdc, long w, long h)
     if (mtpd2d_init() != 1) return 0;
     k = slot(1);
     if (!k) return 0;
+    if (g_th[k-1].rt && g_th[k-1].rtType != g_wantType) drop_target(k);   /* the diagnostics changed it */
     if (!g_th[k-1].rt) {
-        p.type = 0;                         /* DEFAULT */
+        p.type = g_wantType;                /* DEFAULT unless the diagnostics say otherwise */
+        g_th[k-1].rtType = g_wantType;
         p.pixelFormat.format = 87;          /* DXGI_FORMAT_B8G8R8A8_UNORM */
         p.pixelFormat.alphaMode = 3;        /* IGNORE - lets text use ClearType */
         p.dpiX = 96; p.dpiY = 96;           /* one unit = one pixel */
@@ -359,20 +381,44 @@ void mtpd2d_grad(double x, double y, double w, double h, double rad, long c1, lo
     ID2D1GradientStops* gs = 0;
     ID2D1Brush* b = 0;
     D2D1_ROUNDED_RECT rr;
+    int i, cached = 0;
     ID2D1RenderTarget* rt = cur(&k);
     if (!rt) return;
-    st[0].position = 0; st[0].color = col(c1);
-    st[1].position = 1; st[1].color = col(c2);
-    if (rt->v->CreateGradientStopCollection(rt, st, 2, 0, 0, &gs) != S_OK || !gs) return;
     lp.startPoint.x = (float)x; lp.startPoint.y = (float)y;
     lp.endPoint.x   = (float)x; lp.endPoint.y   = (float)(y + h);
-    if (rt->v->CreateLinearGradientBrush(rt, &lp, 0, gs, &b) == S_OK && b) {
-        rr.rect = rc(x, y, w, h); rr.rx = (float)rad; rr.ry = (float)rad;
-        if (rad > 0) rt->v->FillRoundedRectangle(rt, &rr, b);
-        else         rt->v->FillRectangle(rt, &rr.rect, b);
+    /* A brush is a GPU resource: making one per call is slow. Keep the last
+       few by colour pair and move their end points to the new rectangle. */
+    if (g_gradCache) {
+        for (i = 0; i < MTP_GRADS; i++) {
+            MtpGrad* g = &g_th[k-1].grads[i];
+            if (g->b && g->c1 == c1 && g->c2 == c2) {
+                g->b->v->SetStartPoint(g->b, lp.startPoint);
+                g->b->v->SetEndPoint(g->b, lp.endPoint);
+                b = (ID2D1Brush*)g->b;
+                cached = 1;
+                break;
+            }
+        }
     }
-    rel(b);
-    rel(gs);
+    if (!b) {
+        st[0].position = 0; st[0].color = col(c1);
+        st[1].position = 1; st[1].color = col(c2);
+        if (rt->v->CreateGradientStopCollection(rt, st, 2, 0, 0, &gs) != S_OK || !gs) return;
+        if (rt->v->CreateLinearGradientBrush(rt, &lp, 0, gs, &b) != S_OK) b = 0;
+        rel(gs);                            /* the brush holds its own reference */
+        if (!b) return;
+        if (g_gradCache) {
+            MtpGrad* g = &g_th[k-1].grads[g_th[k-1].nextGrad];
+            rel(g->b);
+            g->b = (ID2D1LinBrush*)b; g->c1 = c1; g->c2 = c2;
+            g_th[k-1].nextGrad = (g_th[k-1].nextGrad + 1) % MTP_GRADS;
+            cached = 1;
+        }
+    }
+    rr.rect = rc(x, y, w, h); rr.rx = (float)rad; rr.ry = (float)rad;
+    if (rad > 0) rt->v->FillRoundedRectangle(rt, &rr, b);
+    else         rt->v->FillRectangle(rt, &rr.rect, b);
+    if (!cached) rel(b);
 }
 
 /* A soft drop shadow under a rounded rectangle: n translucent rounded rects,
@@ -487,6 +533,17 @@ void mtpd2d_text(long txt, double x, double y, double w, double h, long argb,
     if (n <= 1) return;
     r = rc(x, y, w, h);
     rt->v->DrawText(rt, buf, (UINT)(n - 1), f, &r, solid(k, argb), 2 /*CLIP*/, 0 /*NATURAL*/);
+}
+
+/* Diagnostics for the speed test. what 1: the render target type (0 DEFAULT,
+   1 SOFTWARE, 2 HARDWARE); every thread rebuilds its target on its next frame.
+   what 2: the gradient brush cache on (1) or off (0). Returns the old value. */
+long mtpd2d_diag(long what, long value)
+{
+    long old = 0;
+    if (what == 1) { old = g_wantType; g_wantType = (int)value; }
+    if (what == 2) { old = g_gradCache; g_gradCache = (int)value; }
+    return old;
 }
 
 /* Releases THIS thread's target only: other panels on other threads keep
