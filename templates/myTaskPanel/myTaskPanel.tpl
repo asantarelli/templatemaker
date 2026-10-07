@@ -37,6 +37,14 @@
 #ENDIF
 #RETURN('g' & INSTANCE(%mtpGroups) & 'i' & INSTANCE(%mtpItems))
 #!
+#!  The procedure that opens a form to insert, on its own thread: an MDI form
+#!  cannot open on the frame's thread, and GlobalRequest is THREADed, so the
+#!  request has to be set on the new thread - by this little procedure.
+#GROUP(%mtpInsName)
+#RETURN(%mtpObject & 'Insert' & INSTANCE(%mtpGroups) & '_' & INSTANCE(%mtpItems))
+#GROUP(%mtpBtnInsName)
+#RETURN(%mtpObject & 'Insert' & INSTANCE(%mtpGroups) & '_' & INSTANCE(%mtpItems) & '_' & INSTANCE(%mtpBtns))
+#!
 #!  The tag a hover button carries: the developer's, or the item's + b<n>.
 #GROUP(%mtpBtnTagOf)
 #IF(%mtpBtnTag <> '')
@@ -456,11 +464,11 @@ INCLUDE('MyTaskPanel.INC'),ONCE
             #PROMPT('T&ag (blank = automatic):',@s40),%mtpItemTag,DEFAULT('')
           #ENDTAB
           #TAB('&Action')
-            #PROMPT('When &clicked:',DROP('Start a procedure|Call a procedure|Press a control or menu item|Post an event|Open a URL or file|Run a program|Window command|Close the window|Embed code only')),%mtpItemAction,DEFAULT('Embed code only')
-            #ENABLE(%mtpItemAction = 'Start a procedure' OR %mtpItemAction = 'Call a procedure')
+            #PROMPT('When &clicked:',DROP('Start a procedure|Call a procedure|Insert a record (a form)|Press a control or menu item|Post an event|Open a URL or file|Run a program|Window command|Close the window|Embed code only')),%mtpItemAction,DEFAULT('Embed code only')
+            #ENABLE(%mtpItemAction = 'Start a procedure' OR %mtpItemAction = 'Call a procedure' OR %mtpItemAction = 'Insert a record (a form)')
               #PROMPT('&Procedure:',PROCEDURE),%mtpItemProc
             #ENDENABLE
-            #ENABLE(%mtpItemAction = 'Start a procedure')
+            #ENABLE(%mtpItemAction = 'Start a procedure' OR %mtpItemAction = 'Insert a record (a form)')
               #PROMPT('&Stack size:',SPIN(@n6,5000,500000,5000)),%mtpItemStack,DEFAULT(25000)
             #ENDENABLE
             #ENABLE(%mtpItemAction = 'Call a procedure')
@@ -503,8 +511,10 @@ INCLUDE('MyTaskPanel.INC'),ONCE
               #PROMPT('&Icon:',DROP('plus|print|mail|export|import|excel|pdf|search|gear|tools|doc|report|chart|link|star|bell|phone|lock|key|refresh|calendar|user|users|box|cart|truck|money|globe|help|info')),%mtpBtnGlyph,DEFAULT('plus')
               #PROMPT('Ti&p:',@s80),%mtpBtnTip,DEFAULT('')
               #PROMPT('T&ag (blank = automatic):',@s40),%mtpBtnTag,DEFAULT('')
-              #PROMPT('When &clicked:',DROP('Start a procedure|Call a procedure|Post an event|Embed code only')),%mtpBtnAction,DEFAULT('Embed code only')
-              #ENABLE(%mtpBtnAction = 'Start a procedure' OR %mtpBtnAction = 'Call a procedure')
+              #PROMPT('When &clicked:',DROP('Insert a record (a form)|Start a procedure|Call a procedure|Post an event|Embed code only')),%mtpBtnAction,DEFAULT('Embed code only')
+              #DISPLAY('Insert a record: the update form opens to add one,')
+              #DISPLAY('on its own thread (so an MDI form works too).')
+              #ENABLE(%mtpBtnAction = 'Start a procedure' OR %mtpBtnAction = 'Call a procedure' OR %mtpBtnAction = 'Insert a record (a form)')
                 #PROMPT('P&rocedure:',PROCEDURE),%mtpBtnProc
               #ENDENABLE
               #ENABLE(%mtpBtnAction = 'Post an event')
@@ -561,6 +571,18 @@ INCLUDE('MyTaskPanel.INC'),ONCE
   #SET(%mtpOn,0)
   #DECLARE(%mtpAnyDrop)
   #SET(%mtpAnyDrop,0)
+  #DECLARE(%mtpAnyInsert)
+  #SET(%mtpAnyInsert,0)
+  #FOR(%mtpGroups)
+    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item')
+      #IF(%mtpItemAction = 'Insert a record (a form)' AND %mtpItemProc <> '')
+        #SET(%mtpAnyInsert,1)
+      #ENDIF
+      #FOR(%mtpBtns),WHERE(%mtpBtnAction = 'Insert a record (a form)' AND %mtpBtnProc <> '')
+        #SET(%mtpAnyInsert,1)
+      #ENDFOR
+    #ENDFOR
+  #ENDFOR
   #FOR(%mtpGroups)
     #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item' AND %mtpItemDrop)
       #SET(%mtpAnyDrop,1)
@@ -617,6 +639,49 @@ INCLUDE('MyTaskPanel.INC'),ONCE
 INCLUDE('MyTaskPanel.INC'),ONCE
 #ENDAT
 #!
+#AT(%DataSection),WHERE(%mtpOn AND %mtpAnyInsert)
+  MAP                                                   ! myTaskPanel: the Insert a record actions
+  #FOR(%mtpGroups)
+    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item')
+      #IF(%mtpItemAction = 'Insert a record (a form)' AND %mtpItemProc <> '')
+%(%mtpInsName()) PROCEDURE
+      #ENDIF
+      #FOR(%mtpBtns),WHERE(%mtpBtnAction = 'Insert a record (a form)' AND %mtpBtnProc <> '')
+%(%mtpBtnInsName()) PROCEDURE
+      #ENDFOR
+    #ENDFOR
+  #ENDFOR
+  END
+#ENDAT
+#!
+#AT(%LocalProcedures),WHERE(%mtpOn AND %mtpAnyInsert)
+  #FOR(%mtpGroups)
+    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item')
+      #IF(%mtpItemAction = 'Insert a record (a form)' AND %mtpItemProc <> '')
+!-----------------------------------------------------------------------------
+!  myTaskPanel: %mtpItemText - %mtpItemProc opens to insert a record, on
+!  this new thread (an MDI form cannot open on the frame's thread, and
+!  GlobalRequest belongs to the thread that sets it).
+!-----------------------------------------------------------------------------
+%(%mtpInsName()) PROCEDURE
+  CODE
+  GlobalRequest = InsertRecord
+  %mtpItemProc()
+      #ENDIF
+      #FOR(%mtpBtns),WHERE(%mtpBtnAction = 'Insert a record (a form)' AND %mtpBtnProc <> '')
+!-----------------------------------------------------------------------------
+!  myTaskPanel: %mtpItemText, %mtpBtnGlyph button - %mtpBtnProc opens to insert
+!  a record, on this new thread (see above).
+!-----------------------------------------------------------------------------
+%(%mtpBtnInsName()) PROCEDURE
+  CODE
+  GlobalRequest = InsertRecord
+  %mtpBtnProc()
+      #ENDFOR
+    #ENDFOR
+  #ENDFOR
+#ENDAT
+#!
 #AT(%DataSection),WHERE(%mtpOn)
 %mtpObject           MyTaskPanelClass                   ! myTaskPanel
 %mtpObject:G         LONG                               ! myTaskPanel: the group being built
@@ -640,6 +705,10 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #OF('Start a procedure')
         #IF(%mtpItemProc <> '')
         START(%mtpItemProc, %mtpItemStack)
+        #ENDIF
+      #OF('Insert a record (a form)')
+        #IF(%mtpItemProc <> '')
+        START(%(%mtpInsName()), %mtpItemStack)               ! %mtpItemProc, to insert
         #ENDIF
       #OF('Call a procedure')
         #IF(%mtpItemProc <> '')
@@ -679,6 +748,10 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #FOR(%mtpBtns)
       OF '%(QUOTE(%mtpBtnTagOf()))'                       ! %mtpItemText: %mtpBtnGlyph button
       #CASE(%mtpBtnAction)
+      #OF('Insert a record (a form)')
+        #IF(%mtpBtnProc <> '')
+        START(%(%mtpBtnInsName()), 25000)                    ! %mtpBtnProc, to insert
+        #ENDIF
       #OF('Start a procedure')
         #IF(%mtpBtnProc <> '')
         START(%mtpBtnProc, 25000)

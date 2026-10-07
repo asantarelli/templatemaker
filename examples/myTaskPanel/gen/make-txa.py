@@ -59,7 +59,11 @@ GROUPS[1][4].extend([
 # Extras: a description, a drop target, two hover buttons on Customers
 GROUPS[0][4][0]['tip'] = 'Browse, add and change customers.'
 GROUPS[0][4][0]['drop'] = 1
-BUTTONS = {(0, 0): [dict(glyph='plus', tip='New customer', action='Post an event', event='EVENT:User'),
+# Insert a record: an item and a hover button open FormStub (an MDI window) to insert, on their own thread
+INS = 'Insert a record (a form)'
+GROUPS[1][4].append(dict(text='New customer', glyph='plus', action=INS, proc='BrowseStub'))
+INS_TAG = 'g2i%d' % len(GROUPS[1][4])
+BUTTONS = {(0, 0): [dict(glyph='plus', tip='New customer', action=INS, proc='BrowseStub'),
                     dict(glyph='print', tip='Print', action='Embed code only')]}
 
 def prompts_groups():
@@ -201,7 +205,12 @@ w("%mtpTheme DEFAULT  ('Global setting')")
 w('[EMBED]'); w('EMBED %mtpItemClicked'); w('[INSTANCES]'); w("WHEN '1'"); w('[INSTANCES]'); w("WHEN '1'")
 w('[DEFINITION]'); w('[SOURCE]'); w('PROPERTY:BEGIN'); w('PRIORITY 4000'); w('PROPERTY:END')
 w("        0{PROP:StatusText,1} = 'Customers clicked (item embed)'")
-w('[END]'); w('[END]'); w('[END]'); w('[END]')
+w('[END]'); w('[END]'); w('[END]')        # [DEFINITION], two [INSTANCES]
+# 'insert' on the command line clicks the New customer item once the panel is built
+w('EMBED %mtpAfterBuild'); w('[DEFINITION]'); w('[SOURCE]'); w('PROPERTY:BEGIN'); w('PRIORITY 5000'); w('PROPERTY:END')
+w("  IF INSTRING('insert', LOWER(COMMAND('')), 1, 1) THEN TaskPanel.Click(TaskPanel.FindTag('" + INS_TAG + "')).")
+w('[END]')                                # its [DEFINITION]
+w('[END]')                                # the [EMBED] section
 w('[WINDOW]')
 w("AppFrame APPLICATION('myTaskPanel - template test'),AT(,,520,300),STATUS(-1,200),FONT('Segoe UI',9),RESIZE,CENTER,MAX,SYSTEM,IMM")
 for line in """  MENUBAR,USE(?Menubar)
@@ -236,6 +245,14 @@ for line in """  MENUBAR,USE(?Menubar)
 w('[END]')
 for name, title in (('BrowseStub', 'A browse'), ('AboutStub', 'About')):
     w('[PROCEDURE]'); w(f'NAME {name}'); w('[COMMON]'); w(f"DESCRIPTION '{title}'"); w('FROM ABC Window'); w("CATEGORY 'Window'")
+    if name == 'BrowseStub':                    # records the request, the thread and MDI, then closes (the insert test)
+        w('[EMBED]'); w('EMBED %WindowManagerMethodCodeSection'); w('[INSTANCES]'); w("WHEN 'Init'"); w('[INSTANCES]'); w("WHEN '(),BYTE'")
+        w('[DEFINITION]'); w('[SOURCE]'); w('PROPERTY:BEGIN'); w('PRIORITY 9500'); w('PROPERTY:END')
+        w("  PUTINI('insert', 'request', SELF.Request, LONGPATH() & '\InsertTest.ini')")
+        w("  PUTINI('insert', 'thread', THREAD(), LONGPATH() & '\InsertTest.ini')")
+        w("  PUTINI('insert', 'mdi', 0{PROP:MDI}, LONGPATH() & '\InsertTest.ini')")
+        w("  POST(EVENT:CloseWindow)")
+        w('[END]'); w('[END]'); w('[END]'); w('[END]')
     w('[WINDOW]')
     w(f"Window WINDOW('{title}'),AT(,,200,80),CENTER,GRAY,SYSTEM,MDI,FONT('Segoe UI',9)")
     w("       BUTTON('Close'),AT(146,58,44,14),USE(?Close),STD(STD:Close)")

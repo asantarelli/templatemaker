@@ -1502,7 +1502,7 @@ slide out over the window when touched.
 
 **The user's own panel.** *Customize* turns the panel into an edit mode - an eye on every row and group, Reset
 and Done - and users drag group headers and favourites into their own order; a *Most used* group counts what
-they run. Rows can carry **hover buttons** (`AddAction`: one row, several actions), take **files dropped** from
+they run. Rows can carry **hover buttons** (`AddAction`: one row, several actions - in the template a **+** can be *Insert a record*, which opens the update form to add one on its own thread, so MDI forms work), take **files dropped** from
 Explorer (`SetDropTarget`, the `MTP:Drop` event), and show a **description card** after a pause (`SetTip`). All of
 it is in the template too (the item's *Extras* tab) and remembered per user.
 
