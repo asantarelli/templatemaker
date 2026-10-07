@@ -60,6 +60,8 @@
 _MyTaskPanelIncluded_ EQUATE(1)
 
 MTP:Event            EQUATE(0400h + 0D7h)  ! EVENT:User + 215: an item was clicked
+MTP:Check            EQUATE(0400h + 0D8h)  ! EVENT:User + 216: the mouse came in or the panel took the
+                                           ! focus - re-check conditions (the template's Show/Enable when)
 
 MTP:Left             EQUATE(1)             ! dock sides
 MTP:Right            EQUATE(2)
@@ -108,6 +110,9 @@ Checked                BYTE
 Bold                   BYTE
 Special                BYTE                ! group drawn in the accent colour
 Reveal                 REAL                ! 0..1 while the group/submenu animates
+Badge                  STRING(16)          ! a count or word in a pill on the right; '*' = a dot
+BadgeClr               LONG                ! COLOR:None = the accent colour
+Match                  BYTE                ! matches the search text
                      END
 
 MTPRowQ              QUEUE,TYPE            ! the layout: one row per thing drawn
@@ -171,6 +176,7 @@ AutoGlyphs             BYTE                ! mirrored rows guess an icon from th
 Effects                BYTE                ! DirectX only: shadows, glass, fading translucent hover (default on)
 FloatOpacity           BYTE                ! DirectX + Effects: a floating panel's opacity (%) while the mouse is away; 100 = solid
 ShowEngine             BYTE                ! a small "DirectX" / "GDI" badge in the corner, to see which is painting
+ShowSearch             BYTE                ! a search box under the title (default on)
 ! ---- colours (Clarion COLOR values; SetTheme fills them) ----
 ClrBack                LONG
 ClrTitle1              LONG
@@ -247,6 +253,11 @@ FadeT                  REAL,PROTECTED
 Fading                 BYTE,PROTECTED
 Fx                     BYTE,PROTECTED      ! this frame draws the DirectX effects
 BenchEmpty             BYTE,PROTECTED      ! Diag 3: Benchmark times empty frames
+Search                 CSTRING(61),PROTECTED ! the search text; blank = everything shows
+KeyId                  LONG,PROTECTED      ! the row the keyboard is on
+HasFocus               BYTE,PROTECTED
+PrevFocus              LONG,PROTECTED      ! where the focus goes back to (Esc, Tab)
+CaretOn                BYTE,PROTECTED
 ! ---- life cycle ----
 Construct              PROCEDURE
 Destruct               PROCEDURE,VIRTUAL
@@ -261,6 +272,11 @@ SetWidth               PROCEDURE(LONG px)
 Refresh                PROCEDURE
 EngineInUse            PROCEDURE(),BYTE    ! MTP:Clarion or MTP:DirectX
 Benchmark              PROCEDURE(BYTE engine, LONG frames=200, BYTE effects=1),REAL  ! ms per frame; -1 = engine not available
+! ---- keyboard and search ----
+Focus                  PROCEDURE           ! move the keyboard into the panel (arrows, Enter, typing searches)
+HasKeyboard            PROCEDURE(),BYTE
+SetSearch              PROCEDURE(STRING txt)
+GetSearch              PROCEDURE(),STRING
 Diag                   PROCEDURE(LONG what, LONG value),LONG,PROC,PROTECTED  ! speed-test switches; returns the old value
 SetTheme               PROCEDURE(LONG theme)
 SetAccent              PROCEDURE(LONG clr)
@@ -285,6 +301,8 @@ SetHidden              PROCEDURE(LONG id, BYTE on)
 SetChecked             PROCEDURE(LONG id, BYTE on)
 SetBold                PROCEDURE(LONG id, BYTE on)
 SetSpecial             PROCEDURE(LONG id, BYTE on)
+SetBadge               PROCEDURE(LONG id, STRING txt, LONG clr=-1) ! '' removes it; '*' = a dot; -1 = accent
+GetBadge               PROCEDURE(LONG id),STRING
 SetFeq                 PROCEDURE(LONG id, LONG feq)
 Expand                 PROCEDURE(LONG id, BYTE on=1)
 ExpandAll              PROCEDURE(BYTE on=1)
@@ -343,6 +361,22 @@ FxWanted               PROCEDURE(),BYTE,PROTECTED          ! DirectX painting + 
 SetFloatAlpha          PROCEDURE(BYTE over),PROTECTED
 DrawBadge              PROCEDURE(LONG w, LONG h, LONG sbw),PROTECTED
 DrawTitleBtn           PROCEDURE(LONG id, LONG btx, LONG bty, LONG bs),PROTECTED
+DrawSearch             PROCEDURE(LONG w, BYTE floating),PROTECTED
+DrawPill               PROCEDURE(REAL right, REAL cy, STRING txt, LONG clr, LONG textClr),LONG,PROC,PROTECTED ! returns its width
+TitleH                 PROCEDURE(BYTE floating),LONG,PROTECTED  ! the title strip
+ContentTop             PROCEDURE(BYTE floating),LONG,PROTECTED  ! where the groups start (under the search box)
+TextW                  PROCEDURE(STRING txt, BYTE font),LONG,PROTECTED
+KeyDown                PROCEDURE(LONG hwnd, LONG vk),BYTE,PROC,PROTECTED
+KeyChar                PROCEDURE(LONG ch),PROTECTED
+MoveKey                PROCEDURE(LONG steps),PROTECTED
+EnsureVisible          PROCEDURE(LONG id),PROTECTED
+LeaveFocus             PROCEDURE,PROTECTED
+CurHwnd                PROCEDURE(),LONG,PROTECTED
+UpdateMatches          PROCEDURE,PROTECTED
+Fold                   PROCEDURE(STRING txt),STRING,PROTECTED  ! upper case, accents off: 'Código' = 'CODIGO'
+CountMatches           PROCEDURE(LONG pid),LONG,PROTECTED
+SearchRows             PROCEDURE(LONG pid, *LONG y, LONG clipT, LONG clipB),PROTECTED
+PathOf                 PROCEDURE(LONG id),STRING,PROTECTED     ! "Browse > Geography" above an item
 Alpha                  PROCEDURE(LONG clr, REAL a),LONG,PROTECTED
 CheckSnap              PROCEDURE(BYTE final),PROTECTED
 UndockAtCursor         PROCEDURE,PROTECTED

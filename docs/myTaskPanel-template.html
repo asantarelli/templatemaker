@@ -103,6 +103,7 @@
     <a href="#docking" class="h2"><span class="en">Docking and floating</span><span class="es">Acoplar y flotar</span></a>
     <a href="#look" class="h2"><span class="en">Themes and icons</span><span class="es">Temas e iconos</span></a>
     <a href="#engines" class="h2"><span class="en">The two engines</span><span class="es">Los dos motores</span></a>
+    <a href="#keys" class="h2"><span class="en">Search, keyboard, badges</span><span class="es">Búsqueda, teclado, insignias</span></a>
     <div class="grp"><span class="en">Inside</span><span class="es">Por dentro</span></div>
     <a href="#objects" class="h2"><span class="en">The class</span><span class="es">La clase</span></a>
     <a href="#lifecycle" class="h2"><span class="en">Life cycle</span><span class="es">Ciclo de vida</span></a>
@@ -254,6 +255,7 @@
           <tr><td><code>lang=es</code></td><td>Spanish, including the frame's own menu</td></tr>
           <tr><td><code>child</code></td><td>opens two MDI browses</td></tr>
           <tr><td><code>win</code></td><td>the panel on an ordinary window instead of the frame</td></tr>
+          <tr><td><code>search=text</code> · <code>keys</code></td><td>give the panel the keyboard, with that text typed into the search / without</td></tr>
           <tr><td><code>auto</code></td><td>runs the self-test (see <a href="#verify">How it was verified</a>) and exits</td></tr>
           <tr><td><code>fx=off</code></td><td>DirectX without the effects (the toolbar's <i>Effects</i> button toggles them live)</td></tr>
           <tr><td><code>badge=off</code></td><td>hides the engine badge</td></tr>
@@ -275,6 +277,7 @@
           <tr><td><code>lang=es</code></td><td>en español, incluido el menú del marco</td></tr>
           <tr><td><code>child</code></td><td>abre dos browses MDI</td></tr>
           <tr><td><code>win</code></td><td>el panel en una ventana común en lugar del marco</td></tr>
+          <tr><td><code>search=texto</code> · <code>keys</code></td><td>darle el teclado al panel, con ese texto escrito en la búsqueda / sin él</td></tr>
           <tr><td><code>auto</code></td><td>corre la autoprueba (ver <a href="#verify">Cómo se verificó</a>) y sale</td></tr>
           <tr><td><code>fx=off</code></td><td>DirectX sin los efectos (el botón <i>Efectos</i> de la barra los activa y desactiva en vivo)</td></tr>
           <tr><td><code>badge=off</code></td><td>oculta la insignia del motor</td></tr>
@@ -355,11 +358,14 @@
         <table><tr><th>Tab</th><th>Prompt</th><th>What it does</th></tr>
           <tr><td>General</td><td>Object name · Title</td><td>The object label (default <code>TaskPanel</code>) and the title strip.</td></tr>
           <tr><td>General</td><td>Starts · Width · Starts hidden · Grow the window</td><td>Docked left / right / floating; docked width; hidden until toggled; on a window (never a frame) grow it by the panel's width.</td></tr>
+          <tr><td>General</td><td>A search box under the title</td><td><code>ShowSearch</code>; see <a href="#keys">Search, keyboard, badges</a>.</td></tr>
           <tr><td>User</td><td>Float · Dock · Close · Resize · Show/hide key</td><td>What the user may do; the key is a Clarion key code (<code>F12Key</code>) alerted on the window.</td></tr>
-          <tr><td>Groups</td><td>Groups… (caption, icon, icon file, starts open, accent header, starts hidden)</td><td>One card each. Inside, <i>Items in this group</i>.</td></tr>
+          <tr><td>User</td><td>Move the keyboard into it with</td><td>A key code (default <code>F6Key</code>, blank = none) that shows the panel if hidden and calls <code>Focus()</code>.</td></tr>
+          <tr><td>Groups</td><td>Groups… (caption, icon, icon file, starts open, accent header, starts hidden, show only when)</td><td>One card each. Inside, <i>Items in this group</i>.</td></tr>
           <tr><td>Groups → Item</td><td>Kind · Text · Level · Icon · Icon file · Shortcut text · Tag</td><td>Item, separator or small heading label; level 0 sits in the group, 1 in the submenu of the item above; the tag is the key the generated <code>CASE</code> uses (blank: <code>g&lt;group&gt;i&lt;item&gt;</code>).</td></tr>
           <tr><td>Groups → Action</td><td>When clicked …</td><td>See <a href="#actions">Actions</a>.</td></tr>
           <tr><td>Groups → State</td><td>Submenu starts open · disabled · hidden · bold</td><td>Starting state; all changeable at run time.</td></tr>
+          <tr><td>Groups → State</td><td>Show only when · Enable only when</td><td>Clarion expressions, checked at open and on every <code>MTP:Check</code>; see <a href="#keys">Conditions</a>.</td></tr>
           <tr><td>Presets</td><td>Preset · Add this group</td><td>See <a href="#presets">Presets</a>.</td></tr>
           <tr><td>Menu</td><td>Copy … at run time · Arrange · Put it · Skip menus named · Take the real menu off</td><td>See <a href="#menu">Copying the menu</a>.</td></tr>
           <tr><td>Options</td><td>Submenus · Accordion · Shortcut text · Theme</td><td>Open in place or as pop-ups; one group open at a time; show the shortcut column; override the global theme.</td></tr>
@@ -381,11 +387,14 @@
         <table><tr><th>Pestaña</th><th>Opción</th><th>Qué hace</th></tr>
           <tr><td>General</td><td>Object name · Title</td><td>La etiqueta del objeto (por omisión <code>TaskPanel</code>) y la franja de título.</td></tr>
           <tr><td>General</td><td>Starts · Width · Starts hidden · Grow the window</td><td>Acoplado izquierda / derecha / flotante; ancho; oculto hasta alternarlo; en una ventana (nunca un marco) la agranda el ancho del panel.</td></tr>
+          <tr><td>General</td><td>A search box under the title</td><td><code>ShowSearch</code>; ver <a href="#keys">Búsqueda, teclado, insignias</a>.</td></tr>
           <tr><td>User</td><td>Float · Dock · Close · Resize · tecla</td><td>Qué puede hacer el usuario; la tecla es un código de Clarion (<code>F12Key</code>) alertado en la ventana.</td></tr>
-          <tr><td>Groups</td><td>Groups… (título, icono, archivo de icono, abierto, encabezado destacado, oculto)</td><td>Una tarjeta cada uno. Adentro, <i>Items in this group</i>.</td></tr>
+          <tr><td>User</td><td>Move the keyboard into it with</td><td>Un código de tecla (por omisión <code>F6Key</code>, vacío = ninguno) que muestra el panel si está oculto y llama a <code>Focus()</code>.</td></tr>
+          <tr><td>Groups</td><td>Groups… (título, icono, archivo de icono, abierto, encabezado destacado, oculto, mostrar solo si)</td><td>Una tarjeta cada uno. Adentro, <i>Items in this group</i>.</td></tr>
           <tr><td>Groups → Item</td><td>Kind · Text · Level · Icon · Icon file · Shortcut text · Tag</td><td>Elemento, separador o rótulo; nivel 0 va en el grupo, 1 en el submenú del de arriba; la etiqueta es la clave del <code>CASE</code> generado (vacía: <code>g&lt;grupo&gt;i&lt;elemento&gt;</code>).</td></tr>
           <tr><td>Groups → Action</td><td>When clicked …</td><td>Ver <a href="#actions">Acciones</a>.</td></tr>
           <tr><td>Groups → State</td><td>submenú abierto · deshabilitado · oculto · negrita</td><td>Estado inicial; todo cambia en ejecución.</td></tr>
+          <tr><td>Groups → State</td><td>Show only when · Enable only when</td><td>Expresiones Clarion, evaluadas al abrir y en cada <code>MTP:Check</code>; ver <a href="#keys">Condiciones</a>.</td></tr>
           <tr><td>Presets</td><td>Preset · Add this group</td><td>Ver <a href="#presets">Grupos predefinidos</a>.</td></tr>
           <tr><td>Menu</td><td>Copiar en ejecución · Arrange · Put it · Skip menus named · quitar el menú real</td><td>Ver <a href="#menu">Copiar el menú</a>.</td></tr>
           <tr><td>Options</td><td>Submenus · Accordion · Shortcut text · Theme</td><td>En el lugar o emergentes; un grupo abierto a la vez; columna de teclas; reemplazar el tema global.</td></tr>
@@ -702,6 +711,61 @@ tile cascade calendar money cart truck search plus link menu bell phone</pre>
     </section>
 
     <!-- ================================================================ -->
+    <section id="keys">
+      <div class="en"><h2>Search, keyboard, badges and conditions</h2>
+        <p><b>Search.</b> A box under the title (<code>ShowSearch</code>, on by default). Typing filters every group down
+          to the <i>actions</i> — items with no submenu — whose text holds what was typed, at any depth, one row each,
+          with the submenu they live in shown dimmed on the right. Matching ignores case and accents: <i>co</i> finds
+          <i>Códigos postales</i>. Groups with nothing to show disappear; <i>No matches</i> when nothing is left.</p>
+        <p><b>Keyboard.</b> Clicking the search box, the template's key (<b>F6</b> by default) or <code>Focus()</code>
+          gives the panel the keyboard; a ring marks the row it is on.</p>
+        <table><tr><th>Key</th><th>Does</th></tr>
+          <tr><td>↑ ↓ · Page Up / Down · Home / End</td><td>move between group headers and items (only the matches while searching), scrolling as needed</td></tr>
+          <tr><td>Enter · Space</td><td>what a click does: open or close a group or submenu, or run the item — after running an item the keyboard goes back to the program</td></tr>
+          <tr><td>→ / ←</td><td>open / close; on an open one, step into it; on an item, step out to its parent</td></tr>
+          <tr><td>any letter · Backspace</td><td>type into the search</td></tr>
+          <tr><td>Esc</td><td>clear the search; with no search, give the keyboard back</td></tr>
+          <tr><td>Tab</td><td>give the keyboard back</td></tr>
+        </table>
+        <p><b>Badges.</b> <code>SetBadge(id, '12')</code> puts a pill on a row or a group header — a count, a word
+          (<code>'new'</code>), or <code>'*'</code> for a dot; the third parameter is its colour (the accent if omitted);
+          <code>SetBadge(id, '')</code> removes it. On a header the pill is light on the header's colour.</p>
+        <p><b>Conditions</b> (template). Each item has <i>Show only when</i> and <i>Enable only when</i>, each group <i>Show
+          only when</i>: any Clarion expression (<code>GLO:IsAdmin</code>, <code>SEC:CanPrint = 1</code>). They are
+          generated into a routine, <code>mtpCheck:TaskPanel</code>, that runs when the window opens and again on every
+          <code>MTP:Check</code> — an event the panel posts when the mouse comes into it or it takes the keyboard —
+          so a change in the program (someone logs in) shows the next time the panel is used. Its own embed,
+          <i>re-check conditions</i>, is the place to refresh badges too.</p></div>
+      <div class="es"><h2>Búsqueda, teclado, insignias y condiciones</h2>
+        <p><b>Búsqueda.</b> Un cuadro bajo el título (<code>ShowSearch</code>, activo por omisión). Al escribir, cada grupo
+          queda solo con las <i>acciones</i> — elementos sin submenú — cuyo texto contiene lo escrito, a cualquier
+          profundidad, una fila cada una, con el submenú donde viven atenuado a la derecha. No distingue mayúsculas ni
+          acentos: <i>co</i> encuentra <i>Códigos postales</i>. Los grupos sin nada que mostrar desaparecen; <i>Sin
+          resultados</i> cuando no queda nada.</p>
+        <p><b>Teclado.</b> Un clic en el cuadro de búsqueda, la tecla de la plantilla (<b>F6</b> por omisión) o
+          <code>Focus()</code> le dan el teclado al panel; un anillo marca la fila donde está.</p>
+        <table><tr><th>Tecla</th><th>Hace</th></tr>
+          <tr><td>↑ ↓ · Re Pág / Av Pág · Inicio / Fin</td><td>moverse entre encabezados y elementos (solo los resultados al buscar), desplazando lo necesario</td></tr>
+          <tr><td>Enter · Espacio</td><td>lo que hace un clic: abrir o cerrar un grupo o submenú, o ejecutar el elemento — tras ejecutarlo, el teclado vuelve al programa</td></tr>
+          <tr><td>→ / ←</td><td>abrir / cerrar; en uno abierto, entrar; en un elemento, salir a su padre</td></tr>
+          <tr><td>cualquier letra · Retroceso</td><td>escribir en la búsqueda</td></tr>
+          <tr><td>Esc</td><td>borrar la búsqueda; sin búsqueda, devolver el teclado</td></tr>
+          <tr><td>Tab</td><td>devolver el teclado</td></tr>
+        </table>
+        <p><b>Insignias.</b> <code>SetBadge(id, '12')</code> pone una píldora en una fila o en un encabezado — un número,
+          una palabra (<code>'nuevo'</code>) o <code>'*'</code> para un punto; el tercer parámetro es su color (el de acento si
+          se omite); <code>SetBadge(id, '')</code> la quita. En un encabezado la píldora es clara sobre el color del encabezado.</p>
+        <p><b>Condiciones</b> (plantilla). Cada elemento tiene <i>Show only when</i> y <i>Enable only when</i>, cada grupo
+          <i>Show only when</i>: cualquier expresión Clarion (<code>GLO:EsAdmin</code>, <code>SEC:PuedeImprimir = 1</code>). Se
+          generan en una rutina, <code>mtpCheck:TaskPanel</code>, que corre al abrir la ventana y otra vez en cada
+          <code>MTP:Check</code> — un evento que el panel envía cuando el ratón entra o cuando toma el teclado — así un
+          cambio en el programa (alguien inicia sesión) se ve la próxima vez que se usa el panel. Su propio embed,
+          <i>re-check conditions</i>, es el lugar para actualizar insignias también.</p></div>
+      <img class="shot en" src="myTaskPanel-search.png" alt="Badges, search and keyboard">
+      <img class="shot es" src="myTaskPanel-search-es.png" alt="Insignias, búsqueda y teclado">
+    </section>
+
+    <!-- ================================================================ -->
     <section id="objects">
       <div class="en"><h2>The class</h2>
         <p><b>MyTaskPanelClass owns</b> four queues — <code>Items</code> (what you added), <code>Rows</code> (the layout,
@@ -897,6 +961,10 @@ sub  LONG
         <tr><td><code>SetText</code> · <code>SetGlyph</code> · <code>SetIcon</code> · <code>SetShortcut</code> · <code>SetTip</code> · <code>SetFeq</code></td><td class="en">change one property of an item</td><td class="es">cambiar una propiedad de un elemento</td></tr>
         <tr><td><code>SetEnabled</code> · <code>SetHidden</code> · <code>SetChecked</code> · <code>SetBold</code> · <code>SetSpecial</code></td><td class="en">change its state</td><td class="es">cambiar su estado</td></tr>
         <tr><td><code>Expand(id, on=1)</code> · <code>ExpandAll(on=1)</code> · <code>IsExpanded(id)</code></td><td class="en">open/close a group or submenu (animated when visible)</td><td class="es">abrir/cerrar un grupo o submenú (animado si está visible)</td></tr>
+        <tr><td><code>SetBadge(id, txt, clr=-1)</code> · <code>GetBadge(id)</code></td><td class="en">a pill on the row or header: a count, a word, <code>'*'</code> = a dot; <code>''</code> removes; -1 = the accent</td><td class="es">una píldora en la fila o el encabezado: un número, una palabra, <code>'*'</code> = un punto; <code>''</code> la quita; -1 = el acento</td></tr>
+        <tr><td><code>Focus()</code> · <code>HasKeyboard(),BYTE</code></td><td class="en">give the panel the keyboard; whether it has it</td><td class="es">darle el teclado al panel; si lo tiene</td></tr>
+        <tr><td><code>SetSearch(txt)</code> · <code>GetSearch(),STRING</code> · <code>ShowSearch</code></td><td class="en">filter as if typed (<code>''</code> clears); the search box on/off</td><td class="es">filtrar como si se escribiera (<code>''</code> borra); el cuadro de búsqueda sí/no</td></tr>
+        <tr><td><code>MTP:Check</code></td><td class="en">event posted when the mouse comes in or the panel takes the keyboard: re-check conditions, refresh badges</td><td class="es">evento enviado cuando entra el ratón o el panel toma el teclado: reevaluar condiciones, actualizar insignias</td></tr>
         <tr><td><code>FindTag(tag)</code> · <code>FindText(text, pid=-1)</code> · <code>ItemCount()</code></td><td class="en">look an item up</td><td class="es">buscar un elemento</td></tr>
         <tr><td colspan="3"><b class="en">Clicks</b><b class="es">Clics</b></td></tr>
         <tr><td><code>NextClick(),BYTE</code></td><td class="en">on <code>MTP:Event</code>, in a loop; fills <code>ClickId</code>, <code>ClickTag</code>, <code>ClickText</code></td><td class="es">en <code>MTP:Event</code>, en un bucle; llena <code>ClickId</code>, <code>ClickTag</code>, <code>ClickText</code></td></tr>
@@ -927,9 +995,9 @@ sub  LONG
       <div class="en"><h2>Generated code &amp; embeds</h2>
         <table><tr><th>Where</th><th>What</th></tr>
           <tr><td>Procedure data</td><td><code>TaskPanel MyTaskPanelClass</code>, <code>TaskPanel:G LONG</code>, <code>TaskPanel:L LONG,DIM(8)</code></td></tr>
-          <tr><td><code>TakeEvent</code>, priority 2000</td><td><code>OF EVENT:OpenWindow</code> → <code>DO mtpBuild:TaskPanel</code>; <code>OF MTP:Event</code> → the <code>NextClick</code> loop and the <code>CASE</code>; <code>OF EVENT:AlertKey</code> → the show/hide key</td></tr>
+          <tr><td><code>TakeEvent</code>, priority 2000</td><td><code>OF EVENT:OpenWindow</code> → <code>DO mtpBuild:TaskPanel</code>; <code>OF MTP:Event</code> → the <code>NextClick</code> loop and the <code>CASE</code>; <code>OF MTP:Check</code> → <code>DO mtpCheck:TaskPanel</code>; <code>OF EVENT:AlertKey</code> → the show/hide key and the keyboard key</td></tr>
           <tr><td><code>Kill</code>, priority 4400</td><td><code>TaskPanel.Kill()</code></td></tr>
-          <tr><td>Procedure routines</td><td><code>mtpBuild:TaskPanel</code> — settings, groups, items, menu copy, <code>LoadState</code>, <code>ShowPanel</code></td></tr>
+          <tr><td>Procedure routines</td><td><code>mtpBuild:TaskPanel</code> — settings, groups, items, menu copy, <code>LoadState</code>, the conditions, <code>ShowPanel</code>; <code>mtpCheck:TaskPanel</code> — every Show/Enable only when</td></tr>
           <tr><td>Global</td><td><code>INCLUDE('MyTaskPanel.INC')</code>; the <code>MYTASKPANEL</code> class category; <code>_MTP_D2D_</code> for DirectX</td></tr>
         </table>
         <table><tr><th>Embed</th><th>Runs</th></tr>
@@ -938,13 +1006,14 @@ sub  LONG
           <tr><td>myTaskPanel - any item clicked, before its action</td><td>for every click; <code>TaskPanel.ClickTag</code> says which</td></tr>
           <tr><td>myTaskPanel → <i>group</i> → <i>item</i></td><td>after that item's action</td></tr>
           <tr><td>myTaskPanel - an item added in code was clicked</td><td>the <code>CASE</code>'s <code>ELSE</code></td></tr>
+          <tr><td>myTaskPanel - re-check conditions</td><td>at the end of <code>mtpCheck</code>: at open and on every <code>MTP:Check</code> — refresh badges, hide or enable items added in code</td></tr>
         </table></div>
       <div class="es"><h2>Código generado y embeds</h2>
         <table><tr><th>Dónde</th><th>Qué</th></tr>
           <tr><td>Datos del procedimiento</td><td><code>TaskPanel MyTaskPanelClass</code>, <code>TaskPanel:G LONG</code>, <code>TaskPanel:L LONG,DIM(8)</code></td></tr>
-          <tr><td><code>TakeEvent</code>, prioridad 2000</td><td><code>OF EVENT:OpenWindow</code> → <code>DO mtpBuild:TaskPanel</code>; <code>OF MTP:Event</code> → el bucle de <code>NextClick</code> y el <code>CASE</code>; <code>OF EVENT:AlertKey</code> → la tecla</td></tr>
+          <tr><td><code>TakeEvent</code>, prioridad 2000</td><td><code>OF EVENT:OpenWindow</code> → <code>DO mtpBuild:TaskPanel</code>; <code>OF MTP:Event</code> → el bucle de <code>NextClick</code> y el <code>CASE</code>; <code>OF MTP:Check</code> → <code>DO mtpCheck:TaskPanel</code>; <code>OF EVENT:AlertKey</code> → la tecla de mostrar/ocultar y la del teclado</td></tr>
           <tr><td><code>Kill</code>, prioridad 4400</td><td><code>TaskPanel.Kill()</code></td></tr>
-          <tr><td>Rutinas del procedimiento</td><td><code>mtpBuild:TaskPanel</code> — ajustes, grupos, elementos, copia del menú, <code>LoadState</code>, <code>ShowPanel</code></td></tr>
+          <tr><td>Rutinas del procedimiento</td><td><code>mtpBuild:TaskPanel</code> — ajustes, grupos, elementos, copia del menú, <code>LoadState</code>, las condiciones, <code>ShowPanel</code>; <code>mtpCheck:TaskPanel</code> — cada Show/Enable only when</td></tr>
           <tr><td>Global</td><td><code>INCLUDE('MyTaskPanel.INC')</code>; la categoría de clase <code>MYTASKPANEL</code>; <code>_MTP_D2D_</code> para DirectX</td></tr>
         </table>
         <table><tr><th>Embed</th><th>Corre</th></tr>
@@ -953,6 +1022,7 @@ sub  LONG
           <tr><td>myTaskPanel - any item clicked, before its action</td><td>en cada clic; <code>TaskPanel.ClickTag</code> dice cuál</td></tr>
           <tr><td>myTaskPanel → <i>grupo</i> → <i>elemento</i></td><td>después de la acción de ese elemento</td></tr>
           <tr><td>myTaskPanel - an item added in code was clicked</td><td>el <code>ELSE</code> del <code>CASE</code></td></tr>
+          <tr><td>myTaskPanel - re-check conditions</td><td>al final de <code>mtpCheck</code>: al abrir y en cada <code>MTP:Check</code> — actualizar insignias, ocultar o habilitar elementos agregados por código</td></tr>
         </table></div>
     </section>
 
@@ -973,16 +1043,16 @@ sub  LONG
     <section id="verify">
       <div class="en"><h2>How it was verified</h2>
         <table><tr><th>Check</th><th>Result</th></tr>
-          <tr><td><code>TaskPanelDemo.exe auto</code> and <code>TaskPanelDemoDX.exe auto engine=dx</code> — real Win32 messages at the panel, geometry read back with <code>GetWindowRect</code></td><td>11 / 11 on both engines: docked left (MDI client narrowed), docked right, floating (full width back), width 300, menu copied 3 levels deep with <i>Window</i> skipped, a real click arriving as its tag, a header click closing its group, the splitter dragged 300 → 360, the title dragged into the MDI area (floats), dropped at the right edge (docks), a copied menu row reaching <code>?BrCountries</code></td></tr>
+          <tr><td><code>TaskPanelDemo.exe auto</code> and <code>TaskPanelDemoDX.exe auto engine=dx</code> — real Win32 messages at the panel, geometry read back with <code>GetWindowRect</code></td><td>14 / 14 on both engines: docked left (MDI client narrowed), docked right, floating (full width back), width 300, menu copied 3 levels deep with <i>Window</i> skipped, a real click arriving as its tag, a header click closing its group, the splitter dragged 300 → 360, the title dragged into the MDI area (floats), dropped at the right edge (docks), a copied menu row reaching <code>?BrCountries</code>; the keyboard (focus taken, Home, Enter opens, Down, Left out, Left closes); a search for <i>cou</i> leaving 4 rows; <i>json</i> + Enter, posted through the <code>ACCEPT</code> loop, running <i>JSON</i> and giving the keyboard back</td></tr>
           <tr><td><code>… win auto</code> — the panel on an ordinary window</td><td>3 / 3: window grew by 190 and the form moved right by 190; floating restored both; docked right leaves the form in place</td></tr>
-          <tr><td><code>gen\build.sh</code> — a real ABC application imported from a TXA, generated by ClarionCL, compiled, run</td><td>clean generate, 0 compile errors; every action type, nested levels (a level-5 item clamped to 3), the copied menu, the key, a per-item embed; <code>_MTP_D2D_</code> and the category pragmas present in the generated project; the layout saved beside the program</td></tr>
+          <tr><td><code>gen\build.sh</code> — a real ABC application imported from a TXA, generated by ClarionCL, compiled, run</td><td>clean generate, 0 compile errors; every action type, nested levels (a level-5 item clamped to 3), the copied menu, the key, a per-item embed, Show/Enable only when on three items and a group (run: one item hidden, one greyed, the group gone); <code>_MTP_D2D_</code> and the category pragmas present in the generated project; the layout saved beside the program</td></tr>
           <tr><td><code>presets\build.sh</code> — a test copy of the template whose <code>#ATSTART</code> presses all twelve presets</td><td>every preset generates and compiles, including the application's browses/reports and the design-time menu copy</td></tr>
         </table></div>
       <div class="es"><h2>Cómo se verificó</h2>
         <table><tr><th>Prueba</th><th>Resultado</th></tr>
-          <tr><td><code>TaskPanelDemo.exe auto</code> y <code>TaskPanelDemoDX.exe auto engine=dx</code> — mensajes Win32 reales al panel, geometría leída con <code>GetWindowRect</code></td><td>11 / 11 en los dos motores: acoplado a la izquierda (cliente MDI angostado), a la derecha, flotante (ancho completo de vuelta), ancho 300, menú copiado con 3 niveles y <i>Window</i> omitido, un clic real que llega como su etiqueta, un clic en el encabezado que cierra el grupo, el borde arrastrado de 300 a 360, el título arrastrado al área MDI (flota), soltado en el borde derecho (se acopla), una fila copiada del menú que llega a <code>?BrCountries</code></td></tr>
+          <tr><td><code>TaskPanelDemo.exe auto</code> y <code>TaskPanelDemoDX.exe auto engine=dx</code> — mensajes Win32 reales al panel, geometría leída con <code>GetWindowRect</code></td><td>14 / 14 en los dos motores: acoplado a la izquierda (cliente MDI angostado), a la derecha, flotante (ancho completo de vuelta), ancho 300, menú copiado con 3 niveles y <i>Window</i> omitido, un clic real que llega como su etiqueta, un clic en el encabezado que cierra el grupo, el borde arrastrado de 300 a 360, el título arrastrado al área MDI (flota), soltado en el borde derecho (se acopla), una fila copiada del menú que llega a <code>?BrCountries</code>; el teclado (toma el foco, Inicio, Enter abre, Abajo, Izquierda sale, Izquierda cierra); buscar <i>cou</i> deja 4 filas; <i>json</i> + Enter, enviados por el bucle <code>ACCEPT</code>, ejecutan <i>JSON</i> y devuelven el teclado</td></tr>
           <tr><td><code>… win auto</code> — el panel en una ventana común</td><td>3 / 3: la ventana creció 190 y el formulario se corrió 190; flotar devolvió ambos; acoplado a la derecha el formulario queda en su lugar</td></tr>
-          <tr><td><code>gen\build.sh</code> — una aplicación ABC real importada de un TXA, generada con ClarionCL, compilada y ejecutada</td><td>generación limpia, 0 errores; cada tipo de acción, niveles anidados (un elemento de nivel 5 ajustado a 3), el menú copiado, la tecla, un embed por elemento; <code>_MTP_D2D_</code> y los pragmas de la categoría en el proyecto generado; el diseño guardado junto al programa</td></tr>
+          <tr><td><code>gen\build.sh</code> — una aplicación ABC real importada de un TXA, generada con ClarionCL, compilada y ejecutada</td><td>generación limpia, 0 errores; cada tipo de acción, niveles anidados (un elemento de nivel 5 ajustado a 3), el menú copiado, la tecla, un embed por elemento, Show/Enable only when en tres elementos y un grupo (al correr: un elemento oculto, uno atenuado, el grupo ausente); <code>_MTP_D2D_</code> y los pragmas de la categoría en el proyecto generado; el diseño guardado junto al programa</td></tr>
           <tr><td><code>presets\build.sh</code> — una copia de prueba de la plantilla cuyo <code>#ATSTART</code> pulsa los doce predefinidos</td><td>cada predefinido genera y compila, incluidos los browses/informes de la aplicación y la copia del menú en diseño</td></tr>
         </table>
         </div>

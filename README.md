@@ -1481,6 +1481,16 @@ cannot (`Effects`, on by default): soft shadows under the cards, glass headers, 
 that fades in and out, and a floating panel that turns see-through while the mouse is elsewhere
 (`FloatOpacity`). `ShowEngine` puts a "DirectX" / "GDI" badge in the corner, so you can see which is painting.
 
+**Search, keyboard, badges, conditions.** A search box under the title filters every group down to the
+matching actions as you type (case- and accent-insensitive, with the submenu each one lives in shown dimmed).
+F6 (the template's key) or `Focus()` gives the panel the keyboard: arrows, Enter, Left/Right to close and open,
+Esc and Tab to go back. `SetBadge(id, '12')` puts a count, a word or a dot on any row or group header. In the
+template every item has *Show only when* / *Enable only when* and every group *Show only when* - Clarion
+expressions re-checked each time the mouse enters the panel (the new `MTP:Check` event), so the panel follows
+your program's user rights.
+
+![Badges, search and keyboard](docs/myTaskPanel-search.png)
+
 **Speed:** `Benchmark(engine)` times a frame off screen. DirectX is the faster engine, even with the
 effects on: 1.74 ms a frame without effects and 1.86 ms with them, against 2.03 ms for GDI on the demo
 panel. The first version was 20-40 % *slower* than GDI. The demo's `diag` switch traced that to Direct2D
@@ -1494,12 +1504,12 @@ gradient brushes, which are expensive to make and were made on every call; cachi
 (`engine=gdi` forces GDI). The status bar names the engine in use. Other switches: `dock=left|right|float`,
 `theme=1..6`, `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
 on three MDI children, one closed midway), `fx=off`, `badge=off`, `bench` (times both engines into
-`TaskPanelBench.ini`), `diag` (where a DirectX frame's time goes), `auto` (the self-test). The toolbar's *Effects* button switches the effects on and off
+`TaskPanelBench.ini`), `diag` (where a DirectX frame's time goes), `auto` (the self-test), `search=text` and `keys` (the panel takes the keyboard). The toolbar's *Effects* button switches the effects on and off
 live, and *Speed test* times both engines and shows the result in a window.
 
 Verified: the demo's self-test (`examples/myTaskPanel`, `TaskPanelDemo.exe auto`) posts real mouse messages at
-the panel — **11/11 on both engines** (docking, MDI client geometry, splitter drag, drag-to-float, drop-to-dock,
-clicks, a copied menu row reaching its ITEM) plus **3/3** on an ordinary window; `gen/build.sh` generates and
+the panel — **14/14 on both engines** (docking, MDI client geometry, splitter drag, drag-to-float, drop-to-dock,
+clicks, a copied menu row reaching its ITEM, keyboard navigation, search, typing + Enter through the ACCEPT loop) plus **3/3** on an ordinary window; `gen/build.sh` generates and
 compiles a real ABC app from a TXA; `presets/build.sh` runs all twelve presets through the generator.
 Full documentation (EN/ES): [`docs/myTaskPanel-template.html`](docs/myTaskPanel-template.html).
 

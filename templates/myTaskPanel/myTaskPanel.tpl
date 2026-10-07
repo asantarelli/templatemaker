@@ -404,6 +404,7 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #PROMPT('Starts &hidden',CHECK),%mtpHidden,DEFAULT(0)
       #PROMPT('&Grow the window by the panel''s width (not on a frame)',CHECK),%mtpGrow,DEFAULT(1)
     #ENDBOXED
+    #PROMPT('A &search box under the title',CHECK),%mtpSearch,DEFAULT(1),AT(10)
   #ENDTAB
   #TAB('&User')
     #BOXED('What the user may do')
@@ -413,6 +414,8 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #PROMPT('&Resize it (drag the inner edge)',CHECK),%mtpAllowResize,DEFAULT(1)
       #PROMPT('Show / hide it with &key:',@s20),%mtpToggleKey,DEFAULT('')
       #DISPLAY('A Clarion key code such as F12Key. Blank: none.')
+      #PROMPT('Move the &keyboard into it with:',@s20),%mtpFocusKey,DEFAULT('F6Key')
+      #DISPLAY('Then arrows, Enter, typing searches, Esc goes back.')
     #ENDBOXED
   #ENDTAB
   #TAB('G&roups')
@@ -425,6 +428,7 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #PROMPT('Starts &open',CHECK),%mtpGroupOpen,DEFAULT(1)
       #PROMPT('&Accent header (stands out)',CHECK),%mtpGroupSpecial,DEFAULT(0)
       #PROMPT('Starts &hidden',CHECK),%mtpGroupHidden,DEFAULT(0)
+      #PROMPT('Show only &when:',@s200),%mtpGroupShowIf,DEFAULT('')
       #BUTTON('&Items in this group'),MULTI(%mtpItems,SUB('. . . . . . . . . . . . ',1,%mtpItemLevel * 2) & CHOOSE(%mtpItemKind = 'Separator','------------',%mtpItemText) & CHOOSE(%mtpItemKind = 'Label','   (label)','')),INLINE
         #SHEET
           #TAB('&Item')
@@ -469,6 +473,12 @@ INCLUDE('MyTaskPanel.INC'),ONCE
             #PROMPT('Starts &disabled',CHECK),%mtpItemDisabled,DEFAULT(0)
             #PROMPT('Starts &hidden',CHECK),%mtpItemHidden,DEFAULT(0)
             #PROMPT('&Bold',CHECK),%mtpItemBold,DEFAULT(0)
+            #BOXED('Conditions (Clarion expressions; blank = always)')
+              #PROMPT('Show only &when:',@s200),%mtpItemShowIf,DEFAULT('')
+              #PROMPT('&Enable only when:',@s200),%mtpItemEnableIf,DEFAULT('')
+              #DISPLAY('Checked when the window opens, and again each time')
+              #DISPLAY('the mouse enters the panel or the panel takes the keyboard.')
+            #ENDBOXED
           #ENDTAB
         #ENDSHEET
       #ENDBUTTON
@@ -572,6 +582,8 @@ INCLUDE('MyTaskPanel.INC'),ONCE
   CASE EVENT()
   OF EVENT:OpenWindow
     DO mtpBuild:%mtpObject                                ! myTaskPanel: build and show the panel
+  OF MTP:Check                                            ! myTaskPanel: mouse in / keyboard in
+    DO mtpCheck:%mtpObject
   OF MTP:Event                                            ! myTaskPanel: an item was clicked
     LOOP WHILE %mtpObject.NextClick()
       #EMBED(%mtpBeforeClick,'myTaskPanel - any item clicked, before its action')
@@ -621,9 +633,17 @@ INCLUDE('MyTaskPanel.INC'),ONCE
         #EMBED(%mtpOtherClick,'myTaskPanel - an item added in code was clicked')
       END
     END
-  #IF(%mtpToggleKey <> '')
+  #IF(%mtpToggleKey <> '' OR %mtpFocusKey <> '')
   OF EVENT:AlertKey
+    #IF(%mtpToggleKey <> '')
     IF KEYCODE() = %mtpToggleKey THEN %mtpObject.TogglePanel().
+    #ENDIF
+    #IF(%mtpFocusKey <> '')
+    IF KEYCODE() = %mtpFocusKey                           ! myTaskPanel: the keyboard into the panel
+      IF ~%mtpObject.IsVisible() THEN %mtpObject.ShowPanel().
+      %mtpObject.Focus()
+    END
+    #ENDIF
   #ENDIF
   END
 #ENDAT
@@ -638,6 +658,7 @@ INCLUDE('MyTaskPanel.INC'),ONCE
 !-----------------------------------------------------------------------------
 mtpBuild:%mtpObject ROUTINE
   %mtpObject.Init(%Window, %mtpEngineEq)
+  %mtpObject.ShowSearch = %mtpSearch
   %mtpObject.SetTheme(%mtpThemeEq)
   #IF(VAREXISTS(%mtpgUseAccent))
     #IF(%mtpgUseAccent)
@@ -759,10 +780,46 @@ mtpBuild:%mtpObject ROUTINE
   #ENDIF
   #EMBED(%mtpAfterBuild,'myTaskPanel - after the groups are added, before it shows')
   %mtpObject.LoadState()
+  DO mtpCheck:%mtpObject
   #IF(%mtpToggleKey <> '')
   ALERT(%mtpToggleKey)
+  #ENDIF
+  #IF(%mtpFocusKey <> '')
+  ALERT(%mtpFocusKey)
   #ENDIF
   #IF(%mtpHidden = 0)
   %mtpObject.ShowPanel()
   #ENDIF
+!-----------------------------------------------------------------------------
+!  myTaskPanel - the Show only when / Enable only when conditions. Runs at
+!  open and on MTP:Check (the mouse came into the panel, or it took the
+!  keyboard), so a change in the program shows the next time it is used.
+!-----------------------------------------------------------------------------
+mtpCheck:%mtpObject ROUTINE
+  #FOR(%mtpGroups)
+    #IF(%mtpGroupShowIf <> '')
+  IF %mtpGroupShowIf                                      ! group %mtpGroupText
+    %mtpObject.SetHidden(%mtpObject.FindText('%(QUOTE(%mtpGroupText))', 0), 0)
+  ELSE
+    %mtpObject.SetHidden(%mtpObject.FindText('%(QUOTE(%mtpGroupText))', 0), 1)
+  END
+    #ENDIF
+    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item')
+      #IF(%mtpItemShowIf <> '')
+  IF %mtpItemShowIf                                       ! %mtpItemText
+    %mtpObject.SetHidden(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), 0)
+  ELSE
+    %mtpObject.SetHidden(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), 1)
+  END
+      #ENDIF
+      #IF(%mtpItemEnableIf <> '')
+  IF %mtpItemEnableIf                                     ! %mtpItemText
+    %mtpObject.SetEnabled(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), 1)
+  ELSE
+    %mtpObject.SetEnabled(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), 0)
+  END
+      #ENDIF
+    #ENDFOR
+  #ENDFOR
+  #EMBED(%mtpCheck,'myTaskPanel - re-check conditions (SetHidden, SetEnabled, SetBadge)')
 #ENDAT

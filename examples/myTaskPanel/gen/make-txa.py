@@ -44,6 +44,12 @@ GROUPS = [
     ]),
 ]
 
+# conditions (Show only when / Enable only when): one shown, one hidden, one disabled, one group hidden
+GROUPS[0][4][0]['showif'] = 'TODAY() > 0'
+GROUPS[0][4][1]['showif'] = 'TODAY() < 0'
+GROUPS[0][4][2]['enableif'] = 'CLOCK() < 0'
+GROUP_SHOWIF = ['', '', '', 'TODAY() < 0'] + [''] * 20
+
 def prompts_groups():
     L = []
     n = len(GROUPS)
@@ -61,6 +67,8 @@ def prompts_groups():
     for i in range(n): L.append(f"WHEN  ({i + 1}) ('')")
     L.append(f'%mtpGroupHidden DEPEND %mtpGroups LONG TIMES {n}')
     for i in range(n): L.append(f"WHEN  ({i + 1}) (0)")
+    L.append(f'%mtpGroupShowIf DEPEND %mtpGroups DEFAULT TIMES {n}')
+    for i in range(n): L.append(f"WHEN  ({i + 1}) ('{q(GROUP_SHOWIF[i])}')")
     L.append(f'%mtpItems DEPEND %mtpGroups MULTI LONG TIMES {n}')
     for i, grp in enumerate(GROUPS):
         L.append(f"WHEN  ({i + 1}) ({', '.join(str(k + 1) for k in range(len(grp[4])))})")
@@ -90,6 +98,8 @@ def prompts_groups():
     it('%mtpItemDisabled', 'LONG', 'disabled', 0, str)
     it('%mtpItemHidden', 'LONG', 'hidden', 0, str)
     it('%mtpItemBold', 'LONG', 'bold', 0, str)
+    it('%mtpItemShowIf', 'DEFAULT', 'showif', '', s)
+    it('%mtpItemEnableIf', 'DEFAULT', 'enableif', '', s)
     return L
 
 out = []
@@ -129,6 +139,8 @@ w('%mtpAllowDock LONG  (1)')
 w('%mtpAllowClose LONG  (1)')
 w('%mtpAllowResize LONG  (1)')
 w("%mtpToggleKey DEFAULT  ('F12Key')")
+w("%mtpFocusKey DEFAULT  ('F6Key')")
+w('%mtpSearch LONG  (1)')
 out += prompts_groups()
 w("%mtpPreset DEFAULT  ('Catalogs')")
 w('%mtpMirror LONG  (1)')

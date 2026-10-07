@@ -16,6 +16,8 @@
 !    shot                       keep still for an external screenshot (no auto)
 !    fx=off                     DirectX without the effects (shadows, glass, fades)
 !    badge=off                  hide the engine badge
+!    search=text                type text into the panel's search box (keyboard in the panel)
+!    keys                       give the panel the keyboard
 !    bench                      time both engines, write TaskPanelBench.ini, exit
 !    diag                       where a DirectX frame's time goes: TaskPanelDiag.ini, exit
 ! ============================================================================
@@ -44,6 +46,8 @@ d_SendMessage          PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('Sen
 d_GetMenu              PROCEDURE(LONG),LONG,PASCAL,NAME('GetMenu')
 d_SetCursorPos         PROCEDURE(LONG,LONG),LONG,PASCAL,PROC,NAME('SetCursorPos')
 d_ClientToScreen       PROCEDURE(LONG,LONG),LONG,PASCAL,PROC,NAME('ClientToScreen')
+d_GetFocus             PROCEDURE(),LONG,PASCAL,NAME('GetFocus')
+d_PostMessage          PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('PostMessageA')
     END
   END
 
@@ -58,6 +62,7 @@ UsingD2D               PROCEDURE(),BYTE
 DragState              PROCEDURE(),LONG
 HitAt                  PROCEDURE(LONG x, LONG y),LONG
 DoDiag                 PROCEDURE(LONG what, LONG value),LONG,PROC
+KeyRow                 PROCEDURE(),LONG
                      END
 
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
@@ -92,6 +97,9 @@ TestPanel.RowCount PROCEDURE
 TestPanel.UsingD2D PROCEDURE
   CODE
   RETURN SELF.EngineInUse()
+TestPanel.KeyRow PROCEDURE
+  CODE
+  RETURN SELF.KeyId
 TestPanel.DoDiag PROCEDURE(LONG what, LONG value)
   CODE
   RETURN SELF.Diag(what, value)
@@ -221,6 +229,9 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       TP.AddItem(more, CHOOSE(Arg('lang') = 'es', 'Ciudades', 'Cities'), , 'cities')
       TP.AddItem(more, CHOOSE(Arg('lang') = 'es', 'C<243>digos postales', 'Zip codes'), , 'zip')
       TP.Expand(geo)
+      TP.SetBadge(TP.FindTag('cust'), '12')            ! badges: a count, a word, a dot
+      TP.SetBadge(TP.FindTag('supp'), '*', COLOR:Red)
+      TP.SetBadge(gCat, '3')
 
       gExp = TP.AddGroup(CHOOSE(Arg('lang') = 'es', 'Exportar', 'Exports'), 'export')
       TP.AddItem(gExp, 'Excel (.xlsx)', 'excel', 'x_xlsx')
@@ -230,6 +241,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       TP.AddSeparator(gExp)
       TP.AddItem(gExp, 'XML', 'xml', 'x_xml')
       TP.AddItem(gExp, 'JSON', 'json', 'x_json')
+      TP.SetBadge(TP.FindTag('x_xlsx'), CHOOSE(Arg('lang') = 'es', 'nuevo', 'new'), 0308A2Dh)
 
       gRep = TP.AddGroup(CHOOSE(Arg('lang') = 'es', 'Informes', 'Reports'), 'report')
       TP.AddItem(gRep, CHOOSE(Arg('lang') = 'es', 'Ventas por mes', 'Sales by month'), 'chart', 'r_sales')
@@ -263,6 +275,11 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       END
       TP.ShowPanel()
       AppFrame{PROP:StatusText, 2} = CHOOSE(Arg('lang') = 'es', 'Motor: ', 'Engine: ') & CHOOSE(TP.UsingD2D() = MTP:DirectX, 'DirectX', 'Clarion (GDI)')
+      IF Arg('search')                                 ! the keyboard in the panel, a search typed
+        TP.Focus()
+        TP.SetSearch(Arg('search'))
+      END
+      IF Arg('keys') THEN TP.Focus().                  ! the keyboard in the panel, no search
       IF Arg('flyout') THEN 0{PROP:Timer} = 60.          ! open a submenu as a pop-up, for a screenshot
       IF Arg('mt')                                     ! three child panels on three threads
         MtT1 = START(BrowseWin, 25000, 'Customers')
@@ -304,6 +321,9 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
         IF GETINI('t10', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
           PUTINI('t10', 'result', 'FAIL: the menu ITEM was not accepted', LONGPATH() & '\TaskPanelTest.ini')
         END
+        IF GETINI('t13', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
+          PUTINI('t13', 'result', 'FAIL: typing json + Enter ran nothing (search "' & TP.GetSearch() & '")', LONGPATH() & '\TaskPanelTest.ini')
+        END
         POST(EVENT:CloseWindow)
       END
     OF MTP:Event
@@ -311,7 +331,11 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       LOOP WHILE TP.NextClick()
         Clicks += 1
         IF Arg('auto')
-          PUTINI('t6', 'result', CHOOSE(TP.ClickTag = 'cust', 'pass: real click arrived as tag ', 'FAIL: tag ') & TP.ClickTag, LONGPATH() & '\TaskPanelTest.ini')
+          IF TP.ClickTag = 'x_json'                    ! t13: typed "json" + Enter, through the ACCEPT loop
+            PUTINI('t13', 'result', CHOOSE(d_GetFocus() <> TP.GetDockHwnd(), 'pass: typed json + Enter ran x_json, keyboard given back', 'FAIL: ran x_json but kept the keyboard'), LONGPATH() & '\TaskPanelTest.ini')
+          ELSE
+            PUTINI('t6', 'result', CHOOSE(TP.ClickTag = 'cust', 'pass: real click arrived as tag ', 'FAIL: tag ') & TP.ClickTag, LONGPATH() & '\TaskPanelTest.ini')
+          END
           CYCLE
         END
         LastClick = TP.ClickTag
@@ -400,6 +424,11 @@ y       LONG
 id      LONG
 before  LONG
 dragAfterDown LONG
+gCat    LONG
+k1      LONG
+k2      LONG
+k3      LONG
+o1      BYTE
   CODE
   ini = LONGPATH() & '\TaskPanelTest.ini'
   REMOVE(ini)
@@ -539,6 +568,46 @@ dragAfterDown LONG
   d_SendMessage(TP.GetDockHwnd(), 0201h, 1, y * 65536 + 80)
   d_SendMessage(TP.GetDockHwnd(), 0202h, 0, y * 65536 + 80)
   PUTINI('t10', 'row y', y, ini)
+
+  ! 14. the keyboard: Focus, Home, Enter opens, Down, Left out, Left closes
+  TP.ExpandAll(0)
+  TP.Focus()
+  gCat = TP.FindText('Catalogs', 0)
+  d_SendMessage(TP.GetDockHwnd(), 0100h, 24h, 0)        ! Home
+  k1 = TP.KeyRow()
+  d_SendMessage(TP.GetDockHwnd(), 0100h, 0Dh, 0)        ! Enter: opens Catalogs
+  o1 = TP.IsExpanded(gCat)
+  d_SendMessage(TP.GetDockHwnd(), 0100h, 28h, 0)        ! Down: Customers
+  k2 = TP.KeyRow()
+  d_SendMessage(TP.GetDockHwnd(), 0100h, 25h, 0)        ! Left: back to the group
+  k3 = TP.KeyRow()
+  d_SendMessage(TP.GetDockHwnd(), 0100h, 25h, 0)        ! Left: closes it
+  IF d_GetFocus() = TP.GetDockHwnd() AND k1 = gCat AND o1 AND k2 = TP.FindTag('cust') AND k3 = gCat AND ~TP.IsExpanded(gCat)
+    PUTINI('t14', 'result', 'pass: focus taken; Home, Enter opened, Down, Left out, Left closed', ini)
+  ELSE
+    PUTINI('t14', 'result', 'FAIL focus=' & CHOOSE(d_GetFocus() = TP.GetDockHwnd(), 'yes', 'no') & ' k1=' & k1 & '/' & gCat & ' open=' & o1 & ' k2=' & k2 & ' k3=' & k3, ini)
+    fails += 1
+  END
+
+  ! 15. search: rows filtered to the matches, the keyboard on the first
+  TP.SetSearch('cou')
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  n = TP.RowCount()
+  IF TP.RowY(TP.FindText('Countries', TP.FindText('Geography', TP.FindText('Browse')))) > 0 AND TP.KeyRow() <> 0 AND n <= 4
+    PUTINI('t15', 'result', 'pass: "cou" leaves ' & n & ' rows, Countries among them, keyboard on a match', ini)
+  ELSE
+    PUTINI('t15', 'result', 'FAIL rows=' & n & ' key=' & TP.KeyRow(), ini)
+    fails += 1
+  END
+  TP.SetSearch('')
+
+  ! 13. type "json" + Enter, POSTED, so they go through the ACCEPT loop (checked on MTP:Event)
+  TP.Focus()
+  d_PostMessage(TP.GetDockHwnd(), 0102h, VAL('j'), 0)
+  d_PostMessage(TP.GetDockHwnd(), 0102h, VAL('s'), 0)
+  d_PostMessage(TP.GetDockHwnd(), 0102h, VAL('o'), 0)
+  d_PostMessage(TP.GetDockHwnd(), 0102h, VAL('n'), 0)
+  d_PostMessage(TP.GetDockHwnd(), 0100h, 0Dh, 0)
 
   ! 8. engine
   PUTINI('t8', 'engine', CHOOSE(TP.UsingD2D() = MTP:DirectX, 'DirectX', 'Clarion'), ini)

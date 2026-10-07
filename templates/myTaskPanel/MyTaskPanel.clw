@@ -108,6 +108,9 @@ mtp_ExtSelectClipRgn   PROCEDURE(LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('ExtSelec
 mtp_SetLayeredAttr     PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('SetLayeredWindowAttributes')
 mtp_QPCounter          PROCEDURE(LONG),LONG,PASCAL,PROC,NAME('QueryPerformanceCounter')
 mtp_QPFrequency        PROCEDURE(LONG),LONG,PASCAL,PROC,NAME('QueryPerformanceFrequency')
+mtp_GetFocus           PROCEDURE(),LONG,PASCAL,NAME('GetFocus')
+mtp_SetFocus           PROCEDURE(LONG),LONG,PASCAL,PROC,NAME('SetFocus')
+mtp_GetTextExtent      PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('GetTextExtentPoint32A')
     END
     COMPILE('ENDD2D',_MTP_D2D_)
     MODULE('mtpd2d.c')
@@ -268,6 +271,7 @@ MyTaskPanelClass.Construct PROCEDURE
   SELF.GrowHost     = 1
   SELF.AutoGlyphs   = 1
   SELF.Effects      = 1
+  SELF.ShowSearch   = 1
   SELF.FloatOpacity = 88
   SELF.HoverT       = 1
   SELF.FontName     = 'Segoe UI'
@@ -353,6 +357,7 @@ MyTaskPanelClass.ShowPanel PROCEDURE
 
 MyTaskPanelClass.HidePanel PROCEDURE
   CODE
+  IF SELF.HasFocus THEN SELF.LeaveFocus().
   SELF.Visible = 0
   IF SELF.DockHwnd THEN mtp_ShowWindow(SELF.DockHwnd, 0).
   IF SELF.FloatHwnd THEN mtp_ShowWindow(SELF.FloatHwnd, 0).
@@ -1928,6 +1933,9 @@ th                     LONG
       SELF.StepAnim()
     OF 4
       SELF.StepFade()
+    OF 5                                        ! the search box's caret
+      SELF.CaretOn = 1 - SELF.CaretOn
+      SELF.Invalidate()
     OF 3                                        ! keep the real menu off while the frame settles
       IF SELF.HideMenu AND mtp_GetMenu(SELF.HostHwnd)
         mtp_SetMenu(SELF.HostHwnd, 0)
@@ -1946,7 +1954,9 @@ th                     LONG
       hit = SELF.HitTest(pt.PX, pt.PY, floating)
       IF hit = -4
         mtp_SetCursor(mtp_LoadCursor(0, 32644))  ! IDC_SIZEWE
-      ELSIF hit > 0 OR hit = -2 OR hit = -3
+      ELSIF hit = -6
+        mtp_SetCursor(mtp_LoadCursor(0, 32513))  ! IDC_IBEAM
+      ELSIF hit > 0 OR hit = -2 OR hit = -3 OR hit = -7
         mtp_SetCursor(mtp_LoadCursor(0, 32649))  ! IDC_HAND
       ELSE
         mtp_SetCursor(mtp_LoadCursor(0, 32512))  ! IDC_ARROW
@@ -1962,6 +1972,7 @@ th                     LONG
       SELF.SyncMirror()
       mtp_SetTimer(hwnd, 1, 150, 0)
       IF floating THEN SELF.SetFloatAlpha(1).
+      POST(MTP:Check, , SELF.HostThread)        ! the template re-checks its Show/Enable conditions
     END
     CASE SELF.Drag
     OF 1                                        ! the splitter
@@ -2009,6 +2020,11 @@ th                     LONG
       SELF.DragY = y
       SELF.DragV = SELF.ScrollY
       mtp_SetCapture(hwnd)
+    OF -6                                       ! the search box
+      SELF.Focus()
+    OF -7                                       ! its clear button
+      SELF.SetSearch('')
+      SELF.Focus()
     ELSE
       SELF.Pressed = hit
       SELF.Invalidate()
@@ -2033,7 +2049,10 @@ th                     LONG
       OF -3
         SELF.HidePanel()
       ELSE
-        IF hit > 0 THEN SELF.OnClickRow(hit, hwnd).
+        IF hit > 0
+          SELF.KeyId = hit
+          SELF.OnClickRow(hit, hwnd)
+        END
       END
     END
     SELF.Pressed = 0
@@ -2049,6 +2068,29 @@ th                     LONG
     SELF.ScrollY -= d * SELF.Px(SELF.ItemHeight) * 3 / 120
     IF SELF.ScrollY < 0 THEN SELF.ScrollY = 0.
     SELF.Invalidate()
+    handled = 1
+    RETURN 0
+  OF 0007h                                      ! WM_SETFOCUS: the keyboard is ours
+    SELF.HasFocus = 1
+    SELF.CaretOn = 1
+    mtp_SetTimer(hwnd, 5, 530, 0)
+    IF ~SELF.KeyId THEN SELF.MoveKey(1).
+    POST(MTP:Check, , SELF.HostThread)
+    SELF.Invalidate()
+  OF 0008h                                      ! WM_KILLFOCUS
+    SELF.HasFocus = 0
+    mtp_KillTimer(hwnd, 5)
+    SELF.Invalidate()
+  OF 0087h                                      ! WM_GETDLGCODE: arrows, Tab and Enter come to us,
+    handled = 1                                 ! not to the host's dialog navigation
+    RETURN 4                                    ! DLGC_WANTALLKEYS
+  OF 0100h                                      ! WM_KEYDOWN
+    IF SELF.KeyDown(hwnd, wp)
+      handled = 1
+      RETURN 0
+    END
+  OF 0102h                                      ! WM_CHAR: typing searches
+    SELF.KeyChar(wp)
     handled = 1
     RETURN 0
   OF 0082h                                      ! WM_NCDESTROY
@@ -2090,6 +2132,7 @@ on                     BYTE
     END
     RETURN
   END
+  IF CLIP(SELF.Search) <> '' THEN SELF.SetSearch('').
   SELF.Click(id)
 
 MyTaskPanelClass.OptionsMenu PROCEDURE(LONG hwnd)
@@ -2138,6 +2181,7 @@ t6                     CSTRING(64)
 
 !  A submenu as a real pop-up menu, nested to any depth.
 MyTaskPanelClass.FlyoutMenu PROCEDURE(LONG id, LONG hwnd)
+i                      LONG
 m                      LONG
 pt                     GROUP
 PX                       LONG
@@ -2148,6 +2192,17 @@ cmd                    LONG
   m = SELF.BuildMenu(id)
   IF ~m THEN RETURN.
   mtp_GetCursorPos(ADDRESS(pt))
+  IF SELF.HasFocus AND SELF.KeyId = id          ! opened from the keyboard: beside its row
+    LOOP i = 1 TO RECORDS(SELF.Rows)
+      GET(SELF.Rows, i)
+      IF SELF.Rows.Id = id
+        pt.PX = SELF.ViewW - SELF.Px(8)
+        pt.PY = SELF.Rows.Y
+        mtp_ClientToScreen(hwnd, ADDRESS(pt))
+        BREAK
+      END
+    END
+  END
   cmd = mtp_TrackPopupMenu(m, 0182h, pt.PX, pt.PY, 0, hwnd, 0)
   mtp_DestroyMenu(m)
   IF cmd > 0 THEN SELF.Click(cmd).
@@ -2282,8 +2337,12 @@ hdr                    LONG
 yy                     LONG
 maxS                   LONG
 pass                   LONG
+searching              BYTE
+found                  LONG
   CODE
-  top = CHOOSE(floating = 1, 0, SELF.Px(30))
+  top = SELF.ContentTop(floating)
+  searching = CHOOSE(CLIP(SELF.Search) <> '', 1, 0)
+  IF searching THEN SELF.UpdateMatches().
   SELF.ViewH = h - top
   SELF.ViewW = w
   LOOP pass = 1 TO 2
@@ -2294,6 +2353,11 @@ pass                   LONG
       IF SELF.Items.Parent <> 0 OR SELF.Items.Kind <> MTP:Group OR SELF.Items.Hidden THEN CYCLE.
       id  = SELF.Items.Id
       rev = SELF.Items.Reveal
+      IF searching                              ! only groups with a match, opened, matches only
+        found = SELF.CountMatches(id)
+        IF ~found THEN CYCLE.
+        rev = 1
+      END
       CLEAR(SELF.Rows)
       SELF.Rows.Id    = id
       SELF.Rows.Kind  = MTP:Group
@@ -2304,12 +2368,20 @@ pass                   LONG
       ADD(SELF.Rows)
       hdr = RECORDS(SELF.Rows)
       y += SELF.Px(SELF.HeaderHeight)
-      body = SELF.KidsHeight(id)
-      IF body > 0 THEN body += SELF.Px(12).
+      IF searching
+        body = found * SELF.Px(SELF.ItemHeight) + SELF.Px(12)
+      ELSE
+        body = SELF.KidsHeight(id)
+        IF body > 0 THEN body += SELF.Px(12).
+      END
       shown = INT(body * rev + 0.5)
       IF shown > 0
         yy = y + SELF.Px(6)
-        SELF.AddRows(id, 0, yy, y, y + shown)
+        IF searching
+          SELF.SearchRows(id, yy, y, y + shown)
+        ELSE
+          SELF.AddRows(id, 0, yy, y, y + shown)
+        END
       END
       GET(SELF.Rows, hdr)
       SELF.Rows.BodyH = shown
@@ -2338,19 +2410,26 @@ MyTaskPanelClass.HitTest PROCEDURE(LONG x, LONG y, BYTE floating)
 i                      LONG
 w                      LONG
 top                    LONG
+th                     LONG
 r                      LIKE(MTP_Rect)
   CODE
   mtp_GetClientRect(CHOOSE(floating = 1, SELF.FloatHwnd, SELF.DockHwnd), ADDRESS(r))
   w = r.X2
-  top = CHOOSE(floating = 1, 0, SELF.Px(30))
+  th  = SELF.TitleH(floating)
+  top = SELF.ContentTop(floating)
   IF ~floating AND SELF.AllowResize
     IF SELF.DockSide = MTP:Left AND x >= w - SELF.Px(4) THEN RETURN -4.
     IF SELF.DockSide = MTP:Right AND x < SELF.Px(4) THEN RETURN -4.
   END
-  IF ~floating AND y < top
+  IF ~floating AND y < th
     IF x >= w - SELF.Px(56) AND x < w - SELF.Px(32) THEN RETURN -2.
     IF SELF.AllowClose AND x >= w - SELF.Px(30) AND x < w - SELF.Px(6) THEN RETURN -3.
     RETURN -1
+  END
+  IF y < top                                    ! the search band
+    IF x < SELF.Px(8) OR x >= w - SELF.Px(8) THEN RETURN 0.
+    IF CLIP(SELF.Search) <> '' AND x >= w - SELF.Px(32) THEN RETURN -7.
+    RETURN -6
   END
   IF SELF.ContentH > SELF.ViewH AND x >= w - SELF.Px(12) AND x < w - SELF.Px(4) AND y >= top THEN RETURN -5.
   IF x < SELF.Px(6) OR x > w - SELF.Px(6) THEN RETURN 0.
@@ -2455,13 +2534,17 @@ c                      LONG
   IF RECORDS(SELF.Rows) THEN SELF.PUnclip().    ! DrawGroup leaves its card clip open
   ! ---- scroll thumb ----
   IF sbw
-    th = CHOOSE(floating = 1, 0, SELF.Px(30))
+    th = SELF.ContentTop(floating)
     thumbH = SELF.ViewH * SELF.ViewH / SELF.ContentH
     IF thumbH < SELF.Px(24) THEN thumbH = SELF.Px(24).
     thumbY = th + SELF.ScrollY * (SELF.ViewH - thumbH) / (SELF.ContentH - SELF.ViewH)
     c = CHOOSE(SELF.Hover = -5 OR SELF.Drag = 3, SELF.ClrTextDim, SELF.Mix(SELF.ClrTextDim, SELF.ClrBack, 0.45))
     SELF.PRound(w - SELF.Px(11), thumbY + SELF.Px(2), SELF.Px(5), thumbH - SELF.Px(4), SELF.Px(2.5), c)
   END
+  IF CLIP(SELF.Search) <> '' AND RECORDS(SELF.Rows) = 0
+    SELF.PText(SELF.Px(12), SELF.ContentTop(floating) + SELF.Px(14), w - SELF.Px(24), SELF.Px(24), SELF.Txt('No matches', 'Sin resultados'), SELF.ClrTextDim, 0, 1)
+  END
+  IF SELF.ShowSearch THEN SELF.DrawSearch(w, floating).
   ! ---- the title strip (docked only: a floating panel has a real caption) ----
   IF ~floating
     th = SELF.Px(30)
@@ -2501,6 +2584,412 @@ t                      REAL
   END
   ! ENDD2D
   IF SELF.Hover = id THEN SELF.PRound(btx, bty, bs, bs, SELF.Px(4), SELF.Mix(SELF.ClrTitle1, SELF.ClrTitleText, 0.18)).
+
+! ============================================================================
+!  Keyboard and search. Focus() (or a click in the search box) gives the
+!  panel the keyboard: arrows move, Enter runs, Right/Left open and close,
+!  typing filters every group down to the matching actions, Esc clears the
+!  search and then gives the keyboard back, Tab gives it back at once.
+! ============================================================================
+MyTaskPanelClass.CurHwnd PROCEDURE
+  CODE
+  RETURN CHOOSE(SELF.DockSide = MTP:Float, SELF.FloatHwnd, SELF.DockHwnd)
+
+MyTaskPanelClass.TitleH PROCEDURE(BYTE floating)
+  CODE
+  RETURN CHOOSE(floating = 1, 0, SELF.Px(30))
+
+MyTaskPanelClass.ContentTop PROCEDURE(BYTE floating)
+  CODE
+  RETURN SELF.TitleH(floating) + CHOOSE(SELF.ShowSearch = 1, SELF.Px(36), 0)
+
+MyTaskPanelClass.HasKeyboard PROCEDURE
+  CODE
+  RETURN SELF.HasFocus
+
+MyTaskPanelClass.Focus PROCEDURE
+h                      LONG
+f                      LONG
+  CODE
+  h = SELF.CurHwnd()
+  IF ~h OR ~SELF.Visible THEN RETURN.
+  f = mtp_GetFocus()
+  IF f <> h THEN SELF.PrevFocus = f.
+  mtp_SetFocus(h)
+
+MyTaskPanelClass.LeaveFocus PROCEDURE
+  CODE
+  IF SELF.PrevFocus AND mtp_IsWindow(SELF.PrevFocus) AND SELF.PrevFocus <> SELF.CurHwnd()
+    mtp_SetFocus(SELF.PrevFocus)
+  ELSE
+    mtp_SetFocus(SELF.HostHwnd)
+  END
+  SELF.PrevFocus = 0
+
+MyTaskPanelClass.SetSearch PROCEDURE(STRING txt)
+  CODE
+  SELF.Search  = txt
+  SELF.ScrollY = 0
+  SELF.KeyId   = 0
+  SELF.CaretOn = 1
+  IF CLIP(SELF.Search) <> '' THEN SELF.MoveKey(1).      ! the keyboard starts on the first match
+  SELF.Invalidate()
+
+MyTaskPanelClass.GetSearch PROCEDURE
+  CODE
+  RETURN SELF.Search
+
+MyTaskPanelClass.KeyDown PROCEDURE(LONG hwnd, LONG vk)
+id                     LONG
+kind                   BYTE
+kids                   BYTE
+leaf                   BYTE
+searching              BYTE
+  CODE
+  searching = CHOOSE(CLIP(SELF.Search) <> '', 1, 0)
+  id = SELF.KeyId
+  IF id
+    SELF.Items.Id = id
+    GET(SELF.Items, SELF.Items.Id)
+    IF ERRORCODE()
+      id = 0
+    ELSE
+      kind = SELF.Items.Kind
+      kids = SELF.HasKids(id)
+    END
+  END
+  CASE vk
+  OF 26h ; SELF.MoveKey(-1)                     ! Up
+  OF 28h ; SELF.MoveKey(1)                      ! Down
+  OF 21h ; SELF.MoveKey(-8)                     ! Page Up
+  OF 22h ; SELF.MoveKey(8)                      ! Page Down
+  OF 24h                                        ! Home
+    SELF.KeyId = 0
+    SELF.MoveKey(1)
+  OF 23h                                        ! End
+    SELF.KeyId = 0
+    SELF.MoveKey(-1)
+  OF 0Dh                                        ! Enter: what a click would do
+    IF ~id
+      SELF.MoveKey(1)
+      RETURN 1
+    END
+    leaf = CHOOSE(kind = MTP:Item AND ~kids, 1, 0)
+    SELF.OnClickRow(id, hwnd)
+    IF leaf THEN SELF.LeaveFocus().             ! an action ran: back to the program
+  OF 27h                                        ! Right: open, or step into what is open
+    IF ~id OR searching THEN RETURN 1.
+    IF kind = MTP:Group OR kids
+      IF kind = MTP:Item AND SELF.SubStyle = MTP:Flyout
+        SELF.FlyoutMenu(id, hwnd)
+      ELSIF ~SELF.Items.Expanded
+        SELF.Expand(id, 1)
+      ELSE
+        SELF.MoveKey(1)
+      END
+    END
+  OF 25h                                        ! Left: close, or step out to the parent
+    IF ~id OR searching THEN RETURN 1.
+    IF (kind = MTP:Group OR kids) AND SELF.Items.Expanded
+      SELF.Expand(id, 0)
+    ELSIF SELF.Items.Parent
+      SELF.KeyId = SELF.Items.Parent
+      SELF.EnsureVisible(SELF.KeyId)
+    END
+  OF 1Bh                                        ! Esc: clear the search, then give the keyboard back
+    IF searching
+      SELF.SetSearch('')
+    ELSE
+      SELF.LeaveFocus()
+    END
+  OF 09h                                        ! Tab
+    SELF.LeaveFocus()
+  ELSE
+    RETURN 0
+  END
+  SELF.Invalidate()
+  RETURN 1
+
+MyTaskPanelClass.KeyChar PROCEDURE(LONG ch)
+  CODE
+  IF ~SELF.ShowSearch THEN RETURN.
+  CASE ch
+  OF 8                                          ! Backspace
+    IF LEN(SELF.Search) > 0 THEN SELF.SetSearch(SUB(SELF.Search, 1, LEN(SELF.Search) - 1)).
+  OF 32
+    IF LEN(SELF.Search) = 0                     ! Space on an empty search: a click
+      SELF.KeyDown(SELF.CurHwnd(), 0Dh)
+    ELSIF LEN(SELF.Search) < 60
+      SELF.SetSearch(SELF.Search & ' ')
+    END
+  OF 33 TO 126
+  OROF 128 TO 255
+    IF LEN(SELF.Search) < 60 THEN SELF.SetSearch(SELF.Search & CHR(ch)).
+  END
+
+!  Moves the keyboard steps rows (negative = up) among the rows that can be
+!  used: group headers and items, or only the matches while searching. With
+!  no row yet it goes to the first (steps > 0) or the last.
+MyTaskPanelClass.MoveKey PROCEDURE(LONG steps)
+ids                    LONG,DIM(1000)
+n                      LONG
+cur                    LONG
+i                      LONG
+h                      LONG
+r                      LIKE(MTP_Rect)
+searching              BYTE
+  CODE
+  h = SELF.CurHwnd()
+  IF ~h THEN RETURN.
+  mtp_GetClientRect(h, ADDRESS(r))
+  SELF.Layout(r.X2, r.Y2, CHOOSE(h = SELF.FloatHwnd, 1, 0))
+  searching = CHOOSE(CLIP(SELF.Search) <> '', 1, 0)
+  LOOP i = 1 TO RECORDS(SELF.Rows)
+    GET(SELF.Rows, i)
+    IF SELF.Rows.Kind <> MTP:Group AND SELF.Rows.Kind <> MTP:Item THEN CYCLE.
+    IF searching AND SELF.Rows.Kind = MTP:Group THEN CYCLE.
+    IF SELF.Rows.Y >= SELF.Rows.ClipB OR SELF.Rows.Y + SELF.Rows.H <= SELF.Rows.ClipT THEN CYCLE.
+    IF n >= 1000 THEN BREAK.
+    n += 1
+    ids[n] = SELF.Rows.Id
+    IF SELF.Rows.Id = SELF.KeyId THEN cur = n.
+  END
+  IF n = 0
+    SELF.KeyId = 0
+    RETURN
+  END
+  IF cur = 0
+    cur = CHOOSE(steps > 0, 1, n)
+  ELSE
+    cur += steps
+    IF cur < 1 THEN cur = 1.
+    IF cur > n THEN cur = n.
+  END
+  SELF.KeyId = ids[cur]
+  SELF.EnsureVisible(SELF.KeyId)
+
+MyTaskPanelClass.EnsureVisible PROCEDURE(LONG id)
+h                      LONG
+r                      LIKE(MTP_Rect)
+i                      LONG
+floating               BYTE
+top                    LONG
+bottom                 LONG
+  CODE
+  h = SELF.CurHwnd()
+  IF ~h OR ~id THEN RETURN.
+  floating = CHOOSE(h = SELF.FloatHwnd, 1, 0)
+  mtp_GetClientRect(h, ADDRESS(r))
+  SELF.Layout(r.X2, r.Y2, floating)
+  LOOP i = 1 TO RECORDS(SELF.Rows)
+    GET(SELF.Rows, i)
+    IF SELF.Rows.Id = id THEN BREAK.
+  END
+  IF i > RECORDS(SELF.Rows) THEN RETURN.
+  top = SELF.ContentTop(floating) + SELF.Px(4)
+  bottom = r.Y2 - SELF.Px(4)
+  IF SELF.Rows.Y < top
+    SELF.ScrollY -= top - SELF.Rows.Y
+  ELSIF SELF.Rows.Y + SELF.Rows.H > bottom
+    SELF.ScrollY += SELF.Rows.Y + SELF.Rows.H - bottom
+  END
+  IF SELF.ScrollY < 0 THEN SELF.ScrollY = 0.
+  SELF.Invalidate()
+
+!  Match = an action (an item with no submenu) whose text holds the search.
+MyTaskPanelClass.UpdateMatches PROCEDURE
+i                      LONG
+s                      STRING(60)
+m                      BYTE
+  CODE
+  s = SELF.Fold(SELF.Search)
+  LOOP i = 1 TO RECORDS(SELF.Items)
+    GET(SELF.Items, i)
+    m = 0
+    IF SELF.Items.Kind = MTP:Item AND INSTRING(CLIP(s), SELF.Fold(SELF.Items.Text), 1, 1)
+      m = CHOOSE(SELF.HasKids(SELF.Items.Id) = 0, 1, 0)
+    END
+    IF SELF.Items.Match <> m
+      SELF.Items.Match = m
+      PUT(SELF.Items)
+    END
+  END
+
+MyTaskPanelClass.Fold PROCEDURE(STRING txt)
+res                    STRING(255)
+i                      LONG
+p                      LONG
+from                   STRING('<193><201><205><211><218><220><209><225><233><237><243><250><252><241>')
+into                   STRING('AEIOUUNAEIOUUN')
+  CODE
+  res = UPPER(txt)
+  LOOP i = 1 TO LEN(CLIP(res))
+    p = INSTRING(res[i], from, 1, 1)
+    IF p THEN res[i] = into[p].
+  END
+  RETURN res
+
+MyTaskPanelClass.CountMatches PROCEDURE(LONG pid)
+i                      LONG
+n                      LONG
+pos                    LONG
+id                     LONG
+  CODE
+  pos = POINTER(SELF.Items)
+  LOOP i = 1 TO RECORDS(SELF.Items)
+    GET(SELF.Items, i)
+    IF SELF.Items.Parent <> pid OR SELF.Items.Hidden OR pid = 0 THEN CYCLE.
+    id = SELF.Items.Id
+    IF SELF.Items.Match THEN n += 1.
+    n += SELF.CountMatches(id)
+  END
+  IF pos THEN GET(SELF.Items, pos).
+  RETURN n
+
+!  The matches under pid, at any depth, one row each in the group's card.
+MyTaskPanelClass.SearchRows PROCEDURE(LONG pid, *LONG y, LONG clipT, LONG clipB)
+i                      LONG
+pos                    LONG
+id                     LONG
+m                      BYTE
+  CODE
+  pos = POINTER(SELF.Items)
+  LOOP i = 1 TO RECORDS(SELF.Items)
+    GET(SELF.Items, i)
+    IF SELF.Items.Parent <> pid OR SELF.Items.Hidden THEN CYCLE.
+    id = SELF.Items.Id
+    m  = SELF.Items.Match
+    IF m
+      CLEAR(SELF.Rows)
+      SELF.Rows.Id    = id
+      SELF.Rows.Kind  = MTP:Item
+      SELF.Rows.Y     = y
+      SELF.Rows.H     = SELF.Px(SELF.ItemHeight)
+      SELF.Rows.ClipT = clipT
+      SELF.Rows.ClipB = clipB
+      ADD(SELF.Rows)
+      y += SELF.Px(SELF.ItemHeight)
+    END
+    SELF.SearchRows(id, y, clipT, clipB)
+  END
+  IF pos THEN GET(SELF.Items, pos).
+
+!  "Browse > Geography" for Countries: the submenus between the item and its group.
+MyTaskPanelClass.PathOf PROCEDURE(LONG id)
+p                      LONG
+res                    STRING(160)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN ''.
+  p = SELF.Items.Parent
+  LOOP WHILE p
+    SELF.Items.Id = p
+    GET(SELF.Items, SELF.Items.Id)
+    IF ERRORCODE() OR SELF.Items.Kind = MTP:Group THEN BREAK.
+    res = CHOOSE(res = '', CLIP(SELF.Items.Text), CLIP(SELF.Items.Text) & ' <155> ' & CLIP(res))
+    p = SELF.Items.Parent
+  END
+  RETURN CLIP(res)
+
+MyTaskPanelClass.TextW PROCEDURE(STRING txt, BYTE font)
+dc                     LONG
+old                    LONG
+f                      LONG
+cs                     CSTRING(256)
+sz                     GROUP
+cx                       LONG
+cy                       LONG
+                       END
+  CODE
+  cs = txt
+  IF ~LEN(cs) THEN RETURN 0.
+  SELF.MakeFonts()
+  CASE font
+  OF 1 ; f = SELF.FontB
+  OF 2 ; f = SELF.FontT
+  OF 3 ; f = SELF.FontS
+  ELSE ; f = SELF.FontN
+  END
+  dc = mtp_GetDC(0)                             ! never the frame's DC: Direct2D may own it
+  old = mtp_SelectObject(dc, f)
+  mtp_GetTextExtent(dc, ADDRESS(cs), LEN(cs), ADDRESS(sz))
+  mtp_SelectObject(dc, old)
+  mtp_ReleaseDC(0, dc)
+  RETURN sz.cx
+
+!  The search box, fixed under the title while the groups scroll beneath it.
+MyTaskPanelClass.DrawSearch PROCEDURE(LONG w, BYTE floating)
+th                     LONG
+band                   LONG
+bx                     LONG
+bt                     LONG
+bw                     LONG
+bh                     LONG
+tx                     LONG
+cx                     REAL
+cy                     REAL
+c                      LONG
+  CODE
+  th   = SELF.TitleH(floating)
+  band = SELF.ContentTop(floating) - th
+  SELF.PFill(0, th, w - CHOOSE(SELF.DockSide = MTP:Left AND ~floating, 1, 0), band, SELF.ClrBack)
+  bx = SELF.Px(8)
+  bt = th + SELF.Px(6)
+  bw = w - SELF.Px(16)
+  bh = band - SELF.Px(10)
+  SELF.PRound(bx, bt, bw, bh, SELF.Px(5), SELF.ClrCard, CHOOSE(SELF.HasFocus = 1, SELF.ClrAccent, SELF.ClrCardLine))
+  SELF.DrawGlyph('search', bx + SELF.Px(7), bt + (bh - SELF.Px(14)) / 2, SELF.Px(14), CHOOSE(SELF.HasFocus = 1, SELF.ClrAccent, SELF.ClrTextDim))
+  tx = bx + SELF.Px(27)
+  IF LEN(SELF.Search) > 0
+    SELF.PText(tx, bt, bw - SELF.Px(27) - SELF.Px(24), bh, SELF.Search, SELF.ClrText, 0, 0)
+    cx = bx + bw - SELF.Px(12)
+    cy = bt + bh / 2
+    c = CHOOSE(SELF.Hover = -7, SELF.ClrText, SELF.ClrTextDim)
+    SELF.PLine(cx - SELF.Px(3.5), cy - SELF.Px(3.5), cx + SELF.Px(3.5), cy + SELF.Px(3.5), c, SELF.Px(1.5))
+    SELF.PLine(cx + SELF.Px(3.5), cy - SELF.Px(3.5), cx - SELF.Px(3.5), cy + SELF.Px(3.5), c, SELF.Px(1.5))
+  ELSE
+    SELF.PText(tx, bt, bw - SELF.Px(32), bh, SELF.Txt('Search...', 'Buscar...'), SELF.ClrTextDim, 0, 0)
+  END
+  IF SELF.HasFocus AND SELF.CaretOn
+    SELF.PFill(tx + SELF.TextW(SELF.Search, 0) + 1, bt + SELF.Px(6), 1, bh - SELF.Px(12), SELF.ClrText)
+  END
+
+!  A badge: a pill with a count or a word, or a dot for '*'. Drawn with its
+!  right edge at right; returns how wide it was.
+MyTaskPanelClass.DrawPill PROCEDURE(REAL right, REAL cy, STRING txt, LONG clr, LONG textClr)
+w                      LONG
+hh                     LONG
+d                      LONG
+  CODE
+  IF CLIP(txt) = '*'
+    d = SELF.Px(8)
+    SELF.PEllipse(right - d / 2, cy, d / 2, d / 2, clr)
+    RETURN d
+  END
+  hh = SELF.Px(16)
+  w = SELF.TextW(CLIP(txt), 3) + SELF.Px(12)
+  IF w < hh THEN w = hh.
+  SELF.PRound(right - w, cy - hh / 2, w, hh, hh / 2, clr)
+  SELF.PText(right - w, cy - hh / 2, w, hh, CLIP(txt), textClr, 3, 1)
+  RETURN w
+
+MyTaskPanelClass.SetBadge PROCEDURE(LONG id, STRING txt, LONG clr=-1)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN.
+  SELF.Items.Badge    = txt
+  SELF.Items.BadgeClr = clr
+  PUT(SELF.Items)
+  SELF.Invalidate()
+
+MyTaskPanelClass.GetBadge PROCEDURE(LONG id)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN ''.
+  RETURN CLIP(SELF.Items.Badge)
 
 !  Which engine is painting, in a small pill at the bottom corner.
 MyTaskPanelClass.DrawBadge PROCEDURE(LONG w, LONG h, LONG sbw)
@@ -2550,13 +3039,14 @@ top                    LONG
 t                      REAL
 ex                     LONG
 bk                     LONG
+bw                     LONG
   CODE
   id  = SELF.Rows.Id
   SELF.Items.Id = id
   GET(SELF.Items, SELF.Items.Id)
   IF ERRORCODE() THEN RETURN.
   IF POINTER(SELF.Rows) > 1 THEN SELF.PUnclip().
-  top = CHOOSE(floating = 1, 0, SELF.Px(30))
+  top = SELF.ContentTop(floating)
   SELF.PClip(0, top, w, 32000)
   x   = SELF.Px(8)
   y   = SELF.Rows.Y
@@ -2603,6 +3093,9 @@ bk                     LONG
     mtp_d2_line(x + rad, y + 0.5, x + cw - rad, y + 0.5, SELF.Alpha(MTP_Hex(0FFFFFFh), 0.40), 1)
   END
   ! ENDD2D
+  IF SELF.HasFocus AND SELF.KeyId = id         ! the keyboard is here
+    SELF.PRound(x + 2, y + 2, cw - 4, hh - 4, rad - 1, -1, ct)
+  END
   tx = x + SELF.Px(10)
   IF SELF.Items.HIcon
     SELF.PIcon(SELF.Items.HIcon, tx, y + (hh - SELF.Px(16)) / 2, SELF.Px(16))
@@ -2611,7 +3104,11 @@ bk                     LONG
     SELF.DrawGlyph(SELF.Items.Glyph, tx, y + (hh - SELF.Px(16)) / 2, SELF.Px(16), ct)
     tx += SELF.Px(22)
   END
-  SELF.PText(tx, y, cw - (tx - x) - SELF.Px(30), hh, SELF.Items.Text, ct, 1, 0)
+  bw = 0
+  IF CLIP(SELF.Items.Badge) <> ''               ! a light pill on the coloured header
+    bw = SELF.DrawPill(x + cw - SELF.Px(CHOOSE(SELF.Rows.HasKids = 1, 30, 10)), y + hh / 2, SELF.Items.Badge, CHOOSE(SELF.Items.BadgeClr = -1, ct, SELF.Items.BadgeClr), CHOOSE(SELF.Items.BadgeClr = -1, c1, MTP_Hex(0FFFFFFh))) + SELF.Px(6)
+  END
+  SELF.PText(tx, y, cw - (tx - x) - SELF.Px(30) - bw, hh, SELF.Items.Text, ct, 1, 0)
   ! the expand / collapse button
   IF SELF.Rows.HasKids
     cx = x + cw - SELF.Px(15)
@@ -2644,6 +3141,9 @@ font                   BYTE
 cx                     REAL
 cy                     REAL
 t                      REAL
+path                   STRING(160)
+pw                     LONG
+p                      LONG
   CODE
   IF SELF.Rows.Y >= SELF.Rows.ClipB OR SELF.Rows.Y + SELF.Rows.H <= SELF.Rows.ClipT THEN RETURN.
   id = SELF.Rows.Id
@@ -2678,6 +3178,9 @@ t                      REAL
     END
     clr = CHOOSE(SELF.Items.Enabled = 1, CHOOSE(hov = 1, SELF.ClrAccent, SELF.ClrText), SELF.ClrDisabled)
   END
+  IF SELF.HasFocus AND SELF.KeyId = id          ! the keyboard is here
+    SELF.PRound(x + SELF.Px(4), y + 1, cw - SELF.Px(8), rh - 2, SELF.Px(4), -1, SELF.ClrAccent)
+  END
   ! icon column
   IF SELF.Items.Checked
     SELF.PLine(tx + SELF.Px(3), y + rh / 2, tx + SELF.Px(6.5), y + rh / 2 + SELF.Px(3.5), SELF.ClrAccent, SELF.Px(2))
@@ -2702,9 +3205,30 @@ t                      REAL
       SELF.PLine(cx + SELF.Px(2), cy, cx - SELF.Px(2), cy + SELF.Px(4), SELF.ClrTextDim, SELF.Px(1.5))
     END
     right -= SELF.Px(14)
+  ELSIF CLIP(SELF.Search) <> ''                 ! a search result: where it lives, dimmed
+    path = SELF.PathOf(id)
+    SELF.Items.Id = id
+    GET(SELF.Items, SELF.Items.Id)
+    IF path
+      pw = SELF.TextW(path, 3) + 2
+      IF pw > (right - tx) / 2                  ! too long: just the nearest submenu
+        p = INSTRING(' <155> ', path, 1, 1)
+        LOOP WHILE p
+          path = SUB(path, p + 3, 160)
+          p = INSTRING(' <155> ', path, 1, 1)
+        END
+        pw = SELF.TextW(path, 3) + 2
+      END
+      IF pw > (right - tx) / 2 THEN pw = (right - tx) / 2.
+      SELF.PText(right - pw, y, pw, rh, path, SELF.ClrTextDim, 3, 2)
+      right -= pw + SELF.Px(6)
+    END
   ELSIF SELF.ShowShortcuts AND SELF.Items.Shortcut
     SELF.PText(right - SELF.Px(74), y, SELF.Px(74), rh, SELF.Items.Shortcut, SELF.ClrTextDim, 3, 2)
     right -= SELF.Px(78)
+  END
+  IF CLIP(SELF.Items.Badge) <> ''
+    right -= SELF.DrawPill(right, y + rh / 2, SELF.Items.Badge, CHOOSE(SELF.Items.Enabled = 0, SELF.ClrDisabled, CHOOSE(SELF.Items.BadgeClr = -1, SELF.ClrAccent, SELF.Items.BadgeClr)), MTP_Hex(0FFFFFFh)) + SELF.Px(6)
   END
   font = CHOOSE(SELF.Items.Bold = 1, 1, 0)
   SELF.PText(tx, y, right - tx, rh, SELF.Items.Text, clr, font, 0)
