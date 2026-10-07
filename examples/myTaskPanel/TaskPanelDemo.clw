@@ -7,7 +7,8 @@
 !  Command line (any order):
 !    engine=dx | engine=gdi     which painter (default: DirectX in TaskPanelDemoDX, GDI in TaskPanelDemo)
 !    dock=left|right|float      where the panel starts
-!    theme=1..6                 MTP:Slate .. MTP:Forest
+!    theme=1..6                 MTP:Slate .. MTP:Forest (the toolbar's Theme button switches it live,
+!                               the open browses' panels follow)
 !    sub=flyout                 submenus as pop-up menus instead of in place
 !    lang=es                    Spanish captions
 !    open=all|none              start with every group expanded / collapsed
@@ -38,6 +39,8 @@ DiagRun       PROCEDURE
 DiagBest      PROCEDURE(BYTE engine, BYTE fx),STRING
 Arg           PROCEDURE(STRING name),STRING
 Engine        PROCEDURE(),BYTE
+PickTheme     PROCEDURE(LONG cur),LONG
+ApplyTheme    PROCEDURE(LONG theme)
 SelfTest      PROCEDURE
     MODULE('Windows API')
 d_FindWindowEx         PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,NAME('FindWindowExA')
@@ -83,6 +86,9 @@ GroupPos               PROCEDURE(LONG gid),LONG
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
 Clicks               LONG
 MtT1                 LONG
+DemoTheme            LONG(MTP:Slate)       ! the Theme button's pick
+ThemePicked          BYTE                  ! 0 = the browses keep their own Teal
+ChildThread          LONG,DIM(16)          ! browses with a panel: told when the theme changes
 LastClick            STRING(120)
 
   CODE
@@ -263,6 +269,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
          BUTTON('Icons'),AT(296,2,40,14),USE(?BtnRail),TIP('Collapse the panel to a strip of group icons')
          BUTTON('Auto-hide'),AT(338,2,48,14),USE(?BtnAuto),TIP('Tuck the panel into the edge')
          BUTTON('Customize'),AT(388,2,52,14),USE(?BtnCustom),TIP('Hide items, reorder groups')
+         BUTTON('Theme'),AT(442,2,44,14),USE(?BtnTheme),TIP('Pick the panel''s colours')
        END
      END
 
@@ -276,7 +283,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       TP.Init(AppFrame, Engine())
       TP.Title = CHOOSE(Arg('lang') = 'es', 'Tareas', 'Tasks')
       IF Arg('lang') = 'es' THEN TP.SetLanguage('ES').
-      IF Arg('theme') THEN TP.SetTheme(Arg('theme')).
+      IF Arg('theme') THEN DemoTheme = Arg('theme').
+      TP.SetTheme(DemoTheme)
       IF Arg('sub') = 'flyout' THEN TP.SubStyle = MTP:Flyout.
       CASE Arg('dock')
       OF 'right' ; TP.DockSide = MTP:Right
@@ -494,6 +502,13 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
     OF ?BtnRail     ; TP.SetRail(1 - TP.Rail)
     OF ?BtnAuto     ; TP.SetAutoHide(1 - TP.AutoHide)
     OF ?BtnCustom   ; TP.Customize(1 - TP.IsCustomizing())
+    OF ?BtnTheme
+      i = PickTheme(DemoTheme)
+      IF i
+        TP.SetTheme(i)
+        ApplyTheme(i)
+        AppFrame{PROP:StatusText, 1} = CHOOSE(Arg('lang') = 'es', 'Tema: ', 'Theme: ') & CHOOSE(i, 'Slate', 'Navy', 'Graphite', 'Teal', 'Light', 'Forest')
+      END
     END
   END
   TP.Kill()                                             ! %WindowManagerMethodCodeSection 'Kill'
@@ -529,6 +544,8 @@ Spanish ROUTINE
   ?BtnRail{PROP:Text} = 'Iconos'
   ?BtnAuto{PROP:Text} = 'Ocultar'
   ?BtnCustom{PROP:Text} = 'Personalizar'
+  ?BtnTheme{PROP:Text} = 'Tema'
+  ?BtnTheme{PROP:Tip} = 'Elegir los colores del panel'
 
 !-----------------------------------------------------------------------------
 !  The self-test: real Win32 mouse messages at the panel, and the geometry of
@@ -929,6 +946,7 @@ win     WINDOW('Customer'),AT(,,260,120),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY,R
           ENTRY(@s40),AT(60,10,180,12),USE(CusName)
           PROMPT('&City:'),AT(10,32),USE(?CityPrompt)
           ENTRY(@s30),AT(60,30,180,12),USE(CusCity)
+          BUTTON('&Theme'),AT(10,96,44,14),USE(?Theme),TIP('Pick the panel''s colours')
           BUTTON('&OK'),AT(150,96,44,14),USE(?OK),DEFAULT
           BUTTON('&Cancel'),AT(198,96,44,14),USE(?Cancel),STD(STD:Close)
         END
@@ -942,7 +960,8 @@ win     WINDOW('Customer'),AT(,,260,120),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY,R
       FP.Init(win, Engine())
       FP.Title = 'Customer'
       FP.PanelWidth = 190
-      IF Arg('theme') THEN FP.SetTheme(Arg('theme')).
+      IF Arg('theme') THEN DemoTheme = Arg('theme').
+      FP.SetTheme(DemoTheme)
       g = FP.AddGroup('Record', 'doc', 1, 1)
       FP.AddItem(g, 'Save', 'plus', 'save', ?OK)       ! an item pointed at a BUTTON
       FP.AddItem(g, 'Print', 'print', 'print')
@@ -987,11 +1006,39 @@ win     WINDOW('Customer'),AT(,,260,120),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY,R
       END
     END
     CASE ACCEPTED()
+    OF ?Theme
+      g = PickTheme(DemoTheme)
+      IF g THEN FP.SetTheme(g) ; DemoTheme = g.
     OF ?OK
       0{PROP:Text} = 'Customer - saved'
     END
   END
   FP.Kill()
+
+!-----------------------------------------------------------------------------
+!  The Theme button: a pop-up of the six themes, the current one ticked.
+!  Returns the pick, or 0 when the menu was dismissed.
+!-----------------------------------------------------------------------------
+PickTheme PROCEDURE(LONG cur)
+m      STRING(200)
+n      LONG
+  CODE
+  LOOP n = 1 TO 6
+    IF n > 1 THEN m = CLIP(m) & '|'.
+    m = CLIP(m) & CHOOSE(n = cur, '+', '-') & CHOOSE(Arg('lang') = 'es', |
+        CHOOSE(n, 'Pizarra', 'Marino', 'Grafito (oscuro)', 'Verde azulado', 'Claro', 'Bosque'), |
+        CHOOSE(n, 'Slate', 'Navy', 'Graphite (dark)', 'Teal', 'Light', 'Forest'))
+  END
+  RETURN POPUP(m)
+
+ApplyTheme PROCEDURE(LONG theme)               ! remember it and tell every open browse
+i      LONG
+  CODE
+  DemoTheme = theme
+  ThemePicked = 1
+  LOOP i = 1 TO MAXIMUM(ChildThread, 1)
+    IF ChildThread[i] THEN POST(EVENT:User + 5, , ChildThread[i]).
+  END
 
 !-----------------------------------------------------------------------------
 BrowseWin PROCEDURE(STRING title)
@@ -1023,18 +1070,27 @@ win    WINDOW('Browse'),AT(,,300,170),MDI,SYSTEM,RESIZE,FONT('Segoe UI',9),MAX
     CP.Init(win, Engine())
     CP.Title = title
     CP.PanelWidth = 170
-    CP.SetTheme(MTP:Teal)
+    CP.SetTheme(CHOOSE(ThemePicked = 0, MTP:Teal, DemoTheme))
     cg = CP.AddGroup('Record', 'doc', 1, 1)
     CP.AddItem(cg, 'Insert', 'plus')
     CP.AddItem(cg, 'Change', 'doc')
     CP.AddItem(cg, 'Print', 'print')
     CP.ShowPanel()
+    LOOP i = 1 TO MAXIMUM(ChildThread, 1)          ! so the frame's Theme button reaches this panel
+      IF ChildThread[i] = 0 THEN ChildThread[i] = THREAD() ; BREAK.
+    END
   END
   ACCEPT
-    IF EVENT() = MTP:Event
+    CASE EVENT()
+    OF MTP:Event
       LOOP WHILE CP.NextClick()
       END
+    OF EVENT:User + 5                                  ! the frame picked a theme
+      CP.SetTheme(DemoTheme)
     END
+  END
+  LOOP i = 1 TO MAXIMUM(ChildThread, 1)
+    IF ChildThread[i] = THREAD() THEN ChildThread[i] = 0.
   END
   CP.Kill()
 

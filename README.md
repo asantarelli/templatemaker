@@ -1519,7 +1519,7 @@ gradient brushes, which are expensive to make and were made on every call; cachi
 **The demo** (`examples/myTaskPanel`, built by `build.sh`): `TaskPanelDemo.exe` is the pure-Clarion build
 (GDI); `TaskPanelDemoDX.exe` is the DirectX build and draws with DirectX when simply double-clicked
 (`engine=gdi` forces GDI). The status bar names the engine in use. Other switches: `dock=left|right|float`,
-`theme=1..6`, `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
+`theme=1..6` (or the toolbar's *Theme* button, live; open browses follow), `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
 on three MDI children, one closed midway), `fx=off`, `badge=off`, `bench` (times both engines into
 `TaskPanelBench.ini`), `diag` (where a DirectX frame's time goes), `auto` (the self-test), `search=text` and `keys` (the panel takes the keyboard), `rail`, `autohide`, `open=today`, `custom`, `hidden`. The toolbar's *Effects* button switches the effects on and off
 live, and *Speed test* times both engines and shows the result in a window.
