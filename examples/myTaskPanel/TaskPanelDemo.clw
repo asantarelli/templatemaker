@@ -50,6 +50,10 @@ d_SetCursorPos         PROCEDURE(LONG,LONG),LONG,PASCAL,PROC,NAME('SetCursorPos'
 d_ClientToScreen       PROCEDURE(LONG,LONG),LONG,PASCAL,PROC,NAME('ClientToScreen')
 d_GetFocus             PROCEDURE(),LONG,PASCAL,NAME('GetFocus')
 d_PostMessage          PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('PostMessageA')
+d_GlobalAlloc          PROCEDURE(LONG,LONG),LONG,PASCAL,NAME('GlobalAlloc')
+d_GlobalLock           PROCEDURE(LONG),LONG,PASCAL,NAME('GlobalLock')
+d_GlobalUnlock         PROCEDURE(LONG),LONG,PASCAL,PROC,NAME('GlobalUnlock')
+d_MemCpy               PROCEDURE(LONG,LONG,LONG),PASCAL,NAME('RtlMoveMemory')
     END
   END
 
@@ -70,6 +74,10 @@ RefOf                  PROCEDURE(LONG id),LONG
 GetPeekHwnd            PROCEDURE(),LONG
 PeekGroup              PROCEDURE(LONG gid)
 SlideNow               PROCEDURE(BYTE out)
+IsUserHidden           PROCEDURE(LONG id),BYTE
+GetTipHwnd             PROCEDURE(),LONG
+ActX                   PROCEDURE(),LONG
+GroupPos               PROCEDURE(LONG gid),LONG
                      END
 
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
@@ -111,7 +119,7 @@ TestPanel.FirstRef PROCEDURE(BYTE role)
 i LONG
 gid LONG
   CODE
-  gid = CHOOSE(role = 1, SELF.FavGroup, SELF.RecentGroup)
+  gid = SELF.RoleGid(role)
   LOOP i = 1 TO RECORDS(SELF.Items)
     GET(SELF.Items, i)
     IF gid AND SELF.Items.Parent = gid AND SELF.Items.Role = 3 THEN RETURN SELF.Items.Id.
@@ -126,6 +134,32 @@ TestPanel.GetPeekHwnd PROCEDURE
 TestPanel.PeekGroup PROCEDURE(LONG gid)
   CODE
   SELF.ShowPeek(gid)
+TestPanel.IsUserHidden PROCEDURE(LONG id)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  RETURN CHOOSE(ERRORCODE() = 0 AND SELF.Items.UserHidden, 1, 0)
+TestPanel.GetTipHwnd PROCEDURE
+  CODE
+  RETURN SELF.TipHwnd
+TestPanel.ActX PROCEDURE                               ! the middle of a row's only hover button
+r GROUP
+X1  LONG
+Y1  LONG
+X2  LONG
+Y2  LONG
+  END
+  CODE
+  d_GetClientRect(SELF.DockHwnd, ADDRESS(r))
+  RETURN SELF.Px(8) + (r.X2 - CHOOSE(SELF.ContentH > SELF.ViewH, SELF.Px(8), 0) - SELF.Px(16)) - SELF.Px(8) - SELF.Px(11)
+TestPanel.GroupPos PROCEDURE(LONG gid)
+k LONG
+  CODE
+  LOOP k = 1 TO 50
+    IF SELF.GroupAt(k) = gid THEN RETURN k.
+    IF ~SELF.GroupAt(k) THEN BREAK.
+  END
+  RETURN 0
 TestPanel.SlideNow PROCEDURE(BYTE out)
   CODE
   SELF.Slide = out
@@ -228,6 +262,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
          BUTTON('Speed test'),AT(238,2,52,14),USE(?BtnBench),TIP('Time both engines')
          BUTTON('Icons'),AT(296,2,40,14),USE(?BtnRail),TIP('Collapse the panel to a strip of group icons')
          BUTTON('Auto-hide'),AT(338,2,48,14),USE(?BtnAuto),TIP('Tuck the panel into the edge')
+         BUTTON('Customize'),AT(388,2,52,14),USE(?BtnCustom),TIP('Hide items, reorder groups')
        END
      END
 
@@ -263,6 +298,12 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       TP.AddItem(more, CHOOSE(Arg('lang') = 'es', 'Ciudades', 'Cities'), , 'cities')
       TP.AddItem(more, CHOOSE(Arg('lang') = 'es', 'C<243>digos postales', 'Zip codes'), , 'zip')
       TP.Expand(geo)
+      ! descriptions (a card after a pause), hover buttons, a drop target (template: the item's Extras tab)
+      TP.SetTip(TP.FindTag('cust'), CHOOSE(Arg('lang') = 'es', 'Consultar, agregar y cambiar clientes. Suelte archivos aqu<237> para adjuntarlos.', 'Browse, add and change customers. Drop files here to attach them.'))
+      TP.SetTip(TP.FindTag('prod'), CHOOSE(Arg('lang') = 'es', 'Lista de precios, existencias y proveedores de cada producto.', 'Price list, stock and suppliers of every product.'))
+      TP.AddAction(TP.FindTag('cust'), 'plus', 'cust_new', CHOOSE(Arg('lang') = 'es', 'Nuevo cliente', 'New customer'))
+      TP.AddAction(TP.FindTag('cust'), 'print', 'cust_print', CHOOSE(Arg('lang') = 'es', 'Imprimir la lista', 'Print the list'))
+      TP.SetDropTarget(TP.FindTag('cust'))
       TP.SetBadge(TP.FindTag('cust'), '12')            ! badges: a count, a word, a dot
       TP.SetBadge(TP.FindTag('supp'), '*', COLOR:Red)
       TP.SetBadge(gCat, '3')
@@ -287,6 +328,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
 
       gRep = TP.AddGroup(CHOOSE(Arg('lang') = 'es', 'Informes', 'Reports'), 'report')
       TP.AddItem(gRep, CHOOSE(Arg('lang') = 'es', 'Ventas por mes', 'Sales by month'), 'chart', 'r_sales')
+      TP.SetTip(TP.FindTag('r_sales'), CHOOSE(Arg('lang') = 'es', 'Ventas de cada mes de los <250>ltimos dos a<241>os, por regi<243>n.', 'Sales for every month of the last two years, by region.'))
+      TP.AddAction(TP.FindTag('r_sales'), 'excel', 'r_sales_xls', CHOOSE(Arg('lang') = 'es', 'Exportar a Excel', 'Export to Excel'))
       fin = TP.AddItem(gRep, CHOOSE(Arg('lang') = 'es', 'Financieros', 'Financial'), 'money')
       TP.AddItem(fin, CHOOSE(Arg('lang') = 'es', 'Balance general', 'Balance sheet'), , 'r_bal')
       TP.AddItem(fin, CHOOSE(Arg('lang') = 'es', 'Estado de resultados', 'Income statement'), , 'r_inc')
@@ -333,6 +376,11 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       END
       IF Arg('keys') THEN TP.Focus().                  ! the keyboard in the panel, no search
       IF Arg('peek') THEN TP.PeekGroup(TP.FindText(CHOOSE(Arg('lang') = 'es', 'Hoy', 'Today'), 0)).
+      IF Arg('hidden') THEN TP.HideItem(TP.FindTag('supp')).   ! as a user would have hidden it
+      IF Arg('custom')                                 ! the panel's edit mode, Suppliers hidden
+        TP.HideItem(TP.FindTag('supp'))
+        TP.Customize()
+      END
       IF Arg('flyout') THEN 0{PROP:Timer} = 60.          ! open a submenu as a pop-up, for a screenshot
       IF Arg('mt')                                     ! three child panels on three threads
         MtT1 = START(BrowseWin, 25000, 'Customers')
@@ -377,10 +425,24 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
         IF GETINI('t16', 'clicked', '', LONGPATH() & '\TaskPanelTest.ini') = '' AND SUB(GETINI('t16', 'result', '', LONGPATH() & '\TaskPanelTest.ini'), 1, 4) = 'pass'
           PUTINI('t16', 'result', 'FAIL: the Favourites row did not click x_csv', LONGPATH() & '\TaskPanelTest.ini')
         END
+        IF GETINI('t23', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
+          PUTINI('t23', 'result', 'FAIL: the hover button raised nothing', LONGPATH() & '\TaskPanelTest.ini')
+        END
+        IF GETINI('t25', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
+          PUTINI('t25', 'result', 'FAIL: no MTP:Drop', LONGPATH() & '\TaskPanelTest.ini')
+        END
         IF GETINI('t13', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
           PUTINI('t13', 'result', 'FAIL: typing json + Enter ran nothing (search "' & TP.GetSearch() & '")', LONGPATH() & '\TaskPanelTest.ini')
         END
         POST(EVENT:CloseWindow)
+      END
+    OF MTP:Drop                                        ! files dropped on Customers
+      LOOP WHILE TP.NextDrop()
+        IF Arg('auto')
+          PUTINI('t25', 'result', CHOOSE(TP.DropTag = 'cust' AND TP.DropCount = 2 AND TP.DropFile(2) = 'C:\b.pdf', 'pass: 2 files dropped on Customers arrived: ' & CLIP(TP.DropFiles), 'FAIL tag=' & TP.DropTag & ' n=' & TP.DropCount & ' 2nd=' & TP.DropFile(2)), LONGPATH() & '\TaskPanelTest.ini')
+          CYCLE
+        END
+        AppFrame{PROP:StatusText, 1} = TP.DropCount & CHOOSE(Arg('lang') = 'es', ' archivo(s) en ', ' file(s) dropped on ') & CLIP(TP.DropText) & ': ' & TP.DropFile(1)
       END
     OF MTP:Event
       ! ---- the template: TakeWindowEvent, CASE on the item's tag ----
@@ -389,10 +451,12 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
         IF Arg('auto')
           IF TP.ClickTag = 'x_csv'                     ! t16: clicked on its Favourites row
             PUTINI('t16', 'clicked', 'x_csv', LONGPATH() & '\TaskPanelTest.ini')
+          ELSIF TP.ClickTag = 'cust_new'               ! t23: the hover button
+            PUTINI('t23', 'result', CHOOSE(TP.ClickAct <> 0 AND TP.ClickId = TP.FindTag('cust'), 'pass: the + button on Customers arrived as cust_new (row: Customers)', 'FAIL: ClickAct=' & TP.ClickAct), LONGPATH() & '\TaskPanelTest.ini')
           ELSIF TP.ClickTag = 'x_json'                 ! t13: typed "json" + Enter, through the ACCEPT loop
             PUTINI('t13', 'result', CHOOSE(d_GetFocus() <> TP.GetDockHwnd(), 'pass: typed json + Enter ran x_json, keyboard given back', 'FAIL: ran x_json but kept the keyboard'), LONGPATH() & '\TaskPanelTest.ini')
-          ELSE
-            PUTINI('t6', 'result', CHOOSE(TP.ClickTag = 'cust', 'pass: real click arrived as tag ', 'FAIL: tag ') & TP.ClickTag, LONGPATH() & '\TaskPanelTest.ini')
+          ELSIF TP.ClickTag = 'cust'
+            PUTINI('t6', 'result', 'pass: real click arrived as tag cust', LONGPATH() & '\TaskPanelTest.ini')
           END
           CYCLE
         END
@@ -429,6 +493,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
     OF ?BtnBench    ; BenchWin()
     OF ?BtnRail     ; TP.SetRail(1 - TP.Rail)
     OF ?BtnAuto     ; TP.SetAutoHide(1 - TP.AutoHide)
+    OF ?BtnCustom   ; TP.Customize(1 - TP.IsCustomizing())
     END
   END
   TP.Kill()                                             ! %WindowManagerMethodCodeSection 'Kill'
@@ -463,6 +528,7 @@ Spanish ROUTINE
   ?BtnBench{PROP:Text} = 'Velocidad'
   ?BtnRail{PROP:Text} = 'Iconos'
   ?BtnAuto{PROP:Text} = 'Ocultar'
+  ?BtnCustom{PROP:Text} = 'Personalizar'
 
 !-----------------------------------------------------------------------------
 !  The self-test: real Win32 mouse messages at the panel, and the geometry of
@@ -491,6 +557,17 @@ k1      LONG
 k2      LONG
 k3      LONG
 o1      BYTE
+x       LONG
+hd      LONG
+pd      LONG
+drop    STRING(20)
+df      GROUP                                          ! DROPFILES
+pFiles    LONG
+X         LONG
+Y         LONG
+fNC       LONG
+fWide     LONG
+        END
   CODE
   ini = LONGPATH() & '\TaskPanelTest.ini'
   REMOVE(ini)
@@ -728,6 +805,91 @@ o1      BYTE
     PUTINI('t19', 'result', 'FAIL back: MDI client at ' & r.X1 & ', panel ends ' & rp.X2, ini)
     fails += 1
   END
+
+  ! 20. Customize: a click hides Products, Done takes it away, Reset brings it back
+  TP.ExpandAll(1)
+  TP.Customize(1)
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  id = TP.FindTag('prod')
+  y = TP.RowY(id)
+  d_SendMessage(TP.GetDockHwnd(), 0201h, 1, y * 65536 + 80)
+  d_SendMessage(TP.GetDockHwnd(), 0202h, 0, y * 65536 + 80)
+  k1 = TP.IsUserHidden(id)
+  k2 = TP.RowY(id)                                     ! still shown (faded) while customizing
+  TP.Customize(0)
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  k3 = TP.RowY(id)
+  TP.ResetCustom()
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  IF k1 AND k2 > 0 AND k3 = -1 AND TP.RowY(id) > 0
+    PUTINI('t20', 'result', 'pass: Customize click hid Products (shown faded), Done removed it, Reset brought it back', ini)
+  ELSE
+    PUTINI('t20', 'result', 'FAIL hidden=' & k1 & ' y while customizing=' & k2 & ' after=' & k3 & ' reset=' & TP.RowY(id), ini)
+    fails += 1
+  END
+
+  ! 21. drag the Exports header above Catalogs
+  TP.ExpandAll(0)
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  gCat = TP.FindText('Catalogs', 0)
+  k1 = TP.FindText('Exports', 0)
+  y = TP.RowY(k1)
+  k2 = TP.RowY(gCat) - 8
+  d_SendMessage(TP.GetDockHwnd(), 0201h, 1, y * 65536 + 60)
+  d_SendMessage(TP.GetDockHwnd(), 0200h, 1, k2 * 65536 + 60)
+  d_SendMessage(TP.GetDockHwnd(), 0200h, 1, k2 * 65536 + 60)
+  d_SendMessage(TP.GetDockHwnd(), 0202h, 0, k2 * 65536 + 60)
+  IF TP.GroupPos(k1) < TP.GroupPos(gCat) AND TP.GroupPos(k1) > 0
+    PUTINI('t21', 'result', 'pass: Exports dragged above Catalogs (positions ' & TP.GroupPos(k1) & ', ' & TP.GroupPos(gCat) & ')', ini)
+  ELSE
+    PUTINI('t21', 'result', 'FAIL Exports at ' & TP.GroupPos(k1) & ', Catalogs at ' & TP.GroupPos(gCat), ini)
+    fails += 1
+  END
+  TP.ResetCustom()
+
+  ! 22. Most used: PDF run three times
+  TP.Click(TP.FindTag('x_pdf'))
+  TP.Click(TP.FindTag('x_pdf'))
+  TP.Click(TP.FindTag('x_pdf'))
+  IF TP.RefOf(TP.FirstRef(4)) = TP.FindTag('x_pdf')
+    PUTINI('t22', 'result', 'pass: PDF, run three times, heads Most used', ini)
+  ELSE
+    PUTINI('t22', 'result', 'FAIL first most used=' & TP.RefOf(TP.FirstRef(4)), ini)
+    fails += 1
+  END
+
+  ! 23. the + hover button on Customers (checked on MTP:Event)
+  TP.ExpandAll(1)
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  y = TP.RowY(TP.FindTag('cust'))
+  x = TP.ActX() - 22                                    ! the first of its two buttons
+  d_SendMessage(TP.GetDockHwnd(), 0200h, 0, y * 65536 + x)
+  d_SendMessage(TP.GetDockHwnd(), 0201h, 1, y * 65536 + x)
+  d_SendMessage(TP.GetDockHwnd(), 0202h, 0, y * 65536 + x)
+
+  ! 24. the description card: a pause on Customers shows it, moving away hides it
+  d_SendMessage(TP.GetDockHwnd(), 0200h, 0, y * 65536 + 80)
+  d_SendMessage(TP.GetDockHwnd(), 0113h, 8, 0)         ! the pause is over
+  k1 = d_IsWindowVisible(TP.GetTipHwnd())
+  d_SendMessage(TP.GetDockHwnd(), 0200h, 0, (y + 24) * 65536 + 80)
+  IF k1 AND ~d_IsWindowVisible(TP.GetTipHwnd())
+    PUTINI('t24', 'result', 'pass: the card showed after the pause and went with the mouse', ini)
+  ELSE
+    PUTINI('t24', 'result', 'FAIL shown=' & k1 & ' still=' & d_IsWindowVisible(TP.GetTipHwnd()), ini)
+    fails += 1
+  END
+
+  ! 25. two files dropped on Customers: a real HDROP (DROPFILES + the names), checked on MTP:Drop
+  drop = 'C:\a.txt<0>C:\b.pdf<0><0>'
+  hd = d_GlobalAlloc(0042h, 20 + 20)                   ! GMEM_MOVEABLE | GMEM_ZEROINIT
+  pd = d_GlobalLock(hd)
+  df.pFiles = 20
+  df.X = 80
+  df.Y = y
+  d_MemCpy(pd, ADDRESS(df), 20)
+  d_MemCpy(pd + 20, ADDRESS(drop), 20)
+  d_GlobalUnlock(hd)
+  d_SendMessage(TP.GetDockHwnd(), 0233h, hd, 0)
 
   ! 13. type "json" + Enter, POSTED, so they go through the ACCEPT loop (checked on MTP:Event)
   TP.Focus()

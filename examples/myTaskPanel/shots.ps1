@@ -6,12 +6,12 @@ $docs = Resolve-Path (Join-Path $here "..\..\docs")
 Add-Type -AssemblyName System.Drawing
 $park = "760,560"                       # the mouse waits in the MDI area: no stray hover
 
-function Shot($name, $exe, $argv, $click = $park, $delay = 1800) {
+function Shot($name, $exe, $argv, $click = $park, $delay = 1800, $hover = 600) {
   foreach ($lang in @("en", "es")) {
     $a = "$argv badge=off"; $suffix = ""
     if ($lang -eq "es") { $a = "$argv badge=off lang=es"; $suffix = "-es" }
     $out = Join-Path $docs "myTaskPanel-$name$suffix.png"
-    & (Join-Path $here "shoot.ps1") -Exe $exe -Argv $a -Out $out -Click $click -Delay $delay | Out-Null
+    & (Join-Path $here "shoot.ps1") -Exe $exe -Argv $a -Out $out -Click $click -Delay $delay -HoverWait $hover | Out-Null
     "  $out"
   }
 }
@@ -70,6 +70,10 @@ function Strip($name, $items) {
 "cards";   Strip "cards" @(
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx open=today"; En = "Info cards";            Es = "Tarjetas de datos" },
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx";            En = "Favourites at the top"; Es = "Favoritos arriba" })
+"hover";   Shot "hover"    "TaskPanelDemoDX.exe" "engine=dx open=first" "81,248" 1800 1400
+"custom";  Strip "custom" @(
+  @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx custom open=first"; En = "Customize: Suppliers hidden"; Es = "Personalizar: Proveedores oculto" },
+  @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx hidden open=first"; En = "After Done";                  Es = "Después de Listo" })
 "themes";  Strip "themes" @(
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx theme=1 open=first"; En = "Slate";    Es = "Pizarra" },
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx theme=2 open=first"; En = "Navy";     Es = "Marino" },

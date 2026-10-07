@@ -56,6 +56,12 @@ GROUPS[1][4].extend([
     dict(kind='Chart', text='Weeks', value="'12,15,9,18,22'", chart='Line'),
 ])
 
+# Extras: a description, a drop target, two hover buttons on Customers
+GROUPS[0][4][0]['tip'] = 'Browse, add and change customers.'
+GROUPS[0][4][0]['drop'] = 1
+BUTTONS = {(0, 0): [dict(glyph='plus', tip='New customer', action='Post an event', event='EVENT:User'),
+                    dict(glyph='print', tip='Print', action='Embed code only')]}
+
 def prompts_groups():
     L = []
     n = len(GROUPS)
@@ -107,6 +113,31 @@ def prompts_groups():
     it('%mtpItemShowIf', 'DEFAULT', 'showif', '', s)
     it('%mtpItemValue', 'DEFAULT', 'value', '', s)
     it('%mtpItemChart', 'DEFAULT', 'chart', 'Bars', s)
+    it('%mtpItemTip', 'DEFAULT', 'tip', '', s)
+    it('%mtpItemDrop', 'LONG', 'drop', 0, str)
+    # hover buttons: a third level, listed only where there are some
+    gs = sorted(set(g for g, i in BUTTONS))
+    L.append(f'%mtpBtns DEPEND %mtpItems MULTI LONG TIMES {len(gs)}')
+    for g in gs:
+        its = sorted(i for gg, i in BUTTONS if gg == g)
+        L.append(f'WHEN  ({g + 1})TIMES {len(its)}')
+        for i in its:
+            L.append(f"WHEN  ({i + 1}) ({', '.join(str(k + 1) for k in range(len(BUTTONS[(g, i)])))})")
+    def bt(sym, typ, key, default, fmt):
+        L.append(f'{sym} DEPEND %mtpBtns {typ} TIMES {len(gs)}')
+        for g in gs:
+            its = sorted(i for gg, i in BUTTONS if gg == g)
+            L.append(f'WHEN  ({g + 1})TIMES {len(its)}')
+            for i in its:
+                L.append(f'WHEN  ({i + 1})TIMES {len(BUTTONS[(g, i)])}')
+                for k, b in enumerate(BUTTONS[(g, i)]):
+                    L.append(f'WHEN  ({k + 1}) ({fmt(b.get(key, default))})')
+    bt('%mtpBtnGlyph', 'DEFAULT', 'glyph', 'plus', s)
+    bt('%mtpBtnTip', 'DEFAULT', 'tip', '', s)
+    bt('%mtpBtnTag', 'DEFAULT', 'tag', '', s)
+    bt('%mtpBtnAction', 'DEFAULT', 'action', 'Embed code only', s)
+    bt('%mtpBtnProc', 'PROCEDURE', 'proc', '', lambda v: v)
+    bt('%mtpBtnEvent', 'DEFAULT', 'event', 'EVENT:User', s)
     it('%mtpItemEnableIf', 'DEFAULT', 'enableif', '', s)
     return L
 
@@ -160,6 +191,8 @@ w("%mtpSubStyle DEFAULT  ('Open in place')")
 w('%mtpAccordion LONG  (0)')
 w('%mtpFavorites LONG  (1)')
 w('%mtpRecent LONG  (5)')
+w('%mtpMost LONG  (5)')
+w('%mtpTips LONG  (1)')
 w('%mtpRail LONG  (0)')
 w('%mtpAutoHide LONG  (0)')
 w('%mtpShortcuts LONG  (1)')

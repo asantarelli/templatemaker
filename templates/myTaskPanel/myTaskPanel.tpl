@@ -37,6 +37,13 @@
 #ENDIF
 #RETURN('g' & INSTANCE(%mtpGroups) & 'i' & INSTANCE(%mtpItems))
 #!
+#!  The tag a hover button carries: the developer's, or the item's + b<n>.
+#GROUP(%mtpBtnTagOf)
+#IF(%mtpBtnTag <> '')
+  #RETURN(%mtpBtnTag)
+#ENDIF
+#RETURN(%mtpTagOf() & 'b' & INSTANCE(%mtpBtns))
+#!
 #!  A menu caption without its & accelerators and quotes.
 #GROUP(%mtpClean,%pIn),AUTO
 #DECLARE(%mtpCIn)
@@ -487,6 +494,24 @@ INCLUDE('MyTaskPanel.INC'),ONCE
               #DISPLAY('the mouse enters the panel or the panel takes the keyboard.')
             #ENDBOXED
           #ENDTAB
+          #TAB('E&xtras')
+            #PROMPT('&Tooltip (a description):',@s255),%mtpItemTip,DEFAULT('')
+            #DISPLAY('Shown in a card beside the panel after a pause.')
+            #PROMPT('Accept &files dropped on it',CHECK),%mtpItemDrop,DEFAULT(0)
+            #DISPLAY('Its own embed point gets DropFiles / DropCount.')
+            #BUTTON('&Hover buttons'),MULTI(%mtpBtns,%mtpBtnGlyph & '   ' & %mtpBtnTip),INLINE
+              #PROMPT('&Icon:',DROP('plus|print|mail|export|import|excel|pdf|search|gear|tools|doc|report|chart|link|star|bell|phone|lock|key|refresh|calendar|user|users|box|cart|truck|money|globe|help|info')),%mtpBtnGlyph,DEFAULT('plus')
+              #PROMPT('Ti&p:',@s80),%mtpBtnTip,DEFAULT('')
+              #PROMPT('T&ag (blank = automatic):',@s40),%mtpBtnTag,DEFAULT('')
+              #PROMPT('When &clicked:',DROP('Start a procedure|Call a procedure|Post an event|Embed code only')),%mtpBtnAction,DEFAULT('Embed code only')
+              #ENABLE(%mtpBtnAction = 'Start a procedure' OR %mtpBtnAction = 'Call a procedure')
+                #PROMPT('P&rocedure:',PROCEDURE),%mtpBtnProc
+              #ENDENABLE
+              #ENABLE(%mtpBtnAction = 'Post an event')
+                #PROMPT('&Event:',@s40),%mtpBtnEvent,DEFAULT('EVENT:User')
+              #ENDENABLE
+            #ENDBUTTON
+          #ENDTAB
         #ENDSHEET
       #ENDBUTTON
     #ENDBUTTON
@@ -520,6 +545,8 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #PROMPT('Show &shortcut text',CHECK),%mtpShortcuts,DEFAULT(1)
       #PROMPT('&Favourites (right-click an item to add it)',CHECK),%mtpFavorites,DEFAULT(1)
       #PROMPT('&Recent items kept (0 = none):',SPIN(@n2,0,20,1)),%mtpRecent,DEFAULT(5)
+      #PROMPT('&Most used kept (0 = none):',SPIN(@n2,0,20,1)),%mtpMost,DEFAULT(5)
+      #PROMPT('Description &cards (item tooltips)',CHECK),%mtpTips,DEFAULT(1)
       #PROMPT('Start collapsed to &icons (the rail)',CHECK),%mtpRail,DEFAULT(0)
       #PROMPT('Auto-&hide: tuck it into the edge',CHECK),%mtpAutoHide,DEFAULT(0)
     #ENDBOXED
@@ -532,6 +559,13 @@ INCLUDE('MyTaskPanel.INC'),ONCE
 #ATSTART
   #DECLARE(%mtpOn)
   #SET(%mtpOn,0)
+  #DECLARE(%mtpAnyDrop)
+  #SET(%mtpAnyDrop,0)
+  #FOR(%mtpGroups)
+    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item' AND %mtpItemDrop)
+      #SET(%mtpAnyDrop,1)
+    #ENDFOR
+  #ENDFOR
   #IF(%mtpDisable = 0)
     #SET(%mtpOn,1)
     #IF(VAREXISTS(%mtpgDisable))
@@ -640,9 +674,45 @@ INCLUDE('MyTaskPanel.INC'),ONCE
         #EMBED(%mtpItemClicked,'myTaskPanel - item clicked'),%mtpGroups,%mtpItems,TREE('myTaskPanel|' & %mtpGroupText & '|' & %mtpItemText)
     #ENDFOR
   #ENDFOR
+  #FOR(%mtpGroups)
+    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item')
+      #FOR(%mtpBtns)
+      OF '%(QUOTE(%mtpBtnTagOf()))'                       ! %mtpItemText: %mtpBtnGlyph button
+      #CASE(%mtpBtnAction)
+      #OF('Start a procedure')
+        #IF(%mtpBtnProc <> '')
+        START(%mtpBtnProc, 25000)
+        #ENDIF
+      #OF('Call a procedure')
+        #IF(%mtpBtnProc <> '')
+        %mtpBtnProc()
+        #ENDIF
+      #OF('Post an event')
+        #IF(%mtpBtnEvent <> '')
+        POST(%mtpBtnEvent)
+        #ENDIF
+      #ENDCASE
+        #EMBED(%mtpBtnClicked,'myTaskPanel - hover button clicked'),%mtpGroups,%mtpItems,%mtpBtns,TREE('myTaskPanel|' & %mtpGroupText & '|' & %mtpItemText & '|button ' & INSTANCE(%mtpBtns))
+      #ENDFOR
+    #ENDFOR
+  #ENDFOR
       ELSE
         #EMBED(%mtpOtherClick,'myTaskPanel - an item added in code was clicked')
       END
+    END
+  OF MTP:Drop                                             ! myTaskPanel: files dropped on an item
+    LOOP WHILE %mtpObject.NextDrop()
+      #EMBED(%mtpBeforeDrop,'myTaskPanel - files dropped (DropTag, DropFiles, DropCount, DropFile(n))')
+  #IF(%mtpAnyDrop)
+      CASE %mtpObject.DropTag
+    #FOR(%mtpGroups)
+      #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item' AND %mtpItemDrop)
+      OF '%(QUOTE(%mtpTagOf()))'                          ! %mtpGroupText / %mtpItemText
+        #EMBED(%mtpItemDropped,'myTaskPanel - files dropped on the item'),%mtpGroups,%mtpItems,TREE('myTaskPanel|' & %mtpGroupText & '|' & %mtpItemText & '|files dropped')
+      #ENDFOR
+    #ENDFOR
+      END
+  #ENDIF
     END
   #IF(%mtpToggleKey <> '' OR %mtpFocusKey <> '')
   OF EVENT:AlertKey
@@ -711,6 +781,8 @@ mtpBuild:%mtpObject ROUTINE
   %mtpObject.ShowShortcuts = %mtpShortcuts
   %mtpObject.Favorites = %mtpFavorites
   %mtpObject.RecentMax = %mtpRecent
+  %mtpObject.MostMax = %mtpMost
+  %mtpObject.ShowTips = %mtpTips
   %mtpObject.Rail = %mtpRail
   %mtpObject.AutoHide = %mtpAutoHide
   #IF(%mtpSubStyle = 'Pop-up menu')
@@ -798,6 +870,15 @@ mtpBuild:%mtpObject ROUTINE
         #IF(%mtpItemOpen)
   %mtpObject.Expand(%mtpObject:L[%(%mtpLv + 1)], 1)
         #ENDIF
+        #IF(%mtpItemTip <> '')
+  %mtpObject.SetTip(%mtpObject:L[%(%mtpLv + 1)], '%(QUOTE(%mtpItemTip))')
+        #ENDIF
+        #IF(%mtpItemDrop)
+  %mtpObject.SetDropTarget(%mtpObject:L[%(%mtpLv + 1)])
+        #ENDIF
+        #FOR(%mtpBtns)
+  %mtpObject.AddAction(%mtpObject:L[%(%mtpLv + 1)], '%mtpBtnGlyph', '%(QUOTE(%mtpBtnTagOf()))', '%(QUOTE(%mtpBtnTip))')
+        #ENDFOR
         #SET(%mtpMaxLv,%mtpLv + 1)
         #IF(%mtpMaxLv > 7)
           #SET(%mtpMaxLv,7)

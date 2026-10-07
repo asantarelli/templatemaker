@@ -60,6 +60,7 @@
 _MyTaskPanelIncluded_ EQUATE(1)
 
 MTP:Event            EQUATE(0400h + 0D7h)  ! EVENT:User + 215: an item was clicked
+MTP:Drop             EQUATE(0400h + 0D9h)  ! EVENT:User + 217: files were dropped on an item (NextDrop)
 MTP:Check            EQUATE(0400h + 0D8h)  ! EVENT:User + 216: the mouse came in or the panel took the
                                            ! focus - re-check conditions (the template's Show/Enable when)
 
@@ -126,6 +127,9 @@ Style                  BYTE                ! Chart: MTP:Bars / MTP:Line
 Clickable              BYTE                ! Info/Progress/Chart rows only react when this is set
 Role                   BYTE                ! 1 the Favourites group, 2 the Recent group, 3 a row in one of them
 RefId                  LONG                ! Role 3: the item it stands for
+UserHidden             BYTE                ! hidden by the user (Customize); Hidden is the program's
+Uses                   LONG                ! times run - the Most used group
+DropOk                 BYTE                ! accepts files dropped on it
                      END
 
 MTPRowQ              QUEUE,TYPE            ! the layout: one row per thing drawn
@@ -151,6 +155,21 @@ B                      LONG
 
 MTPClickQ            QUEUE,TYPE
 Id                     LONG
+Act                    LONG                ! <> 0: one of the item's hover buttons
+                     END
+
+MTPActQ              QUEUE,TYPE            ! hover buttons
+Id                     LONG
+ItemId                 LONG
+Glyph                  STRING(24)
+Tag                    STRING(64)
+Tip                    STRING(120)
+                     END
+
+MTPDropQ             QUEUE,TYPE            ! files dropped, waiting for NextDrop
+Id                     LONG
+Files                  STRING(8000)        ! 'C:\a.txt|C:\b.pdf'
+Count                  LONG
                      END
 
 MTPIconQ             QUEUE,TYPE            ! icons waiting for the GDI pass (DirectX engine)
@@ -194,6 +213,15 @@ Favorites              BYTE                ! right-click an item: Add to favouri
 RecentMax              LONG                ! the Recent group keeps this many (default 5; 0 = no Recent group)
 Rail                   BYTE                ! docked as a strip of group icons (SetRail to change it once shown)
 AutoHide               BYTE                ! docked panel tucks into the edge and slides out (SetAutoHide)
+MostMax                LONG                ! the Most used group keeps this many (default 5; 0 = none)
+ShowTips               BYTE                ! the description card after a pause on an item with a Tip (default on)
+! ---- the last hover button / drop (NextClick, NextDrop fill these) ----
+ClickAct               LONG                ! <> 0: the click came from a hover button (ClickTag is its tag)
+DropId                 LONG
+DropTag                STRING(64)
+DropText               STRING(120)
+DropFiles              STRING(8000)        ! 'C:\a.txt|C:\b.pdf'
+DropCount              LONG
 ! ---- colours (Clarion COLOR values; SetTheme fills them) ----
 ClrBack                LONG
 ClrTitle1              LONG
@@ -223,6 +251,8 @@ Items                  &MTPItemQ
 Rows                   &MTPRowQ,PROTECTED
 Kids                   &MTPKidQ,PROTECTED
 Clicks                 &MTPClickQ,PROTECTED
+Acts                   &MTPActQ,PROTECTED
+Drops                  &MTPDropQ,PROTECTED
 PendIcons              &MTPIconQ,PROTECTED
 D2DFailed              BYTE,PROTECTED
 Win                    &WINDOW,PROTECTED
@@ -284,6 +314,20 @@ PeekId                 LONG,PROTECTED      ! the group it shows
 Slide                  REAL,PROTECTED      ! auto-hide: 0 tucked .. 1 out
 SlideTo                BYTE,PROTECTED
 Sliding                BYTE,PROTECTED
+MostGroup              LONG,PROTECTED
+Customizing            BYTE,PROTECTED
+GroupOrder             STRING(1000),PROTECTED  ! ',7,2,12,' - the user's group order
+DragCand               LONG,PROTECTED      ! pressed on something that can be dragged
+DropAt                 LONG,PROTECTED      ! drag: lands before this (0 = at the end)
+DropY                  LONG,PROTECTED
+TipHwnd                LONG,PROTECTED
+TipId                  LONG,PROTECTED      ! shown
+TipCand                LONG,PROTECTED      ! waiting for the pause
+NextAct                LONG,PROTECTED
+Dropping               BYTE,PROTECTED      ! some item takes files
+TipTitle               STRING(120),PROTECTED
+TipBody                STRING(255),PROTECTED
+TipFoot                STRING(200),PROTECTED
 ! ---- life cycle ----
 Construct              PROCEDURE
 Destruct               PROCEDURE,VIRTUAL
@@ -343,6 +387,18 @@ IsFavorite             PROCEDURE(LONG id),BYTE
 ClearRecent            PROCEDURE
 ! ---- rail and auto-hide ----
 SetRail                PROCEDURE(BYTE on)
+! ---- the user's own panel ----
+Customize              PROCEDURE(BYTE on=1)       ! the panel's edit mode: eye toggles, Reset, Done
+IsCustomizing          PROCEDURE(),BYTE
+HideItem               PROCEDURE(LONG id, BYTE on=1)   ! as the user hides it (kept in the INI)
+ResetCustom            PROCEDURE                  ! everything shown, the program's order
+MoveGroup              PROCEDURE(LONG id, LONG beforeId)  ! 0 = to the end
+! ---- hover buttons, file drops ----
+AddAction              PROCEDURE(LONG id, STRING glyph, STRING tag, <STRING tip>),LONG,PROC
+ClearActions           PROCEDURE(LONG id)
+SetDropTarget          PROCEDURE(LONG id, BYTE on=1)
+NextDrop               PROCEDURE(),BYTE
+DropFile               PROCEDURE(LONG n),STRING   ! the n-th file of the last drop
 SetAutoHide            PROCEDURE(BYTE on)
 GetBadge               PROCEDURE(LONG id),STRING
 SetFeq                 PROCEDURE(LONG id, LONG feq)
@@ -443,6 +499,25 @@ HidePeek               PROCEDURE,PROTECTED
 PeekCheck              PROCEDURE,PROTECTED
 StartSlide             PROCEDURE(BYTE out),PROTECTED
 StepSlide              PROCEDURE,PROTECTED
+Gone                   PROCEDURE(),BYTE,PROTECTED          ! the current item is not shown
+RoleGid                PROCEDURE(BYTE role),LONG,PROTECTED
+GroupList              PROCEDURE(BYTE all=0),STRING,PROTECTED ! ',id,id,' - the groups shown, in order (all: every ordinary group)
+RebuildMost            PROCEDURE,PROTECTED
+DragOver               PROCEDURE(LONG y),PROTECTED
+DropDrag               PROCEDURE,PROTECTED
+ActItem                PROCEDURE(LONG code),LONG,PROTECTED ! a hover button's hit code -> its item
+ActCount               PROCEDURE(LONG id),LONG,PROTECTED
+DrawActs               PROCEDURE(LONG id, LONG right, LONG y, LONG rh),LONG,PROTECTED
+ActHit                 PROCEDURE(LONG id, LONG x, LONG right),LONG,PROTECTED
+ShowTip                PROCEDURE(LONG id, LONG hwnd),PROTECTED
+HideTip                PROCEDURE,PROTECTED
+RenderTip              PROCEDURE(LONG w, LONG h),PROTECTED
+TipBodyH               PROCEDURE(STRING txt, LONG w),LONG,PROTECTED
+PTextWrap              PROCEDURE(REAL x, REAL y, REAL w, REAL h, STRING txt, LONG clr),PROTECTED   ! GDI only
+TakeDrop               PROCEDURE(LONG hwnd, LONG hDrop),PROTECTED
+AcceptDrops            PROCEDURE,PROTECTED
+ActClick               PROCEDURE(LONG code),PROTECTED
+DrawEye                PROCEDURE(REAL cx, REAL cy, BYTE on, LONG clr),PROTECTED
 Alpha                  PROCEDURE(LONG clr, REAL a),LONG,PROTECTED
 CheckSnap              PROCEDURE(BYTE final),PROTECTED
 UndockAtCursor         PROCEDURE,PROTECTED

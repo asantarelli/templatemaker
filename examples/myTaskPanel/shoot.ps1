@@ -8,7 +8,8 @@ param(
   [string]$Argv = "",
   [Parameter(Mandatory=$true)][string]$Out,
   [int]$Delay = 1800,
-  [string]$Click = ""          # optional "x,y" in window coords: hover there before the shot
+  [string]$Click = "",         # optional "x,y" in window coords: hover there before the shot
+  [int]$HoverWait = 600        # how long the mouse rests there first (a description card needs ~1200)
 )
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
@@ -34,7 +35,7 @@ $r = New-Object W+RECT
 if ($Click) {
   $xy = $Click.Split(',')
   [void][W]::SetCursorPos($r.L + [int]$xy[0], $r.T + [int]$xy[1])
-  Start-Sleep -Milliseconds 600
+  Start-Sleep -Milliseconds $HoverWait
 }
 $w = $r.R - $r.L; $hh = $r.B - $r.T
 $bmp = New-Object System.Drawing.Bitmap $w, $hh
