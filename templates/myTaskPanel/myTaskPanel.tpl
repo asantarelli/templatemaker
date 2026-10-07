@@ -350,7 +350,7 @@
   #ENDTAB
   #TAB('&Look')
     #BOXED('Colours')
-      #PROMPT('&Theme:',DROP('Slate|Navy|Graphite (dark)|Teal|Light|Forest')),%mtpgTheme,DEFAULT('Slate')
+      #PROMPT('&Theme:',DROP('Slate|Navy|Graphite (dark)|Teal|Light|Forest|High contrast|Low contrast|Ocean|Crimson|Amber|Copper|Sky|Mint|Steel|Sand|Midnight (dark)|Olive')),%mtpgTheme,DEFAULT('Slate')
       #PROMPT('Use my own &accent colour',CHECK),%mtpgUseAccent,DEFAULT(0)
       #ENABLE(%mtpgUseAccent)
         #PROMPT('Accent &colour:',COLOR),%mtpgAccent,DEFAULT(0C47015H)
@@ -561,7 +561,7 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #PROMPT('Auto-&hide: tuck it into the edge',CHECK),%mtpAutoHide,DEFAULT(0)
     #ENDBOXED
     #BOXED('Look')
-      #PROMPT('&Theme:',DROP('Global setting|Slate|Navy|Graphite (dark)|Teal|Light|Forest')),%mtpTheme,DEFAULT('Global setting')
+      #PROMPT('&Theme:',DROP('Global setting|Slate|Navy|Graphite (dark)|Teal|Light|Forest|High contrast|Low contrast|Ocean|Crimson|Amber|Copper|Sky|Mint|Steel|Sand|Midnight (dark)|Olive')),%mtpTheme,DEFAULT('Global setting')
     #ENDBOXED
   #ENDTAB
 #ENDSHEET
@@ -623,6 +623,30 @@ INCLUDE('MyTaskPanel.INC'),ONCE
     #SET(%mtpThemeEq,'MTP:Light')
   #OF('Forest')
     #SET(%mtpThemeEq,'MTP:Forest')
+  #OF('High contrast')
+    #SET(%mtpThemeEq,'MTP:HighContrast')
+  #OF('Low contrast')
+    #SET(%mtpThemeEq,'MTP:LowContrast')
+  #OF('Ocean')
+    #SET(%mtpThemeEq,'MTP:Ocean')
+  #OF('Crimson')
+    #SET(%mtpThemeEq,'MTP:Crimson')
+  #OF('Amber')
+    #SET(%mtpThemeEq,'MTP:Amber')
+  #OF('Copper')
+    #SET(%mtpThemeEq,'MTP:Copper')
+  #OF('Sky')
+    #SET(%mtpThemeEq,'MTP:Sky')
+  #OF('Mint')
+    #SET(%mtpThemeEq,'MTP:Mint')
+  #OF('Steel')
+    #SET(%mtpThemeEq,'MTP:Steel')
+  #OF('Sand')
+    #SET(%mtpThemeEq,'MTP:Sand')
+  #OF('Midnight (dark)')
+    #SET(%mtpThemeEq,'MTP:Midnight')
+  #OF('Olive')
+    #SET(%mtpThemeEq,'MTP:Olive')
   #ELSE
     #SET(%mtpThemeEq,'MTP:Slate')
   #ENDCASE

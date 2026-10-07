@@ -1475,7 +1475,7 @@ presses the original menu item, so the menu's own code runs.
 **Two engines from one global setting:** *Clarion* — nothing but Clarion source (the panel is a real Win32
 window whose window procedure is a Clarion `PASCAL` procedure; GDI through the API), or *DirectX* — Direct2D +
 DirectWrite through `mtpd2d.c`, compiled in by Clarion's own C compiler only when the global adds
-`_MTP_D2D_=>1`. Six themes, 47 built-in vector icons. The DirectX painter keeps one render target per
+`_MTP_D2D_=>1`. Eighteen themes (incl. high and low contrast), 47 built-in vector icons. The DirectX painter keeps one render target per
 thread, so the frame and every MDI child can each carry their own DirectX panel. DirectX also draws what GDI
 cannot (`Effects`, on by default): soft shadows under the cards, glass headers, a translucent hover highlight
 that fades in and out, and a floating panel that turns see-through while the mouse is elsewhere
@@ -1519,7 +1519,7 @@ gradient brushes, which are expensive to make and were made on every call; cachi
 **The demo** (`examples/myTaskPanel`, built by `build.sh`): `TaskPanelDemo.exe` is the pure-Clarion build
 (GDI); `TaskPanelDemoDX.exe` is the DirectX build and draws with DirectX when simply double-clicked
 (`engine=gdi` forces GDI). The status bar names the engine in use. Other switches: `dock=left|right|float`,
-`theme=1..6` (or the toolbar's *Theme* button, live; open browses follow), `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
+`theme=1..18` (or the toolbar's *Theme* button, live; open browses follow), `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
 on three MDI children, one closed midway), `fx=off`, `badge=off`, `bench` (times both engines into
 `TaskPanelBench.ini`), `diag` (where a DirectX frame's time goes), `auto` (the self-test), `search=text` and `keys` (the panel takes the keyboard), `rail`, `autohide`, `open=today`, `custom`, `hidden`. The toolbar's *Effects* button switches the effects on and off
 live, and *Speed test* times both engines and shows the result in a window.

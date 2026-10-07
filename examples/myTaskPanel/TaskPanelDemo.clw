@@ -7,7 +7,7 @@
 !  Command line (any order):
 !    engine=dx | engine=gdi     which painter (default: DirectX in TaskPanelDemoDX, GDI in TaskPanelDemo)
 !    dock=left|right|float      where the panel starts
-!    theme=1..6                 MTP:Slate .. MTP:Forest (the toolbar's Theme button switches it live,
+!    theme=1..18                MTP:Slate .. MTP:Olive (the toolbar's Theme button switches it live,
 !                               the open browses' panels follow)
 !    sub=flyout                 submenus as pop-up menus instead of in place
 !    lang=es                    Spanish captions
@@ -40,6 +40,7 @@ DiagBest      PROCEDURE(BYTE engine, BYTE fx),STRING
 Arg           PROCEDURE(STRING name),STRING
 Engine        PROCEDURE(),BYTE
 PickTheme     PROCEDURE(LONG cur),LONG
+ThemeName     PROCEDURE(LONG theme),STRING
 ApplyTheme    PROCEDURE(LONG theme)
 SelfTest      PROCEDURE
     MODULE('Windows API')
@@ -507,7 +508,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       IF i
         TP.SetTheme(i)
         ApplyTheme(i)
-        AppFrame{PROP:StatusText, 1} = CHOOSE(Arg('lang') = 'es', 'Tema: ', 'Theme: ') & CHOOSE(i, 'Slate', 'Navy', 'Graphite', 'Teal', 'Light', 'Forest')
+        AppFrame{PROP:StatusText, 1} = CHOOSE(Arg('lang') = 'es', 'Tema: ', 'Theme: ') & ThemeName(i)
       END
     END
   END
@@ -1016,20 +1017,38 @@ win     WINDOW('Customer'),AT(,,260,120),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY,R
   FP.Kill()
 
 !-----------------------------------------------------------------------------
-!  The Theme button: a pop-up of the six themes, the current one ticked.
-!  Returns the pick, or 0 when the menu was dismissed.
+!  The Theme button: a pop-up of the eighteen themes in three groups, the
+!  current one ticked. Returns the theme picked, or 0 when it was dismissed.
 !-----------------------------------------------------------------------------
 PickTheme PROCEDURE(LONG cur)
-m      STRING(200)
+Order  BYTE,DIM(18)                             ! menu position -> theme (separators are not counted)
+m      STRING(700)
 n      LONG
   CODE
-  LOOP n = 1 TO 6
+  Order[1] = MTP:Slate     ; Order[2] = MTP:Navy     ; Order[3] = MTP:Graphite
+  Order[4] = MTP:Teal      ; Order[5] = MTP:Light    ; Order[6] = MTP:Forest
+  Order[7] = MTP:Ocean     ; Order[8] = MTP:Crimson  ; Order[9] = MTP:Amber
+  Order[10] = MTP:Copper   ; Order[11] = MTP:Sky     ; Order[12] = MTP:Mint
+  Order[13] = MTP:Steel    ; Order[14] = MTP:Sand    ; Order[15] = MTP:Midnight
+  Order[16] = MTP:Olive    ; Order[17] = MTP:HighContrast ; Order[18] = MTP:LowContrast
+  LOOP n = 1 TO 18
     IF n > 1 THEN m = CLIP(m) & '|'.
-    m = CLIP(m) & CHOOSE(n = cur, '+', '-') & CHOOSE(Arg('lang') = 'es', |
-        CHOOSE(n, 'Pizarra', 'Marino', 'Grafito (oscuro)', 'Verde azulado', 'Claro', 'Bosque'), |
-        CHOOSE(n, 'Slate', 'Navy', 'Graphite (dark)', 'Teal', 'Light', 'Forest'))
+    IF n = 7 OR n = 17 THEN m = CLIP(m) & '-|'.
+    m = CLIP(m) & CHOOSE(Order[n] = cur, '+', '-') & ThemeName(Order[n])
   END
-  RETURN POPUP(m)
+  n = POPUP(m)
+  RETURN CHOOSE(n = 0, 0, Order[n])
+
+ThemeName PROCEDURE(LONG theme)
+  CODE
+  IF Arg('lang') = 'es'
+    RETURN CHOOSE(theme, 'Pizarra', 'Marino', 'Grafito (oscuro)', 'Verde azulado', 'Claro', 'Bosque', |
+                  'Alto contraste', 'Bajo contraste', 'Oc<233>ano', 'Carmes<237>', '<193>mbar', 'Cobre', |
+                  'Cielo', 'Menta', 'Acero', 'Arena', 'Medianoche (oscuro)', 'Oliva', '')
+  END
+  RETURN CHOOSE(theme, 'Slate', 'Navy', 'Graphite (dark)', 'Teal', 'Light', 'Forest', |
+                'High contrast', 'Low contrast', 'Ocean', 'Crimson', 'Amber', 'Copper', |
+                'Sky', 'Mint', 'Steel', 'Sand', 'Midnight (dark)', 'Olive', '')
 
 ApplyTheme PROCEDURE(LONG theme)               ! remember it and tell every open browse
 i      LONG

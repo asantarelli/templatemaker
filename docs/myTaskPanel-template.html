@@ -223,7 +223,7 @@
       <img class="shot en" src="myTaskPanel-engines.png" alt="Clarion and DirectX engines">
       <img class="shot es" src="myTaskPanel-engines-es.png" alt="Motores Clarion y DirectX">
 
-      <div class="en"><h3>Six themes</h3></div><div class="es"><h3>Seis temas</h3></div>
+      <div class="en"><h3>Six of the eighteen themes</h3></div><div class="es"><h3>Seis de los dieciocho temas</h3></div>
       <img class="shot en" src="myTaskPanel-themes.png" alt="Themes">
       <img class="shot es" src="myTaskPanel-themes-es.png" alt="Temas">
 
@@ -251,7 +251,7 @@
         <table><tr><th>Argument</th><th>Effect</th></tr>
           <tr><td><code>engine=gdi</code> / <code>engine=dx</code></td><td>force an engine; with neither, TaskPanelDemoDX draws with DirectX and TaskPanelDemo with GDI</td></tr>
           <tr><td><code>dock=left|right|float</code></td><td>where it starts</td></tr>
-          <tr><td><code>theme=1..6</code></td><td>Slate, Navy, Graphite, Teal, Light, Forest - the starting theme; the toolbar's <i>Theme</i> button (and the <i>Theme</i> button on the <code>win</code> form) switches it live, and open browses' panels follow</td></tr>
+          <tr><td><code>theme=1..18</code></td><td>Slate, Navy, Graphite, Teal, Light, Forest, High contrast, Low contrast, Ocean, Crimson, Amber, Copper, Sky, Mint, Steel, Sand, Midnight, Olive - the starting theme; the toolbar's <i>Theme</i> button (and the <i>Theme</i> button on the <code>win</code> form) switches it live, and open browses' panels follow</td></tr>
           <tr><td><code>sub=flyout</code></td><td>submenus as pop-up menus</td></tr>
           <tr><td><code>open=all|none|first|menu</code></td><td>which groups start open</td></tr>
           <tr><td><code>lang=es</code></td><td>Spanish, including the frame's own menu</td></tr>
@@ -275,7 +275,7 @@
         <table><tr><th>Argumento</th><th>Efecto</th></tr>
           <tr><td><code>engine=gdi</code> / <code>engine=dx</code></td><td>forzar un motor; sin ninguno, TaskPanelDemoDX dibuja con DirectX y TaskPanelDemo con GDI</td></tr>
           <tr><td><code>dock=left|right|float</code></td><td>dónde empieza</td></tr>
-          <tr><td><code>theme=1..6</code></td><td>Pizarra, Marino, Grafito, Verde azulado, Claro, Bosque - el tema inicial; el bot&oacute;n <i>Tema</i> de la barra (y el del formulario <code>win</code>) lo cambia en vivo, y los paneles de las consultas abiertas lo siguen</td></tr>
+          <tr><td><code>theme=1..18</code></td><td>Pizarra, Marino, Grafito, Verde azulado, Claro, Bosque, Alto contraste, Bajo contraste, Océano, Carmesí, Ámbar, Cobre, Cielo, Menta, Acero, Arena, Medianoche, Oliva - el tema inicial; el bot&oacute;n <i>Tema</i> de la barra (y el del formulario <code>win</code>) lo cambia en vivo, y los paneles de las consultas abiertas lo siguen</td></tr>
           <tr><td><code>sub=flyout</code></td><td>submenús como menús emergentes</td></tr>
           <tr><td><code>open=all|none|first|menu</code></td><td>qué grupos empiezan abiertos</td></tr>
           <tr><td><code>lang=es</code></td><td>en español, incluido el menú del marco</td></tr>
@@ -354,7 +354,7 @@
             <code>#pragma define(_MTP_D2D_=&gt;1)</code> to the project, which compiles <code>mtpd2d.c</code> in.</td></tr>
           <tr><td>General</td><td>DirectX effects · floating panel opacity when idle</td><td><code>Effects</code> (on): shadows, glass headers, fading hover. <code>FloatOpacity</code> (88 %): how solid a floating panel stays while the mouse is elsewhere; 100 keeps it solid.</td></tr>
           <tr><td>General</td><td>Show which engine is painting</td><td><code>ShowEngine</code>: a "DirectX" / "GDI" badge in the panel's corner. For testing.</td></tr>
-          <tr><td>Look</td><td>Theme · own accent colour</td><td>Six palettes; the accent replaces the highlighted header and hover colour.</td></tr>
+          <tr><td>Look</td><td>Theme · own accent colour</td><td>Eighteen palettes (incl. high and low contrast); the accent replaces the highlighted header and hover colour.</td></tr>
           <tr><td>Look</td><td>Font, size, item height, header height, corner radius, animate</td><td>Copied into the object before it shows.</td></tr>
           <tr><td>Behaviour</td><td>Language</td><td>The panel's own menu (Dock left, Float, Hide…) and the captions presets fill in.</td></tr>
           <tr><td>Behaviour</td><td>Remember … · INI file</td><td>Dock side, width, floating rectangle and open groups, one section per procedure (<code>TaskPanel.&lt;procedure&gt;</code>). A bare file name is taken from the program's folder.</td></tr>
@@ -387,7 +387,7 @@
             <code>#pragma define(_MTP_D2D_=&gt;1)</code> al proyecto, lo que compila <code>mtpd2d.c</code>.</td></tr>
           <tr><td>General</td><td>DirectX effects · Floating panel opacity when idle</td><td><code>Effects</code> (activo): sombras, encabezados de vidrio, resaltado que se desvanece. <code>FloatOpacity</code> (88 %): qué tan sólido queda un panel flotante mientras el ratón está en otro lado; 100 lo deja sólido.</td></tr>
           <tr><td>General</td><td>Show which engine is painting</td><td><code>ShowEngine</code>: una insignia "DirectX" / "GDI" en la esquina del panel. Para pruebas.</td></tr>
-          <tr><td>Look</td><td>Tema · color de acento propio</td><td>Seis paletas; el acento reemplaza el color del encabezado destacado y del resaltado.</td></tr>
+          <tr><td>Look</td><td>Tema · color de acento propio</td><td>Dieciocho paletas (con alto y bajo contraste); el acento reemplaza el color del encabezado destacado y del resaltado.</td></tr>
           <tr><td>Look</td><td>Fuente, tamaño, alto de elemento, alto de encabezado, radio de esquinas, animación</td><td>Se copian al objeto antes de mostrarlo.</td></tr>
           <tr><td>Behaviour</td><td>Language</td><td>El menú propio del panel (Acoplar, Flotante, Ocultar…) y los textos de los predefinidos.</td></tr>
           <tr><td>Behaviour</td><td>Remember … · INI file</td><td>Lado, ancho, rectángulo flotante y grupos abiertos, una sección por procedimiento (<code>TaskPanel.&lt;procedimiento&gt;</code>). Un nombre sin carpeta se toma de la carpeta del programa.</td></tr>
@@ -608,10 +608,14 @@ TaskPanel:L[3] = TaskPanel.AddItem(TaskPanel:L[2], <span class="s">'Ciudades'</s
 
     <section id="look">
       <div class="en"><h2>Themes and icons</h2>
-        <p>Six palettes, all without purple: <b>Slate</b> (default), <b>Navy</b>, <b>Graphite</b> (dark), <b>Teal</b>,
-          <b>Light</b>, <b>Forest</b>. <code>SetAccent(color)</code> replaces the highlighted header and the hover text;
+        <p>Eighteen palettes, all without purple: <b>Slate</b> (default), <b>Navy</b>, <b>Graphite</b> (dark), <b>Teal</b>,
+          <b>Light</b>, <b>Forest</b>; ten more colours — <b>Ocean</b>, <b>Crimson</b>, <b>Amber</b>, <b>Copper</b>,
+          <b>Sky</b>, <b>Mint</b>, <b>Steel</b>, <b>Sand</b>, <b>Midnight</b> (dark), <b>Olive</b>, each with white header text
+          at 4.5:1 or better; and two for accessibility — <b>High contrast</b> (black, white and yellow, strong borders) and
+          <b>Low contrast</b> (soft greys, easy on the eyes). <code>SetAccent(color)</code> replaces the highlighted header and the hover text;
           every colour is also a public property (<code>ClrHead1</code>, <code>ClrCard</code>, <code>ClrHover</code>…) you
           can set before <code>ShowPanel</code>.</p>
+        <img class="shot en" src="myTaskPanel-themes-more.png" alt="The twelve new themes">
         <p><b>Icons</b> are built-in vector glyphs, drawn with the painter, so they are sharp at any DPI and look the same
           in both engines. Or name an <code>.ico</code> file — a path on disk, or an icon linked into the program
           (Clarion files those by upper-case name, e.g. <code>SAVE.ICO</code>).</p>
@@ -621,10 +625,15 @@ tile cascade calendar money cart truck search plus link menu bell phone</pre>
         <p><b>auto</b> (in the template) guesses one from the caption, in English and Spanish — <i>Print</i> gets the
           printer, <i>Clientes</i> the person, <i>Ayuda</i> the help ring. Copied menus use it too.</p></div>
       <div class="es"><h2>Temas e iconos</h2>
-        <p>Seis paletas, todas sin violeta: <b>Pizarra</b> (por omisión), <b>Marino</b>, <b>Grafito</b> (oscuro),
-          <b>Verde azulado</b>, <b>Claro</b>, <b>Bosque</b>. <code>SetAccent(color)</code> reemplaza el encabezado destacado y
+        <p>Dieciocho paletas, todas sin violeta: <b>Pizarra</b> (por omisión), <b>Marino</b>, <b>Grafito</b> (oscuro),
+          <b>Verde azulado</b>, <b>Claro</b>, <b>Bosque</b>; diez colores más — <b>Océano</b>, <b>Carmesí</b>,
+          <b>Ámbar</b>, <b>Cobre</b>, <b>Cielo</b>, <b>Menta</b>, <b>Acero</b>, <b>Arena</b>, <b>Medianoche</b> (oscuro),
+          <b>Oliva</b>, todos con el texto blanco del encabezado a 4.5:1 o más; y dos de accesibilidad — <b>Alto contraste</b>
+          (negro, blanco y amarillo, bordes marcados) y <b>Bajo contraste</b> (grises suaves, descansa la vista).
+          <code>SetAccent(color)</code> reemplaza el encabezado destacado y
           el texto resaltado; cada color es también una propiedad pública (<code>ClrHead1</code>, <code>ClrCard</code>,
           <code>ClrHover</code>…) que puede asignar antes de <code>ShowPanel</code>.</p>
+        <img class="shot es" src="myTaskPanel-themes-more.png" alt="Los doce temas nuevos">
         <p>Los <b>iconos</b> son glifos vectoriales incluidos, dibujados con el pintor: nítidos con cualquier DPI e iguales en
           los dos motores. O indique un archivo <code>.ico</code> — una ruta en disco, o un icono enlazado al programa
           (Clarion los archiva por el nombre en mayúsculas, p. ej. <code>SAVE.ICO</code>).</p>
@@ -1117,7 +1126,7 @@ sub  LONG
         <tr><td><code>TakeItem(id, tag),VIRTUAL</code></td><td class="en">override instead of the CASE</td><td class="es">redefinir en lugar del CASE</td></tr>
         <tr><td><code>Click(id)</code></td><td class="en">as if the user had clicked it</td><td class="es">como si el usuario lo hubiera pulsado</td></tr>
         <tr><td colspan="3"><b class="en">Looks and helpers</b><b class="es">Aspecto y ayudas</b></td></tr>
-        <tr><td><code>SetTheme(theme)</code> · <code>SetAccent(color)</code> · <code>SetLanguage('ES')</code></td><td class="en"><code>MTP:Slate</code> … <code>MTP:Forest</code>; accent; the panel's own menu</td><td class="es"><code>MTP:Slate</code> … <code>MTP:Forest</code>; acento; el menú propio del panel</td></tr>
+        <tr><td><code>SetTheme(theme)</code> · <code>SetAccent(color)</code> · <code>SetLanguage('ES')</code></td><td class="en"><code>MTP:Slate</code> … <code>MTP:Olive</code> (1..18); accent; the panel's own menu</td><td class="es"><code>MTP:Slate</code> … <code>MTP:Olive</code> (1..18); acento; el menú propio del panel</td></tr>
         <tr><td><code>EngineInUse(),BYTE</code></td><td class="en">which engine is really drawing</td><td class="es">qué motor dibuja de verdad</td></tr>
         <tr><td><code>Benchmark(engine, frames=200, effects=1),REAL</code></td><td class="en">milliseconds per frame for this panel with that engine, off screen; -1 if the engine is not compiled in</td><td class="es">milisegundos por cuadro de este panel con ese motor, fuera de pantalla; -1 si el motor no está compilado</td></tr>
         <tr><td><code>Effects</code> · <code>FloatOpacity</code> · <code>ShowEngine</code></td><td class="en">DirectX shadows/glass/fades (1) · a floating panel's idle opacity, % (88) · the engine badge (0)</td><td class="es">sombras/vidrio/desvanecidos de DirectX (1) · opacidad en reposo del panel flotante, % (88) · la insignia del motor (0)</td></tr>

@@ -91,6 +91,18 @@ MTP:Graphite         EQUATE(3)             ! dark
 MTP:Teal             EQUATE(4)
 MTP:Light            EQUATE(5)
 MTP:Forest           EQUATE(6)
+MTP:HighContrast     EQUATE(7)             ! black, white and yellow; strong borders
+MTP:LowContrast      EQUATE(8)             ! soft greys
+MTP:Ocean            EQUATE(9)
+MTP:Crimson          EQUATE(10)
+MTP:Amber            EQUATE(11)
+MTP:Copper           EQUATE(12)
+MTP:Sky              EQUATE(13)
+MTP:Mint             EQUATE(14)
+MTP:Steel            EQUATE(15)
+MTP:Sand             EQUATE(16)
+MTP:Midnight         EQUATE(17)            ! dark
+MTP:Olive            EQUATE(18)
 
 MTP:TileH            EQUATE(1)             ! MdiCommand()
 MTP:TileV            EQUATE(2)
