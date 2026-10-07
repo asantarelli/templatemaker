@@ -174,12 +174,13 @@ README.md
 
 ## Included templates
 
-**Jump to a template.** 31 of them; each links to its own section below.
+**Jump to a template.** 32 of them; each links to its own section below.
 
 | | |
 |---|---|
 | **Mail** | [**emailTo**](#t-emailto) &nbsp;<sub>send e-mail, and manage the account: SMTP/TLS, OAuth2 and nine provider APIs</sub> |
 | **Notify the user** | [**notifications**](#t-notifications) &nbsp;<sub>real Windows notifications, designed in a visual designer: buttons, replies, live progress</sub> |
+| **Documents** | [**myWordDoc**](#t-myworddoc) &nbsp;<sub>a word processor stored in a BLOB (text, pictures, tables), printed through a Clarion REPORT</sub> |
 | **Navigation** | [**myTaskPanel**](#t-mytaskpanel) &nbsp;<sub>task panels docked left/right or floating, nested submenus, presets, a copy of the system menu; Clarion or DirectX engine</sub> |
 | **Charts & gauges** | [**graficaBarra**](#t-graficabarra) &nbsp;<sub>thirteen chart types on windows and reports (vector on PDF)</sub><br>[**myPie**](#t-mypie) &nbsp;<sub>pie chart on a window</sub><br>[**myGauge**](#t-mygauge) &nbsp;<sub>analog gauges/dials on windows and reports</sub><br>[**myGaugePlus**](#t-mygaugeplus) &nbsp;<sub>antialiased (GDI+) gauges/dials on windows</sub> |
 | **Images & codes** | [**myImage**](#t-myimage) &nbsp;<sub>twelve image formats in, nine out, every colour format</sub><br>[**allImageRead**](#t-allimageread) &nbsp;<sub>any picture, from anywhere, on a window or a report</sub><br>[**myQR**](#t-myqr) &nbsp;<sub>QR code into an image control</sub><br>[**myQRDraw**](#t-myqrdraw) &nbsp;<sub>offline QR code drawn with BOX primitives</sub><br>[**myBarcodeGen**](#t-mybarcodegen) &nbsp;<sub>nine barcode types, offline, drawn with BOX primitives</sub> |
@@ -1454,6 +1455,38 @@ hand-coded project that omits the `_myWeatherLinkMode_` / `_myWeatherDllMode_` p
 import and faults in the constructor. A runnable demo is
 [`examples/weatherWidget/WeatherDemo.clw`](examples/weatherWidget/WeatherDemo.clw); its `/shots` switch and
 `shoot.ps1` regenerate every image above.
+
+<a id="t-myworddoc"></a>
+### `templates/myWordDoc/` — a word processor in a BLOB, printed through a REPORT
+A word-processing control for Clarion windows. It handles fonts, sizes, bold, italic, underline, strike,
+colour, highlight, alignment, bullets, numbering, indents, **pictures** (PNG, JPEG, BMP, EMF, WMF, or pasted)
+and **tables**. The document is stored as ordinary RTF in one **BLOB** field, so Word opens it too. It also
+**prints through a Clarion REPORT**, as vector pages that flow over as many report pages as the document needs.
+
+![The editor on a Clarion window](docs/myWordDoc-editor.png)
+
+The control is our own: `wdoc.c` registers its own window class, paints its own toolbar and page view, and
+hosts the Windows text engine (RichEdit, the one behind WordPad) underneath for typing, undo, the clipboard
+and RTF. It is compiled into the exe by Clarion's own C compiler. There is no COM, no OCX and no DLL to ship.
+
+Each page is printed as a placeable WMF on a report IMAGE. `wdoc.c` fixes three problems in that conversion
+itself: pictures that would be dropped, an 11 MB hidden copy of each page, and bullets that came out as "?".
+Text is measured on the default printer, so the lines break exactly where they will print.
+
+![Three records through the generated report](docs/myWordDoc-demo-report.png)
+
+- **myWordDocEditor** (control template on a REGION): pick the BLOB field. It loads the field when the form
+  opens and saves it with the record when it was edited. You can choose a toolbar, read only, page view,
+  Letter or A4 width, and the default font.
+- **myWordDocReport** (report extension): pick the BLOB and an IMAGE in a detail band. It prints every
+  record's document and keeps ABC from printing that band twice.
+- **myWordDocPrintBlob** (code template): the same print loop in any embed.
+- `WordDocClass` gives the same features to hand code: `LoadBlob`/`SaveBlob`, formatting, `InsertImage`,
+  `InsertTable`, `Find`, `PaginateForReport`/`PreparePage`.
+
+Install: `myWordDoc.tpl` to `accessory\template\win`; `WordDocClass.inc`, `WordDocClass.clw` and `wdoc.c` to
+`accessory\libsrc\win`; register the template. Details, limits and the test harness are in
+[`templates/myWordDoc/README.md`](templates/myWordDoc/README.md).
 
 <a id="t-mytaskpanel"></a>
 ### `templates/myTaskPanel/` — task panels, Clarion or DirectX
