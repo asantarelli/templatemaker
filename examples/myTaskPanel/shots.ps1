@@ -65,6 +65,11 @@ function Strip($name, $items) {
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx open=all"; En = "Badges";           Es = "Insignias" },
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx search=co"; En = "Typing co";       Es = "Escribiendo co" },
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx keys";      En = "Keyboard (F6)";   Es = "Teclado (F6)" })
+"rail";    Shot "rail"     "TaskPanelDemoDX.exe" "engine=dx rail child" "22,222"
+"autohide"; Shot "autohide" "TaskPanelDemoDX.exe" "engine=dx autohide child" "3,300"
+"cards";   Strip "cards" @(
+  @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx open=today"; En = "Info cards";            Es = "Tarjetas de datos" },
+  @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx";            En = "Favourites at the top"; Es = "Favoritos arriba" })
 "themes";  Strip "themes" @(
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx theme=1 open=first"; En = "Slate";    Es = "Pizarra" },
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx theme=2 open=first"; En = "Navy";     Es = "Marino" },

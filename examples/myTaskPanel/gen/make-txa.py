@@ -49,6 +49,12 @@ GROUPS[0][4][0]['showif'] = 'TODAY() > 0'
 GROUPS[0][4][1]['showif'] = 'TODAY() < 0'
 GROUPS[0][4][2]['enableif'] = 'CLOCK() < 0'
 GROUP_SHOWIF = ['', '', '', 'TODAY() < 0'] + [''] * 20
+# info cards, their values refreshed with the conditions; one clickable
+GROUPS[1][4].extend([
+    dict(kind='Info', text='Today', value='FORMAT(TODAY(), @d17)'),
+    dict(kind='Progress', text='Target', value='64', action='Post an event', event='EVENT:User'),
+    dict(kind='Chart', text='Weeks', value="'12,15,9,18,22'", chart='Line'),
+])
 
 def prompts_groups():
     L = []
@@ -99,6 +105,8 @@ def prompts_groups():
     it('%mtpItemHidden', 'LONG', 'hidden', 0, str)
     it('%mtpItemBold', 'LONG', 'bold', 0, str)
     it('%mtpItemShowIf', 'DEFAULT', 'showif', '', s)
+    it('%mtpItemValue', 'DEFAULT', 'value', '', s)
+    it('%mtpItemChart', 'DEFAULT', 'chart', 'Bars', s)
     it('%mtpItemEnableIf', 'DEFAULT', 'enableif', '', s)
     return L
 
@@ -150,6 +158,10 @@ w("%mtpMirrorSkip DEFAULT  ('Window')")
 w('%mtpMirrorHide LONG  (0)')
 w("%mtpSubStyle DEFAULT  ('Open in place')")
 w('%mtpAccordion LONG  (0)')
+w('%mtpFavorites LONG  (1)')
+w('%mtpRecent LONG  (5)')
+w('%mtpRail LONG  (0)')
+w('%mtpAutoHide LONG  (0)')
 w('%mtpShortcuts LONG  (1)')
 w("%mtpTheme DEFAULT  ('Global setting')")
 # an item embed: proves the per-item embed tree resolves

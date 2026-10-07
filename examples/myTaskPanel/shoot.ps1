@@ -27,7 +27,7 @@ $env:PATH = "C:\clarion12\bin;" + $env:PATH
 if ($Argv) { $p = Start-Process -FilePath (Join-Path $here $Exe) -ArgumentList $Argv -WorkingDirectory $here -PassThru }
 else { $p = Start-Process -FilePath (Join-Path $here $Exe) -WorkingDirectory $here -PassThru }
 $h = [IntPtr]::Zero
-for ($i = 0; $i -lt 50 -and $h -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 100; $p.Refresh(); $h = $p.MainWindowHandle }
+for ($i = 0; $i -lt 50 -and $h -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 100; $p.Refresh(); if ($p.MainWindowTitle) { $h = $p.MainWindowHandle } }   # a titled window: not a pop-out
 Start-Sleep -Milliseconds $Delay
 $r = New-Object W+RECT
 [void][W]::DwmGetWindowAttribute($h, 9, [ref]$r, 16)      # DWMWA_EXTENDED_FRAME_BOUNDS: no shadow

@@ -146,6 +146,8 @@ Obj                    &MyTaskPanelClass
 MTP_ClassName        CSTRING('MyTaskPanel.Pane')
 MTP_MdiClass         CSTRING('MDIClient')
 MTP_Registered       BYTE
+MTP_PeekClass        CSTRING('MyTaskPanel.Peek')  ! the rail's pop-out: same procedure, a drop shadow
+MTP_PeekReg          BYTE
 
 MTP_Rect             GROUP,TYPE
 X1                     LONG
@@ -272,6 +274,8 @@ MyTaskPanelClass.Construct PROCEDURE
   SELF.AutoGlyphs   = 1
   SELF.Effects      = 1
   SELF.ShowSearch   = 1
+  SELF.Favorites    = 1
+  SELF.RecentMax    = 5
   SELF.FloatOpacity = 88
   SELF.HoverT       = 1
   SELF.FontName     = 'Segoe UI'
@@ -323,8 +327,11 @@ i                      LONG
   SELF.HideMenu = 0
   IF SELF.DockHwnd AND mtp_IsWindow(SELF.DockHwnd) THEN mtp_DestroyWindow(SELF.DockHwnd).
   IF SELF.FloatHwnd AND mtp_IsWindow(SELF.FloatHwnd) THEN mtp_DestroyWindow(SELF.FloatHwnd).
+  IF SELF.PeekHwnd AND mtp_IsWindow(SELF.PeekHwnd) THEN mtp_DestroyWindow(SELF.PeekHwnd).
   SELF.DockHwnd = 0
   SELF.FloatHwnd = 0
+  SELF.PeekHwnd = 0
+  SELF.PeekId = 0
   LOOP i = RECORDS(MTP_Map) TO 1 BY -1          ! anything still pointing at us
     GET(MTP_Map, i)
     IF MTPM:Kind <> 3 AND MTPM:Obj &= SELF
@@ -358,6 +365,7 @@ MyTaskPanelClass.ShowPanel PROCEDURE
 MyTaskPanelClass.HidePanel PROCEDURE
   CODE
   IF SELF.HasFocus THEN SELF.LeaveFocus().
+  SELF.HidePeek()
   SELF.Visible = 0
   IF SELF.DockHwnd THEN mtp_ShowWindow(SELF.DockHwnd, 0).
   IF SELF.FloatHwnd THEN mtp_ShowWindow(SELF.FloatHwnd, 0).
@@ -377,6 +385,7 @@ r                      LIKE(MTP_Rect)
   IF side < MTP:Left OR side > MTP:Float THEN side = MTP:Left.
   IF side = MTP:Float AND ~SELF.AllowFloat AND SELF.Visible THEN RETURN.
   SELF.DockSide = side
+  SELF.HidePeek()
   IF ~SELF.Inited OR ~SELF.Visible THEN RETURN.
   SELF.MakeWindows()
   IF side = MTP:Float
@@ -975,6 +984,11 @@ res                    BYTE
 ! ============================================================================
 MyTaskPanelClass.Click PROCEDURE(LONG id)
   CODE
+  id = SELF.Resolve(id)                         ! a Favourites / Recent row runs the real item
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() OR ~SELF.Items.Enabled THEN RETURN.
+  SELF.PushRecent(id)
   SELF.Clicks.Id = id
   ADD(SELF.Clicks)
   POST(MTP:Event, , SELF.HostThread)
@@ -1052,6 +1066,10 @@ ini                    STRING(400)
   PUTINI(sec, 'Dock', SELF.DockSide, ini)
   PUTINI(sec, 'Width', SELF.PanelWidth, ini)
   PUTINI(sec, 'Visible', SELF.Visible, ini)
+  PUTINI(sec, 'Rail', SELF.Rail, ini)
+  PUTINI(sec, 'AutoHide', SELF.AutoHide, ini)
+  PUTINI(sec, 'Favourites', SELF.ListKeys(SELF.RefList(1)), ini)
+  PUTINI(sec, 'Recent', SELF.ListKeys(SELF.RefList(2)), ini)
   IF SELF.FloatW > 0
     PUTINI(sec, 'FloatX', SELF.FloatX, ini)
     PUTINI(sec, 'FloatY', SELF.FloatY, ini)
@@ -1077,6 +1095,11 @@ ini                    STRING(400)
   SELF.PanelWidth = GETINI(sec, 'Width', SELF.PanelWidth, ini)
   IF SELF.PanelWidth < SELF.MinWidth THEN SELF.PanelWidth = SELF.MinWidth.
   IF SELF.PanelWidth > SELF.MaxWidth THEN SELF.PanelWidth = SELF.MaxWidth.
+  SELF.Rail     = GETINI(sec, 'Rail', SELF.Rail, ini)
+  SELF.AutoHide = GETINI(sec, 'AutoHide', SELF.AutoHide, ini)
+  IF SELF.Rail THEN SELF.AutoHide = 0.
+  IF SELF.Favorites THEN SELF.SetRefs(1, SELF.KeyList(GETINI(sec, 'Favourites', '', ini))).
+  IF SELF.RecentMax > 0 THEN SELF.SetRefs(2, SELF.KeyList(GETINI(sec, 'Recent', '', ini))).
   SELF.FloatW = GETINI(sec, 'FloatW', SELF.FloatW, ini)
   IF SELF.FloatW > 0
     SELF.FloatX = GETINI(sec, 'FloatX', SELF.FloatX, ini)
@@ -1487,6 +1510,27 @@ title                  CSTRING(81)
       ADD(MTP_Map, MTPM:Hwnd)
     END
   END
+  IF ~MTP_PeekReg
+    CLEAR(wc)
+    wc.wcStyle     = 020003h                      ! CS_DROPSHADOW | CS_HREDRAW | CS_VREDRAW
+    wc.wcWndProc   = ADDRESS(MTP_WndProc)
+    wc.wcInst      = inst
+    wc.wcCursor    = mtp_LoadCursor(0, 32512)
+    wc.wcClassName = ADDRESS(MTP_PeekClass)
+    mtp_RegisterClass(ADDRESS(wc))
+    MTP_PeekReg = 1
+  END
+  IF ~SELF.PeekHwnd OR ~mtp_IsWindow(SELF.PeekHwnd)
+    owner = mtp_GetAncestor(SELF.HostHwnd, 2)
+    SELF.PeekHwnd = mtp_CreateWindowEx(08000080h, ADDRESS(MTP_PeekClass), 0, MTP:WS_POPUP, 0, 0, 10, 10, owner, 0, inst, 0)   ! NOACTIVATE|TOOLWINDOW
+    IF SELF.PeekHwnd
+      MTPM:Hwnd = SELF.PeekHwnd
+      MTPM:Kind = 1
+      MTPM:OldProc = 0
+      MTPM:Obj &= SELF
+      ADD(MTP_Map, MTPM:Hwnd)
+    END
+  END
   !  Without WS_CLIPCHILDREN the host paints straight over the panel; the
   !  style only takes effect once the frame is recalculated.
   st = mtp_GetWindowLong(SELF.HostHwnd, -16)
@@ -1500,7 +1544,11 @@ title                  CSTRING(81)
 
 MyTaskPanelClass.ReserveW PROCEDURE
   CODE
-  IF SELF.Visible AND SELF.DockSide <> MTP:Float AND SELF.DockHwnd THEN RETURN SELF.PanelWidth.
+  IF SELF.Visible AND SELF.DockSide <> MTP:Float AND SELF.DockHwnd
+    IF SELF.Rail THEN RETURN SELF.RailW().
+    IF SELF.AutoHide THEN RETURN SELF.Px(6).    ! the edge it waits in; out, it lies over the host
+    RETURN SELF.PanelWidth
+  END
   RETURN 0
 
 MyTaskPanelClass.HookKids PROCEDURE
@@ -1637,6 +1685,7 @@ nt                     LONG
 nr                     LONG
 nb                     LONG
 w                      LONG
+shown                  LONG
   CODE
   IF ~SELF.DockHwnd THEN RETURN.
   w = SELF.ReserveW()
@@ -1659,6 +1708,15 @@ w                      LONG
       nb = SELF.Kids.B
       BREAK
     END
+  END
+  IF SELF.AutoHide AND ~SELF.Rail               ! full width, only 'shown' of it inside the host
+    shown = w + (SELF.PanelWidth - w) * SELF.Slide
+    IF SELF.DockSide = MTP:Left
+      mtp_SetWindowPos(SELF.DockHwnd, 0, nl - SELF.PanelWidth + shown, nt, SELF.PanelWidth, nb - nt, 0050h)
+    ELSE
+      mtp_SetWindowPos(SELF.DockHwnd, 0, nr - shown, nt, SELF.PanelWidth, nb - nt, 0050h)
+    END
+    RETURN
   END
   IF SELF.DockSide = MTP:Left
     mtp_SetWindowPos(SELF.DockHwnd, 0, nl, nt, w, nb - nt, 0050h)       ! HWND_TOP, NOACTIVATE|SHOWWINDOW
@@ -1697,6 +1755,7 @@ MyTaskPanelClass.Invalidate PROCEDURE
   CODE
   IF SELF.DockHwnd THEN mtp_InvalidateRect(SELF.DockHwnd, 0, 0).
   IF SELF.FloatHwnd THEN mtp_InvalidateRect(SELF.FloatHwnd, 0, 0).
+  IF SELF.PeekId AND SELF.PeekHwnd THEN mtp_InvalidateRect(SELF.PeekHwnd, 0, 0).
 
 MyTaskPanelClass.StartAnim PROCEDURE
 h                      LONG
@@ -1888,7 +1947,7 @@ r                      LIKE(MTP_Rect)
 d                      LONG
 th                     LONG
   CODE
-  floating = CHOOSE(hwnd = SELF.FloatHwnd, 1, 0)
+  floating = SELF.KindOf(hwnd)                  ! 0 docked, 1 floating, 2 the rail's pop-out
   CASE msg
   OF 000Fh                                      ! WM_PAINT
     SELF.Paint(hwnd)
@@ -1903,7 +1962,7 @@ th                     LONG
   OF 0005h                                      ! WM_SIZE
     SELF.Invalidate()
   OF 0010h                                      ! WM_CLOSE (the floating panel's X)
-    IF floating
+    IF floating = 1
       SELF.HidePanel()
       handled = 1
       RETURN 0
@@ -1913,9 +1972,9 @@ th                     LONG
     handled = 1
     RETURN 0
   OF 0216h                                      ! WM_MOVING
-    IF floating THEN SELF.CheckSnap(0).
+    IF floating = 1 THEN SELF.CheckSnap(0).
   OF 0232h                                      ! WM_EXITSIZEMOVE
-    IF floating THEN SELF.CheckSnap(1).
+    IF floating = 1 THEN SELF.CheckSnap(1).
   OF 0215h                                      ! WM_CAPTURECHANGED
     SELF.Drag = 0
   OF 0113h                                      ! WM_TIMER
@@ -1927,12 +1986,17 @@ th                     LONG
         mtp_KillTimer(hwnd, 1)
         SELF.InHost = 0
         SELF.SetHover(0)
-        IF floating THEN SELF.SetFloatAlpha(0).
+        IF floating = 1 THEN SELF.SetFloatAlpha(0).
+        IF floating = 0 AND SELF.AutoHide AND ~SELF.HasFocus AND ~SELF.InMenu THEN SELF.StartSlide(0).
       END
     OF 2
       SELF.StepAnim()
     OF 4
       SELF.StepFade()
+    OF 6                                        ! the rail's pop-out: has the mouse gone?
+      SELF.PeekCheck()
+    OF 7                                        ! auto-hide sliding in or out
+      SELF.StepSlide()
     OF 5                                        ! the search box's caret
       SELF.CaretOn = 1 - SELF.CaretOn
       SELF.Invalidate()
@@ -1956,7 +2020,7 @@ th                     LONG
         mtp_SetCursor(mtp_LoadCursor(0, 32644))  ! IDC_SIZEWE
       ELSIF hit = -6
         mtp_SetCursor(mtp_LoadCursor(0, 32513))  ! IDC_IBEAM
-      ELSIF hit > 0 OR hit = -2 OR hit = -3 OR hit = -7
+      ELSIF hit > 0 OR hit = -2 OR hit = -3 OR hit = -7 OR hit = -8 OR hit = -9
         mtp_SetCursor(mtp_LoadCursor(0, 32649))  ! IDC_HAND
       ELSE
         mtp_SetCursor(mtp_LoadCursor(0, 32512))  ! IDC_ARROW
@@ -1971,8 +2035,9 @@ th                     LONG
       SELF.InHost = 1
       SELF.SyncMirror()
       mtp_SetTimer(hwnd, 1, 150, 0)
-      IF floating THEN SELF.SetFloatAlpha(1).
+      IF floating = 1 THEN SELF.SetFloatAlpha(1).
       POST(MTP:Check, , SELF.HostThread)        ! the template re-checks its Show/Enable conditions
+      IF floating = 0 AND SELF.AutoHide THEN SELF.StartSlide(1).
     END
     CASE SELF.Drag
     OF 1                                        ! the splitter
@@ -1993,6 +2058,7 @@ th                     LONG
       END
     ELSE
       SELF.SetHover(SELF.HitTest(x, y, floating))
+      IF SELF.Rail AND floating = 0 AND SELF.Hover > 0 AND SELF.Hover <> SELF.PeekId THEN SELF.ShowPeek(SELF.Hover).
     END
     handled = 1
     RETURN 0
@@ -2048,10 +2114,27 @@ th                     LONG
         SELF.OptionsMenu(hwnd)
       OF -3
         SELF.HidePanel()
+      OF -8                                     ! the rail's expand button
+        SELF.SetRail(0)
+      OF -9                                     ! collapse to the rail
+        SELF.SetRail(1)
       ELSE
         IF hit > 0
-          SELF.KeyId = hit
-          SELF.OnClickRow(hit, hwnd)
+          IF SELF.Rail AND floating = 0         ! a group icon: its pop-out
+            SELF.ShowPeek(hit)
+          ELSIF floating = 2                    ! in the pop-out: not its header
+            IF hit <> SELF.PeekId
+              SELF.OnClickRow(hit, hwnd)
+              IF SELF.HasKids(hit) AND SELF.SubStyle = MTP:Inline
+                SELF.ShowPeek(SELF.PeekId)      ! a submenu opened or closed: fit the pop-out to it
+              ELSE
+                SELF.HidePeek()
+              END
+            END
+          ELSE
+            SELF.KeyId = hit
+            SELF.OnClickRow(hit, hwnd)
+          END
         END
       END
     END
@@ -2060,6 +2143,8 @@ th                     LONG
     handled = 1
     RETURN 0
   OF 0205h                                      ! WM_RBUTTONUP
+    SELF.MenuId = SELF.HitTest(MTP_Signed16(lp), MTP_Signed16(BSHIFT(lp, -16)), floating)
+    IF SELF.MenuId < 0 THEN SELF.MenuId = 0.
     SELF.OptionsMenu(hwnd)
     handled = 1
     RETURN 0
@@ -2080,6 +2165,7 @@ th                     LONG
   OF 0008h                                      ! WM_KILLFOCUS
     SELF.HasFocus = 0
     mtp_KillTimer(hwnd, 5)
+    IF floating = 0 AND SELF.AutoHide AND ~SELF.InHost THEN SELF.StartSlide(0).
     SELF.Invalidate()
   OF 0087h                                      ! WM_GETDLGCODE: arrows, Tab and Enter come to us,
     handled = 1                                 ! not to the host's dialog navigation
@@ -2096,6 +2182,7 @@ th                     LONG
   OF 0082h                                      ! WM_NCDESTROY
     IF hwnd = SELF.DockHwnd THEN SELF.DockHwnd = 0.
     IF hwnd = SELF.FloatHwnd THEN SELF.FloatHwnd = 0.
+    IF hwnd = SELF.PeekHwnd THEN SELF.PeekHwnd = 0.
   END
   RETURN 0
 
@@ -2148,6 +2235,12 @@ t3                     CSTRING(64)
 t4                     CSTRING(64)
 t5                     CSTRING(64)
 t6                     CSTRING(64)
+t7                     CSTRING(64)
+t8                     CSTRING(64)
+t9                     CSTRING(64)
+t10                    CSTRING(64)
+tgt                    LONG
+r                      LIKE(MTP_Rect)
   CODE
   m = mtp_CreatePopupMenu()
   IF ~m THEN RETURN.
@@ -2157,26 +2250,62 @@ t6                     CSTRING(64)
   t4 = SELF.Txt('&Expand all', '&Expandir todo')
   t5 = SELF.Txt('&Collapse all', '&Contraer todo')
   t6 = SELF.Txt('&Hide the panel', '&Ocultar el panel')
+  !  On an item: favourite or not. On the Recent group or a row in it: clear it.
+  tgt = SELF.Resolve(SELF.MenuId)
+  IF SELF.Favorites AND SELF.MenuId > 0 AND SELF.IsAction(tgt)
+    t7 = CHOOSE(SELF.IsFavorite(tgt) = 1, SELF.Txt('Remove from &favourites', 'Quitar de &favoritos'), SELF.Txt('Add to &favourites', 'Agregar a &favoritos'))
+    mtp_AppendMenu(m, 0, 20, ADDRESS(t7))
+    mtp_AppendMenu(m, 0800h, 0, 0)
+  END
+  IF SELF.RecentGroup AND SELF.MenuId > 0
+    SELF.Items.Id = SELF.MenuId
+    GET(SELF.Items, SELF.Items.Id)
+    IF ~ERRORCODE() AND (SELF.Items.Id = SELF.RecentGroup OR SELF.Items.Parent = SELF.RecentGroup)
+      t8 = SELF.Txt('Clear &recent', 'Borrar &recientes')
+      mtp_AppendMenu(m, 0, 21, ADDRESS(t8))
+      mtp_AppendMenu(m, 0800h, 0, 0)
+    END
+  END
   mtp_AppendMenu(m, CHOOSE(SELF.AllowDock = 1, 0, 1) + CHOOSE(SELF.DockSide = MTP:Left, 8, 0), 1, ADDRESS(t1))
   mtp_AppendMenu(m, CHOOSE(SELF.AllowDock = 1, 0, 1) + CHOOSE(SELF.DockSide = MTP:Right, 8, 0), 2, ADDRESS(t2))
   mtp_AppendMenu(m, CHOOSE(SELF.AllowFloat = 1, 0, 1) + CHOOSE(SELF.DockSide = MTP:Float, 8, 0), 3, ADDRESS(t3))
   mtp_AppendMenu(m, 0800h, 0, 0)
   mtp_AppendMenu(m, 0, 4, ADDRESS(t4))
   mtp_AppendMenu(m, 0, 5, ADDRESS(t5))
+  IF SELF.DockSide <> MTP:Float
+    t9  = CHOOSE(SELF.Rail = 1, SELF.Txt('Show the &whole panel', 'Mostrar el panel &completo'), SELF.Txt('Collapse to &icons', 'Contraer a &iconos'))
+    t10 = SELF.Txt('A&uto-hide', 'Ocultar a&utom<225>ticamente')
+    mtp_AppendMenu(m, 0800h, 0, 0)
+    mtp_AppendMenu(m, 0, 22, ADDRESS(t9))
+    mtp_AppendMenu(m, CHOOSE(SELF.AutoHide = 1, 8, 0), 23, ADDRESS(t10))
+  END
   IF SELF.AllowClose
     mtp_AppendMenu(m, 0800h, 0, 0)
     mtp_AppendMenu(m, 0, 6, ADDRESS(t6))
   END
   mtp_GetCursorPos(ADDRESS(pt))
+  SELF.InMenu = 1
   cmd = mtp_TrackPopupMenu(m, 0182h, pt.PX, pt.PY, 0, hwnd, 0)   ! RETURNCMD|NONOTIFY|RIGHTBUTTON
+  SELF.InMenu = 0
   mtp_DestroyMenu(m)
+  SELF.MenuId = 0
   CASE cmd
+  OF 20
+    IF SELF.IsFavorite(tgt) THEN SELF.RemoveFavorite(tgt) ELSE SELF.AddFavorite(tgt).
+  OF 21 ; SELF.ClearRecent()
+  OF 22 ; SELF.SetRail(1 - SELF.Rail)
+  OF 23 ; SELF.SetAutoHide(1 - SELF.AutoHide)
   OF 1 ; SELF.Dock(MTP:Left)
   OF 2 ; SELF.Dock(MTP:Right)
   OF 3 ; SELF.Dock(MTP:Float)
   OF 4 ; SELF.ExpandAll(1)
   OF 5 ; SELF.ExpandAll(0)
   OF 6 ; SELF.HidePanel()
+  END
+  IF SELF.AutoHide AND SELF.DockHwnd AND ~SELF.HasFocus     ! the menu closed away from the panel
+    mtp_GetCursorPos(ADDRESS(pt))
+    mtp_GetWindowRect(SELF.DockHwnd, ADDRESS(r))
+    IF pt.PX < r.X1 OR pt.PX >= r.X2 OR pt.PY < r.Y1 OR pt.PY >= r.Y2 THEN SELF.StartSlide(0).
   END
 
 !  A submenu as a real pop-up menu, nested to any depth.
@@ -2203,7 +2332,9 @@ cmd                    LONG
       END
     END
   END
+  SELF.InMenu = 1
   cmd = mtp_TrackPopupMenu(m, 0182h, pt.PX, pt.PY, 0, hwnd, 0)
+  SELF.InMenu = 0
   mtp_DestroyMenu(m)
   IF cmd > 0 THEN SELF.Click(cmd).
 
@@ -2268,9 +2399,12 @@ rev                    REAL
     id   = SELF.Items.Id
     kind = SELF.Items.Kind
     rev  = SELF.Items.Reveal
+    IF SELF.Items.Role = 3 AND ~SELF.RefOk(SELF.Items.RefId) THEN CYCLE.
     CASE kind
     OF MTP:Separator ; h += SELF.Px(9)
     OF MTP:Label     ; h += SELF.Px(22)
+    OF MTP:Progress  ; h += SELF.Px(38)
+    OF MTP:Chart     ; h += SELF.Px(72)
     ELSE
       h += SELF.Px(SELF.ItemHeight)
       IF SELF.SubStyle = MTP:Inline AND rev > 0 AND SELF.HasKids(id)
@@ -2299,9 +2433,12 @@ kids                   BYTE
     id   = SELF.Items.Id
     kind = SELF.Items.Kind
     rev  = SELF.Items.Reveal
+    IF SELF.Items.Role = 3 AND ~SELF.RefOk(SELF.Items.RefId) THEN CYCLE.
     CASE kind
     OF MTP:Separator ; h = SELF.Px(9)
     OF MTP:Label     ; h = SELF.Px(22)
+    OF MTP:Progress  ; h = SELF.Px(38)
+    OF MTP:Chart     ; h = SELF.Px(72)
     ELSE             ; h = SELF.Px(SELF.ItemHeight)
     END
     kids = CHOOSE(kind = MTP:Item AND SELF.HasKids(id), 1, 0)
@@ -2339,56 +2476,63 @@ maxS                   LONG
 pass                   LONG
 searching              BYTE
 found                  LONG
+ord                    LONG
   CODE
   top = SELF.ContentTop(floating)
-  searching = CHOOSE(CLIP(SELF.Search) <> '', 1, 0)
+  searching = CHOOSE(CLIP(SELF.Search) <> '' AND floating <> 2, 1, 0)
   IF searching THEN SELF.UpdateMatches().
   SELF.ViewH = h - top
   SELF.ViewW = w
   LOOP pass = 1 TO 2
     FREE(SELF.Rows)
     y = top + SELF.Px(8) - SELF.ScrollY
-    LOOP i = 1 TO RECORDS(SELF.Items)
-      GET(SELF.Items, i)
-      IF SELF.Items.Parent <> 0 OR SELF.Items.Kind <> MTP:Group OR SELF.Items.Hidden THEN CYCLE.
-      id  = SELF.Items.Id
-      rev = SELF.Items.Reveal
-      IF searching                              ! only groups with a match, opened, matches only
-        found = SELF.CountMatches(id)
-        IF ~found THEN CYCLE.
-        rev = 1
-      END
-      CLEAR(SELF.Rows)
-      SELF.Rows.Id    = id
-      SELF.Rows.Kind  = MTP:Group
-      SELF.Rows.Y     = y
-      SELF.Rows.H     = SELF.Px(SELF.HeaderHeight)
-      SELF.Rows.ClipT = top
-      SELF.Rows.ClipB = h
-      ADD(SELF.Rows)
-      hdr = RECORDS(SELF.Rows)
-      y += SELF.Px(SELF.HeaderHeight)
-      IF searching
-        body = found * SELF.Px(SELF.ItemHeight) + SELF.Px(12)
-      ELSE
-        body = SELF.KidsHeight(id)
-        IF body > 0 THEN body += SELF.Px(12).
-      END
-      shown = INT(body * rev + 0.5)
-      IF shown > 0
-        yy = y + SELF.Px(6)
-        IF searching
-          SELF.SearchRows(id, yy, y, y + shown)
-        ELSE
-          SELF.AddRows(id, 0, yy, y, y + shown)
+    LOOP ord = 1 TO 3
+      LOOP i = 1 TO RECORDS(SELF.Items)
+        GET(SELF.Items, i)
+        IF SELF.Items.Parent <> 0 OR SELF.Items.Kind <> MTP:Group OR SELF.Items.Hidden THEN CYCLE.
+        IF SELF.Items.Role <> CHOOSE(ord, 1, 2, 0) THEN CYCLE.      ! Favourites, Recent, then the rest
+        IF floating = 2 AND SELF.Items.Id <> SELF.PeekId THEN CYCLE. ! the pop-out: its group only
+        id  = SELF.Items.Id
+        rev = SELF.Items.Reveal
+        IF SELF.Items.Role AND ~SELF.HasKids(id) THEN CYCLE.         ! an empty Favourites / Recent
+        IF floating = 2 THEN rev = 1.
+        IF searching                              ! only groups with a match, opened, matches only
+          found = SELF.CountMatches(id)
+          IF ~found THEN CYCLE.
+          rev = 1
         END
+        CLEAR(SELF.Rows)
+        SELF.Rows.Id    = id
+        SELF.Rows.Kind  = MTP:Group
+        SELF.Rows.Y     = y
+        SELF.Rows.H     = SELF.Px(SELF.HeaderHeight)
+        SELF.Rows.ClipT = top
+        SELF.Rows.ClipB = h
+        ADD(SELF.Rows)
+        hdr = RECORDS(SELF.Rows)
+        y += SELF.Px(SELF.HeaderHeight)
+        IF searching
+          body = found * SELF.Px(SELF.ItemHeight) + SELF.Px(12)
+        ELSE
+          body = SELF.KidsHeight(id)
+          IF body > 0 THEN body += SELF.Px(12).
+        END
+        shown = INT(body * rev + 0.5)
+        IF shown > 0
+          yy = y + SELF.Px(6)
+          IF searching
+            SELF.SearchRows(id, yy, y, y + shown)
+          ELSE
+            SELF.AddRows(id, 0, yy, y, y + shown)
+          END
+        END
+        GET(SELF.Rows, hdr)
+        SELF.Rows.BodyH = shown
+        SELF.Rows.HasKids = CHOOSE(body > 0, 1, 0)
+        PUT(SELF.Rows)
+        GET(SELF.Items, i)
+        y += shown + SELF.Px(10)
       END
-      GET(SELF.Rows, hdr)
-      SELF.Rows.BodyH = shown
-      SELF.Rows.HasKids = CHOOSE(body > 0, 1, 0)
-      PUT(SELF.Rows)
-      GET(SELF.Items, i)
-      y += shown + SELF.Px(10)
     END
     SELF.ContentH = y + SELF.ScrollY - top
     maxS = SELF.ContentH - SELF.ViewH
@@ -2413,8 +2557,10 @@ top                    LONG
 th                     LONG
 r                      LIKE(MTP_Rect)
   CODE
-  mtp_GetClientRect(CHOOSE(floating = 1, SELF.FloatHwnd, SELF.DockHwnd), ADDRESS(r))
+  mtp_GetClientRect(SELF.HwndOf(floating), ADDRESS(r))
   w = r.X2
+  IF floating = 0 AND SELF.Rail THEN RETURN SELF.RailHit(x, y).
+  IF floating = 0 AND SELF.AutoHide AND SELF.Slide < 1 THEN RETURN 0.   ! tucked or still sliding
   th  = SELF.TitleH(floating)
   top = SELF.ContentTop(floating)
   IF ~floating AND SELF.AllowResize
@@ -2422,6 +2568,7 @@ r                      LIKE(MTP_Rect)
     IF SELF.DockSide = MTP:Right AND x < SELF.Px(4) THEN RETURN -4.
   END
   IF ~floating AND y < th
+    IF x >= w - SELF.Px(81) AND x < w - SELF.Px(57) THEN RETURN -9.
     IF x >= w - SELF.Px(56) AND x < w - SELF.Px(32) THEN RETURN -2.
     IF SELF.AllowClose AND x >= w - SELF.Px(30) AND x < w - SELF.Px(6) THEN RETURN -3.
     RETURN -1
@@ -2438,6 +2585,11 @@ r                      LIKE(MTP_Rect)
     IF y < SELF.Rows.Y OR y >= SELF.Rows.Y + SELF.Rows.H THEN CYCLE.
     IF y < SELF.Rows.ClipT OR y >= SELF.Rows.ClipB THEN CYCLE.
     IF SELF.Rows.Kind = MTP:Separator OR SELF.Rows.Kind = MTP:Label THEN RETURN 0.
+    IF SELF.Rows.Kind >= MTP:Info               ! an info card reacts only when made clickable
+      SELF.Items.Id = SELF.Rows.Id
+      GET(SELF.Items, SELF.Items.Id)
+      IF ERRORCODE() OR ~SELF.Items.Clickable THEN RETURN 0.
+    END
     RETURN SELF.Rows.Id
   END
   RETURN 0
@@ -2485,7 +2637,7 @@ i                      LONG
       END
     END
     ! ENDD2D
-    SELF.Render(r.X2, r.Y2, CHOOSE(hwnd = SELF.FloatHwnd, 1, 0))
+    SELF.Render(r.X2, r.Y2, SELF.KindOf(hwnd))
     COMPILE('ENDD2D',_MTP_D2D_)
     IF SELF.UseD2D
       IF mtp_d2_end()                           ! lost the device: next frame rebuilds
@@ -2518,7 +2670,22 @@ sbw                    LONG
 thumbH                 LONG
 thumbY                 LONG
 c                      LONG
+cx                     REAL
+cy                     REAL
+d                      LONG
   CODE
+  IF floating = 0 AND SELF.Rail
+    SELF.RenderRail(w, h)
+    RETURN
+  END
+  IF floating = 0 AND SELF.AutoHide AND SELF.Slide = 0   ! tucked: only a strip of it shows
+    SELF.PFill(0, 0, w, h, SELF.ClrTitle2)
+    cx = CHOOSE(SELF.DockSide = MTP:Left, w - SELF.Px(3), SELF.Px(3))
+    LOOP d = -1 TO 1
+      SELF.PEllipse(cx, h / 2 + d * SELF.Px(7), SELF.Px(1.3), SELF.Px(1.3), SELF.ClrTitleText)
+    END
+    RETURN
+  END
   SELF.Layout(w, h, floating)
   SELF.PFill(0, 0, w, h, SELF.ClrBack)
   sbw = CHOOSE(SELF.ContentH > SELF.ViewH, SELF.Px(8), 0)
@@ -2541,17 +2708,27 @@ c                      LONG
     c = CHOOSE(SELF.Hover = -5 OR SELF.Drag = 3, SELF.ClrTextDim, SELF.Mix(SELF.ClrTextDim, SELF.ClrBack, 0.45))
     SELF.PRound(w - SELF.Px(11), thumbY + SELF.Px(2), SELF.Px(5), thumbH - SELF.Px(4), SELF.Px(2.5), c)
   END
-  IF CLIP(SELF.Search) <> '' AND RECORDS(SELF.Rows) = 0
+  IF CLIP(SELF.Search) <> '' AND RECORDS(SELF.Rows) = 0 AND floating <> 2
     SELF.PText(SELF.Px(12), SELF.ContentTop(floating) + SELF.Px(14), w - SELF.Px(24), SELF.Px(24), SELF.Txt('No matches', 'Sin resultados'), SELF.ClrTextDim, 0, 1)
   END
-  IF SELF.ShowSearch THEN SELF.DrawSearch(w, floating).
+  IF SELF.ShowSearch AND floating <> 2 THEN SELF.DrawSearch(w, floating).
+  IF floating = 2 THEN SELF.PRound(0, 0, w, h, 0, -1, SELF.ClrCardLine).   ! the pop-out's edge
   ! ---- the title strip (docked only: a floating panel has a real caption) ----
   IF ~floating
     th = SELF.Px(30)
     SELF.PGrad(0, 0, w, th, 0, SELF.ClrTitle1, SELF.ClrTitle2)
-    SELF.PText(SELF.Px(10), 0, w - SELF.Px(70), th, SELF.Title, SELF.ClrTitleText, 2, 0)
+    SELF.PText(SELF.Px(10), 0, w - SELF.Px(95), th, SELF.Title, SELF.ClrTitleText, 2, 0)
     bs = SELF.Px(22)
     bty = (th - bs) / 2
+    btx = w - SELF.Px(79)                       ! collapse to the icon rail: a double chevron
+    SELF.DrawTitleBtn(-9, btx, bty, bs)
+    cx = btx + bs / 2
+    cy = bty + bs / 2
+    d = CHOOSE(SELF.DockSide = MTP:Left, 1, -1)
+    SELF.PLine(cx + d * SELF.Px(0.5), cy - SELF.Px(4), cx - d * SELF.Px(3.5), cy, SELF.ClrTitleText, SELF.Px(1.6))
+    SELF.PLine(cx - d * SELF.Px(3.5), cy, cx + d * SELF.Px(0.5), cy + SELF.Px(4), SELF.ClrTitleText, SELF.Px(1.6))
+    SELF.PLine(cx + d * SELF.Px(4.5), cy - SELF.Px(4), cx + d * SELF.Px(0.5), cy, SELF.ClrTitleText, SELF.Px(1.6))
+    SELF.PLine(cx + d * SELF.Px(0.5), cy, cx + d * SELF.Px(4.5), cy + SELF.Px(4), SELF.ClrTitleText, SELF.Px(1.6))
     btx = w - SELF.Px(54)
     SELF.DrawTitleBtn(-2, btx, bty, bs)
     SELF.PLine(btx + SELF.Px(7), bty + SELF.Px(9), btx + SELF.Px(11), bty + SELF.Px(13), SELF.ClrTitleText, SELF.Px(1.6))
@@ -2597,11 +2774,11 @@ MyTaskPanelClass.CurHwnd PROCEDURE
 
 MyTaskPanelClass.TitleH PROCEDURE(BYTE floating)
   CODE
-  RETURN CHOOSE(floating = 1, 0, SELF.Px(30))
+  RETURN CHOOSE(floating = 0, SELF.Px(30), 0)
 
 MyTaskPanelClass.ContentTop PROCEDURE(BYTE floating)
   CODE
-  RETURN SELF.TitleH(floating) + CHOOSE(SELF.ShowSearch = 1, SELF.Px(36), 0)
+  RETURN SELF.TitleH(floating) + CHOOSE(SELF.ShowSearch = 1 AND floating <> 2, SELF.Px(36), 0)
 
 MyTaskPanelClass.HasKeyboard PROCEDURE
   CODE
@@ -2611,6 +2788,8 @@ MyTaskPanelClass.Focus PROCEDURE
 h                      LONG
 f                      LONG
   CODE
+  IF SELF.Rail THEN SELF.SetRail(0).            ! the keyboard needs the whole panel
+  IF SELF.AutoHide THEN SELF.StartSlide(1).
   h = SELF.CurHwnd()
   IF ~h OR ~SELF.Visible THEN RETURN.
   f = mtp_GetFocus()
@@ -2806,7 +2985,7 @@ m                      BYTE
   LOOP i = 1 TO RECORDS(SELF.Items)
     GET(SELF.Items, i)
     m = 0
-    IF SELF.Items.Kind = MTP:Item AND INSTRING(CLIP(s), SELF.Fold(SELF.Items.Text), 1, 1)
+    IF SELF.Items.Kind = MTP:Item AND SELF.Items.Role = 0 AND INSTRING(CLIP(s), SELF.Fold(SELF.Items.Text), 1, 1)
       m = CHOOSE(SELF.HasKids(SELF.Items.Id) = 0, 1, 0)
     END
     IF SELF.Items.Match <> m
@@ -2902,7 +3081,7 @@ cx                       LONG
 cy                       LONG
                        END
   CODE
-  cs = txt
+  cs = CLIP(txt)                                ! a STRING arrives padded: measure what shows
   IF ~LEN(cs) THEN RETURN 0.
   SELF.MakeFonts()
   CASE font
@@ -2952,7 +3131,7 @@ c                      LONG
     SELF.PText(tx, bt, bw - SELF.Px(32), bh, SELF.Txt('Search...', 'Buscar...'), SELF.ClrTextDim, 0, 0)
   END
   IF SELF.HasFocus AND SELF.CaretOn
-    SELF.PFill(tx + SELF.TextW(SELF.Search, 0) + 1, bt + SELF.Px(6), 1, bh - SELF.Px(12), SELF.ClrText)
+    SELF.PFill(tx + SELF.TextW(SELF.Search & '|', 0) - SELF.TextW('|', 0) + 1, bt + SELF.Px(6), 1, bh - SELF.Px(12), SELF.ClrText)   ! '|' keeps a typed trailing space
   END
 
 !  A badge: a pill with a count or a word, or a dot for '*'. Drawn with its
@@ -2990,6 +3169,703 @@ MyTaskPanelClass.GetBadge PROCEDURE(LONG id)
   GET(SELF.Items, SELF.Items.Id)
   IF ERRORCODE() THEN RETURN ''.
   RETURN CLIP(SELF.Items.Badge)
+
+! ============================================================================
+!  Info cards: rows that show something instead of doing something - a label
+!  and a value, a progress bar, a small chart. They sit in any group, beside
+!  ordinary items; SetClickable makes one raise a click like an item.
+! ============================================================================
+MyTaskPanelClass.NewRow PROCEDURE(LONG pid, BYTE kind, STRING label, <STRING tag>)
+  CODE
+  CLEAR(SELF.Items)
+  SELF.NextId += 1
+  SELF.Items.Id      = SELF.NextId
+  SELF.Items.Parent  = pid
+  SELF.Items.Kind    = kind
+  SELF.Items.Text    = SELF.CleanText(label)
+  IF ~OMITTED(tag) THEN SELF.Items.Tag = tag.
+  SELF.Items.Enabled = 1
+  ADD(SELF.Items)
+  SELF.Invalidate()
+  RETURN SELF.NextId
+
+MyTaskPanelClass.AddInfo PROCEDURE(LONG pid, STRING label, STRING value, <STRING tag>)
+id                     LONG
+  CODE
+  IF OMITTED(tag)
+    id = SELF.NewRow(pid, MTP:Info, label)
+  ELSE
+    id = SELF.NewRow(pid, MTP:Info, label, tag)
+  END
+  SELF.SetValue(id, value)
+  RETURN id
+
+MyTaskPanelClass.AddProgress PROCEDURE(LONG pid, STRING label, REAL pct, <STRING tag>)
+id                     LONG
+  CODE
+  IF OMITTED(tag)
+    id = SELF.NewRow(pid, MTP:Progress, label)
+  ELSE
+    id = SELF.NewRow(pid, MTP:Progress, label, tag)
+  END
+  SELF.SetProgress(id, pct)
+  RETURN id
+
+MyTaskPanelClass.AddChart PROCEDURE(LONG pid, STRING label, STRING series, BYTE style=0, <STRING tag>)
+id                     LONG
+  CODE
+  IF OMITTED(tag)
+    id = SELF.NewRow(pid, MTP:Chart, label)
+  ELSE
+    id = SELF.NewRow(pid, MTP:Chart, label, tag)
+  END
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  SELF.Items.Style = style
+  PUT(SELF.Items)
+  SELF.SetSeries(id, series)
+  RETURN id
+
+MyTaskPanelClass.SetValue PROCEDURE(LONG id, STRING value)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN.
+  IF SELF.Items.Value = value THEN RETURN.
+  SELF.Items.Value = value
+  PUT(SELF.Items)
+  SELF.Invalidate()
+
+MyTaskPanelClass.SetProgress PROCEDURE(LONG id, REAL pct)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN.
+  IF pct < 0 THEN pct = 0.
+  IF pct > 100 THEN pct = 100.
+  IF SELF.Items.Pct = pct THEN RETURN.
+  SELF.Items.Pct = pct
+  PUT(SELF.Items)
+  SELF.Invalidate()
+
+MyTaskPanelClass.SetSeries PROCEDURE(LONG id, STRING series)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN.
+  IF SELF.Items.Series = series THEN RETURN.
+  SELF.Items.Series = series
+  PUT(SELF.Items)
+  SELF.Invalidate()
+
+MyTaskPanelClass.SetClickable PROCEDURE(LONG id, BYTE on=1)
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN.
+  SELF.Items.Clickable = on
+  PUT(SELF.Items)
+
+!  Draws the current SELF.Items record, an Info / Progress / Chart row.
+MyTaskPanelClass.DrawInfo PROCEDURE(LONG x, LONG y, LONG cw, LONG rh, LONG tx, LONG right)
+id                     LONG
+tx2                    LONG
+vw                     LONG
+gy                     LONG
+txt                    STRING(64)
+bt                     LONG
+bh                     LONG
+fw                     LONG
+v                      REAL,DIM(40)
+n                      LONG
+i                      LONG
+tok                    STRING(32)
+ser                    STRING(255)
+c                      STRING(1)
+mx                     REAL
+mn                     REAL
+ax                     LONG
+ay                     LONG
+aw                     LONG
+ah                     LONG
+bw                     REAL
+gap                    REAL
+hh                     REAL
+px                     REAL
+py                     REAL
+lx                     REAL
+ly                     REAL
+  CODE
+  id = SELF.Rows.Id
+  IF SELF.Items.Clickable AND SELF.Hover = id AND SELF.Items.Enabled
+    SELF.PRound(x + SELF.Px(4), y + 1, cw - SELF.Px(8), rh - 2, SELF.Px(4), SELF.ClrHover, SELF.ClrHoverLine)
+  END
+  tx2 = tx
+  gy = y + (SELF.Px(24) - SELF.Px(16)) / 2
+  IF SELF.Items.HIcon
+    SELF.PIcon(SELF.Items.HIcon, tx, gy, SELF.Px(16))
+    tx2 += SELF.Px(24)
+  ELSIF SELF.Items.Glyph
+    SELF.DrawGlyph(SELF.Items.Glyph, tx, gy, SELF.Px(16), SELF.ClrAccent)
+    tx2 += SELF.Px(24)
+  END
+  CASE SELF.Items.Kind
+  OF MTP:Info                                   ! label ............ value
+    vw = SELF.TextW(SELF.Items.Value, 1) + 2
+    IF vw > (right - tx2) * 6 / 10 THEN vw = (right - tx2) * 6 / 10.
+    SELF.PText(right - vw, y, vw, rh, SELF.Items.Value, SELF.ClrText, 1, 2)
+    SELF.PText(tx2, y, right - vw - SELF.Px(6) - tx2, rh, SELF.Items.Text, SELF.ClrTextDim, 0, 0)
+  OF MTP:Progress                               ! label ....... 64%, a bar under it
+    txt = CHOOSE(CLIP(SELF.Items.Value) <> '', CLIP(SELF.Items.Value), INT(SELF.Items.Pct + 0.5) & '%')
+    vw = SELF.TextW(txt, 3) + 2
+    SELF.PText(right - vw, y + SELF.Px(3), vw, SELF.Px(18), txt, SELF.ClrTextDim, 3, 2)
+    SELF.PText(tx2, y + SELF.Px(3), right - vw - SELF.Px(6) - tx2, SELF.Px(18), SELF.Items.Text, SELF.ClrText, 0, 0)
+    bt = y + SELF.Px(25)
+    bh = SELF.Px(6)
+    SELF.PRound(tx, bt, right - tx, bh, bh / 2, SELF.Mix(SELF.ClrSep, SELF.ClrCardLine, 0.5))
+    fw = (right - tx) * SELF.Items.Pct / 100
+    IF fw > 0
+      IF fw < bh THEN fw = bh.
+      SELF.PRound(tx, bt, fw, bh, bh / 2, SELF.ClrAccent)
+    END
+  OF MTP:Chart                                  ! label ....... headline, bars or a line under it
+    ser = SELF.Items.Series
+    LOOP i = 1 TO LEN(CLIP(ser))
+      c = ser[i]
+      IF c = ',' OR c = ';' OR c = ' '
+        IF CLIP(tok) <> '' AND n < 40
+          n += 1
+          v[n] = tok
+        END
+        tok = ''
+      ELSE
+        tok = CLIP(tok) & c
+      END
+    END
+    IF CLIP(tok) <> '' AND n < 40
+      n += 1
+      v[n] = tok
+    END
+    txt = CLIP(SELF.Items.Value)
+    IF txt = '' AND n THEN txt = v[n].
+    vw = SELF.TextW(txt, 1) + 2
+    SELF.PText(right - vw, y + SELF.Px(2), vw, SELF.Px(18), txt, SELF.ClrText, 1, 2)
+    SELF.PText(tx2, y + SELF.Px(2), right - vw - SELF.Px(6) - tx2, SELF.Px(18), SELF.Items.Text, SELF.ClrTextDim, 0, 0)
+    IF ~n THEN RETURN.
+    ax = tx
+    ay = y + SELF.Px(24)
+    aw = right - tx
+    ah = rh - SELF.Px(30)
+    mx = v[1]
+    mn = 0
+    LOOP i = 1 TO n
+      IF v[i] > mx THEN mx = v[i].
+      IF v[i] < mn THEN mn = v[i].
+    END
+    IF mx <= mn THEN mx = mn + 1.
+    SELF.PFill(ax, ay + ah, aw, 1, SELF.ClrSep)
+    IF SELF.Items.Style = MTP:Line AND n > 1
+      LOOP i = 1 TO n
+        px = ax + (i - 1) * aw / (n - 1)
+        py = ay + ah - ah * (v[i] - mn) / (mx - mn)
+        IF i > 1 THEN SELF.PLine(lx, ly, px, py, SELF.ClrAccent, SELF.Px(1.8)).
+        lx = px
+        ly = py
+      END
+      SELF.PEllipse(lx, ly, SELF.Px(3), SELF.Px(3), SELF.ClrAccent, SELF.ClrCard, SELF.Px(1.5))
+    ELSE
+      bw = aw / n
+      gap = bw / 4
+      IF gap > SELF.Px(4) THEN gap = SELF.Px(4).
+      LOOP i = 1 TO n
+        hh = ah * (v[i] - mn) / (mx - mn)
+        IF hh < 1 THEN hh = 1.
+        SELF.PRound(ax + (i - 1) * bw + gap / 2, ay + ah - hh, bw - gap, hh, CHOOSE(bw - gap > SELF.Px(4), SELF.Px(1.5), 0), CHOOSE(i = n, SELF.ClrAccent, SELF.Mix(SELF.ClrAccent, SELF.ClrCard, 0.55)))
+      END
+    END
+  END
+
+! ============================================================================
+!  Favourites and Recent: two groups at the top whose rows stand for items
+!  elsewhere (Role 3, RefId). Clicking one runs the real item. Kept in the
+!  INI by tag, or by the path of texts when the item has no tag.
+! ============================================================================
+MyTaskPanelClass.Resolve PROCEDURE(LONG id)
+  CODE
+  IF id <= 0 THEN RETURN id.
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ~ERRORCODE() AND SELF.Items.Role = 3 THEN RETURN SELF.Items.RefId.
+  RETURN id
+
+MyTaskPanelClass.IsAction PROCEDURE(LONG id)
+  CODE
+  IF id <= 0 THEN RETURN 0.
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() OR SELF.Items.Kind <> MTP:Item OR SELF.Items.Role <> 0 THEN RETURN 0.
+  RETURN CHOOSE(SELF.HasKids(id) = 0, 1, 0)
+
+MyTaskPanelClass.RefOk PROCEDURE(LONG refId)
+pos                    LONG
+ok                     BYTE
+  CODE
+  pos = POINTER(SELF.Items)
+  SELF.Items.Id = refId
+  GET(SELF.Items, SELF.Items.Id)
+  ok = CHOOSE(~ERRORCODE() AND ~SELF.Items.Hidden, 1, 0)
+  IF pos THEN GET(SELF.Items, pos).
+  RETURN ok
+
+MyTaskPanelClass.RoleGroup PROCEDURE(BYTE role)
+gid                    LONG
+  CODE
+  gid = CHOOSE(role = 1, SELF.FavGroup, SELF.RecentGroup)
+  IF gid
+    SELF.Items.Id = gid
+    GET(SELF.Items, SELF.Items.Id)
+    IF ~ERRORCODE() THEN RETURN gid.
+  END
+  IF role = 1
+    gid = SELF.AddGroup(SELF.Txt('Favourites', 'Favoritos'), 'star', 1, 0)
+  ELSE
+    gid = SELF.AddGroup(SELF.Txt('Recent', 'Recientes'), 'clock', 0, 0)
+  END
+  SELF.Items.Id = gid
+  GET(SELF.Items, SELF.Items.Id)
+  SELF.Items.Role = role
+  PUT(SELF.Items)
+  IF role = 1 THEN SELF.FavGroup = gid ELSE SELF.RecentGroup = gid.
+  RETURN gid
+
+MyTaskPanelClass.RefList PROCEDURE(BYTE role)
+gid                    LONG
+i                      LONG
+res                    STRING(1000)
+  CODE
+  res = ','
+  gid = CHOOSE(role = 1, SELF.FavGroup, SELF.RecentGroup)
+  IF ~gid THEN RETURN ','.
+  LOOP i = 1 TO RECORDS(SELF.Items)
+    GET(SELF.Items, i)
+    IF SELF.Items.Parent = gid AND SELF.Items.Role = 3
+      res = CLIP(res) & SELF.Items.RefId & ','
+    END
+  END
+  RETURN CLIP(res)
+
+!  Rebuilds the role group's rows from ',12,15,' (item ids, in order).
+MyTaskPanelClass.SetRefs PROCEDURE(BYTE role, STRING list)
+gid                    LONG
+i                      LONG
+found                  LONG
+p                      LONG
+q                      LONG
+id                     LONG
+txt                    STRING(120)
+gly                    STRING(24)
+  CODE
+  IF role = 1 AND ~SELF.FavGroup AND CLIP(list) = ',' THEN RETURN.     ! nothing to keep: no group either
+  IF role = 2 AND ~SELF.RecentGroup AND CLIP(list) = ',' THEN RETURN.
+  gid = SELF.RoleGroup(role)
+  LOOP
+    found = 0
+    LOOP i = 1 TO RECORDS(SELF.Items)
+      GET(SELF.Items, i)
+      IF SELF.Items.Parent = gid AND SELF.Items.Role = 3
+        found = SELF.Items.Id
+        BREAK
+      END
+    END
+    IF ~found THEN BREAK.
+    SELF.DeleteItem(found)
+  END
+  p = 2
+  LOOP
+    q = INSTRING(',', list, 1, p)
+    IF ~q THEN BREAK.
+    id = SUB(list, p, q - p)
+    p = q + 1
+    IF id <= 0 THEN CYCLE.
+    SELF.Items.Id = id
+    GET(SELF.Items, SELF.Items.Id)
+    IF ERRORCODE() THEN CYCLE.
+    txt = SELF.Items.Text
+    gly = SELF.Items.Glyph
+    CLEAR(SELF.Items)
+    SELF.NextId += 1
+    SELF.Items.Id      = SELF.NextId
+    SELF.Items.Parent  = gid
+    SELF.Items.Kind    = MTP:Item
+    SELF.Items.Text    = txt
+    SELF.Items.Glyph   = gly
+    SELF.Items.Enabled = 1
+    SELF.Items.Role    = 3
+    SELF.Items.RefId   = id
+    ADD(SELF.Items)
+  END
+  SELF.Invalidate()
+
+MyTaskPanelClass.AddFavorite PROCEDURE(LONG id)
+list                   STRING(1000)
+  CODE
+  id = SELF.Resolve(id)
+  IF ~SELF.IsAction(id) THEN RETURN.
+  list = SELF.RefList(1)
+  IF INSTRING(',' & id & ',', list, 1, 1) THEN RETURN.
+  SELF.SetRefs(1, CLIP(list) & id & ',')
+
+MyTaskPanelClass.RemoveFavorite PROCEDURE(LONG id)
+list                   STRING(1000)
+key                    STRING(16)
+p                      LONG
+  CODE
+  id = SELF.Resolve(id)
+  list = SELF.RefList(1)
+  key = ',' & id & ','
+  p = INSTRING(CLIP(key), list, 1, 1)
+  IF ~p THEN RETURN.
+  list = SUB(list, 1, p) & SUB(list, p + LEN(CLIP(key)), 1000)
+  SELF.SetRefs(1, list)
+
+MyTaskPanelClass.IsFavorite PROCEDURE(LONG id)
+  CODE
+  id = SELF.Resolve(id)
+  RETURN CHOOSE(INSTRING(',' & id & ',', SELF.RefList(1), 1, 1) > 0, 1, 0)
+
+MyTaskPanelClass.ClearRecent PROCEDURE
+  CODE
+  IF SELF.RecentGroup THEN SELF.SetRefs(2, ',').
+
+!  The item just run goes to the top of Recent; the list keeps RecentMax.
+MyTaskPanelClass.PushRecent PROCEDURE(LONG id)
+list                   STRING(1000)
+key                    STRING(16)
+p                      LONG
+n                      LONG
+  CODE
+  IF SELF.RecentMax <= 0 OR ~SELF.IsAction(id) THEN RETURN.
+  list = SELF.RefList(2)
+  key = ',' & id & ','
+  p = INSTRING(CLIP(key), list, 1, 1)
+  IF p THEN list = SUB(list, 1, p) & SUB(list, p + LEN(CLIP(key)), 1000).
+  list = ',' & id & CLIP(list)
+  p = 1                                         ! keep the first RecentMax
+  LOOP
+    p = INSTRING(',', list, 1, p + 1)
+    IF ~p THEN BREAK.
+    n += 1
+    IF n = SELF.RecentMax
+      list = SUB(list, 1, p)
+      BREAK
+    END
+  END
+  SELF.SetRefs(2, list)
+
+MyTaskPanelClass.ItemKey PROCEDURE(LONG id)
+k                      STRING(400)
+p                      LONG
+  CODE
+  SELF.Items.Id = id
+  GET(SELF.Items, SELF.Items.Id)
+  IF ERRORCODE() THEN RETURN ''.
+  IF CLIP(SELF.Items.Tag) <> '' THEN RETURN 'T:' & CLIP(SELF.Items.Tag).
+  k = SELF.Items.Text
+  p = SELF.Items.Parent
+  LOOP WHILE p
+    SELF.Items.Id = p
+    GET(SELF.Items, SELF.Items.Id)
+    IF ERRORCODE() THEN BREAK.
+    k = CLIP(SELF.Items.Text) & '/' & CLIP(k)
+    p = SELF.Items.Parent
+  END
+  RETURN 'P:' & CLIP(k)
+
+MyTaskPanelClass.FindKey PROCEDURE(STRING key)
+i                      LONG
+id                     LONG
+  CODE
+  LOOP i = 1 TO RECORDS(SELF.Items)
+    GET(SELF.Items, i)
+    IF SELF.Items.Kind <> MTP:Item OR SELF.Items.Role <> 0 THEN CYCLE.
+    id = SELF.Items.Id
+    IF SELF.ItemKey(id) = key THEN RETURN id.
+  END
+  RETURN 0
+
+!  ',12,15,' -> 'T:cust|P:Menu/Browse/Countries'
+MyTaskPanelClass.ListKeys PROCEDURE(STRING list)
+res                    STRING(2000)
+p                      LONG
+q                      LONG
+  CODE
+  p = 2
+  LOOP
+    q = INSTRING(',', list, 1, p)
+    IF ~q THEN BREAK.
+    res = CHOOSE(CLIP(res) = '', '', CLIP(res) & '|') & SELF.ItemKey(SUB(list, p, q - p))
+    p = q + 1
+  END
+  RETURN CLIP(res)
+
+!  'T:cust|P:Menu/Browse/Countries' -> ',12,15,' (keys no longer found are dropped)
+MyTaskPanelClass.KeyList PROCEDURE(STRING keys)
+res                    STRING(1000)
+p                      LONG
+q                      LONG
+id                     LONG
+  CODE
+  res = ','
+  IF CLIP(keys) = '' THEN RETURN ','.
+  p = 1
+  LOOP
+    q = INSTRING('|', keys, 1, p)
+    IF ~q THEN q = LEN(CLIP(keys)) + 1.
+    id = SELF.FindKey(SUB(keys, p, q - p))
+    IF id THEN res = CLIP(res) & id & ','.
+    IF q > LEN(CLIP(keys)) THEN BREAK.
+    p = q + 1
+  END
+  RETURN CLIP(res)
+
+! ============================================================================
+!  The rail: the docked panel as a strip of group icons. Pointing at one
+!  slides that group out beside the strip (the pop-out, PeekHwnd); it goes
+!  away when the mouse is on neither.
+! ============================================================================
+MyTaskPanelClass.KindOf PROCEDURE(LONG hwnd)
+  CODE
+  IF hwnd AND hwnd = SELF.PeekHwnd THEN RETURN 2.
+  IF hwnd AND hwnd = SELF.FloatHwnd THEN RETURN 1.
+  RETURN 0
+
+MyTaskPanelClass.HwndOf PROCEDURE(BYTE kind)
+  CODE
+  CASE kind
+  OF 1 ; RETURN SELF.FloatHwnd
+  OF 2 ; RETURN SELF.PeekHwnd
+  END
+  RETURN SELF.DockHwnd
+
+MyTaskPanelClass.RailW PROCEDURE
+  CODE
+  RETURN SELF.Px(44)
+
+!  The k-th group shown: Favourites, Recent, then the rest, skipping the hidden
+!  and the empty Favourites / Recent.
+MyTaskPanelClass.GroupAt PROCEDURE(LONG k)
+ord                    LONG
+i                      LONG
+n                      LONG
+id                     LONG
+  CODE
+  LOOP ord = 1 TO 3
+    LOOP i = 1 TO RECORDS(SELF.Items)
+      GET(SELF.Items, i)
+      IF SELF.Items.Parent <> 0 OR SELF.Items.Kind <> MTP:Group OR SELF.Items.Hidden THEN CYCLE.
+      IF SELF.Items.Role <> CHOOSE(ord, 1, 2, 0) THEN CYCLE.
+      id = SELF.Items.Id
+      IF SELF.Items.Role AND ~SELF.HasKids(id) THEN CYCLE.
+      n += 1
+      IF n = k THEN RETURN id.
+    END
+  END
+  RETURN 0
+
+MyTaskPanelClass.RailHit PROCEDURE(LONG x, LONG y)
+  CODE
+  IF y < SELF.Px(30) THEN RETURN -8.
+  IF y < SELF.Px(36) THEN RETURN 0.
+  RETURN SELF.GroupAt((y - SELF.Px(36)) / SELF.Px(40) + 1)
+
+MyTaskPanelClass.RenderRail PROCEDURE(LONG w, LONG h)
+th                     LONG
+k                      LONG
+id                     LONG
+i                      LONG
+bx                     REAL
+bt                     REAL
+bs                     REAL
+cx                     REAL
+cy                     REAL
+d                      LONG
+c1                     LONG
+c2                     LONG
+ct                     LONG
+dot                    BYTE
+dotClr                 LONG
+gly                    STRING(24)
+hi                     LONG
+ch                     STRING(1)
+hov                    BYTE
+  CODE
+  SELF.PFill(0, 0, w, h, SELF.ClrBack)
+  th = SELF.Px(30)
+  SELF.PGrad(0, 0, w, th, 0, SELF.ClrTitle1, SELF.ClrTitle2)
+  bs = SELF.Px(22)
+  SELF.DrawTitleBtn(-8, (w - bs) / 2, (th - bs) / 2, bs)
+  cx = w / 2
+  cy = th / 2
+  d = CHOOSE(SELF.DockSide = MTP:Left, -1, 1)   ! points the way the panel opens
+  SELF.PLine(cx + d * SELF.Px(0.5), cy - SELF.Px(4), cx - d * SELF.Px(3.5), cy, SELF.ClrTitleText, SELF.Px(1.6))
+  SELF.PLine(cx - d * SELF.Px(3.5), cy, cx + d * SELF.Px(0.5), cy + SELF.Px(4), SELF.ClrTitleText, SELF.Px(1.6))
+  SELF.PLine(cx + d * SELF.Px(4.5), cy - SELF.Px(4), cx + d * SELF.Px(0.5), cy, SELF.ClrTitleText, SELF.Px(1.6))
+  SELF.PLine(cx + d * SELF.Px(0.5), cy, cx + d * SELF.Px(4.5), cy + SELF.Px(4), SELF.ClrTitleText, SELF.Px(1.6))
+  LOOP k = 1 TO 200
+    id = SELF.GroupAt(k)
+    IF ~id THEN BREAK.
+    SELF.Items.Id = id
+    GET(SELF.Items, SELF.Items.Id)
+    IF SELF.Items.Special
+      c1 = SELF.ClrSpecial1
+      c2 = SELF.ClrSpecial2
+      ct = SELF.ClrSpecialText
+    ELSE
+      c1 = SELF.ClrHead1
+      c2 = SELF.ClrHead2
+      ct = SELF.ClrHeadText
+    END
+    gly = SELF.Items.Glyph
+    hi  = SELF.Items.HIcon
+    ch  = SELF.Items.Text[1]
+    dot = CHOOSE(CLIP(SELF.Items.Badge) <> '', 1, 0)
+    dotClr = CHOOSE(SELF.Items.BadgeClr = -1, SELF.ClrAccent, SELF.Items.BadgeClr)
+    IF ~dot                                     ! or a badge on anything inside it
+      LOOP i = 1 TO RECORDS(SELF.Items)
+        GET(SELF.Items, i)
+        IF SELF.Items.Parent = id AND CLIP(SELF.Items.Badge) <> ''
+          dot = 1
+          dotClr = CHOOSE(SELF.Items.BadgeClr = -1, SELF.ClrAccent, SELF.Items.BadgeClr)
+          BREAK
+        END
+      END
+    END
+    hov = CHOOSE(SELF.Hover = id OR SELF.PeekId = id, 1, 0)
+    IF hov
+      c1 = SELF.Mix(c1, MTP_Hex(0FFFFFFh), 0.15)
+      c2 = SELF.Mix(c2, MTP_Hex(0FFFFFFh), 0.15)
+    END
+    bs = SELF.Px(32)
+    bx = (w - bs) / 2
+    bt = th + SELF.Px(6) + (k - 1) * SELF.Px(40) + SELF.Px(4)
+    COMPILE('ENDD2D',_MTP_D2D_)
+    IF SELF.Fx THEN mtp_d2_shadow(bx, bt, bs, bs, SELF.Px(7), SELF.Px(4), SELF.Px(1.5), SELF.Alpha(COLOR:Black, 0.25)).
+    ! ENDD2D
+    SELF.PGrad(bx, bt, bs, bs, SELF.Px(7), c1, c2)
+    IF hi
+      SELF.PIcon(hi, bx + SELF.Px(8), bt + SELF.Px(8), SELF.Px(16))
+    ELSIF gly
+      SELF.DrawGlyph(gly, bx + SELF.Px(8), bt + SELF.Px(8), SELF.Px(16), ct)
+    ELSE
+      SELF.PText(bx, bt, bs, bs, UPPER(ch), ct, 1, 1)
+    END
+    IF dot THEN SELF.PEllipse(bx + bs - SELF.Px(3), bt + SELF.Px(3), SELF.Px(4.5), SELF.Px(4.5), dotClr, SELF.ClrBack, SELF.Px(1.5)).
+  END
+  IF SELF.DockSide = MTP:Left
+    SELF.PFill(w - 1, th, 1, h - th, SELF.ClrCardLine)
+  ELSE
+    SELF.PFill(0, th, 1, h - th, SELF.ClrCardLine)
+  END
+
+MyTaskPanelClass.ShowPeek PROCEDURE(LONG gid)
+k                      LONG
+hh                     LONG
+x                      LONG
+y                      LONG
+dr                     LIKE(MTP_Rect)
+  CODE
+  IF ~SELF.PeekHwnd THEN SELF.MakeWindows().
+  IF ~SELF.PeekHwnd OR ~SELF.DockHwnd OR ~gid THEN RETURN.
+  LOOP k = 1 TO 200
+    IF SELF.GroupAt(k) = gid OR SELF.GroupAt(k) = 0 THEN BREAK.
+  END
+  SELF.PeekId  = gid
+  SELF.ScrollY = 0
+  SELF.Layout(SELF.PanelWidth, 32000, 2)        ! how tall the group is, fully open
+  hh = SELF.ContentH + 2
+  mtp_GetWindowRect(SELF.DockHwnd, ADDRESS(dr))
+  IF hh > dr.Y2 - dr.Y1 THEN hh = dr.Y2 - dr.Y1.
+  y = dr.Y1 + SELF.Px(36) + (k - 1) * SELF.Px(40)
+  IF y + hh > dr.Y2 THEN y = dr.Y2 - hh.
+  x = CHOOSE(SELF.DockSide = MTP:Right, dr.X1 - SELF.PanelWidth, dr.X2)
+  mtp_SetWindowPos(SELF.PeekHwnd, 0, x, y, SELF.PanelWidth, hh, 0050h)   ! NOACTIVATE|SHOWWINDOW
+  mtp_InvalidateRect(SELF.PeekHwnd, 0, 0)
+  mtp_SetTimer(SELF.DockHwnd, 6, 120, 0)
+  SELF.Invalidate()
+
+MyTaskPanelClass.HidePeek PROCEDURE
+  CODE
+  IF ~SELF.PeekId THEN RETURN.
+  SELF.PeekId = 0
+  IF SELF.PeekHwnd THEN mtp_ShowWindow(SELF.PeekHwnd, 0).
+  IF SELF.DockHwnd THEN mtp_KillTimer(SELF.DockHwnd, 6).
+  SELF.Invalidate()
+
+MyTaskPanelClass.PeekCheck PROCEDURE
+pt                     GROUP
+PX                       LONG
+PY                       LONG
+                       END
+r                      LIKE(MTP_Rect)
+  CODE
+  IF ~SELF.PeekId
+    IF SELF.DockHwnd THEN mtp_KillTimer(SELF.DockHwnd, 6).
+    RETURN
+  END
+  IF SELF.InMenu THEN RETURN.
+  mtp_GetCursorPos(ADDRESS(pt))
+  mtp_GetWindowRect(SELF.DockHwnd, ADDRESS(r))
+  IF pt.PX >= r.X1 AND pt.PX < r.X2 AND pt.PY >= r.Y1 AND pt.PY < r.Y2 THEN RETURN.
+  mtp_GetWindowRect(SELF.PeekHwnd, ADDRESS(r))
+  IF pt.PX >= r.X1 AND pt.PX < r.X2 AND pt.PY >= r.Y1 AND pt.PY < r.Y2 THEN RETURN.
+  SELF.HidePeek()
+
+MyTaskPanelClass.SetRail PROCEDURE(BYTE on)
+  CODE
+  IF on AND SELF.DockSide = MTP:Float THEN RETURN.
+  SELF.Rail = on
+  IF on THEN SELF.AutoHide = 0.
+  SELF.HidePeek()
+  SELF.ApplyLayout()
+
+! ============================================================================
+!  Auto-hide: docked, the panel waits as a strip in the edge (the host loses
+!  only that) and slides out over the host when the mouse touches it.
+! ============================================================================
+MyTaskPanelClass.SetAutoHide PROCEDURE(BYTE on)
+  CODE
+  SELF.AutoHide = on
+  IF on
+    SELF.Rail = 0
+    SELF.HidePeek()
+  END
+  SELF.Slide   = 0
+  SELF.SlideTo = 0
+  SELF.ApplyLayout()
+
+MyTaskPanelClass.StartSlide PROCEDURE(BYTE out)
+  CODE
+  IF ~SELF.AutoHide OR SELF.Rail OR ~SELF.DockHwnd THEN RETURN.
+  SELF.SlideTo = out
+  IF SELF.Slide = out THEN RETURN.
+  IF ~SELF.Sliding
+    SELF.Sliding = 1
+    mtp_SetTimer(SELF.DockHwnd, 7, 15, 0)
+  END
+
+MyTaskPanelClass.StepSlide PROCEDURE
+d                      REAL
+  CODE
+  d = SELF.SlideTo - SELF.Slide
+  IF ABS(d) < 0.04
+    SELF.Slide = SELF.SlideTo
+    SELF.Sliding = 0
+    IF SELF.DockHwnd THEN mtp_KillTimer(SELF.DockHwnd, 7).
+  ELSE
+    SELF.Slide += d * 0.4
+  END
+  SELF.PlaceDocked()
+  SELF.Invalidate()
 
 !  Which engine is painting, in a small pill at the bottom corner.
 MyTaskPanelClass.DrawBadge PROCEDURE(LONG w, LONG h, LONG sbw)
@@ -3150,6 +4026,11 @@ p                      LONG
   SELF.Items.Id = id
   GET(SELF.Items, SELF.Items.Id)
   IF ERRORCODE() THEN RETURN.
+  IF SELF.Items.Role = 3                        ! a Favourites / Recent row: draw the item it stands for
+    SELF.Items.Id = SELF.Items.RefId
+    GET(SELF.Items, SELF.Items.Id)
+    IF ERRORCODE() THEN RETURN.
+  END
   x  = SELF.Px(8)
   cw = w - SELF.Px(16)
   y  = SELF.Rows.Y
@@ -3162,6 +4043,11 @@ p                      LONG
     RETURN
   OF MTP:Label
     SELF.PText(tx, y + SELF.Px(2), right - tx, rh - SELF.Px(2), UPPER(SELF.Items.Text), SELF.ClrTextDim, 3, 0)
+    RETURN
+  OF MTP:Info
+  OROF MTP:Progress
+  OROF MTP:Chart
+    SELF.DrawInfo(x, y, cw, rh, tx, right)
     RETURN
   END
   hov = CHOOSE(SELF.Hover = id AND SELF.Items.Enabled = 1, 1, 0)
@@ -3399,6 +4285,11 @@ g                      STRING(24)
     SELF.PLine(x + 5*u, y + 9.5*u, x + 1*u, y + 6*u, clr, lw)
     SELF.PLine(x + 1*u, y + 6*u, x + 6*u, y + 6*u, clr, lw)
     SELF.PLine(x + 6*u, y + 6*u, x + 8*u, y + 1*u, clr, lw)
+  OF 'clock'
+  OROF 'recent'
+    SELF.PEllipse(x + 8*u, y + 8*u, 6.5*u, 6.5*u, -1, clr, lw)
+    SELF.PLine(x + 8*u, y + 4*u, x + 8*u, y + 8.3*u, clr, lw)
+    SELF.PLine(x + 8*u, y + 8*u, x + 11*u, y + 10*u, clr, lw)
   OF 'window'
     SELF.PRound(x + 1*u, y + 2*u, 14*u, 12*u, 1.5*u, -1, clr)
     SELF.PFill(x + 1*u, y + 2*u, 14*u, 3*u, clr)

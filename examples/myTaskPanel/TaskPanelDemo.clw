@@ -18,6 +18,8 @@
 !    badge=off                  hide the engine badge
 !    search=text                type text into the panel's search box (keyboard in the panel)
 !    keys                       give the panel the keyboard
+!    rail | autohide            start collapsed to the icon rail / tucked into the edge
+!    peek                       (with rail) pop the first group out, for a screenshot
 !    bench                      time both engines, write TaskPanelBench.ini, exit
 !    diag                       where a DirectX frame's time goes: TaskPanelDiag.ini, exit
 ! ============================================================================
@@ -63,6 +65,11 @@ DragState              PROCEDURE(),LONG
 HitAt                  PROCEDURE(LONG x, LONG y),LONG
 DoDiag                 PROCEDURE(LONG what, LONG value),LONG,PROC
 KeyRow                 PROCEDURE(),LONG
+FirstRef               PROCEDURE(BYTE role),LONG
+RefOf                  PROCEDURE(LONG id),LONG
+GetPeekHwnd            PROCEDURE(),LONG
+PeekGroup              PROCEDURE(LONG gid)
+SlideNow               PROCEDURE(BYTE out)
                      END
 
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
@@ -100,6 +107,30 @@ TestPanel.UsingD2D PROCEDURE
 TestPanel.KeyRow PROCEDURE
   CODE
   RETURN SELF.KeyId
+TestPanel.FirstRef PROCEDURE(BYTE role)
+i LONG
+gid LONG
+  CODE
+  gid = CHOOSE(role = 1, SELF.FavGroup, SELF.RecentGroup)
+  LOOP i = 1 TO RECORDS(SELF.Items)
+    GET(SELF.Items, i)
+    IF gid AND SELF.Items.Parent = gid AND SELF.Items.Role = 3 THEN RETURN SELF.Items.Id.
+  END
+  RETURN 0
+TestPanel.RefOf PROCEDURE(LONG id)
+  CODE
+  RETURN SELF.Resolve(id)
+TestPanel.GetPeekHwnd PROCEDURE
+  CODE
+  RETURN SELF.PeekHwnd
+TestPanel.PeekGroup PROCEDURE(LONG gid)
+  CODE
+  SELF.ShowPeek(gid)
+TestPanel.SlideNow PROCEDURE(BYTE out)
+  CODE
+  SELF.Slide = out
+  SELF.SlideTo = out
+  SELF.PlaceDocked()
 TestPanel.DoDiag PROCEDURE(LONG what, LONG value)
   CODE
   RETURN SELF.Diag(what, value)
@@ -154,6 +185,7 @@ geo    LONG
 more   LONG
 fin    LONG
 i      LONG
+gToday LONG
 
 AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,STATUS(-1,160), |
            FONT('Segoe UI',9),RESIZE,IMM,ICON(ICON:Application)
@@ -194,6 +226,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
          BUTTON('Float'),AT(140,2,44,14),USE(?BtnFloat)
          BUTTON('Effects'),AT(192,2,44,14),USE(?BtnFx),TIP('DirectX: effects on / off')
          BUTTON('Speed test'),AT(238,2,52,14),USE(?BtnBench),TIP('Time both engines')
+         BUTTON('Icons'),AT(296,2,40,14),USE(?BtnRail),TIP('Collapse the panel to a strip of group icons')
+         BUTTON('Auto-hide'),AT(338,2,48,14),USE(?BtnAuto),TIP('Tuck the panel into the edge')
        END
      END
 
@@ -233,6 +267,14 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       TP.SetBadge(TP.FindTag('supp'), '*', COLOR:Red)
       TP.SetBadge(gCat, '3')
 
+      ! info cards: a value, a bar, two charts (template: item kinds Info / Progress / Chart)
+      gToday = TP.AddGroup(CHOOSE(Arg('lang') = 'es', 'Hoy', 'Today'), 'calendar')
+      TP.AddInfo(gToday, CHOOSE(Arg('lang') = 'es', 'Pedidos', 'Orders'), '34')
+      TP.AddInfo(gToday, CHOOSE(Arg('lang') = 'es', 'Ventas', 'Sales'), '$12,400')
+      TP.AddProgress(gToday, CHOOSE(Arg('lang') = 'es', 'Meta del mes', 'Monthly target'), 64)
+      TP.AddChart(gToday, CHOOSE(Arg('lang') = 'es', 'Ventas, 12 semanas', 'Sales, 12 weeks'), '12,15,9,18,22,17,25,21,28,24,31,35', MTP:Bars)
+      TP.AddChart(gToday, CHOOSE(Arg('lang') = 'es', 'Visitas, 14 d<237>as', 'Visits, 14 days'), '40,42,38,51,47,55,60,58,49,62,70,66,74,81', MTP:Line)
+
       gExp = TP.AddGroup(CHOOSE(Arg('lang') = 'es', 'Exportar', 'Exports'), 'export')
       TP.AddItem(gExp, 'Excel (.xlsx)', 'excel', 'x_xlsx')
       TP.AddItem(gExp, 'CSV', 'csv', 'x_csv')
@@ -259,8 +301,18 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       ! the frame's own menu, copied in (template: "Copy the system menu")
       TP.MirrorMenu(0, CHOOSE(Arg('lang') = 'es', 'Ventana', 'Window'), 1)
 
+      IF ~Arg('auto')                                  ! two favourites (users add their own with a right-click)
+        TP.AddFavorite(TP.FindTag('r_sales'))
+        TP.AddFavorite(TP.FindTag('x_pdf'))
+      END
+      IF Arg('rail') THEN TP.Rail = 1.
+      IF Arg('autohide') THEN TP.AutoHide = 1.
       IF Arg('open') = 'all' THEN TP.ExpandAll(1).
       IF Arg('open') = 'none' THEN TP.ExpandAll(0).
+      IF Arg('open') = 'today'                         ! only the info cards open
+        TP.ExpandAll(0)
+        TP.Expand(gToday)
+      END
       IF Arg('open') = 'first'
         TP.ExpandAll(0)
         TP.Expand(gCat)
@@ -280,6 +332,7 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
         TP.SetSearch(Arg('search'))
       END
       IF Arg('keys') THEN TP.Focus().                  ! the keyboard in the panel, no search
+      IF Arg('peek') THEN TP.PeekGroup(TP.FindText(CHOOSE(Arg('lang') = 'es', 'Hoy', 'Today'), 0)).
       IF Arg('flyout') THEN 0{PROP:Timer} = 60.          ! open a submenu as a pop-up, for a screenshot
       IF Arg('mt')                                     ! three child panels on three threads
         MtT1 = START(BrowseWin, 25000, 'Customers')
@@ -321,6 +374,9 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
         IF GETINI('t10', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
           PUTINI('t10', 'result', 'FAIL: the menu ITEM was not accepted', LONGPATH() & '\TaskPanelTest.ini')
         END
+        IF GETINI('t16', 'clicked', '', LONGPATH() & '\TaskPanelTest.ini') = '' AND SUB(GETINI('t16', 'result', '', LONGPATH() & '\TaskPanelTest.ini'), 1, 4) = 'pass'
+          PUTINI('t16', 'result', 'FAIL: the Favourites row did not click x_csv', LONGPATH() & '\TaskPanelTest.ini')
+        END
         IF GETINI('t13', 'result', '', LONGPATH() & '\TaskPanelTest.ini') = ''
           PUTINI('t13', 'result', 'FAIL: typing json + Enter ran nothing (search "' & TP.GetSearch() & '")', LONGPATH() & '\TaskPanelTest.ini')
         END
@@ -331,7 +387,9 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       LOOP WHILE TP.NextClick()
         Clicks += 1
         IF Arg('auto')
-          IF TP.ClickTag = 'x_json'                    ! t13: typed "json" + Enter, through the ACCEPT loop
+          IF TP.ClickTag = 'x_csv'                     ! t16: clicked on its Favourites row
+            PUTINI('t16', 'clicked', 'x_csv', LONGPATH() & '\TaskPanelTest.ini')
+          ELSIF TP.ClickTag = 'x_json'                 ! t13: typed "json" + Enter, through the ACCEPT loop
             PUTINI('t13', 'result', CHOOSE(d_GetFocus() <> TP.GetDockHwnd(), 'pass: typed json + Enter ran x_json, keyboard given back', 'FAIL: ran x_json but kept the keyboard'), LONGPATH() & '\TaskPanelTest.ini')
           ELSE
             PUTINI('t6', 'result', CHOOSE(TP.ClickTag = 'cust', 'pass: real click arrived as tag ', 'FAIL: tag ') & TP.ClickTag, LONGPATH() & '\TaskPanelTest.ini')
@@ -369,6 +427,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
     OF ?BtnFloat    ; TP.Dock(MTP:Float)
     OF ?BtnFx       ; TP.Effects = 1 - TP.Effects ; TP.Refresh()
     OF ?BtnBench    ; BenchWin()
+    OF ?BtnRail     ; TP.SetRail(1 - TP.Rail)
+    OF ?BtnAuto     ; TP.SetAutoHide(1 - TP.AutoHide)
     END
   END
   TP.Kill()                                             ! %WindowManagerMethodCodeSection 'Kill'
@@ -401,6 +461,8 @@ Spanish ROUTINE
   ?BtnFloat{PROP:Text} = 'Flotante'
   ?BtnFx{PROP:Text} = 'Efectos'
   ?BtnBench{PROP:Text} = 'Velocidad'
+  ?BtnRail{PROP:Text} = 'Iconos'
+  ?BtnAuto{PROP:Text} = 'Ocultar'
 
 !-----------------------------------------------------------------------------
 !  The self-test: real Win32 mouse messages at the panel, and the geometry of
@@ -570,6 +632,7 @@ o1      BYTE
   PUTINI('t10', 'row y', y, ini)
 
   ! 14. the keyboard: Focus, Home, Enter opens, Down, Left out, Left closes
+  TP.ClearRecent()                                     ! the clicks above filled Recent, which sits first
   TP.ExpandAll(0)
   TP.Focus()
   gCat = TP.FindText('Catalogs', 0)
@@ -600,6 +663,71 @@ o1      BYTE
     fails += 1
   END
   TP.SetSearch('')
+
+  ! 16. favourites: a row that stands for x_csv, and clicking it clicks x_csv
+  TP.AddFavorite(TP.FindTag('x_csv'))
+  d_SendMessage(TP.GetDockHwnd(), 000Fh, 0, 0)
+  id = TP.FirstRef(1)
+  y = TP.RowY(id)
+  IF TP.IsFavorite(TP.FindTag('x_csv')) AND id AND TP.RefOf(id) = TP.FindTag('x_csv') AND y > 0
+    d_SendMessage(TP.GetDockHwnd(), 0201h, 1, y * 65536 + 80)
+    d_SendMessage(TP.GetDockHwnd(), 0202h, 0, y * 65536 + 80)
+    PUTINI('t16', 'result', 'pass: Favourites row for x_csv at y=' & y & ', clicked (tag checked on MTP:Event)', ini)
+  ELSE
+    PUTINI('t16', 'result', 'FAIL fav=' & TP.IsFavorite(TP.FindTag('x_csv')) & ' ref=' & id & ' y=' & y, ini)
+    fails += 1
+  END
+
+  ! 17. recent: that click put x_csv first in Recent
+  IF TP.RefOf(TP.FirstRef(2)) = TP.FindTag('x_csv')
+    PUTINI('t17', 'result', 'pass: the click put x_csv at the top of Recent', ini)
+  ELSE
+    PUTINI('t17', 'result', 'FAIL first recent=' & TP.RefOf(TP.FirstRef(2)), ini)
+    fails += 1
+  END
+  TP.RemoveFavorite(TP.FindTag('x_csv'))
+  TP.ClearRecent()
+
+  ! 18. the rail: the panel is a strip, the MDI client follows, a group pops out
+  TP.SetRail(1)
+  d_GetWindowRect(TP.GetDockHwnd(), ADDRESS(rp))
+  d_GetWindowRect(mdi, ADDRESS(r))
+  TP.PeekGroup(TP.FindText('Catalogs', 0))
+  IF rp.X2 - rp.X1 = 44 AND r.X1 >= rp.X2 - 1 AND d_IsWindowVisible(TP.GetPeekHwnd())
+    PUTINI('t18', 'result', 'pass: rail 44 px, MDI client starts after it, Catalogs popped out', ini)
+  ELSE
+    PUTINI('t18', 'result', 'FAIL rail=' & rp.X2 - rp.X1 & ' mdi.x1=' & r.X1 & ' dock.x2=' & rp.X2 & ' peek=' & d_IsWindowVisible(TP.GetPeekHwnd()), ini)
+    fails += 1
+  END
+  TP.SetRail(0)
+  d_GetWindowRect(TP.GetDockHwnd(), ADDRESS(rp))
+  IF rp.X2 - rp.X1 <> TP.PanelWidth OR d_IsWindowVisible(TP.GetPeekHwnd())
+    PUTINI('t18', 'result', 'FAIL back: width ' & rp.X2 - rp.X1 & ' peek=' & d_IsWindowVisible(TP.GetPeekHwnd()), ini)
+    fails += 1
+  END
+
+  ! 19. auto-hide: tucked, the host loses 6 px; out, the panel lies over the host
+  TP.SetAutoHide(1)
+  d_GetWindowRect(TP.GetDockHwnd(), ADDRESS(rp))
+  d_GetWindowRect(mdi, ADDRESS(r))
+  cr.X1 = r.X1                                         ! where the MDI client starts, tucked
+  cr.X2 = rp.X2                                        ! where the panel ends, tucked
+  TP.SlideNow(1)
+  d_GetWindowRect(TP.GetDockHwnd(), ADDRESS(rp))
+  d_GetWindowRect(mdi, ADDRESS(r))
+  IF cr.X2 = cr.X1 AND rp.X2 > r.X1 + 100 AND r.X1 = cr.X1
+    PUTINI('t19', 'result', 'pass: tucked, the MDI client starts at the 6 px strip; out, the panel covers ' & rp.X2 - r.X1 & ' px of it', ini)
+  ELSE
+    PUTINI('t19', 'result', 'FAIL tucked panel end=' & cr.X2 & ' mdi=' & cr.X1 & '; out panel end=' & rp.X2 & ' mdi=' & r.X1, ini)
+    fails += 1
+  END
+  TP.SetAutoHide(0)
+  d_GetWindowRect(TP.GetDockHwnd(), ADDRESS(rp))
+  d_GetWindowRect(mdi, ADDRESS(r))
+  IF r.X1 < rp.X2 - 1
+    PUTINI('t19', 'result', 'FAIL back: MDI client at ' & r.X1 & ', panel ends ' & rp.X2, ini)
+    fails += 1
+  END
 
   ! 13. type "json" + Enter, POSTED, so they go through the ACCEPT loop (checked on MTP:Event)
   TP.Focus()

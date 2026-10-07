@@ -74,6 +74,12 @@ MTP:Group            EQUATE(1)             ! row kinds
 MTP:Item             EQUATE(2)
 MTP:Separator        EQUATE(3)
 MTP:Label            EQUATE(4)
+MTP:Info             EQUATE(5)             ! a label and a value ("Orders today   34")
+MTP:Progress         EQUATE(6)             ! a label and a bar, 0..100
+MTP:Chart            EQUATE(7)             ! a label and a small chart of a series of numbers
+
+MTP:Bars             EQUATE(0)             ! chart styles
+MTP:Line             EQUATE(1)
 
 MTP:Inline           EQUATE(0)             ! how submenus open
 MTP:Flyout           EQUATE(1)
@@ -113,6 +119,13 @@ Reveal                 REAL                ! 0..1 while the group/submenu animat
 Badge                  STRING(16)          ! a count or word in a pill on the right; '*' = a dot
 BadgeClr               LONG                ! COLOR:None = the accent colour
 Match                  BYTE                ! matches the search text
+Value                  STRING(64)          ! Info: the value; Progress: shown instead of "64%"; Chart: the headline
+Pct                    REAL                ! Progress: 0..100
+Series                 STRING(255)         ! Chart: '12,15,9,18'
+Style                  BYTE                ! Chart: MTP:Bars / MTP:Line
+Clickable              BYTE                ! Info/Progress/Chart rows only react when this is set
+Role                   BYTE                ! 1 the Favourites group, 2 the Recent group, 3 a row in one of them
+RefId                  LONG                ! Role 3: the item it stands for
                      END
 
 MTPRowQ              QUEUE,TYPE            ! the layout: one row per thing drawn
@@ -177,6 +190,10 @@ Effects                BYTE                ! DirectX only: shadows, glass, fadin
 FloatOpacity           BYTE                ! DirectX + Effects: a floating panel's opacity (%) while the mouse is away; 100 = solid
 ShowEngine             BYTE                ! a small "DirectX" / "GDI" badge in the corner, to see which is painting
 ShowSearch             BYTE                ! a search box under the title (default on)
+Favorites              BYTE                ! right-click an item: Add to favourites (default on)
+RecentMax              LONG                ! the Recent group keeps this many (default 5; 0 = no Recent group)
+Rail                   BYTE                ! docked as a strip of group icons (SetRail to change it once shown)
+AutoHide               BYTE                ! docked panel tucks into the edge and slides out (SetAutoHide)
 ! ---- colours (Clarion COLOR values; SetTheme fills them) ----
 ClrBack                LONG
 ClrTitle1              LONG
@@ -258,6 +275,15 @@ KeyId                  LONG,PROTECTED      ! the row the keyboard is on
 HasFocus               BYTE,PROTECTED
 PrevFocus              LONG,PROTECTED      ! where the focus goes back to (Esc, Tab)
 CaretOn                BYTE,PROTECTED
+FavGroup               LONG,PROTECTED
+RecentGroup            LONG,PROTECTED
+MenuId                 LONG,PROTECTED      ! the row right-clicked
+InMenu                 BYTE,PROTECTED      ! a pop-up menu is open: do not tuck or close anything
+PeekHwnd               LONG,PROTECTED      ! the rail's pop-out window
+PeekId                 LONG,PROTECTED      ! the group it shows
+Slide                  REAL,PROTECTED      ! auto-hide: 0 tucked .. 1 out
+SlideTo                BYTE,PROTECTED
+Sliding                BYTE,PROTECTED
 ! ---- life cycle ----
 Construct              PROCEDURE
 Destruct               PROCEDURE,VIRTUAL
@@ -302,6 +328,22 @@ SetChecked             PROCEDURE(LONG id, BYTE on)
 SetBold                PROCEDURE(LONG id, BYTE on)
 SetSpecial             PROCEDURE(LONG id, BYTE on)
 SetBadge               PROCEDURE(LONG id, STRING txt, LONG clr=-1) ! '' removes it; '*' = a dot; -1 = accent
+! ---- info cards ----
+AddInfo                PROCEDURE(LONG pid, STRING label, STRING value, <STRING tag>),LONG,PROC
+AddProgress            PROCEDURE(LONG pid, STRING label, REAL pct, <STRING tag>),LONG,PROC
+AddChart               PROCEDURE(LONG pid, STRING label, STRING series, BYTE style=0, <STRING tag>),LONG,PROC
+SetValue               PROCEDURE(LONG id, STRING value)
+SetProgress            PROCEDURE(LONG id, REAL pct)
+SetSeries              PROCEDURE(LONG id, STRING series)
+SetClickable           PROCEDURE(LONG id, BYTE on=1)     ! an info row that raises a click like an item
+! ---- favourites and recent ----
+AddFavorite            PROCEDURE(LONG id)
+RemoveFavorite         PROCEDURE(LONG id)
+IsFavorite             PROCEDURE(LONG id),BYTE
+ClearRecent            PROCEDURE
+! ---- rail and auto-hide ----
+SetRail                PROCEDURE(BYTE on)
+SetAutoHide            PROCEDURE(BYTE on)
 GetBadge               PROCEDURE(LONG id),STRING
 SetFeq                 PROCEDURE(LONG id, LONG feq)
 Expand                 PROCEDURE(LONG id, BYTE on=1)
@@ -377,6 +419,30 @@ Fold                   PROCEDURE(STRING txt),STRING,PROTECTED  ! upper case, acc
 CountMatches           PROCEDURE(LONG pid),LONG,PROTECTED
 SearchRows             PROCEDURE(LONG pid, *LONG y, LONG clipT, LONG clipB),PROTECTED
 PathOf                 PROCEDURE(LONG id),STRING,PROTECTED     ! "Browse > Geography" above an item
+DrawInfo               PROCEDURE(LONG x, LONG y, LONG cw, LONG rh, LONG tx, LONG right),PROTECTED
+NewRow                 PROCEDURE(LONG pid, BYTE kind, STRING label, <STRING tag>),LONG,PROTECTED
+Resolve                PROCEDURE(LONG id),LONG,PROTECTED       ! a Favourites/Recent row -> the item it stands for
+IsAction               PROCEDURE(LONG id),BYTE,PROTECTED       ! an item with no submenu
+RefOk                  PROCEDURE(LONG refId),BYTE,PROTECTED
+RoleGroup              PROCEDURE(BYTE role),LONG,PROTECTED
+RefList                PROCEDURE(BYTE role),STRING,PROTECTED   ! ',12,15,' - the items the role group shows
+SetRefs                PROCEDURE(BYTE role, STRING list),PROTECTED
+PushRecent             PROCEDURE(LONG id),PROTECTED
+ItemKey                PROCEDURE(LONG id),STRING,PROTECTED     ! tag, or the path of texts - for the INI
+FindKey                PROCEDURE(STRING key),LONG,PROTECTED
+ListKeys               PROCEDURE(STRING list),STRING,PROTECTED ! ',12,15,' -> 'T:cust|P:Menu/Browse/Countries'
+KeyList                PROCEDURE(STRING keys),STRING,PROTECTED ! and back
+KindOf                 PROCEDURE(LONG hwnd),BYTE,PROTECTED     ! 0 docked, 1 floating, 2 the rail's pop-out
+HwndOf                 PROCEDURE(BYTE kind),LONG,PROTECTED
+GroupAt                PROCEDURE(LONG k),LONG,PROTECTED        ! the k-th group shown, in display order
+RailW                  PROCEDURE(),LONG,PROTECTED
+RenderRail             PROCEDURE(LONG w, LONG h),PROTECTED
+RailHit                PROCEDURE(LONG x, LONG y),LONG,PROTECTED
+ShowPeek               PROCEDURE(LONG gid),PROTECTED
+HidePeek               PROCEDURE,PROTECTED
+PeekCheck              PROCEDURE,PROTECTED
+StartSlide             PROCEDURE(BYTE out),PROTECTED
+StepSlide              PROCEDURE,PROTECTED
 Alpha                  PROCEDURE(LONG clr, REAL a),LONG,PROTECTED
 CheckSnap              PROCEDURE(BYTE final),PROTECTED
 UndockAtCursor         PROCEDURE,PROTECTED

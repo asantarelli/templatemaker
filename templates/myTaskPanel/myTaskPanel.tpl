@@ -432,8 +432,15 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #BUTTON('&Items in this group'),MULTI(%mtpItems,SUB('. . . . . . . . . . . . ',1,%mtpItemLevel * 2) & CHOOSE(%mtpItemKind = 'Separator','------------',%mtpItemText) & CHOOSE(%mtpItemKind = 'Label','   (label)','')),INLINE
         #SHEET
           #TAB('&Item')
-            #PROMPT('&Kind:',DROP('Item|Separator|Label')),%mtpItemKind,DEFAULT('Item')
+            #PROMPT('&Kind:',DROP('Item|Separator|Label|Info|Progress|Chart')),%mtpItemKind,DEFAULT('Item')
             #PROMPT('&Text:',@s80),%mtpItemText
+            #ENABLE(%mtpItemKind = 'Info' OR %mtpItemKind = 'Progress' OR %mtpItemKind = 'Chart')
+              #PROMPT('&Value (expression):',@s200),%mtpItemValue,DEFAULT('')
+              #DISPLAY('Info: text. Progress: 0-100. Chart: ''12,15,9''.')
+            #ENDENABLE
+            #ENABLE(%mtpItemKind = 'Chart')
+              #PROMPT('C&hart:',DROP('Bars|Line')),%mtpItemChart,DEFAULT('Bars')
+            #ENDENABLE
             #PROMPT('&Level:',SPIN(@n1,0,6,1)),%mtpItemLevel,DEFAULT(0)
             #DISPLAY('0 = in the group, 1 = in the submenu of the item above')
             #PROMPT('&Icon:',DROP('none|auto|folder|table|user|users|box|doc|report|chart|export|import|excel|csv|pdf|html|xml|json|txt|print|mail|help|info|book|globe|gear|tools|backup|restore|key|lock|exit|home|star|window|tile|cascade|calendar|money|cart|truck|search|plus|link|menu|bell|phone')),%mtpItemGlyph,DEFAULT('none')
@@ -511,6 +518,10 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #PROMPT('&Submenus:',DROP('Open in place|Pop-up menu')),%mtpSubStyle,DEFAULT('Open in place')
       #PROMPT('Only one group open at a time (&accordion)',CHECK),%mtpAccordion,DEFAULT(0)
       #PROMPT('Show &shortcut text',CHECK),%mtpShortcuts,DEFAULT(1)
+      #PROMPT('&Favourites (right-click an item to add it)',CHECK),%mtpFavorites,DEFAULT(1)
+      #PROMPT('&Recent items kept (0 = none):',SPIN(@n2,0,20,1)),%mtpRecent,DEFAULT(5)
+      #PROMPT('Start collapsed to &icons (the rail)',CHECK),%mtpRail,DEFAULT(0)
+      #PROMPT('Auto-&hide: tuck it into the edge',CHECK),%mtpAutoHide,DEFAULT(0)
     #ENDBOXED
     #BOXED('Look')
       #PROMPT('&Theme:',DROP('Global setting|Slate|Navy|Graphite (dark)|Teal|Light|Forest')),%mtpTheme,DEFAULT('Global setting')
@@ -589,7 +600,7 @@ INCLUDE('MyTaskPanel.INC'),ONCE
       #EMBED(%mtpBeforeClick,'myTaskPanel - any item clicked, before its action')
       CASE %mtpObject.ClickTag
   #FOR(%mtpGroups)
-    #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item' AND %mtpItemAction <> 'Press a control or menu item')
+    #FOR(%mtpItems),WHERE((%mtpItemKind = 'Item' OR ((%mtpItemKind = 'Info' OR %mtpItemKind = 'Progress' OR %mtpItemKind = 'Chart') AND %mtpItemAction <> 'Embed code only')) AND %mtpItemAction <> 'Press a control or menu item')
       OF '%(QUOTE(%mtpTagOf()))'                          ! %mtpGroupText / %mtpItemText
       #CASE(%mtpItemAction)
       #OF('Start a procedure')
@@ -698,6 +709,10 @@ mtpBuild:%mtpObject ROUTINE
   %mtpObject.GrowHost = %mtpGrow
   %mtpObject.Accordion = %mtpAccordion
   %mtpObject.ShowShortcuts = %mtpShortcuts
+  %mtpObject.Favorites = %mtpFavorites
+  %mtpObject.RecentMax = %mtpRecent
+  %mtpObject.Rail = %mtpRail
+  %mtpObject.AutoHide = %mtpAutoHide
   #IF(%mtpSubStyle = 'Pop-up menu')
   %mtpObject.SubStyle = MTP:Flyout
   #ENDIF
@@ -736,6 +751,21 @@ mtpBuild:%mtpObject ROUTINE
   %mtpObject.AddSeparator(%mtpParent)
       #OF('Label')
   %mtpObject.AddLabel(%mtpParent, '%(QUOTE(%mtpItemText))')
+      #OF('Info')
+  %mtpObject:L[%(%mtpLv + 1)] = %mtpObject.AddInfo(%mtpParent, '%(QUOTE(%mtpItemText))', '', '%(QUOTE(%mtpTagOf()))')
+        #IF(%mtpItemAction <> 'Embed code only')
+  %mtpObject.SetClickable(%mtpObject:L[%(%mtpLv + 1)])
+        #ENDIF
+      #OF('Progress')
+  %mtpObject:L[%(%mtpLv + 1)] = %mtpObject.AddProgress(%mtpParent, '%(QUOTE(%mtpItemText))', 0, '%(QUOTE(%mtpTagOf()))')
+        #IF(%mtpItemAction <> 'Embed code only')
+  %mtpObject.SetClickable(%mtpObject:L[%(%mtpLv + 1)])
+        #ENDIF
+      #OF('Chart')
+  %mtpObject:L[%(%mtpLv + 1)] = %mtpObject.AddChart(%mtpParent, '%(QUOTE(%mtpItemText))', '', %(CHOOSE(%mtpItemChart = 'Line', 'MTP:Line', 'MTP:Bars')), '%(QUOTE(%mtpTagOf()))')
+        #IF(%mtpItemAction <> 'Embed code only')
+  %mtpObject.SetClickable(%mtpObject:L[%(%mtpLv + 1)])
+        #ENDIF
       #ELSE
         #SET(%mtpTagQ,QUOTE(%mtpTagOf()))
         #IF(%mtpItemGlyph = 'auto')
@@ -804,6 +834,16 @@ mtpCheck:%mtpObject ROUTINE
     %mtpObject.SetHidden(%mtpObject.FindText('%(QUOTE(%mtpGroupText))', 0), 1)
   END
     #ENDIF
+    #FOR(%mtpItems),WHERE(%mtpItemValue <> '')
+      #CASE(%mtpItemKind)
+      #OF('Info')
+  %mtpObject.SetValue(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), %mtpItemValue)     ! %mtpItemText
+      #OF('Progress')
+  %mtpObject.SetProgress(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), %mtpItemValue)  ! %mtpItemText
+      #OF('Chart')
+  %mtpObject.SetSeries(%mtpObject.FindTag('%(QUOTE(%mtpTagOf()))'), %mtpItemValue)    ! %mtpItemText
+      #ENDCASE
+    #ENDFOR
     #FOR(%mtpItems),WHERE(%mtpItemKind = 'Item')
       #IF(%mtpItemShowIf <> '')
   IF %mtpItemShowIf                                       ! %mtpItemText
