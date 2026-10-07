@@ -7,7 +7,9 @@
  *  panel's memory DC, the frame is drawn with Direct2D (antialiased shapes,
  *  real gradients) and DirectWrite (ClearType text with an ellipsis), and the
  *  Clarion side blits the DC to the screen as usual. Icons are drawn by GDI
- *  into the same DC after EndDraw.
+ *  into the same DC after EndDraw. With the class's Effects on, the frame
+ *  also gets what GDI cannot do: soft card shadows (mtpd2d_shadow), glass
+ *  highlights and translucent hover fills (alpha in every colour).
  *
  *  Direct2D is COM, so only the flat entry points (D2D1CreateFactory,
  *  DWriteCreateFactory) are bound; every method is called through a
@@ -371,6 +373,27 @@ void mtpd2d_grad(double x, double y, double w, double h, double rad, long c1, lo
     }
     rel(b);
     rel(gs);
+}
+
+/* A soft drop shadow under a rounded rectangle: n translucent rounded rects,
+   each a pixel larger than the last, so their overlap fades out from the
+   edge. argb's alpha is the darkest the shadow gets (right under the shape).
+   Drawn before the shape, which covers the middle. */
+void mtpd2d_shadow(double x, double y, double w, double h, double rad, double blur, double dy, long argb)
+{
+    int k, i, n;
+    unsigned long a, step;
+    D2D1_ROUNDED_RECT rr;
+    ID2D1RenderTarget* rt = cur(&k);
+    if (!rt || blur < 1) return;
+    n = (int)(blur + 0.5);
+    a = ((unsigned long)argb >> 24) & 0xFF;
+    step = a / n; if (step < 1) step = 1;
+    for (i = n; i >= 1; i--) {
+        rr.rect = rc(x - i, y + dy - i, w + 2*i, h + 2*i);
+        rr.rx = (float)(rad + i); rr.ry = rr.rx;
+        rt->v->FillRoundedRectangle(rt, &rr, solid(k, (long)((step << 24) | ((unsigned long)argb & 0xFFFFFF))));
+    }
 }
 
 void mtpd2d_line(double x1, double y1, double x2, double y2, long argb, double lw)

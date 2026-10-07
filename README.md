@@ -1476,7 +1476,15 @@ presses the original menu item, so the menu's own code runs.
 window whose window procedure is a Clarion `PASCAL` procedure; GDI through the API), or *DirectX* — Direct2D +
 DirectWrite through `mtpd2d.c`, compiled in by Clarion's own C compiler only when the global adds
 `_MTP_D2D_=>1`. Six themes, 47 built-in vector icons. The DirectX painter keeps one render target per
-thread, so the frame and every MDI child can each carry their own DirectX panel.
+thread, so the frame and every MDI child can each carry their own DirectX panel. DirectX also draws what GDI
+cannot (`Effects`, on by default): soft shadows under the cards, glass headers, a translucent hover highlight
+that fades in and out, and a floating panel that turns see-through while the mouse is elsewhere
+(`FloatOpacity`). `ShowEngine` puts a "DirectX" / "GDI" badge in the corner, so you can see which is painting.
+
+**Speed:** `Benchmark(engine)` times a frame off screen. GDI is the faster engine: on the demo panel
+2.05 ms a frame, against 2.43 ms for DirectX without the effects and 2.88 ms with them. A DC render target
+has to copy every frame back to the memory DC, and on a panel this small that costs more than Direct2D
+saves. Both are fast enough not to matter (about 280 frames a second at worst), so pick DirectX for the look.
 
 ![The two engines](docs/myTaskPanel-engines.png)
 
@@ -1484,7 +1492,9 @@ thread, so the frame and every MDI child can each carry their own DirectX panel.
 (GDI); `TaskPanelDemoDX.exe` is the DirectX build and draws with DirectX when simply double-clicked
 (`engine=gdi` forces GDI). The status bar names the engine in use. Other switches: `dock=left|right|float`,
 `theme=1..6`, `sub=flyout`, `lang=es`, `child`, `win` (the panel on an ordinary window), `mt` (a DirectX panel
-on three MDI children, one closed midway), `auto` (the self-test).
+on three MDI children, one closed midway), `fx=off`, `badge=off`, `bench` (times both engines into
+`TaskPanelBench.ini`), `auto` (the self-test). The toolbar's *Effects* button switches the effects on and off
+live, and *Speed test* times both engines and shows the result in a window.
 
 Verified: the demo's self-test (`examples/myTaskPanel`, `TaskPanelDemo.exe auto`) posts real mouse messages at
 the panel — **11/11 on both engines** (docking, MDI client geometry, splitter drag, drag-to-float, drop-to-dock,

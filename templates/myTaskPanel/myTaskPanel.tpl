@@ -324,6 +324,13 @@
       #PROMPT('&Draw the panels with:',DROP('Clarion (full source, GDI)|DirectX (Direct2D and DirectWrite)')),%mtpgEngine,DEFAULT('Clarion (full source, GDI)')
       #DISPLAY('DirectX compiles mtpd2d.c into the program (no DLL) and')
       #DISPLAY('falls back to the Clarion engine if Direct2D will not start.')
+      #ENABLE(SUB(%mtpgEngine,1,7) = 'DirectX')
+        #PROMPT('DirectX &effects: shadows, glass, fading hover',CHECK),%mtpgEffects,DEFAULT(1),AT(10)
+        #ENABLE(%mtpgEffects)
+          #PROMPT('Floating panel &opacity when idle (%):',SPIN(@n3,30,100,1)),%mtpgFloatOpacity,DEFAULT(88)
+        #ENDENABLE
+      #ENDENABLE
+      #PROMPT('Show which engine is &painting (a badge, for testing)',CHECK),%mtpgShowEngine,DEFAULT(0),AT(10)
     #ENDBOXED
   #ENDTAB
   #TAB('&Look')
@@ -642,6 +649,9 @@ mtpBuild:%mtpObject ROUTINE
   %mtpObject.HeaderHeight = %mtpgHeadH
   %mtpObject.Radius = %mtpgRadius
   %mtpObject.Animate = %mtpgAnimate
+  %mtpObject.Effects = %mtpgEffects
+  %mtpObject.FloatOpacity = %mtpgFloatOpacity
+  %mtpObject.ShowEngine = %mtpgShowEngine
     #IF(%mtpgLanguage = 'Spanish')
   %mtpObject.SetLanguage('ES')
     #ENDIF

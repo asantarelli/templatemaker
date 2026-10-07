@@ -14,6 +14,9 @@
 !    child                      open two MDI browses at start
 !    auto                       run the self-test, write TaskPanelTest.ini, exit
 !    shot                       keep still for an external screenshot (no auto)
+!    fx=off                     DirectX without the effects (shadows, glass, fades)
+!    badge=off                  hide the engine badge
+!    bench                      time both engines, write TaskPanelBench.ini, exit
 ! ============================================================================
   PROGRAM
 
@@ -25,6 +28,7 @@ Main          PROCEDURE
 FormDemo      PROCEDURE
 BrowseWin     PROCEDURE(STRING title)
 AboutWin      PROCEDURE
+BenchWin      PROCEDURE(BYTE auto=0)
 Arg           PROCEDURE(STRING name),STRING
 Engine        PROCEDURE(),BYTE
 SelfTest      PROCEDURE
@@ -48,6 +52,8 @@ RowY                   PROCEDURE(LONG id),LONG
 RowCount               PROCEDURE(),LONG
 ShowFlyout             PROCEDURE(LONG id)
 UsingD2D               PROCEDURE(),BYTE
+DragState              PROCEDURE(),LONG
+HitAt                  PROCEDURE(LONG x, LONG y),LONG
                      END
 
 TP                   TestPanel                ! %GlobalData / procedure data: the panel object
@@ -82,6 +88,12 @@ TestPanel.RowCount PROCEDURE
 TestPanel.UsingD2D PROCEDURE
   CODE
   RETURN SELF.EngineInUse()
+TestPanel.DragState PROCEDURE
+  CODE
+  RETURN SELF.Drag
+TestPanel.HitAt PROCEDURE(LONG x, LONG y)
+  CODE
+  RETURN SELF.HitTest(x, y, 0)
 TestPanel.RowY PROCEDURE(LONG id)
 i LONG
   CODE
@@ -165,6 +177,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
          BUTTON('Left'),AT(48,2,44,14),USE(?BtnLeft)
          BUTTON('Right'),AT(94,2,44,14),USE(?BtnRight)
          BUTTON('Float'),AT(140,2,44,14),USE(?BtnFloat)
+         BUTTON('Effects'),AT(192,2,44,14),USE(?BtnFx),TIP('DirectX: effects on / off')
+         BUTTON('Speed test'),AT(238,2,52,14),USE(?BtnBench),TIP('Time both engines')
        END
      END
 
@@ -185,6 +199,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
       OF 'float' ; TP.DockSide = MTP:Float
       END
       TP.IniFile = ''                                  ! the template sets the INI when "remember" is on
+      IF Arg('fx') = 'off' THEN TP.Effects = 0.
+      TP.ShowEngine = CHOOSE(Arg('badge') = 'off', 0, 1)
 
       ! a group the developer built (template: Groups list)
       gCat = TP.AddGroup(CHOOSE(Arg('lang') = 'es', 'Cat<225>logos', 'Catalogs'), 'table', 1, 1)
@@ -252,6 +268,10 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
         START(BrowseWin, 25000, CHOOSE(Arg('lang') = 'es', 'Productos', 'Products'))
       END
       IF Arg('auto') THEN POST(EVENT:User + 1).
+      IF Arg('bench') THEN POST(EVENT:User + 2).
+    OF EVENT:User + 2
+      BenchWin(1)
+      POST(EVENT:CloseWindow)
     OF EVENT:User + 1
       SelfTest()                                       ! ends by clicking "Customers"
     OF EVENT:Timer                                     ! auto: the posted clicks have had time
@@ -312,6 +332,8 @@ AppFrame APPLICATION('myTaskPanel demo'),AT(,,560,340),CENTER,MASK,SYSTEM,MAX,ST
     OF ?BtnLeft     ; TP.Dock(MTP:Left)
     OF ?BtnRight    ; TP.Dock(MTP:Right)
     OF ?BtnFloat    ; TP.Dock(MTP:Float)
+    OF ?BtnFx       ; TP.Effects = 1 - TP.Effects ; TP.Refresh()
+    OF ?BtnBench    ; BenchWin()
     END
   END
   TP.Kill()                                             ! %WindowManagerMethodCodeSection 'Kill'
@@ -342,6 +364,8 @@ Spanish ROUTINE
   ?BtnLeft{PROP:Text} = 'Izquierda'
   ?BtnRight{PROP:Text} = 'Derecha'
   ?BtnFloat{PROP:Text} = 'Flotante'
+  ?BtnFx{PROP:Text} = 'Efectos'
+  ?BtnBench{PROP:Text} = 'Velocidad'
 
 !-----------------------------------------------------------------------------
 !  The self-test: real Win32 mouse messages at the panel, and the geometry of
@@ -364,6 +388,7 @@ n       LONG
 y       LONG
 id      LONG
 before  LONG
+dragAfterDown LONG
   CODE
   ini = LONGPATH() & '\TaskPanelTest.ini'
   REMOVE(ini)
@@ -452,6 +477,7 @@ before  LONG
   before = TP.PanelWidth
   d_SetCursorPos(rp.X2 - 2, rp.Y1 + 200)
   d_SendMessage(TP.GetDockHwnd(), 0201h, 1, 200 * 65536 + (rp.X2 - rp.X1 - 2))
+  dragAfterDown = TP.DragState()
   d_SetCursorPos(rp.X2 + 58, rp.Y1 + 200)
   d_SendMessage(TP.GetDockHwnd(), 0200h, 1, 200 * 65536 + (rp.X2 - rp.X1 + 58))
   d_SendMessage(TP.GetDockHwnd(), 0202h, 0, 200 * 65536 + (rp.X2 - rp.X1 + 58))
@@ -459,7 +485,7 @@ before  LONG
   IF TP.PanelWidth = before + 60 AND r.X1 >= rp.X1 + TP.PanelWidth - 1
     PUTINI('t9', 'result', 'pass: splitter drag ' & before & ' -> ' & TP.PanelWidth & ', MDI client follows', ini)
   ELSE
-    PUTINI('t9', 'result', 'FAIL ' & before & ' -> ' & TP.PanelWidth, ini)
+    PUTINI('t9', 'result', 'FAIL ' & before & ' -> ' & TP.PanelWidth & ' (drag after button-down: ' & dragAfterDown & ', hit at the edge: ' & TP.HitAt(rp.X2 - rp.X1 - 2, 200) & ')', ini)
     fails += 1
   END
 
@@ -650,5 +676,81 @@ win    WINDOW('About'),AT(,,200,80),CENTER,MDI,SYSTEM,FONT('Segoe UI',9)
        END
   CODE
   OPEN(win)
+  ACCEPT
+  END
+
+!-----------------------------------------------------------------------------
+!  Times the frame's panel with each engine (TP.Benchmark: off screen, the
+!  panel's own size and contents). Three rounds, alternating, best of each,
+!  so a busy moment on the machine does not decide the result.
+BenchWin PROCEDURE(BYTE auto=0)
+es     BYTE
+r      LONG
+ms     REAL,DIM(3)
+v      REAL
+best   BYTE
+lab    STRING(40),DIM(3)
+txt    STRING(90),DIM(3)
+L1     STRING(90)
+L2     STRING(90)
+L3     STRING(90)
+L4     STRING(120)
+L5     STRING(120)
+Frames EQUATE(300)
+win    WINDOW('Speed test'),AT(,,300,112),CENTER,SYSTEM,FONT('Segoe UI',9),GRAY
+         STRING(@s90),AT(10,10,280,10),USE(L1)
+         STRING(@s90),AT(10,22,280,10),USE(L2)
+         STRING(@s90),AT(10,34,280,10),USE(L3)
+         STRING(@s120),AT(10,52,280,10),USE(L4),FONT(,,,FONT:bold)
+         STRING(@s120),AT(10,66,280,10),USE(L5)
+         BUTTON('OK'),AT(250,90,40,14),USE(?OK),STD(STD:Close),DEFAULT
+       END
+  CODE
+  es = CHOOSE(Arg('lang') = 'es', 1, 0)
+  lab[1] = CHOOSE(es = 1, 'Clarion (GDI)', 'Clarion (GDI)')
+  lab[2] = CHOOSE(es = 1, 'DirectX sin efectos', 'DirectX, no effects')
+  lab[3] = CHOOSE(es = 1, 'DirectX con efectos', 'DirectX with effects')
+  ms[1] = 999999 ; ms[2] = 999999 ; ms[3] = 999999
+  SETCURSOR(CURSOR:Wait)
+  LOOP r = 1 TO 3
+    v = TP.Benchmark(MTP:Clarion, Frames)
+    IF v < ms[1] THEN ms[1] = v.
+    v = TP.Benchmark(MTP:DirectX, Frames, 0)
+    IF v < ms[2] THEN ms[2] = v.
+    v = TP.Benchmark(MTP:DirectX, Frames, 1)
+    IF v < ms[3] THEN ms[3] = v.
+  END
+  SETCURSOR()
+  LOOP r = 1 TO 3
+    IF ms[r] < 0
+      txt[r] = CLIP(lab[r]) & ':  ' & CHOOSE(es = 1, 'no disponible', 'not available')
+    ELSE
+      txt[r] = CLIP(lab[r]) & ':  ' & LEFT(FORMAT(ms[r], @n8.3)) & CHOOSE(es = 1, ' ms por cuadro  (', ' ms per frame  (') & INT(1000 / ms[r]) & CHOOSE(es = 1, ' cuadros/s)', ' frames/s)')
+    END
+  END
+  L1 = txt[1]
+  L2 = txt[2]
+  L3 = txt[3]
+  IF ms[2] < 0
+    L4 = CHOOSE(es = 1, 'DirectX no est<225> compilado en esta versi<243>n (TaskPanelDemoDX.exe lo trae).', 'DirectX is not compiled into this build (TaskPanelDemoDX.exe has it).')
+  ELSE
+    best = 1
+    IF ms[2] < ms[best] THEN best = 2.
+    IF ms[3] < ms[best] THEN best = 3.
+    L4 = CHOOSE(es = 1, 'M<225>s r<225>pido: ', 'Fastest: ') & CLIP(lab[best])
+    L5 = CHOOSE(es = 1, 'GDI vs DirectX con efectos: ', 'GDI vs DirectX with effects: ') & LEFT(FORMAT(ms[3] / ms[1], @n6.2)) & CHOOSE(es = 1, ' veces el tiempo de GDI', 'x the GDI time')
+  END
+  IF auto
+    PUTINI('bench', 'gdi',      ms[1], LONGPATH() & '\TaskPanelBench.ini')
+    PUTINI('bench', 'dx',       ms[2], LONGPATH() & '\TaskPanelBench.ini')
+    PUTINI('bench', 'dxfx',     ms[3], LONGPATH() & '\TaskPanelBench.ini')
+    PUTINI('bench', 'engine',   TP.UsingD2D(), LONGPATH() & '\TaskPanelBench.ini')
+    PUTINI('bench', 'frames',   Frames, LONGPATH() & '\TaskPanelBench.ini')
+    RETURN
+  END
+  OPEN(win)
+  IF es
+    0{PROP:Text} = 'Prueba de velocidad'
+  END
   ACCEPT
   END

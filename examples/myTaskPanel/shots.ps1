@@ -8,8 +8,8 @@ $park = "760,560"                       # the mouse waits in the MDI area: no st
 
 function Shot($name, $exe, $argv, $click = $park, $delay = 1800) {
   foreach ($lang in @("en", "es")) {
-    $a = $argv; $suffix = ""
-    if ($lang -eq "es") { $a = "$argv lang=es"; $suffix = "-es" }
+    $a = "$argv badge=off"; $suffix = ""
+    if ($lang -eq "es") { $a = "$argv badge=off lang=es"; $suffix = "-es" }
     $out = Join-Path $docs "myTaskPanel-$name$suffix.png"
     & (Join-Path $here "shoot.ps1") -Exe $exe -Argv $a -Out $out -Click $click -Delay $delay | Out-Null
     "  $out"
@@ -23,8 +23,9 @@ function Strip($name, $items) {
     $crops = @()
     foreach ($it in $items) {
       $tmp = Join-Path $env:TEMP ("mtp_" + [guid]::NewGuid().ToString("N") + ".png")
-      $a = $it.Args; if ($lang -eq "es") { $a = "$a lang=es" }
-      & (Join-Path $here "shoot.ps1") -Exe $it.Exe -Argv $a -Out $tmp -Click $park | Out-Null
+      $a = "$($it.Args) badge=off"; if ($lang -eq "es") { $a = "$a lang=es" }
+      $c = $park; if ($it.Click) { $c = $it.Click }      # an item can hold the mouse on a row
+      & (Join-Path $here "shoot.ps1") -Exe $it.Exe -Argv $a -Out $tmp -Click $c | Out-Null
       $src = [System.Drawing.Bitmap]::FromFile($tmp)
       $rect = New-Object System.Drawing.Rectangle 1, 86, 231, 470
       $crops += @{ Bmp = $src.Clone($rect, $src.PixelFormat); Label = $(if ($lang -eq "es") { $it.Es } else { $it.En }) }
@@ -58,8 +59,8 @@ function Strip($name, $items) {
 "flyout";  Shot "flyout"  "TaskPanelDemoDX.exe" "engine=dx sub=flyout flyout" "" 2600
 "window";  Shot "window"  "TaskPanelDemoDX.exe" "engine=dx win theme=4"
 "engines"; Strip "engines" @(
-  @{ Exe = "TaskPanelDemo.exe";   Args = "";          En = "Clarion engine (GDI)"; Es = "Motor Clarion (GDI)" },
-  @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx"; En = "DirectX engine";       Es = "Motor DirectX" })
+  @{ Exe = "TaskPanelDemo.exe";   Args = "";          Click = "90,170"; En = "Clarion engine (GDI)"; Es = "Motor Clarion (GDI)" },
+  @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx"; Click = "90,170"; En = "DirectX engine";       Es = "Motor DirectX" })
 "themes";  Strip "themes" @(
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx theme=1 open=first"; En = "Slate";    Es = "Pizarra" },
   @{ Exe = "TaskPanelDemoDX.exe"; Args = "engine=dx theme=2 open=first"; En = "Navy";     Es = "Marino" },

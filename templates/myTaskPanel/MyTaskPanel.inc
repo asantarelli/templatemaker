@@ -20,7 +20,11 @@
 !    MTP:Clarion  - everything in Clarion source (GDI through the Windows API).
 !                   No C, no DLL. The default.
 !    MTP:DirectX  - Direct2D + DirectWrite: antialiased shapes, true
-!                   gradients, ClearType text. Painted by mtpd2d.c, compiled
+!                   gradients, ClearType text - and, with Effects on (the
+!                   default), soft card shadows, glass headers, hover
+!                   highlights that fade in and out, and a floating panel
+!                   that turns see-through when the mouse leaves it
+!                   (FloatOpacity). Painted by mtpd2d.c, compiled
 !                   in by Clarion's own C compiler only when the project
 !                   defines _MTP_D2D_=>1 (the global template does this). If
 !                   it is not compiled in, or Direct2D will not start, the
@@ -164,6 +168,9 @@ IniFile                STRING(260)         ! SaveState/LoadState; blank = off
 IniSection             STRING(60)
 Language               STRING(2)           ! EN / ES (the panel's own menu)
 AutoGlyphs             BYTE                ! mirrored rows guess an icon from their text
+Effects                BYTE                ! DirectX only: shadows, glass, fading translucent hover (default on)
+FloatOpacity           BYTE                ! DirectX + Effects: a floating panel's opacity (%) while the mouse is away; 100 = solid
+ShowEngine             BYTE                ! a small "DirectX" / "GDI" badge in the corner, to see which is painting
 ! ---- colours (Clarion COLOR values; SetTheme fills them) ----
 ClrBack                LONG
 ClrTitle1              LONG
@@ -234,6 +241,11 @@ Grown                  LONG,PROTECTED
 SnapSide               BYTE,PROTECTED
 InHost                 BYTE,PROTECTED      ! the mouse is over the panel
 Replaying              BYTE,PROTECTED      ! ApplyLayout is pushing the host's rects through
+HoverT                 REAL,PROTECTED      ! 0..1: how far the hover highlight has faded in
+FadeId                 LONG,PROTECTED      ! the row the mouse just left, fading out
+FadeT                  REAL,PROTECTED
+Fading                 BYTE,PROTECTED
+Fx                     BYTE,PROTECTED      ! this frame draws the DirectX effects
 ! ---- life cycle ----
 Construct              PROCEDURE
 Destruct               PROCEDURE,VIRTUAL
@@ -247,6 +259,7 @@ Dock                   PROCEDURE(BYTE side),VIRTUAL
 SetWidth               PROCEDURE(LONG px)
 Refresh                PROCEDURE
 EngineInUse            PROCEDURE(),BYTE    ! MTP:Clarion or MTP:DirectX
+Benchmark              PROCEDURE(BYTE engine, LONG frames=200, BYTE effects=1),REAL  ! ms per frame; -1 = engine not available
 SetTheme               PROCEDURE(LONG theme)
 SetAccent              PROCEDURE(LONG clr)
 SetLanguage            PROCEDURE(STRING lang)
@@ -321,6 +334,14 @@ ReserveW               PROCEDURE(),LONG,PROTECTED
 Invalidate             PROCEDURE,PROTECTED
 StartAnim              PROCEDURE,PROTECTED
 StepAnim               PROCEDURE,PROTECTED
+SetHover               PROCEDURE(LONG id),PROTECTED
+HoverAmt               PROCEDURE(LONG id),REAL,PROTECTED
+StepFade               PROCEDURE,PROTECTED
+FxWanted               PROCEDURE(),BYTE,PROTECTED          ! DirectX painting + Effects on
+SetFloatAlpha          PROCEDURE(BYTE over),PROTECTED
+DrawBadge              PROCEDURE(LONG w, LONG h, LONG sbw),PROTECTED
+DrawTitleBtn           PROCEDURE(LONG id, LONG btx, LONG bty, LONG bs),PROTECTED
+Alpha                  PROCEDURE(LONG clr, REAL a),LONG,PROTECTED
 CheckSnap              PROCEDURE(BYTE final),PROTECTED
 UndockAtCursor         PROCEDURE,PROTECTED
 Txt                    PROCEDURE(STRING en, STRING es),STRING,PROTECTED

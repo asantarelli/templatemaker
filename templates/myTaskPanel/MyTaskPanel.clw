@@ -105,6 +105,9 @@ mtp_RestoreDC          PROCEDURE(LONG,LONG),LONG,PASCAL,PROC,NAME('RestoreDC')
 mtp_IntersectClipRect  PROCEDURE(LONG,LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('IntersectClipRect')
 mtp_CreateRoundRectRgn PROCEDURE(LONG,LONG,LONG,LONG,LONG,LONG),LONG,PASCAL,NAME('CreateRoundRectRgn')
 mtp_ExtSelectClipRgn   PROCEDURE(LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('ExtSelectClipRgn')
+mtp_SetLayeredAttr     PROCEDURE(LONG,LONG,LONG,LONG),LONG,PASCAL,PROC,NAME('SetLayeredWindowAttributes')
+mtp_QPCounter          PROCEDURE(LONG),LONG,PASCAL,PROC,NAME('QueryPerformanceCounter')
+mtp_QPFrequency        PROCEDURE(LONG),LONG,PASCAL,PROC,NAME('QueryPerformanceFrequency')
     END
     COMPILE('ENDD2D',_MTP_D2D_)
     MODULE('mtpd2d.c')
@@ -120,6 +123,7 @@ mtp_d2_text            PROCEDURE(LONG,REAL,REAL,REAL,REAL,LONG,LONG,REAL,LONG,LO
 mtp_d2_clip            PROCEDURE(REAL,REAL,REAL,REAL),NAME('_mtpd2d_clip')
 mtp_d2_unclip          PROCEDURE(),NAME('_mtpd2d_unclip')
 mtp_d2_kill            PROCEDURE(),NAME('_mtpd2d_kill')
+mtp_d2_shadow          PROCEDURE(REAL,REAL,REAL,REAL,REAL,REAL,REAL,LONG),NAME('_mtpd2d_shadow')
     END
     ! ENDD2D
 MTP_WndProc            PROCEDURE(LONG hWnd, LONG uMsg, LONG wParam, LONG lParam),LONG,PASCAL
@@ -165,6 +169,12 @@ MTP:WS_SYSMENU       EQUATE(000080000h)
 MTP:WS_THICKFRAME    EQUATE(000040000h)
 MTP:WS_POPUP         EQUATE(-2147483648)      ! 80000000h
 MTP:WS_EX_TOOLWINDOW EQUATE(00080h)
+MTP:WS_EX_LAYERED    EQUATE(080000h)
+
+MTP_Large            GROUP,TYPE               ! LARGE_INTEGER
+Lo                     ULONG
+Hi                     LONG
+                     END
 MTP:SWP_Replay       EQUATE(00114h)           ! NOZORDER|NOACTIVATE|NOCOPYBITS
 MTP:WM_APP_PLACE     EQUATE(08001h)
 
@@ -256,6 +266,9 @@ MyTaskPanelClass.Construct PROCEDURE
   SELF.AllowResize  = 1
   SELF.GrowHost     = 1
   SELF.AutoGlyphs   = 1
+  SELF.Effects      = 1
+  SELF.FloatOpacity = 88
+  SELF.HoverT       = 1
   SELF.FontName     = 'Segoe UI'
   SELF.FontSize     = 9
   SELF.ItemHeight   = 24
@@ -394,6 +407,116 @@ MyTaskPanelClass.EngineInUse PROCEDURE
   IF SELF.Engine = MTP:DirectX AND ~SELF.D2DFailed THEN RETURN MTP:DirectX.
   ! ENDD2D
   RETURN MTP:Clarion
+
+!  How long one frame of this panel takes to paint, in milliseconds, with the
+!  given engine - drawn off screen, at the panel's own size and contents, the
+!  same steps as WM_PAINT (layout, drawing, icons) minus the final blit to
+!  the screen, which costs both engines the same. The first frame is a
+!  warm-up (fonts, the Direct2D target) and is not timed; after it one item
+!  is held under the mouse so the hover highlight is part of every frame.
+!  -1 = that engine is not compiled in or will not start.
+MyTaskPanelClass.Benchmark PROCEDURE(BYTE engine, LONG frames=200, BYTE effects=1)
+hwnd                   LONG
+r                      LIKE(MTP_Rect)
+w                      LONG
+h                      LONG
+sdc                    LONG
+mem                    LONG
+bmp                    LONG
+old                    LONG
+f                      LONG
+i                      LONG
+floating               BYTE
+ok                     BYTE
+t0                     LIKE(MTP_Large)
+t1                     LIKE(MTP_Large)
+fq                     LIKE(MTP_Large)
+svEffects              BYTE
+svHover                LONG
+svHoverT               REAL
+svFadeId               LONG
+ms                     REAL
+  CODE
+  IF frames < 1 THEN frames = 1.
+  ok = 1
+  IF engine = MTP:DirectX
+    ok = 0
+    COMPILE('ENDD2D',_MTP_D2D_)
+    ok = CHOOSE(mtp_d2_init() = 1, 1, 0)
+    ! ENDD2D
+    IF ~ok THEN RETURN -1.
+  END
+  floating = CHOOSE(SELF.DockSide = MTP:Float AND SELF.FloatHwnd <> 0, 1, 0)
+  hwnd = CHOOSE(floating = 1, SELF.FloatHwnd, SELF.DockHwnd)
+  IF hwnd THEN mtp_GetClientRect(hwnd, ADDRESS(r)).
+  w = r.X2
+  h = r.Y2
+  IF w < 50 OR h < 50
+    w = SELF.PanelWidth
+    h = SELF.Px(700)
+  END
+  sdc = mtp_GetDC(0)
+  mem = mtp_CreateCompatibleDC(sdc)
+  bmp = mtp_CreateCompatibleBitmap(sdc, w, h)
+  mtp_ReleaseDC(0, sdc)
+  old = mtp_SelectObject(mem, bmp)
+  mtp_SetBkMode(mem, 1)
+  svEffects = SELF.Effects
+  svHover   = SELF.Hover
+  svHoverT  = SELF.HoverT
+  svFadeId  = SELF.FadeId
+  SELF.Effects = effects
+  SELF.HoverT  = 1
+  SELF.FadeId  = 0
+  SELF.DC = mem
+  LOOP f = 0 TO frames
+    IF f = 1 THEN mtp_QPCounter(ADDRESS(t0)).
+    SELF.MakeFonts()
+    FREE(SELF.PendIcons)
+    SELF.UseD2D = 0
+    SELF.Fx = 0
+    IF engine = MTP:DirectX
+      COMPILE('ENDD2D',_MTP_D2D_)
+      IF ~mtp_d2_begin(mem, w, h)
+        ok = 0
+        BREAK
+      END
+      SELF.UseD2D = 1
+      SELF.Fx = SELF.Effects
+      ! ENDD2D
+    END
+    SELF.Render(w, h, floating)
+    COMPILE('ENDD2D',_MTP_D2D_)
+    IF SELF.UseD2D THEN mtp_d2_end().
+    ! ENDD2D
+    SELF.UseD2D = 0
+    SELF.Fx = 0
+    LOOP i = 1 TO RECORDS(SELF.PendIcons)
+      GET(SELF.PendIcons, i)
+      mtp_DrawIconEx(mem, SELF.PendIcons.X, SELF.PendIcons.Y, SELF.PendIcons.HIcon, SELF.PendIcons.Sz, SELF.PendIcons.Sz, 0, 0, 3)
+    END
+    IF f = 0                                    ! hold the first item under the mouse
+      LOOP i = 1 TO RECORDS(SELF.Rows)
+        GET(SELF.Rows, i)
+        IF SELF.Rows.Kind = MTP:Item THEN BREAK.
+      END
+      IF i <= RECORDS(SELF.Rows) THEN SELF.Hover = SELF.Rows.Id.
+    END
+  END
+  mtp_QPCounter(ADDRESS(t1))
+  mtp_QPFrequency(ADDRESS(fq))
+  FREE(SELF.PendIcons)
+  SELF.Effects = svEffects
+  SELF.Hover   = svHover
+  SELF.HoverT  = svHoverT
+  SELF.FadeId  = svFadeId
+  SELF.DC = 0
+  mtp_SelectObject(mem, old)
+  mtp_DeleteObject(bmp)
+  mtp_DeleteDC(mem)
+  IF ~ok THEN RETURN -1.
+  ms = ((t1.Hi * 4294967296.0 + t1.Lo) - (t0.Hi * 4294967296.0 + t0.Lo)) * 1000 / (fq.Hi * 4294967296.0 + fq.Lo) / frames
+  RETURN ms
 
 MyTaskPanelClass.SetLanguage PROCEDURE(STRING lang)
   CODE
@@ -1587,6 +1710,75 @@ busy                   BYTE
   END
   SELF.Invalidate()
 
+! ============================================================================
+!  Hover. GDI switches the highlight on and off; the DirectX effects fade it:
+!  the row under the mouse fades in while the one it left fades out.
+! ============================================================================
+MyTaskPanelClass.FxWanted PROCEDURE
+  CODE
+  IF SELF.Effects AND SELF.EngineInUse() = MTP:DirectX THEN RETURN 1.
+  RETURN 0
+
+MyTaskPanelClass.SetHover PROCEDURE(LONG id)
+h                      LONG
+t                      REAL
+  CODE
+  IF id = SELF.Hover THEN RETURN.
+  IF SELF.FxWanted()
+    t = CHOOSE(id = SELF.FadeId AND id <> 0, SELF.FadeT, 0)    ! coming back: carry on from where it was
+    SELF.FadeId = SELF.Hover
+    SELF.FadeT  = SELF.HoverT
+    SELF.Hover  = id
+    SELF.HoverT = t
+    h = CHOOSE(SELF.DockSide = MTP:Float, SELF.FloatHwnd, SELF.DockHwnd)
+    IF h AND ~SELF.Fading
+      SELF.Fading = 1
+      mtp_SetTimer(h, 4, 15, 0)
+    END
+  ELSE
+    SELF.Hover  = id
+    SELF.HoverT = 1
+    SELF.FadeId = 0
+  END
+  SELF.Invalidate()
+
+MyTaskPanelClass.HoverAmt PROCEDURE(LONG id)
+  CODE
+  IF id = 0 THEN RETURN 0.
+  IF id = SELF.Hover THEN RETURN SELF.HoverT.
+  IF id = SELF.FadeId THEN RETURN SELF.FadeT.
+  RETURN 0
+
+MyTaskPanelClass.StepFade PROCEDURE
+  CODE
+  SELF.HoverT += 0.2
+  IF SELF.HoverT > 1 THEN SELF.HoverT = 1.
+  SELF.FadeT -= 0.15
+  IF SELF.FadeT <= 0
+    SELF.FadeT  = 0
+    SELF.FadeId = 0
+  END
+  IF SELF.HoverT >= 1 AND SELF.FadeT = 0
+    SELF.Fading = 0
+    IF SELF.DockHwnd THEN mtp_KillTimer(SELF.DockHwnd, 4).
+    IF SELF.FloatHwnd THEN mtp_KillTimer(SELF.FloatHwnd, 4).
+  END
+  SELF.Invalidate()
+
+!  The floating panel turns see-through while the mouse is elsewhere (DirectX
+!  effects only) and solid again when the mouse comes back.
+MyTaskPanelClass.SetFloatAlpha PROCEDURE(BYTE over)
+ex                     LONG
+  CODE
+  IF ~SELF.FloatHwnd THEN RETURN.
+  ex = mtp_GetWindowLong(SELF.FloatHwnd, -20)   ! GWL_EXSTYLE
+  IF SELF.FxWanted() AND SELF.FloatOpacity > 0 AND SELF.FloatOpacity < 100
+    IF ~BAND(ex, MTP:WS_EX_LAYERED) THEN mtp_SetWindowLong(SELF.FloatHwnd, -20, BOR(ex, MTP:WS_EX_LAYERED)).
+    mtp_SetLayeredAttr(SELF.FloatHwnd, 0, CHOOSE(over = 1, 255, INT(SELF.FloatOpacity * 255 / 100)), 2)   ! LWA_ALPHA
+  ELSIF BAND(ex, MTP:WS_EX_LAYERED)
+    mtp_SetWindowLong(SELF.FloatHwnd, -20, BAND(ex, BXOR(-1, MTP:WS_EX_LAYERED)))
+  END
+
 !  While the floating panel is dragged: is the cursor at an edge of the host?
 MyTaskPanelClass.CheckSnap PROCEDURE(BYTE final)
 pt                     GROUP
@@ -1711,13 +1903,13 @@ th                     LONG
       IF (pt.PX < r.X1 OR pt.PX >= r.X2 OR pt.PY < r.Y1 OR pt.PY >= r.Y2) AND ~SELF.Drag
         mtp_KillTimer(hwnd, 1)
         SELF.InHost = 0
-        IF SELF.Hover <> 0
-          SELF.Hover = 0
-          SELF.Invalidate()
-        END
+        SELF.SetHover(0)
+        IF floating THEN SELF.SetFloatAlpha(0).
       END
     OF 2
       SELF.StepAnim()
+    OF 4
+      SELF.StepFade()
     OF 3                                        ! keep the real menu off while the frame settles
       IF SELF.HideMenu AND mtp_GetMenu(SELF.HostHwnd)
         mtp_SetMenu(SELF.HostHwnd, 0)
@@ -1751,6 +1943,7 @@ th                     LONG
       SELF.InHost = 1
       SELF.SyncMirror()
       mtp_SetTimer(hwnd, 1, 150, 0)
+      IF floating THEN SELF.SetFloatAlpha(1).
     END
     CASE SELF.Drag
     OF 1                                        ! the splitter
@@ -1770,11 +1963,7 @@ th                     LONG
         SELF.Invalidate()
       END
     ELSE
-      hit = SELF.HitTest(x, y, floating)
-      IF hit <> SELF.Hover
-        SELF.Hover = hit
-        SELF.Invalidate()
-      END
+      SELF.SetHover(SELF.HitTest(x, y, floating))
     END
     handled = 1
     RETURN 0
@@ -2193,6 +2382,7 @@ i                      LONG
     IF SELF.Engine = MTP:DirectX AND ~SELF.D2DFailed
       IF mtp_d2_begin(mem, r.X2, r.Y2)
         SELF.UseD2D = 1
+        SELF.Fx = SELF.Effects
       ELSE
         SELF.D2DFailed = 1                      ! paint with GDI from now on
       END
@@ -2207,6 +2397,7 @@ i                      LONG
     END
     ! ENDD2D
     SELF.UseD2D = 0
+    SELF.Fx = 0
     LOOP i = 1 TO RECORDS(SELF.PendIcons)       ! icons always go through GDI
       GET(SELF.PendIcons, i)
       mtp_DrawIconEx(mem, SELF.PendIcons.X, SELF.PendIcons.Y, SELF.PendIcons.HIcon, SELF.PendIcons.Sz, SELF.PendIcons.Sz, 0, 0, 3)
@@ -2261,12 +2452,12 @@ c                      LONG
     bs = SELF.Px(22)
     bty = (th - bs) / 2
     btx = w - SELF.Px(54)
-    IF SELF.Hover = -2 THEN SELF.PRound(btx, bty, bs, bs, SELF.Px(4), SELF.Mix(SELF.ClrTitle1, SELF.ClrTitleText, 0.18)).
+    SELF.DrawTitleBtn(-2, btx, bty, bs)
     SELF.PLine(btx + SELF.Px(7), bty + SELF.Px(9), btx + SELF.Px(11), bty + SELF.Px(13), SELF.ClrTitleText, SELF.Px(1.6))
     SELF.PLine(btx + SELF.Px(11), bty + SELF.Px(13), btx + SELF.Px(15), bty + SELF.Px(9), SELF.ClrTitleText, SELF.Px(1.6))
     IF SELF.AllowClose
       btx = w - SELF.Px(29)
-      IF SELF.Hover = -3 THEN SELF.PRound(btx, bty, bs, bs, SELF.Px(4), SELF.Mix(SELF.ClrTitle1, SELF.ClrTitleText, 0.18)).
+      SELF.DrawTitleBtn(-3, btx, bty, bs)
       SELF.PLine(btx + SELF.Px(7), bty + SELF.Px(7), btx + SELF.Px(15), bty + SELF.Px(15), SELF.ClrTitleText, SELF.Px(1.6))
       SELF.PLine(btx + SELF.Px(15), bty + SELF.Px(7), btx + SELF.Px(7), bty + SELF.Px(15), SELF.ClrTitleText, SELF.Px(1.6))
     END
@@ -2276,6 +2467,49 @@ c                      LONG
     ELSE
       SELF.PFill(0, th, 1, h - th, SELF.ClrCardLine)
     END
+  END
+  IF SELF.ShowEngine THEN SELF.DrawBadge(w, h, sbw).
+
+!  A title-strip button's hover square: solid in GDI, a fading glass square
+!  with the DirectX effects.
+MyTaskPanelClass.DrawTitleBtn PROCEDURE(LONG id, LONG btx, LONG bty, LONG bs)
+t                      REAL
+  CODE
+  COMPILE('ENDD2D',_MTP_D2D_)
+  IF SELF.Fx
+    t = SELF.HoverAmt(id)
+    IF t > 0 THEN mtp_d2_round(btx, bty, bs, bs, SELF.Px(4), SELF.Alpha(SELF.ClrTitleText, 0.20 * t), SELF.Alpha(SELF.ClrTitleText, 0.30 * t), 1).
+    RETURN
+  END
+  ! ENDD2D
+  IF SELF.Hover = id THEN SELF.PRound(btx, bty, bs, bs, SELF.Px(4), SELF.Mix(SELF.ClrTitle1, SELF.ClrTitleText, 0.18)).
+
+!  Which engine is painting, in a small pill at the bottom corner.
+MyTaskPanelClass.DrawBadge PROCEDURE(LONG w, LONG h, LONG sbw)
+bw                     LONG
+bh                     LONG
+bl                     LONG
+bt                     LONG
+txt                    STRING(24)
+  CODE
+  IF SELF.UseD2D
+    txt = CHOOSE(SELF.Fx = 1, 'DirectX', 'DirectX (flat)')
+  ELSE
+    txt = 'GDI'
+  END
+  bw = SELF.Px(CHOOSE(SELF.UseD2D = 1, CHOOSE(SELF.Fx = 1, 58, 86), 38))
+  bh = SELF.Px(18)
+  bl = w - sbw - bw - SELF.Px(12)
+  bt = h - bh - SELF.Px(6)
+  IF SELF.UseD2D
+    COMPILE('ENDD2D',_MTP_D2D_)
+    IF SELF.Fx THEN mtp_d2_shadow(bl, bt, bw, bh, bh / 2, SELF.Px(4), SELF.Px(1), SELF.Alpha(COLOR:Black, 0.30)).
+    ! ENDD2D
+    SELF.PRound(bl, bt, bw, bh, bh / 2, SELF.ClrAccent)
+    SELF.PText(bl, bt, bw, bh, txt, MTP_Hex(0FFFFFFh), 3, 1)
+  ELSE
+    SELF.PRound(bl, bt, bw, bh, bh / 2, SELF.ClrCard, SELF.ClrTextDim)
+    SELF.PText(bl, bt, bw, bh, txt, SELF.ClrText, 3, 1)
   END
 
 !  A group header, and the card its rows sit on. Leaves a clip around the
@@ -2295,6 +2529,9 @@ cy                     REAL
 hov                    BYTE
 id                     LONG
 top                    LONG
+t                      REAL
+ex                     LONG
+bk                     LONG
   CODE
   id  = SELF.Rows.Id
   SELF.Items.Id = id
@@ -2309,6 +2546,7 @@ top                    LONG
   hh  = SELF.Rows.H
   rad = SELF.Px(SELF.Radius)
   hov = CHOOSE(SELF.Hover = id, 1, 0)
+  t   = CHOOSE(SELF.Fx = 1, SELF.HoverAmt(id), hov)
   IF SELF.Items.Special
     c1 = SELF.ClrSpecial1
     c2 = SELF.ClrSpecial2
@@ -2318,10 +2556,17 @@ top                    LONG
     c2 = SELF.ClrHead2
     ct = SELF.ClrHeadText
   END
-  IF hov
+  IF hov AND ~SELF.Fx                           ! the effects fade a glass layer in instead
     c1 = SELF.Mix(c1, MTP_Hex(0FFFFFFh), 0.10)
     c2 = SELF.Mix(c2, MTP_Hex(0FFFFFFh), 0.10)
   END
+  COMPILE('ENDD2D',_MTP_D2D_)
+  IF SELF.Fx                                    ! a soft shadow under the whole card, deeper on a dark theme
+    bk = SELF.Rgb(SELF.ClrBack)
+    bk = BAND(bk, 0FFh) + BAND(BSHIFT(bk, -8), 0FFh) + BAND(BSHIFT(bk, -16), 0FFh)
+    mtp_d2_shadow(x, y, cw, hh + CHOOSE(SELF.Rows.BodyH > 0, SELF.Rows.BodyH, 0), rad, SELF.Px(7), SELF.Px(2), SELF.Alpha(COLOR:Black, CHOOSE(bk < 300, 0.55, 0.28)))
+  END
+  ! ENDD2D
   ! the card first, so the header overlaps its top edge
   IF SELF.Rows.BodyH > 0
     SELF.PRound(x, y + hh - rad, cw, SELF.Rows.BodyH + rad, rad, SELF.ClrCard, SELF.ClrCardLine)
@@ -2330,6 +2575,16 @@ top                    LONG
   IF SELF.Rows.BodyH > 0                        ! square off the bottom corners
     SELF.PGrad(x, y + hh / 2, cw, hh - hh / 2, 0, SELF.Mix(c1, c2, 0.5), c2)
   END
+  COMPILE('ENDD2D',_MTP_D2D_)
+  IF SELF.Fx                                    ! glass: a light falling off down the header, a bright top edge
+    ex = CHOOSE(SELF.Rows.BodyH > 0, rad * 2, 0) ! an open card's header is square at the bottom
+    mtp_d2_clip(x, y, cw, hh)
+    mtp_d2_grad(x, y, cw, hh + ex, rad, SELF.Alpha(MTP_Hex(0FFFFFFh), 0.22), SELF.Alpha(MTP_Hex(0FFFFFFh), 0))
+    IF t > 0 THEN mtp_d2_round(x, y, cw, hh + ex, rad, SELF.Alpha(MTP_Hex(0FFFFFFh), 0.14 * t), 0, 1).
+    mtp_d2_unclip()
+    mtp_d2_line(x + rad, y + 0.5, x + cw - rad, y + 0.5, SELF.Alpha(MTP_Hex(0FFFFFFh), 0.40), 1)
+  END
+  ! ENDD2D
   tx = x + SELF.Px(10)
   IF SELF.Items.HIcon
     SELF.PIcon(SELF.Items.HIcon, tx, y + (hh - SELF.Px(16)) / 2, SELF.Px(16))
@@ -2343,7 +2598,7 @@ top                    LONG
   IF SELF.Rows.HasKids
     cx = x + cw - SELF.Px(15)
     cy = y + hh / 2
-    SELF.PEllipse(cx, cy, SELF.Px(8), SELF.Px(8), SELF.Mix(c1, ct, CHOOSE(hov = 1, 0.30, 0.18)))
+    SELF.PEllipse(cx, cy, SELF.Px(8), SELF.Px(8), SELF.Mix(c1, ct, 0.18 + 0.12 * t))
     IF SELF.Items.Expanded
       SELF.PLine(cx - SELF.Px(3.5), cy + SELF.Px(1.5), cx, cy - SELF.Px(2), ct, SELF.Px(1.6))
       SELF.PLine(cx, cy - SELF.Px(2), cx + SELF.Px(3.5), cy + SELF.Px(1.5), ct, SELF.Px(1.6))
@@ -2370,6 +2625,7 @@ id                     LONG
 font                   BYTE
 cx                     REAL
 cy                     REAL
+t                      REAL
   CODE
   IF SELF.Rows.Y >= SELF.Rows.ClipB OR SELF.Rows.Y + SELF.Rows.H <= SELF.Rows.ClipT THEN RETURN.
   id = SELF.Rows.Id
@@ -2392,10 +2648,18 @@ cy                     REAL
   END
   hov = CHOOSE(SELF.Hover = id AND SELF.Items.Enabled = 1, 1, 0)
   prs = CHOOSE(SELF.Pressed = id AND hov = 1, 1, 0)
-  IF hov
-    SELF.PRound(x + SELF.Px(4), y + 1, cw - SELF.Px(8), rh - 2, SELF.Px(4), CHOOSE(prs = 1, SELF.Mix(SELF.ClrHover, SELF.ClrHoverLine, 0.5), SELF.ClrHover), SELF.ClrHoverLine)
+  IF SELF.Fx                                    ! a translucent accent wash that fades in and out
+    t = CHOOSE(SELF.Items.Enabled = 1, SELF.HoverAmt(id), 0)
+    COMPILE('ENDD2D',_MTP_D2D_)
+    IF t > 0 THEN mtp_d2_round(x + SELF.Px(4), y + 1, cw - SELF.Px(8), rh - 2, SELF.Px(4), SELF.Alpha(SELF.ClrAccent, CHOOSE(prs = 1, 0.28, 0.12) * t), SELF.Alpha(SELF.ClrAccent, 0.45 * t), 1).
+    ! ENDD2D
+    clr = CHOOSE(SELF.Items.Enabled = 1, SELF.Mix(SELF.ClrText, SELF.ClrAccent, t), SELF.ClrDisabled)
+  ELSE
+    IF hov
+      SELF.PRound(x + SELF.Px(4), y + 1, cw - SELF.Px(8), rh - 2, SELF.Px(4), CHOOSE(prs = 1, SELF.Mix(SELF.ClrHover, SELF.ClrHoverLine, 0.5), SELF.ClrHover), SELF.ClrHoverLine)
+    END
+    clr = CHOOSE(SELF.Items.Enabled = 1, CHOOSE(hov = 1, SELF.ClrAccent, SELF.ClrText), SELF.ClrDisabled)
   END
-  clr = CHOOSE(SELF.Items.Enabled = 1, CHOOSE(hov = 1, SELF.ClrAccent, SELF.ClrText), SELF.ClrDisabled)
   ! icon column
   IF SELF.Items.Checked
     SELF.PLine(tx + SELF.Px(3), y + rh / 2, tx + SELF.Px(6.5), y + rh / 2 + SELF.Px(3.5), SELF.ClrAccent, SELF.Px(2))
@@ -2667,6 +2931,15 @@ c                      LONG
   IF clr = -1 THEN RETURN 0.                    ! COLOR:None: transparent
   c = SELF.Rgb(clr)
   RETURN BOR(-16777216, BAND(c, 0FFh) * 65536 + BAND(c, 0FF00h) + BAND(BSHIFT(c, -16), 0FFh))
+
+!  0xAARRGGBB for Direct2D with an opacity of a (0..1).
+MyTaskPanelClass.Alpha PROCEDURE(LONG clr, REAL a)
+n                      LONG
+  CODE
+  n = INT(a * 255 + 0.5)
+  IF n < 0 THEN n = 0.
+  IF n > 255 THEN n = 255.
+  RETURN BOR(BAND(SELF.Argb(clr), 0FFFFFFh), BSHIFT(n, 24))
 
 MyTaskPanelClass.Mix PROCEDURE(LONG c1, LONG c2, REAL t)
 a                      LONG
