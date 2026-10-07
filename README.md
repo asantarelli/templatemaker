@@ -1473,7 +1473,11 @@ Each page is printed as a placeable WMF on a report IMAGE. `wdoc.c` fixes three 
 itself: pictures that would be dropped, an 11 MB hidden copy of each page, and bullets that came out as "?".
 Text is measured on the default printer, so the lines break exactly where they will print.
 
+![The generated form editing a BLOB](docs/myWordDoc-demo-form.png)
+
 ![Three records through the generated report](docs/myWordDoc-demo-report.png)
+
+![The Report Preview, page 2](docs/myWordDoc-demo-preview.png)
 
 - **myWordDocEditor** (control template on a REGION): pick the BLOB field. It loads the field when the form
   opens and saves it with the record when it was edited. You can choose a toolbar, read only, page view,

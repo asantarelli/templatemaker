@@ -172,6 +172,10 @@ What it generates:
 The field must be a dictionary BLOB; anything else stops generation with an
 error.
 
+![the generated form, editing the letter stored in the record's BLOB](../../docs/myWordDoc-demo-form.png)
+
+*The generated `UpdateDoc` form: the record's BLOB, loaded into the editor.*
+
 ### Printing every record's document
 
 Put an IMAGE in a DETAIL band of a Report procedure, sized to the area the
@@ -193,6 +197,11 @@ The last page is shrunk unless you turn that off.
 
 *The generated `PrintDocs` report over three records: a short note, a letter
 that flows over three pages, and another note printed straight after it.*
+
+![the report preview, page 2](../../docs/myWordDoc-demo-preview.png)
+
+*Pressing Print opens ABC's normal Report Preview. This is page 2: the letter's
+heading, bullets, picture and table.*
 
 ### Printing from your own code
 
