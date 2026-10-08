@@ -26,10 +26,13 @@
 !  ON A REPORT (the myWordDocReport extension writes this for you)
 !    Doc1.InitHidden()
 !    Doc1.LoadBlob(DOC:Body)
-!    LOOP Page# = 1 TO Doc1.PaginateForReport(Report, ?DocImage)
-!      Doc1.PreparePage(Report, ?DocImage, Page#)  ! points the IMAGE at page N
+!    LOOP Page# = 1 TO Doc1.PaginateForReport(Report, ?DocImage, WD:Flow)
+!      Doc1.PreparePage(Report, ?DocImage, Page#)  ! points the IMAGE at piece N
 !      PRINT(RPT:DocBand)
 !    END
+!  WD:Flow prints the document one line per band, so it starts in whatever
+!  room is left on the page and carries on over the next pages. WD:Pages
+!  prints it in pieces the size of the IMAGE (a new page when one won't fit).
 !    Doc1.Kill()
 !
 !  The pages are vector metafiles, so the text stays sharp and PDFs stay small.
@@ -71,6 +74,10 @@ WD:Toggle          EQUATE(2)
 WD:LetterWidth     EQUATE(12240 - 2880)        ! 8.5in less 1in margins
 WD:A4Width         EQUATE(11906 - 2880)
 
+! PaginateForReport modes
+WD:Pages           EQUATE(0)                   ! pieces the size of the IMAGE
+WD:Flow            EQUATE(1)                   ! line by line: fills the room left on a page
+
 WordDocClass CLASS,TYPE,MODULE('WordDocClass.CLW'),LINK('WordDocClass.CLW')
 
 ! ---- set these BEFORE Init (or pass pFlags) --------------------------------
@@ -101,6 +108,8 @@ Buf                  &STRING,PRIVATE           ! holds GetRtf/GetText results
 FullH                LONG,PRIVATE              ! report IMAGE height before shrinking (thous)
 BandH                LONG,PRIVATE              ! its band's height before shrinking (thous)
 ShrunkFeq            LONG,PRIVATE              ! the IMAGE a last page left shrunk (0 = none)
+FullY                LONG,PRIVATE              ! report IMAGE top before flowing (thous)
+Flow                 BYTE,PRIVATE              ! last PaginateForReport cut it line by line
 
 ! ---- life cycle ---------------------------------------------------------------
 Init                 PROCEDURE(LONG pWinHandle,LONG pFeq,LONG pFlags=-1),BYTE,PROC
@@ -168,7 +177,7 @@ Paginate             PROCEDURE(LONG pWidthTw,LONG pHeightTw),LONG,PROC
 RenderPage           PROCEDURE(LONG pPage),STRING  ! writes page N to %TEMP% as a .wmf; returns its path
 RenderPageTo         PROCEDURE(LONG pPage,STRING pFileName),BYTE,PROC  ! .emf or .wmf, by extension
 PageUsedHeight       PROCEDURE(LONG pPage),LONG    ! twips actually filled on page N
-PaginateForReport    PROCEDURE(*REPORT pReport,LONG pImageFeq),LONG
+PaginateForReport    PROCEDURE(*REPORT pReport,LONG pImageFeq,BYTE pMode=0),LONG  ! WD:Pages / WD:Flow
 PreparePage          PROCEDURE(*REPORT pReport,LONG pImageFeq,LONG pPage,BYTE pShrinkLast=1)
                    END
 

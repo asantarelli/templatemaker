@@ -90,21 +90,48 @@ fill. Then, for each record:
 Doc1.InitHidden()                                  ! once, after OPEN(Report)
 ...
 Doc1.LoadBlob(DOC:Body)
-LOOP Page# = 1 TO Doc1.PaginateForReport(Report, ?DocImage)
-  Doc1.PreparePage(Report, ?DocImage, Page#)       ! page N into the IMAGE
+LOOP Page# = 1 TO Doc1.PaginateForReport(Report, ?DocImage, WD:Flow)
+  Doc1.PreparePage(Report, ?DocImage, Page#)       ! piece N into the IMAGE
   PRINT(RPT:DocBand)
 END
 ...
 Doc1.Kill()                                        ! deletes the temp files
 ```
 
-`PaginateForReport` reads the IMAGE's size (in any report units: it switches
-the report to thousandths for the read and back, as ABC's own
-ReportAttributeManager does) and splits the document into pieces exactly that
-big. A long document flows across as many report pages as it needs, so other
-bands print before and after it in the normal way. On the **last** piece the
-IMAGE and its band are shrunk to the text actually there, so whatever prints
-next follows straight on instead of after a blank page-sized gap.
+`PaginateForReport` reads the IMAGE's size in any report units. It switches the
+report to thousandths for the read and back, as ABC's own
+ReportAttributeManager does. Then it cuts the document in one of two ways.
+
+### WD:Flow: fill the room left on the page
+
+![the same three records printed both ways](../../docs/myWordDoc-flow-vs-pages.png)
+
+**`WD:Flow`** (the template's default) cuts the document **one line per
+piece**. Each line is printed as its own band, the height of that line. The
+report engine places every band itself: if it fits on this page it goes here,
+and if not it starts the next page. So a long document starts in whatever room
+the previous record left. It fills that page, carries on over as many pages as
+it needs, and whatever prints after it follows straight on.
+
+The report engine cannot tell a program how much room is left on a page, and it
+moves a band that doesn't fit whole to the next page. Letting the engine place
+one line at a time avoids both problems, and nothing has to be measured.
+
+- A line is never split: a picture or a table row that doesn't fit moves to the
+  next page whole, as in Word.
+- In this mode the band is cut down to the line, so **keep the IMAGE alone in
+  its band**. Its top is moved to 0 while printing and put back afterwards.
+- One small metafile is written per line, and all of them are deleted by
+  `Kill()`. A 3-page letter is about 70 files.
+
+### WD:Pages: pieces the size of the IMAGE
+
+**`WD:Pages`** (the class default, and what earlier versions did) cuts the
+document into pieces exactly the size of the IMAGE. When the next piece won't
+fit in the room left, the engine starts a new page, which can leave most of a
+page empty. With `pShrinkLast` (on by default) the **last** piece's IMAGE and
+band are shrunk to the text actually there, so whatever prints next follows
+straight on.
 
 Each piece is rendered by RichEdit (`EM_FORMATRANGE`) into an enhanced
 metafile, then written as a placeable WMF in `%TEMP%`. The report engine plays
@@ -189,14 +216,15 @@ ABC's Child File extension uses), so it never prints twice. For each record it:
 1. re-reads the record by its primary key, because a VIEW read leaves BLOBs
    untouched;
 2. loads the document;
-3. prints it page by page.
-
-The last page is shrunk unless you turn that off.
+3. prints it, cut as **Cut the document** says. The default is *Fill the room
+   left on each page, line by line* (`WD:Flow`). *In pieces the size of the
+   image* (`WD:Pages`) brings back the **Shrink the last piece** option.
 
 ![three records through the generated report](../../docs/myWordDoc-demo-report.png)
 
-*The generated `PrintDocs` report over three records: a short note, a letter
-that flows over three pages, and another note printed straight after it.*
+*The generated `PrintDocs` report over three records. The letter starts right
+under its title on page 1, fills every page down to the footer, and the third
+note follows straight after it.*
 
 ![the report preview, page 2](../../docs/myWordDoc-demo-preview.png)
 
@@ -217,6 +245,7 @@ band to PRINT. In the report designer, set that band's **Detail Filter** to
 | Printed text is limited to the ANSI code page | WMF text records are 8-bit | Fine for Western languages; Greek/Cyrillic/CJK show on screen and in the BLOB but not in print |
 | Printed pictures are 200 dpi | keeps report pages and PDFs small | `PIC_DPI` in `wdoc.c` |
 | No headers/footers/page numbers inside the document | the document is a band, not a page | use the REPORT's own header/footer |
+| `WD:Flow` keeps a paragraph's space-before when it starts a page | each line is printed exactly as laid out | barely visible; use `WD:Pages` if it matters |
 
 ## Verified
 
@@ -234,6 +263,10 @@ band to PRINT. In the report designer, set that band's **Detail Filter** to
 - `click.ps1` clicks the toolbar the same way and photographs the result.
 - `shot.ps1` takes screen captures (not `PrintWindow`, which hides a hosted
   control that is being painted over).
+
+`Flow.clw` (built the same way from `Flow.cwproj`) prints a short note, the
+long letter and another note in one report, as `WD:Flow` or, with `PAGES` on
+the command line, as `WD:Pages`. The comparison image above comes from it.
 
 `examples/myWordDoc/WordDemo/` proves the templates through AppGen: `build_demo.sh`
 registers the template through a local redirection file, so nothing is copied

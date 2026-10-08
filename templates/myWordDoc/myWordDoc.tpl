@@ -238,16 +238,18 @@ END
     #BOXED('What is printed, and where')
       #PROMPT('&BLOB field:',FIELD),%wrBlob,REQ
       #PROMPT('Report &image:',FROM(%ReportControl,%ReportControlType='IMAGE',%ReportControl)),%wrImage,REQ
-      #DISPLAY('An empty IMAGE in a DETAIL band. Its size is the page size:')
-      #DISPLAY('draw it as wide and as tall as one page of the document.')
+      #DISPLAY('An empty IMAGE in a DETAIL band, as wide as the document')
+      #DISPLAY('and as tall as the most one report page can hold.')
       #PROMPT('&Detail band:',FROM(%ReportControl,%ReportControlType='DETAIL',%ReportControl)),%wrBand
       #DISPLAY('Blank = the band that holds the image. Give it a USE label.')
       #DISPLAY('The report no longer prints this band by itself - it is')
       #DISPLAY('printed here, once per page. Keep the image alone in it.')
     #ENDBOXED
     #BOXED('Options')
-      #PROMPT('&Shrink the last page to the text it holds',CHECK),%wrShrink,DEFAULT(1),AT(10)
-      #DISPLAY('So whatever prints next follows straight on.')
+      #PROMPT('&Cut the document:',DROP('Fill the room left on each page, line by line[F]|In pieces the size of the image[P]')),%wrCut,DEFAULT('F')
+      #ENABLE(%wrCut='P')
+        #PROMPT('&Shrink the last piece to the text it holds',CHECK),%wrShrink,DEFAULT(1),AT(10)
+      #ENDENABLE
       #PROMPT('&Print the document:',DROP('After the record''s other detail bands[A]|Before the record''s other detail bands[B]')),%wrOrder,DEFAULT('A')
     #ENDBOXED
   #ENDTAB
@@ -328,10 +330,10 @@ WDPage:%[13]wrObject LONG                                  ! page being printed
 #! The report's own detail PRINTs are generated at priority 6000 of this
 #! method; 5900 / 6100 put the document before / after them.
 #AT(%ProcessManagerMethodCodeSection,'TakeRecord','(),BYTE'),PRIORITY(5900),WHERE(%wrReady AND %wrOrder='B'),DESCRIPTION('myWordDoc - print ' & %wrBlob)
-#INSERT(%wdPrintLoop,%wrObject,%wrBlob,%Report,%wrImage,%wrBandLabel,%wrShrink,'WDPage:' & %wrObject,%wrReget)
+#INSERT(%wdPrintLoop,%wrObject,%wrBlob,%Report,%wrImage,%wrBandLabel,%wrShrink,'WDPage:' & %wrObject,%wrReget,%wrCut)
 #ENDAT
 #AT(%ProcessManagerMethodCodeSection,'TakeRecord','(),BYTE'),PRIORITY(6100),WHERE(%wrReady AND %wrOrder<>'B'),DESCRIPTION('myWordDoc - print ' & %wrBlob)
-#INSERT(%wdPrintLoop,%wrObject,%wrBlob,%Report,%wrImage,%wrBandLabel,%wrShrink,'WDPage:' & %wrObject,%wrReget)
+#INSERT(%wdPrintLoop,%wrObject,%wrBlob,%Report,%wrImage,%wrBandLabel,%wrShrink,'WDPage:' & %wrObject,%wrReget,%wrCut)
 #ENDAT
 #!
 #! Kill deletes the page metafiles from %TEMP%. ThisWindow.Kill runs after the
@@ -361,7 +363,10 @@ WDPage:%[13]wrObject LONG                                  ! page being printed
       #PROMPT('&Band to PRINT (label):',@s64),%wcBand,REQ,DEFAULT('RPT:Detail1')
       #DISPLAY('The detail band that holds the image, as PRINT names it -')
       #DISPLAY('with the report prefix. Do not let the report print it too.')
-      #PROMPT('&Shrink the last page to the text it holds',CHECK),%wcShrink,DEFAULT(1),AT(10)
+      #PROMPT('&Cut the document:',DROP('Fill the room left on each page, line by line[F]|In pieces the size of the image[P]')),%wcCut,DEFAULT('F')
+      #ENABLE(%wcCut='P')
+        #PROMPT('&Shrink the last piece to the text it holds',CHECK),%wcShrink,DEFAULT(1),AT(10)
+      #ENDENABLE
       #PROMPT('Re-read the record by its &primary key first',CHECK),%wcReget,DEFAULT(1),AT(10)
       #DISPLAY('Needed inside a report or process loop: a VIEW read never')
       #DISPLAY('fills a BLOB - it keeps the previous record''s.')
@@ -394,7 +399,7 @@ WDPrint%ActiveTemplateInstance:Page    LONG
 #IF(%wcDeclare)
 IF NOT %wcObject.Alive() THEN %wcObject.InitHidden().
 #ENDIF
-#INSERT(%wdPrintLoop,%wcObject,%wcBlob,%wcReport,%wcImage,%wcBand,%wcShrink,'WDPrint' & %ActiveTemplateInstance & ':Page',%wcRegetExpr)
+#INSERT(%wdPrintLoop,%wcObject,%wcBlob,%wcReport,%wcImage,%wcBand,%wcShrink,'WDPrint' & %ActiveTemplateInstance & ':Page',%wcRegetExpr,%wcCut)
 #!
 #!#############################################################################
 #!  GROUPS
@@ -405,13 +410,18 @@ IF NOT %wcObject.Alive() THEN %wcObject.InitHidden().
 #! PREVIOUS record's - and an ABC report reads through a VIEW. The class puts a
 #! shrunk last-page IMAGE back to its designed size and forces the IMAGE to
 #! re-read its file, so several documents can share one report.
-#GROUP(%wdPrintLoop,%pObj,%pBlob,%pRpt,%pImg,%pBand,%pShrink,%pPage,%pReget)
+#GROUP(%wdPrintLoop,%pObj,%pBlob,%pRpt,%pImg,%pBand,%pShrink,%pPage,%pReget,%pCut)
 #IF(%pReget)
 GET(%pReget)                                            ! a VIEW read leaves BLOBs untouched - fetch this record's
 #ENDIF
 %pObj.LoadBlob(%pBlob)
-LOOP %pPage = 1 TO %pObj.PaginateForReport(%pRpt, %pImg)
+#IF(%pCut='P')
+LOOP %pPage = 1 TO %pObj.PaginateForReport(%pRpt, %pImg, WD:Pages)
   %pObj.PreparePage(%pRpt, %pImg, %pPage, %pShrink)
+#ELSE
+LOOP %pPage = 1 TO %pObj.PaginateForReport(%pRpt, %pImg, WD:Flow)   ! line by line: fills the room left on the page
+  %pObj.PreparePage(%pRpt, %pImg, %pPage)
+#ENDIF
   PRINT(%pBand)
 END
 #!

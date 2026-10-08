@@ -551,7 +551,11 @@ L:Path  CSTRING(261)
 ! Measures the report IMAGE that will carry the document and paginates to its
 ! size. The report's own units do not matter: like ABC's ReportAttributeManager
 ! we switch it to THOUS for the read and put it back.
-WordDocClass.PaginateForReport PROCEDURE(*REPORT pReport,LONG pImageFeq)
+! WD:Flow cuts it one line per piece instead (RichEdit always lays out at least
+! one line, so a 1-twip page is one line). Each line is then its own band, and
+! the report engine itself puts it on this page if it fits or the next if not:
+! the document starts in whatever room is left and fills every page.
+WordDocClass.PaginateForReport PROCEDURE(*REPORT pReport,LONG pImageFeq,BYTE pMode=0)
 L:WasThous  LONG
 L:WasMM     LONG
 L:WasPts    LONG
@@ -567,9 +571,12 @@ L:Band      LONG
   L:Band = pReport $ pImageFeq{PROP:Parent}
   IF SELF.ShrunkFeq = pImageFeq                    ! the previous document's last page shrank it:
     pReport $ pImageFeq{PROP:Height} = SELF.FullH  ! put the designed size back before measuring
+    pReport $ pImageFeq{PROP:Ypos} = SELF.FullY
     IF L:Band AND SELF.BandH THEN pReport $ L:Band{PROP:Height} = SELF.BandH.
   END
   SELF.ShrunkFeq = 0
+  SELF.Flow = CHOOSE(pMode = WD:Flow)
+  SELF.FullY = pReport $ pImageFeq{PROP:Ypos}
   L:W = pReport $ pImageFeq{PROP:Width}
   L:H = pReport $ pImageFeq{PROP:Height}
   SELF.FullH = L:H
@@ -580,6 +587,11 @@ L:Band      LONG
     pReport{PROP:Points} = TRUE
   ELSIF NOT L:WasThous
     pReport{PROP:Thous} = FALSE
+  END
+  IF SELF.Flow
+    SELF.Paginate(L:W * 1.44, 1)                   ! one line per piece
+    SELF.PageH = L:H * 1.44                        ! the tallest a piece may print
+    RETURN SELF.Pages
   END
   RETURN SELF.Paginate(L:W * 1.44, L:H * 1.44)     ! thousandths of an inch -> twips
 
@@ -598,7 +610,13 @@ L:Shrink    BYTE
   CODE
   IF SELF.H = 0 OR pPage < 1 OR pPage > SELF.Pages THEN RETURN.
   L:Shrink = CHOOSE(pShrinkLast <> 0 AND pPage = SELF.Pages)
-  IF L:Shrink
+  IF SELF.Flow                                     ! one line: exactly its height, in whole thous
+    L:Shrink = TRUE
+    L:Used = wd_page_used(SELF.H, pPage)
+    IF L:Used > SELF.PageH THEN L:Used = SELF.PageH.
+    IF L:Used < 15 THEN L:Used = 15.
+    L:Used = INT((L:Used + 1.43) / 1.44) * 1.44    ! round up to a whole thou, so the lines stack exactly
+  ELSIF L:Shrink
     L:Used = wd_page_used(SELF.H, pPage) + 60      ! a little slack under the last line
     IF L:Used > SELF.PageH OR L:Used <= 60 THEN L:Used = SELF.PageH.
   ELSE
@@ -612,10 +630,13 @@ L:Shrink    BYTE
   L:WasMM    = pReport{PROP:MM}
   L:WasPts   = pReport{PROP:Points}
   pReport{PROP:Thous} = TRUE
-  L:UsedTh = L:Used / 1.44
+  L:UsedTh = ROUND(L:Used / 1.44, 1)
   L:Band = pReport $ pImageFeq{PROP:Parent}
   pReport $ pImageFeq{PROP:Height} = L:UsedTh
-  IF L:Band AND SELF.BandH
+  IF SELF.Flow                                     ! the band is just the line: no gap between lines
+    pReport $ pImageFeq{PROP:Ypos} = 0
+    IF L:Band THEN pReport $ L:Band{PROP:Height} = L:UsedTh.
+  ELSIF L:Band AND SELF.BandH
     pReport $ L:Band{PROP:Height} = SELF.BandH - SELF.FullH + L:UsedTh
   END
   IF L:Shrink THEN SELF.ShrunkFeq = pImageFeq.      ! PaginateForReport undoes it for the next document

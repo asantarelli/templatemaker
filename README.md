@@ -1483,7 +1483,7 @@ Text is measured on the default printer, so the lines break exactly where they w
   opens and saves it with the record when it was edited. You can choose a toolbar, read only, page view,
   Letter or A4 width, and the default font.
 - **myWordDocReport** (report extension): pick the BLOB and an IMAGE in a detail band. It prints every
-  record's document and keeps ABC from printing that band twice.
+  record's document and keeps ABC from printing that band twice. By default the document is printed line by line, so it starts in the room the previous record left and fills every page.
 - **myWordDocPrintBlob** (code template): the same print loop in any embed.
 - `WordDocClass` gives the same features to hand code: `LoadBlob`/`SaveBlob`, formatting, `InsertImage`,
   `InsertTable`, `Find`, `PaginateForReport`/`PreparePage`.
