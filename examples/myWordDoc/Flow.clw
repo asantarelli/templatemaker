@@ -6,6 +6,7 @@ PrintDoc  PROCEDURE(STRING pRtfOrFile, BYTE pIsFile)
 Doc     WordDocClass
 Res     CSTRING(260)
 Mode    BYTE
+Es      BYTE
 Ttl     STRING(60)
 I       LONG
 N       LONG
@@ -15,7 +16,7 @@ Name      STRING(260)
         END
 Rpt REPORT,AT(1000,1000,6500,9000),PRE(RPT),THOUS,FONT('Arial',10)
         HEADER,AT(1000,400,6500,500)
-          STRING('Flow test - header'),AT(0,100),FONT(,9,,FONT:bold)
+          STRING('Flow test - header'),AT(0,100),FONT(,9,,FONT:bold),USE(?HeadText)
         END
 Head    DETAIL,AT(0,0,6500,450),USE(?Head)
           STRING(@s60),AT(0,120,6500,250),USE(Ttl),FONT(,11,0C04020H,FONT:bold)
@@ -25,22 +26,36 @@ DocBand DETAIL,AT(0,0,6500,8000),USE(?DocBand)
           IMAGE,AT(0,0,6500,8000),USE(?DocImg)
         END
         FOOTER,AT(1000,10100,6500,400)
-          STRING('footer'),AT(0,100),FONT(,8)
+          STRING('footer'),AT(0,100),FONT(,8),USE(?FootText)
         END
       END
   CODE
   Res = LONGPATH() & '\flow.ini'
   REMOVE(Res)
   Mode = CHOOSE(UPPER(COMMAND(1)) = 'PAGES', WD:Pages, WD:Flow)
+  Es = CHOOSE(UPPER(COMMAND(1)) = 'ES' OR UPPER(COMMAND(2)) = 'ES')   ! Spanish, for the docs
   OPEN(Rpt)
   Rpt{PROP:Preview} = PrevQ
   Doc.InitHidden()
-  Ttl = '1  A short note'                ; PRINT(RPT:Head)
-  PrintDoc('FIRST RECORD - a short note, loaded as plain text.', 0)
-  Ttl = '2  Customer letter (long)'      ; PRINT(RPT:Head)
-  PrintDoc('sample.rtf', 1)
-  Ttl = '3  Another short note'          ; PRINT(RPT:Head)
-  PrintDoc('THIRD RECORD - printed straight after the letter.', 0)
+  IF Es
+    SETTARGET(Rpt)
+    ?HeadText{PROP:Text} = 'Prueba de flujo - cabecera'
+    ?FootText{PROP:Text} = 'pie'
+    SETTARGET()
+    Ttl = '1  Una nota corta'              ; PRINT(RPT:Head)
+    PrintDoc('PRIMER REGISTRO - una nota corta, cargada como texto.', 0)
+    Ttl = '2  Carta al cliente (larga)'    ; PRINT(RPT:Head)
+    PrintDoc('sample_es.rtf', 1)
+    Ttl = '3  Otra nota corta'             ; PRINT(RPT:Head)
+    PrintDoc('TERCER REGISTRO - impreso justo despu' & CHR(233) & 's de la carta.', 0)
+  ELSE
+    Ttl = '1  A short note'                ; PRINT(RPT:Head)
+    PrintDoc('FIRST RECORD - a short note, loaded as plain text.', 0)
+    Ttl = '2  Customer letter (long)'      ; PRINT(RPT:Head)
+    PrintDoc('sample.rtf', 1)
+    Ttl = '3  Another short note'          ; PRINT(RPT:Head)
+    PrintDoc('THIRD RECORD - printed straight after the letter.', 0)
+  END
   ENDPAGE(Rpt)
   PUTINI('f','pages', RECORDS(PrevQ), Res)
   LOOP I = 1 TO RECORDS(PrevQ)

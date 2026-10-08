@@ -1499,7 +1499,9 @@ Text is measured on the default printer, so the lines break exactly where they w
 ![RTF tool classes on a live editor](docs/myWordDoc-tools-window.png)
 
 Install: `myWordDoc.tpl` to `accessory\template\win`; `WordDocClass.inc`/`.clw`, `WordDocTools.inc`/`.clw` and `wdoc.c` to
-`accessory\libsrc\win`; register the template. Details, limits and the test harness are in
+`accessory\libsrc\win`; register the template. The full bilingual (English + Spanish) guide is
+[`docs/myWordDoc-template.html`](docs/myWordDoc-template.html), with every class member in
+[`docs/myWordDoc-reference.html`](docs/myWordDoc-reference.html). Details, limits and the test harness are in
 [`templates/myWordDoc/README.md`](templates/myWordDoc/README.md).
 
 <a id="t-mytaskpanel"></a>

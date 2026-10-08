@@ -36,6 +36,9 @@ Copy the five source files to `accessory\libsrc\win` and the `.tpl` to
 `accessory\template\win`, then register it.
 
 Every class member, with an example of each: [Class reference](#class-reference).
+The same material as bilingual HTML pages (English / Spanish):
+[`docs/myWordDoc-template.html`](../../docs/myWordDoc-template.html) and
+[`docs/myWordDoc-reference.html`](../../docs/myWordDoc-reference.html).
 
 ## Storage: one BLOB, plain RTF
 

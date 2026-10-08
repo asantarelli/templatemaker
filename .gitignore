@@ -249,3 +249,4 @@ examples/myWordDoc/WordDemo/map/
 examples/myWordDoc/WordDemo/*.dll
 examples/myWordDoc/WordDemo/*.exe
 examples/myWordDoc/WordDemo/*.lib
+examples/myWordDoc/docgen/__pycache__/

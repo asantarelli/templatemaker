@@ -14,7 +14,8 @@
 
   MAP
 AutoTest     PROCEDURE()
-ToolsWindow  PROCEDURE()
+ToolsWindow  PROCEDURE(BYTE pEs=0)
+DescribeEs   PROCEDURE(*RtfFontClass pFont),STRING
 Check        PROCEDURE(STRING pKey,BYTE pOk,STRING pGot)
 Has          PROCEDURE(STRING pText,STRING pPart),BYTE
     MODULE('kernel32')
@@ -31,6 +32,8 @@ OrdNumber    LONG                 ! a "file field" for the merge test (BIND)
   CASE UPPER(CLIP(COMMAND(1)))
   OF 'AUTO'
     AutoTest()
+  OF 'ES'
+    ToolsWindow(TRUE)                              ! the window in Spanish, for the docs
   ELSE
     ToolsWindow()
   END
@@ -168,6 +171,11 @@ L:Dir    CSTRING(261)
   Html.LoadFile('sample.rtf')
   Html.Title = 'Customer letter'
   Html.SaveHtml('tools_out\sample.html')
+  Html.LoadFile('sample_es.rtf')
+  Html.Title = 'Carta al cliente'
+  Html.SaveHtml('tools_out\sample_es.html')
+  Html.LoadFile('sample.rtf')
+  Html.Title = 'Customer letter'
   L:Big &= NEW STRING(LEN(Html.ToHtml()))
   L:Big = Html.ToHtml()
   Check('html.page', CHOOSE(SUB(L:Big, 1, 15) = '<<!DOCTYPE html>' AND Has(L:Big, '<<title>Customer letter<</title>')), SUB(L:Big, 1, 15))
@@ -298,7 +306,7 @@ L:Dir    CSTRING(261)
 
 
 !------------------------------------------------------------------------------
-ToolsWindow PROCEDURE()
+ToolsWindow PROCEDURE(BYTE pEs=0)
 Doc        WordDocClass
 Search     RtfSearchClass
 Font       RtfFontClass
@@ -340,7 +348,28 @@ Window WINDOW('WordDocTools'),AT(,,560,330),CENTER,GRAY,SYSTEM,FONT('Segoe UI',9
   Doc.PageWidth = WD:LetterWidth
   Doc.PageView = TRUE
   Doc.Init(0{PROP:Handle}, ?DocRegion)
-  Doc.LoadFile('sample.rtf')
+  IF pEs
+    0{PROP:Text} = 'WordDocTools - clases RTF'
+    ?FindPrompt{PROP:Text} = 'Buscar:'
+    ?FindBtn{PROP:Text} = '&Buscar'
+    ?NextBtn{PROP:Text} = '&Sig.'
+    ?PrevBtn{PROP:Text} = '&Ant.'
+    ?WithPrompt{PROP:Text} = 'Reemplazar por:'
+    ?ReplaceBtn{PROP:Text} = '&Reemplazar'
+    ?AllBtn{PROP:Text} = '&Todos'
+    ?MarkBtn{PROP:Text} = 'Res&altar todos'
+    ?FontsBtn{PROP:Text} = 'Fuentes'
+    ?GeorgiaBtn{PROP:Text} = 'Todo en Georgia'
+    ?BiggerBtn{PROP:Text} = 'M' & CHR(225) & 's grande'
+    ?CountBtn{PROP:Text} = 'Contar'
+    ?HtmlBtn{PROP:Text} = 'Guardar HTML'
+    ?MdBtn{PROP:Text} = 'Guardar Markdown'
+    ?TxtBtn{PROP:Text} = 'Guardar texto'
+    ?CloseBtn{PROP:Text} = 'Cerrar'
+    Doc.LoadFile('sample_es.rtf')
+  ELSE
+    Doc.LoadFile('sample.rtf')
+  END
   Search.Attach(Doc)                               ! every tool works on the editor itself
   Font.Attach(Doc)
   Text.Attach(Doc)
@@ -354,7 +383,12 @@ Window WINDOW('WordDocTools'),AT(,,560,330),CENTER,GRAY,SYSTEM,FONT('Segoe UI',9
     CASE EVENT()
     OF EVENT:Timer
       Font.Read()                                  ! what font am I on?
-      IF L:Status <> 'Caret: ' & Font.Describe()
+      IF pEs
+        IF L:Status <> 'Cursor: ' & DescribeEs(Font)
+          L:Status = 'Cursor: ' & DescribeEs(Font)
+          DISPLAY(?L:Status)
+        END
+      ELSIF L:Status <> 'Caret: ' & Font.Describe()
         L:Status = 'Caret: ' & Font.Describe()
         DISPLAY(?L:Status)
       END
@@ -379,7 +413,7 @@ Window WINDOW('WordDocTools'),AT(,,560,330),CENTER,GRAY,SYSTEM,FONT('Segoe UI',9
       L:Info = Search.ReplaceAll(L:Find, L:With) & ' replaced'
       DISPLAY(?L:Info)
     OF ?MarkBtn
-      L:Info = Search.HighlightAll(L:Find) & ' highlighted'
+      L:Info = Search.HighlightAll(L:Find) & CHOOSE(pEs <> 0, ' resaltados', ' highlighted')
       DISPLAY(?L:Info)
     OF ?FontsBtn
       L:Info = Font.FontCount() & ' fonts: ' & Font.FontList() & '. Most of the text: ' & Font.MainFont()
@@ -405,3 +439,20 @@ Window WINDOW('WordDocTools'),AT(,,560,330),CENTER,GRAY,SYSTEM,FONT('Segoe UI',9
   END
   Doc.Kill()
   CLOSE(Window)
+
+
+! Font.Describe() in Spanish (the class itself describes in English)
+DescribeEs PROCEDURE(*RtfFontClass pFont)
+L:S  CSTRING(200)
+  CODE
+  L:S = CHOOSE(pFont.Face = '', 'fuentes mezcladas', pFont.Face)
+  IF pFont.Size = 0
+    L:S = L:S & ', tama' & CHR(241) & 'os mezclados'
+  ELSE
+    L:S = L:S & ' ' & pFont.Size & ' pt'
+  END
+  IF pFont.Bold = 1 THEN L:S = L:S & ', negrita'.
+  IF pFont.Italic = 1 THEN L:S = L:S & ', cursiva'.
+  IF pFont.Underline = 1 THEN L:S = L:S & ', subrayado'.
+  IF pFont.Strike = 1 THEN L:S = L:S & ', tachado'.
+  RETURN L:S
