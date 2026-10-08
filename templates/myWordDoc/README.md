@@ -29,9 +29,10 @@ to install: `msftedit.dll` ships with every Windows since XP SP1.
 |---|---|
 | `wdoc.c` | the control: host window, toolbar, RichEdit, RTF streaming, pictures, tables, pagination, metafile rendering |
 | `WordDocClass.inc` / `.clw` | the Clarion class: placement over a REGION, BLOB load/save, formatting API, report printing |
+| `WordDocTools.inc` / `.clw` | the RTF tool classes: search/replace, fonts, plain text, HTML, Markdown, mail merge |
 | `myWordDoc.tpl` | the AppGen templates (editor control, report extension, print code template) |
 
-Copy the three source files to `accessory\libsrc\win` and the `.tpl` to
+Copy the five source files to `accessory\libsrc\win` and the `.tpl` to
 `accessory\template\win`, then register it.
 
 ## Storage: one BLOB, plain RTF
@@ -237,6 +238,227 @@ Use **myWordDocPrintBlob** in any embed. Name the report, the IMAGE and the
 band to PRINT. In the report designer, set that band's **Detail Filter** to
 `False` so ABC does not print it as well.
 
+## RTF tool classes (`WordDocTools`)
+
+Six classes for working with a document beside the editor: search and replace,
+fonts, plain text, HTML, Markdown and mail merge. They live in
+`WordDocTools.inc` / `.clw` and do their work in `wdoc.c`, which walks the
+RichEdit document itself. Any RTF the editor can open, they can read: Word's,
+WordPad's, or your own.
+
+![The tools working on a live editor: every "Clarion" highlighted, the font under the caret shown below](../../docs/myWordDoc-tools-window.png)
+
+| Class | What it does |
+|---|---|
+| `RtfSearchClass` | find, find next/previous, count, replace, replace all, highlight every hit, the text around a hit |
+| `RtfFontClass` | the font, size, style and colour at a position or in the selection; the fonts a document uses; replace a font; change or scale every size |
+| `RtfTextClass` | RTF to plain text with lists and tables kept readable; word, character, paragraph, picture and table counts; an excerpt; plain text to RTF |
+| `RtfHtmlClass` | RTF to HTML, as a full page or a fragment for an e-mail, with pictures embedded or written as files |
+| `RtfMarkdownClass` | RTF to Markdown: headings, bold/italic/strike, lists, tables and pictures |
+| `RtfMergeClass` | mail merge: fills `[[Name]]` placeholders from values you set, or straight from `BIND()`ed file fields |
+
+### Which document a tool works on
+
+Every class works one of two ways:
+
+```clarion
+Search  RtfSearchClass
+  CODE
+  Search.Attach(Doc1)             ! the editor on the window: the tool works on what the user sees
+  ! - or -
+  Search.LoadBlob(DOC:Body)       ! its own hidden document (also LoadString, LoadFile)
+  ...
+  Search.SaveBlob(DOC:Body)       ! keep the changes (also SaveFile, GetRtf)
+```
+
+`Attach` takes any `WordDocClass`: an editor on a form, or the hidden document
+a report prints from. On a live editor the tools put the user's selection and
+scroll position back when they finish. Find, FindNext and FindPrevious are the
+exception, because they move the selection to the hit on purpose. A tool made
+with `LoadBlob` cleans up its hidden document by itself. Positions are 0-based
+character positions, the same ones `WordDocClass.SelectText` takes. A paragraph
+break counts as one character.
+
+Add the **myWordDocGlobal** extension to an application to make the classes
+available in every procedure. A hand-coded program needs only
+`INCLUDE('WordDocTools.INC'),ONCE`.
+
+### RtfSearchClass: find and replace
+
+```clarion
+Search.Attach(Doc1)
+Search.MatchCase = FALSE          ! "Smith" also finds "smith"
+Search.WholeWord = TRUE           ! "art" does not find "party"
+
+IF Search.Find('invoice') >= 0    ! the first hit from the top, selected and scrolled into view
+  MESSAGE(Search.Count('invoice') & ' found. The first: ' & Search.Context(30))
+END
+Search.FindNext()                 ! goes round to the top when Wrap is on (the default)
+Search.FindPrevious()
+
+Search.ReplaceAll('Acme Ltd', 'Acme Limited')   ! returns how many; each keeps its formatting
+Search.Replace('colour', 'color')               ! like Word's Replace button: the first call finds,
+                                                ! each later one replaces the hit and finds the next
+Search.HighlightAll('urgent', COLOR:Yellow)     ! COLOR:None takes the highlight off again
+```
+
+`FoundAt` and `FoundEnd` give the last hit, and `TextAt(From, To)` gives the
+plain text of any range. Set `SelectHits = FALSE` to search without moving the
+user's selection. A replacement takes the formatting of the text it replaces,
+so a bold name stays bold.
+
+### RtfFontClass: which font am I on?
+
+```clarion
+Font.Attach(Doc1)
+Font.Read()                       ! the user's selection; Font.Read(Pos) reads one character
+?Status{PROP:Text} = Font.Describe()            ! "Georgia 12pt, bold, italic"
+IF Font.Bold = 1 AND Font.Size >= 14            ! also Italic, Underline, Strike, Script,
+  ! a heading                                    ! Color, Highlight, Align, List
+END
+```
+
+Over a selection that mixes styles, a property says so: `Face` is blank,
+`Size` is 0, `Bold` and the other on/off values are -1, and `Color` or
+`Highlight` is -2. `Color = COLOR:None` means automatic (black).
+
+```clarion
+LOOP I# = 1 TO Font.FontCount()   ! the fonts the document really uses
+  FontQ:Name = Font.FontName(I#)
+  FontQ:Chars = Font.FontChars(I#)  ! how many characters are set in it
+  ADD(FontQ)
+END
+Font.FontList()                   ! 'Georgia, Segoe UI'
+Font.MainFont()                   ! the font most of the text is in
+
+Font.ReplaceFont('Comic Sans MS', 'Segoe UI')   ! every stretch in that font
+Font.SetFontAll('Calibri', 11)    ! the whole document; '' or 0 leaves that part as it is
+Font.SetFontRange(0, 20, 'Georgia', 18)
+Font.ScaleSizes(120)              ! every size 20% bigger, the headings with it
+```
+
+Only characters you can see count. Paragraph and table marks keep a font of
+their own that formatting never changes, so they are left out of the list.
+
+### RtfTextClass: RTF to plain text
+
+```clarion
+Text.LoadBlob(DOC:Body)
+DOC:PlainText = Text.ToText()     ! for a search index, a LIST column or an SMS
+Text.SaveText('letter.txt')
+```
+
+The text stays readable:
+
+```
+What it can do
+- Formatting - bold, italic, underline, strike, colour and highlight.
+- Paragraphs - left, centre, right and justified; indents; bullets and numbering.
+Product	Units	Revenue
+Widgets	1,200	$14,400
+```
+
+| Property | Default | Effect |
+|---|---|---|
+| `ListPrefixes` | on | `- ` for bullets, `1.` `b.` `iv.` for numbered items |
+| `Bullet` | `'- '` | what a bullet becomes |
+| `TabCells` | on | table cells separated by TAB (off: ` \| `) |
+| `PictureMarks` | off | `[picture]` where a picture was |
+| `Utf8` | off | UTF-8 instead of the ANSI code page |
+
+```clarion
+Text.WordCount()  Text.CharCount()  Text.CharCount(FALSE)   ! without spaces
+Text.ParagraphCount()  Text.PictureCount()  Text.TableCount()
+DOC:Summary = Text.Excerpt(120)   ! one line, cut at a word, with '...'
+Text.IsRtf(L:Imported)            ! does a string start with {\rtf?
+Doc1.LoadString(Text.TextToRtf(NOTE:Memo, 'Georgia', 12))   ! a MEMO into the editor
+```
+
+`TextToRtf` escapes `\`, `{` and `}`, turns line breaks into paragraphs and
+accented letters into `\'e9`, so any plain text becomes a valid RTF document.
+
+### RtfHtmlClass: RTF to HTML
+
+```clarion
+Html.LoadBlob(DOC:Body)
+Html.Title = DOC:Title
+Html.SaveHtml('letter.html')      ! a complete UTF-8 page
+
+Html.FullPage = FALSE             ! only a <div>, for the body of an e-mail
+Mail:Body = Html.ToHtml()
+```
+
+![sample.rtf as HTML in a browser](../../docs/myWordDoc-tools-html.png)
+
+The page keeps the fonts, sizes, colours, highlight, bold/italic/underline/strike,
+super- and subscript, alignment, indents, spacing, bullets and numbering
+(`<ul>`/`<ol>`), tables and pictures. Styles are inline, so the HTML survives
+mail clients that drop `<style>` blocks. The font most of the text uses becomes
+the page's font, and only text that differs from it carries a `<span>`.
+
+Pictures are embedded as `data:` URIs by default, so the HTML is one
+self-contained file. To keep it small, write them as files instead:
+
+```clarion
+Html.ImageFolder = 'C:\Site\img'  ! image1.png, image2.jpg ... are written here
+Html.ImageUrl = 'img/'            ! and linked as img/image1.png
+Html.SkipPictures = TRUE          ! or leave them out
+```
+
+PNG and JPEG pictures are copied byte for byte. EMF, WMF and BMP pictures are
+drawn at twice their size and saved as PNG through GDI+, so they stay sharp on
+high-DPI screens.
+
+### RtfMarkdownClass: RTF to Markdown
+
+```clarion
+Md.LoadBlob(DOC:Body)
+Md.SaveMarkdown('letter.md')      ! UTF-8
+```
+
+```markdown
+# Customer letter
+
+### What it can do
+
+- **Formatting** - bold, *italic*, underline, ~~strike~~, colour and highlight.
+
+| **Product** | **Units** | **Revenue** |
+| --- | --- | --- |
+| Widgets | 1,200 | $14,400 |
+```
+
+A short paragraph in large type becomes a heading: `#` at 1.6 times the body
+size, `##` at 1.3 times, and `###` at 1.12 times when it is all bold. Emphasis
+markers stay next to the words, so `** word**` never happens. Characters that
+mean something in Markdown are escaped. Pictures work as they do in HTML:
+`ImageFolder`, `ImageUrl` and `SkipPictures`.
+
+### RtfMergeClass: mail merge
+
+Write a letter in the editor with placeholders, and store it as the template:
+
+> Dear **[[CUS:Name]]**, your order [[ORD:Number]] ships [[When]].
+
+```clarion
+Merge.LoadBlob(TPL:Body)          ! the template letter
+BIND(CUS:Record)                  ! fields you BIND fill their placeholders by themselves
+BIND('ORD:Number', ORD:Number)
+Merge.SetField('When', 'on ' & FORMAT(ORD:ShipDate, @D17))   ! or set a value yourself
+IF Merge.Missing() <> ''          ! placeholders nothing will fill
+  MESSAGE('No value for: ' & Merge.Missing())
+END
+Merge.Merge()                     ! returns how many placeholders were replaced
+Merge.SaveBlob(LET:Body)          ! the finished letter, ready to print or e-mail
+```
+
+Each value takes the formatting of its placeholder, so a bold `[[CUS:Name]]`
+prints the name in bold. `FieldCount()` and `FieldName(N)` list the
+placeholders a template uses. `FieldOpen` and `FieldClose` change the `[[ ]]`
+markers. `UseBound = FALSE` turns off the `BIND` lookup, and
+`BlankUnknown = TRUE` empties the placeholders nothing filled. Merge into a
+fresh copy of the template for each record: `LoadBlob`, `Merge`, `SaveBlob`.
+
 ## Known limits
 
 | Limit | Why | Workaround |
@@ -263,6 +485,21 @@ band to PRINT. In the report designer, set that band's **Detail Filter** to
 - `click.ps1` clicks the toolbar the same way and photographs the result.
 - `shot.ps1` takes screen captures (not `PrintWindow`, which hides a hosted
   control that is being painted over).
+
+`Tools.clw` (built the same way from `Tools.cwproj`) proves the tool classes:
+
+- `Tools.exe AUTO`: 51 headless checks into `tools_result.ini`, with every
+  export written to `tools_out\`. They cover find, next, previous, whole word,
+  match case, replace, replace all, highlight on and off, the font at a
+  position, the fonts in use, replace/scale/set fonts, plain text with
+  bullets, numbers and table cells, the counts, an excerpt, a text-to-RTF round
+  trip with braces, backslashes and accents, HTML pages and fragments with
+  tables, lists, colours and pictures (embedded and as files), BMP/EMF/WMF
+  pictures converted to PNG, Markdown headings, lists, tables and pictures, and
+  a merge from `SetField` values and a `BIND`ed variable that keeps the
+  placeholder's bold.
+- `Tools.exe` opens the window in the screenshot above: the editor with find,
+  replace and highlight, the font under the caret, and the exports.
 
 `Flow.clw` (built the same way from `Flow.cwproj`) prints a short note, the
 long letter and another note in one report, as `WD:Flow` or, with `PAGES` on

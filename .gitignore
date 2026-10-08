@@ -223,12 +223,16 @@ examples/myWordDoc/page1*.png
 examples/myWordDoc/paste.rtf
 # class files are copied in from templates/myWordDoc by build.sh / build_demo.sh
 examples/myWordDoc/WordDocClass.*
+examples/myWordDoc/WordDocTools.*
+examples/myWordDoc/tools_out/
+examples/myWordDoc/tools_window.*
 examples/myWordDoc/wdoc.c
 examples/myWordDoc/*.ini
 examples/myWordDoc/editor*.png
 examples/myWordDoc/click_*.png
 # WordDemo: everything build_demo.sh regenerates (keep the .txa, .dctx, .cwproj.in, Docs.tps)
 examples/myWordDoc/WordDemo/WordDocClass.*
+examples/myWordDoc/WordDemo/WordDocTools.*
 examples/myWordDoc/WordDemo/wdoc.c
 examples/myWordDoc/WordDemo/CLARION120.RED
 examples/myWordDoc/WordDemo/WordDemo.app

@@ -69,7 +69,7 @@ print("   ok")
 PYEOF
 
 echo "== class files beside the app (CRLF) =="
-for f in WordDocClass.inc WordDocClass.clw wdoc.c; do
+for f in WordDocClass.inc WordDocClass.clw WordDocTools.inc WordDocTools.clw wdoc.c; do
   sed 's/\r$//; s/$/\r/' ../../../templates/myWordDoc/$f > $f
 done
 

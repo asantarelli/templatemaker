@@ -37,6 +37,7 @@
 #!  Clarion redirection path (the app folder, or \clarion12\accessory\libsrc\win),
 #!  saved as ANSI with CRLF line endings:
 #!      WordDocClass.inc   WordDocClass.clw   wdoc.c
+#!      WordDocTools.inc   WordDocTools.clw   (the RTF tool classes)
 #!  WordDocClass.clw is pulled into the build by its LINK attribute and compiles
 #!  wdoc.c itself, so there is nothing to add to the project.
 #!
@@ -55,15 +56,16 @@
     #BOXED('myWordDoc')
       #DISPLAY('myWordDoc Global - Version 1.0')
       #DISPLAY('')
-      #DISPLAY('Makes WordDocClass available to every procedure in the')
-      #DISPLAY('application, for calling it from hand-written code.')
+      #DISPLAY('Makes WordDocClass and the RTF tool classes (search,')
+      #DISPLAY('fonts, text, HTML, Markdown, merge) available to every')
+      #DISPLAY('procedure in the application, for hand-written code.')
       #DISPLAY('')
       #DISPLAY('This extension is OPTIONAL: the editor control, the report')
       #DISPLAY('extension and the print code template all pull the class in')
       #DISPLAY('by themselves.')
       #DISPLAY('')
-      #DISPLAY('IMPORTANT: copy WordDocClass.inc, WordDocClass.clw and')
-      #DISPLAY('wdoc.c to the redirection path, saved as ANSI.')
+      #DISPLAY('IMPORTANT: copy WordDocClass.inc/.clw, WordDocTools.inc/.clw')
+      #DISPLAY('and wdoc.c to the redirection path, saved as ANSI.')
       #PROMPT('&Disable myWordDoc everywhere',CHECK),%wdGloDisable,DEFAULT(0),AT(10)
     #ENDBOXED
     #BOXED('Notes')
@@ -75,6 +77,7 @@
 #!
 #AT(%AfterGlobalIncludes),WHERE(%wdGloDisable=0)
 INCLUDE('WordDocClass.INC'),ONCE
+INCLUDE('WordDocTools.INC'),ONCE
 #ENDAT
 #!
 #!#############################################################################

@@ -26,6 +26,11 @@
  *  A control created with no parent window is an invisible document - that is
  *  how a REPORT procedure renders a BLOB it never showed on screen.
  *
+ *  TOOLS (the end of this file, used by WordDocTools.clw): search / replace /
+ *  highlight, character runs and the fonts in use, plain text and counts, and
+ *  HTML / Markdown export. They walk the RichEdit document itself, on a live
+ *  editor or a hidden one, and put the user's selection back when they finish.
+ *
  *  Everything is bound at run time with LoadLibrary/GetProcAddress, so there is
  *  no import library. Compiled into the exe by Clacpp via PRAGMA('compile(wdoc.c)').
  *
@@ -105,6 +110,7 @@ typedef int (WINAPI *FARPROC)();
 #define EM_SETBKGNDCOLOR  (WM_USER + 67)
 #define EM_SETCHARFORMAT  (WM_USER + 68)
 #define EM_SETEVENTMASK   (WM_USER + 69)
+#define EM_SETOLECALLBACK (WM_USER + 70)
 #define EM_SETPARAFORMAT  (WM_USER + 71)
 #define EM_SETTARGETDEVICE (WM_USER + 72)
 #define EM_STREAMIN       (WM_USER + 73)
@@ -116,6 +122,11 @@ typedef int (WINAPI *FARPROC)();
 #define EM_CANREDO        (WM_USER + 85)
 #define EM_GETTEXTLENGTHEX (WM_USER + 95)
 #define EM_SETZOOM        (WM_USER + 225)
+#define EM_GETTEXTEX      (WM_USER + 94)
+#define EM_GETSCROLLPOS   (WM_USER + 221)
+#define EM_SETSCROLLPOS   (WM_USER + 222)
+#define EM_SCROLLCARET    0x00B7
+#define WM_SETREDRAW      0x000B
 
 #define CB_ADDSTRING      0x0143
 #define CB_GETCURSEL      0x0147
@@ -152,6 +163,9 @@ typedef int (WINAPI *FARPROC)();
 #define CFM_BACKCOLOR     0x04000000
 #define CFE_AUTOCOLOR     0x40000000
 #define CFE_AUTOBACKCOLOR 0x04000000
+#define CFM_SUBSCRIPT     0x00030000
+#define CFE_SUBSCRIPT     0x00010000
+#define CFE_SUPERSCRIPT   0x00020000
 
 /* PARAFORMAT masks */
 #define PFM_STARTINDENT   0x00000001
@@ -243,6 +257,7 @@ typedef struct { void* hwndFrom; UINT idFrom; UINT code; } NMHDR;
 typedef struct { NMHDR nmhdr; CHARRANGE chrg; WORD seltyp; } SELCHANGE;
 typedef struct { void* hdc; void* hdcTarget; RECT rc; RECT rcPage; CHARRANGE chrg; } FORMATRANGE;
 typedef struct { DWORD flags; UINT codepage; } GETTEXTLENGTHEX;
+typedef struct { DWORD cb; DWORD flags; UINT codepage; const char* lpDefaultChar; int* lpUsedDefChar; } GETTEXTEX;
 typedef struct { CHARRANGE chrg; const WCHAR* lpstrText; CHARRANGE chrgText; } FINDTEXTEXW;
 typedef DWORD (WINAPI *EDITSTREAMCALLBACK)(DWORD, BYTE*, long, long*);
 typedef struct { DWORD dwCookie; DWORD dwError; EDITSTREAMCALLBACK pfnCallback; } EDITSTREAM;
@@ -368,10 +383,20 @@ FN(void*, HeapAlloc,      (void*, DWORD, DWORD))
 FN(void*, HeapReAlloc,    (void*, DWORD, void*, DWORD))
 FN(int,   HeapFree,       (void*, DWORD, void*))
 FN(long,  OleInitialize,  (void*))
+FN(long,  CreateILockBytesOnHGlobal, (void*, BOOL, void**))
+FN(long,  StgCreateDocfileOnILockBytes, (void*, DWORD, DWORD, void**))
 FN(int,   MultiByteToWideChar, (UINT, DWORD, const char*, int, WCHAR*, int))
 FN(DWORD, GetTempPathA,   (DWORD, char*))
 FN(DWORD, GetCurrentProcessId, (void))
 FN(int,   DeleteFileA,    (const char*))
+FN(long,  SendMessageW,   (void*, UINT, unsigned long, unsigned long))
+FN(int,   WideCharToMultiByte, (UINT, DWORD, const WCHAR*, int, char*, int, const char*, int*))
+FN(void*, CreateDIBSection, (void*, const void*, UINT, void**, void*, DWORD))
+FN(int,   PatBlt,         (void*, int, int, int, int, DWORD))
+FN(int,   PlayEnhMetaFile, (void*, void*, const RECT*))
+FN(void*, SetWinMetaFileBits, (UINT, const BYTE*, void*, const void*))
+FN(int,   StretchDIBits,  (void*, int, int, int, int, int, int, int, int, const void*, const void*, UINT, DWORD))
+FN(int,   SetStretchBltMode, (void*, int))
 
 /* ---- toolbar buttons ---------------------------------------------------- */
 enum {
@@ -386,6 +411,9 @@ static const int g_layout[] = {
     B_PICTURE, B_TABLE, B_SEP, B_UNDO, B_REDO, -1
 };
 #define NBTN 32
+
+/* one stretch of text with a single look (tools) */
+typedef struct { long cp, end; long size; DWORD eff, col, back; int face; } RUNX;
 
 /* ---- per-document state ------------------------------------------------- */
 typedef struct {
@@ -410,6 +438,10 @@ typedef struct {
     char* buf; long len, cap;
     /* pagination */
     long* pstart; long* pused; int pages, pcap;
+    /* tools: last search hit, character runs, fonts in use */
+    long  fEnd;
+    RUNX* runs; int nruns, rcap;
+    char* faces; long* fchars; int nfaces, fcap;
 } WDOC;
 
 static WDOC  g_d[WD_MAX + 1];
@@ -468,7 +500,9 @@ int wdoc_init(void) {
     BIND(hK, GetModuleHandleA); BIND(hK, CreateFileA); BIND(hK, ReadFile); BIND(hK, WriteFile);
     BIND(hK, GetFileSize); BIND(hK, CloseHandle); BIND(hK, GetProcessHeap); BIND(hK, HeapAlloc);
     BIND(hK, HeapReAlloc); BIND(hK, HeapFree); BIND(hK, GetTempPathA); BIND(hK, GetCurrentProcessId);
-    BIND(hK, DeleteFileA); BIND(hK, MultiByteToWideChar);
+    BIND(hK, DeleteFileA); BIND(hK, MultiByteToWideChar); BIND(hK, WideCharToMultiByte); BIND(hU, SendMessageW);
+    BIND(hG, CreateDIBSection); BIND(hG, PatBlt); BIND(hG, PlayEnhMetaFile); BIND(hG, SetWinMetaFileBits);
+    BIND(hG, StretchDIBits); BIND(hG, SetStretchBltMode);
     BIND(hG, GetDeviceCaps); BIND(hG, CreateFontA); BIND(hG, CreateSolidBrush); BIND(hG, CreatePen);
     BIND(hG, SelectObject); BIND(hG, DeleteObject); BIND(hG, SetTextColor); BIND(hG, SetBkMode);
     BIND(hG, MoveToEx); BIND(hG, LineTo); BIND(hG, Rectangle); BIND(hG, Ellipse); BIND(hG, Polygon);
@@ -476,7 +510,7 @@ int wdoc_init(void) {
     BIND(hG, DeleteDC); BIND(hG, CreateDCA); BIND(hG, CreateEnhMetaFileA); BIND(hG, CloseEnhMetaFile);
     BIND(hG, DeleteEnhMetaFile); BIND(hG, GetWinMetaFileBits); BIND(hG, CreateICA); BIND(hG, GetEnhMetaFileBits); BIND(hG, SetEnhMetaFileBits); BIND(hG, EnumFontFamiliesExA); BIND(hG, SetMapMode);
     if (hC) { BIND(hC, ChooseColorA); BIND(hC, GetOpenFileNameA); }
-    if (hO) { BIND(hO, OleInitialize); }
+    if (hO) { BIND(hO, OleInitialize); BIND(hO, CreateILockBytesOnHGlobal); BIND(hO, StgCreateDocfileOnILockBytes); }
 
     if (!p_CreateWindowExA || !p_SendMessageA || !p_RegisterClassA || !p_HeapAlloc || !p_CreateEnhMetaFileA) {
         g_step = -5; return -5;
@@ -746,6 +780,8 @@ static char* putn(char* o, long v) {
     return o;
 }
 
+static BYTE* bmp_to_png(const char* path, long* n);   /* tools section: GDI+ */
+
 /* returns 1 ok, -1 cannot read, -2 unknown format, -3 out of memory */
 int wdoc_insert_image(int h, const char* path, int maxWidthTw) {
     WDOC* d = D(h);
@@ -782,8 +818,11 @@ int wdoc_insert_image(int h, const char* path, int maxWidthTw) {
             p += 2 + ((data[p + 2] << 8) | data[p + 3]);
         }
     } else if (data[0] == 'B' && data[1] == 'M') {
-        kind = "\\dibitmap0"; skip = 14;               /* RTF wants the DIB, not the file header */
+        /* RichEdit drops \dibitmap pictures without a word, so a BMP goes in as PNG */
+        long pn = 0; BYTE* png = bmp_to_png(path, &pn);
         wPx = (long)le32(data + 18); hPx = (long)le32(data + 22); if (hPx < 0) hPx = -hPx;
+        if (png && pn > 32) { mem_free(data); data = png; got = (DWORD)pn; kind = "\\pngblip"; }
+        else { mem_free(png); kind = "\\dibitmap0"; skip = 14; }
     } else if (le32(data) == 1 && le32(data + 40) == 0x464D4520) {   /* EMF: " EMF" signature */
         RECT fr; kind = "\\emfblip";
         fr.left = (long)le32(data + 24); fr.top = (long)le32(data + 28);
@@ -1172,6 +1211,55 @@ static void clip_children(void* w) {
     p_SetWindowPos(w, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 }
 
+/* ---- IRichEditOleCallback ------------------------------------------------
+   RichEdit keeps a BMP, EMF or WMF picture as an OLE object, and it can only
+   create one when its owner hands it storage through this callback - without
+   it such pictures are dropped without a word (PNG and JPEG are drawn
+   natively and never needed it). WordPad registers the same thing. One static
+   object serves every editor; it is never freed, so AddRef/Release are no-ops. */
+#define E_NOTIMPL_ ((long)0x80004001)
+#define E_NOINTERFACE_ ((long)0x80004002)
+typedef struct { void** vtbl; } RECB;
+static long WINAPI recb_qi(RECB* t, const DWORD* iid, void** pp) {
+    /* IUnknown {00000000-...-C000-000000000046}, IRichEditOleCallback {00020403-...} */
+    if (iid && (iid[0] == 0 || iid[0] == 0x00020403) && iid[1] == 0 && iid[2] == 0x000000C0 && iid[3] == 0x46000000) { *pp = t; return 0; }
+    *pp = 0; return E_NOINTERFACE_;
+}
+static unsigned long WINAPI recb_addref(RECB* t) { return 1; }
+static unsigned long WINAPI recb_release(RECB* t) { return 1; }
+static long WINAPI recb_storage(RECB* t, void** stg) {
+    void* lb = 0; long hr;
+    *stg = 0;
+    if (!p_CreateILockBytesOnHGlobal || !p_StgCreateDocfileOnILockBytes) return E_NOTIMPL_;
+    hr = p_CreateILockBytesOnHGlobal(0, 1, &lb);
+    if (hr || !lb) return hr ? hr : E_NOTIMPL_;
+    hr = p_StgCreateDocfileOnILockBytes(lb, 0x00001012 /*SHARE_EXCLUSIVE|CREATE|READWRITE*/, 0, stg);
+    ((unsigned long (WINAPI*)(void*))((*(void***)lb)[2]))(lb);     /* the storage holds its own reference */
+    return hr;
+}
+static long WINAPI recb_inplace(RECB* t, void* a, void* b, void* c) { return E_NOTIMPL_; }
+static long WINAPI recb_showui(RECB* t, BOOL show) { return 0; }
+static long WINAPI recb_queryinsert(RECB* t, void* clsid, void* stg, long cp) { return 0; }
+static long WINAPI recb_delete(RECB* t, void* obj) { return 0; }
+static long WINAPI recb_acceptdata(RECB* t, void* dobj, void* cf, DWORD reco, BOOL really, void* mp) { return 0; }
+static long WINAPI recb_help(RECB* t, BOOL on) { return 0; }
+static long WINAPI recb_clipdata(RECB* t, void* chrg, DWORD reco, void** dobj) { return E_NOTIMPL_; }
+static long WINAPI recb_dragdrop(RECB* t, BOOL drag, DWORD keys, DWORD* effect) { return E_NOTIMPL_; }
+static long WINAPI recb_menu(RECB* t, DWORD seltype, void* obj, void* chrg, void** menu) { return E_NOTIMPL_; }
+static void* g_recbVtbl[13];
+static RECB  g_recb;
+static void* ole_callback(void) {
+    if (!g_recb.vtbl) {
+        g_recbVtbl[0] = (void*)recb_qi;        g_recbVtbl[1] = (void*)recb_addref;   g_recbVtbl[2] = (void*)recb_release;
+        g_recbVtbl[3] = (void*)recb_storage;   g_recbVtbl[4] = (void*)recb_inplace;  g_recbVtbl[5] = (void*)recb_showui;
+        g_recbVtbl[6] = (void*)recb_queryinsert; g_recbVtbl[7] = (void*)recb_delete; g_recbVtbl[8] = (void*)recb_acceptdata;
+        g_recbVtbl[9] = (void*)recb_help;      g_recbVtbl[10] = (void*)recb_clipdata; g_recbVtbl[11] = (void*)recb_dragdrop;
+        g_recbVtbl[12] = (void*)recb_menu;
+        g_recb.vtbl = g_recbVtbl;
+    }
+    return &g_recb;
+}
+
 /* parent == 0 makes an invisible document: no host, no toolbar - for reports */
 int wdoc_create(int parent, int x, int y, int w, int h, int flags) {
     int s;
@@ -1216,6 +1304,7 @@ int wdoc_create(int parent, int x, int y, int w, int h, int flags) {
         p_SendMessageA(d->edit, EM_SETEVENTMASK, 0, ENM_CHANGE | ENM_SELCHANGE);
     }
     p_SendMessageA(d->edit, EM_EXLIMITTEXT, 0, 0x7FFFFFFF);
+    p_SendMessageA(d->edit, EM_SETOLECALLBACK, 0, (unsigned long)ole_callback());   /* BMP / EMF / WMF pictures */
     if (flags & WDF_READONLY) p_SendMessageA(d->edit, EM_SETREADONLY, 1, 0);
     /* default typing font: Segoe UI 11pt */
     {   CF2A cf; zero(&cf, sizeof(cf)); cf.cbSize = sizeof(cf);
@@ -1238,6 +1327,7 @@ void wdoc_destroy(int h) {
     if (d->host) p_DestroyWindow(d->host);      /* takes the editor + combos with it */
     else p_DestroyWindow(d->edit);
     mem_free(d->buf); mem_free(d->pstart); mem_free(d->pused);
+    mem_free(d->runs); mem_free(d->faces); mem_free(d->fchars);
     zero(d, sizeof(WDOC));
 }
 
@@ -1732,5 +1822,1114 @@ int wdoc_temp_name(int h, int page, char* dst, int cap) {
     return slen(dst);
 }
 int wdoc_delete_file(const char* path) { return p_DeleteFileA ? p_DeleteFileA(path) : 0; }
+
+/* ========================================================================== */
+/*  Tools - what WordDocTools.clw builds its classes on                        */
+/*    search / count / replace / highlight      (RtfSearchClass, RtfMergeClass) */
+/*    character runs, fonts in use              (RtfFontClass)                  */
+/*    plain text and statistics                 (RtfTextClass)                  */
+/*    HTML and Markdown                         (RtfHtmlClass, RtfMarkdownClass)*/
+/*  Every routine works on a live editor as well as a hidden document: it      */
+/*  saves the user's selection and scroll position, works with notifications   */
+/*  and painting off, and puts both back.                                      */
+/*  Text results are left in the slot's buffer; Clarion fetches them with      */
+/*  wdoc_copy, exactly like wdoc_save.                                         */
+/* ========================================================================== */
+
+/* ---- output buffer of UTF-16, converted once at the end ------------------ */
+typedef struct { WCHAR* p; long len, cap; } WBUF;
+static int wb_room(WBUF* b, long n) {
+    if (b->len + n + 1 > b->cap) {
+        long nc = b->cap ? b->cap * 2 : 32768; WCHAR* q;
+        while (nc < b->len + n + 1) nc *= 2;
+        q = (WCHAR*)mem_grow(b->p, nc * 2);
+        if (!q) return 0;
+        b->p = q; b->cap = nc;
+    }
+    return 1;
+}
+static void wb_ch(WBUF* b, WCHAR c) { if (wb_room(b, 1)) { b->p[b->len++] = c; b->p[b->len] = 0; } }
+static void wb_str(WBUF* b, const char* s) {          /* ASCII only */
+    long n = slen(s), i;
+    if (n <= 0 || !wb_room(b, n)) return;
+    for (i = 0; i < n; i++) b->p[b->len + i] = (WCHAR)(BYTE)s[i];
+    b->len += n; b->p[b->len] = 0;
+}
+static void wb_num(WBUF* b, long v) { char t[16]; char* e = putn(t, v); *e = 0; wb_str(b, t); }
+static void wb_ansi(WBUF* b, const char* s) {         /* text in the ANSI code page */
+    int n;
+    if (!s || !s[0]) return;
+    n = p_MultiByteToWideChar(0, 0, s, -1, 0, 0);
+    if (n <= 1 || !wb_room(b, n)) return;
+    p_MultiByteToWideChar(0, 0, s, -1, b->p + b->len, n);
+    b->len += n - 1; b->p[b->len] = 0;
+}
+static void wb_hex2(WBUF* b, int v) { static const char hx[] = "0123456789ABCDEF"; wb_ch(b, (WCHAR)hx[(v >> 4) & 15]); wb_ch(b, (WCHAR)hx[v & 15]); }
+static void wb_color(WBUF* b, DWORD c) {               /* COLORREF -> #RRGGBB */
+    wb_ch(b, '#'); wb_hex2(b, (int)(c & 255)); wb_hex2(b, (int)((c >> 8) & 255)); wb_hex2(b, (int)((c >> 16) & 255));
+}
+static void wb_pt(WBUF* b, long tw) {                  /* twips -> points, one decimal */
+    long t = tw * 10 / 20;
+    if (t < 0) { wb_ch(b, '-'); t = -t; }
+    wb_num(b, t / 10);
+    if (t % 10) { wb_ch(b, '.'); wb_ch(b, (WCHAR)('0' + t % 10)); }
+    wb_str(b, "pt");
+}
+/* hands the result to the slot's buffer as UTF-8 (cp 65001) or ANSI (cp 0) */
+static int wb_publish(WDOC* d, WBUF* b, UINT cp) {
+    int n;
+    d->len = 0;
+    if (b->len > 0 && p_WideCharToMultiByte) {
+        n = p_WideCharToMultiByte(cp, 0, b->p, (int)b->len, 0, 0, 0, 0);
+        if (n > 0) {
+            if (n + 1 > d->cap) {
+                char* nb = (char*)mem_grow(d->buf, n + 1);
+                if (nb) { d->buf = nb; d->cap = n + 1; }
+            }
+            if (n + 1 <= d->cap) { p_WideCharToMultiByte(cp, 0, b->p, (int)b->len, d->buf, n, 0, 0); d->len = n; d->buf[n] = 0; }
+        }
+    }
+    mem_free(b->p); b->p = 0; b->len = b->cap = 0;
+    return (int)d->len;
+}
+
+/* ---- byte buffer (RTF streamed out of a selection) ------------------------ */
+typedef struct { char* p; long len, cap; } OBUF;
+static DWORD WINAPI cb_obuf(DWORD cookie, BYTE* buf, long cb, long* pcb) {
+    OBUF* o = (OBUF*)cookie; long i;
+    if (o->len + cb + 1 > o->cap) {
+        long nc = o->cap ? o->cap * 2 : 65536; char* q;
+        while (nc < o->len + cb + 1) nc *= 2;
+        q = (char*)mem_grow(o->p, nc);
+        if (!q) { *pcb = 0; return 1; }
+        o->p = q; o->cap = nc;
+    }
+    for (i = 0; i < cb; i++) o->p[o->len + i] = (char)buf[i];
+    o->len += cb; o->p[o->len] = 0;
+    *pcb = cb;
+    return 0;
+}
+
+/* ---- quiet selection work ------------------------------------------------- */
+typedef struct { CHARRANGE sel; POINT scroll; long mask; } QUIET;
+static void sel2(WDOC* d, long a, long b) { CHARRANGE r; r.cpMin = a; r.cpMax = b; E(d, EM_EXSETSEL, 0, (unsigned long)&r); }
+static void quiet_on(WDOC* d, QUIET* q) {
+    E(d, EM_EXGETSEL, 0, (unsigned long)&q->sel);
+    E(d, EM_GETSCROLLPOS, 0, (unsigned long)&q->scroll);
+    q->mask = E(d, EM_SETEVENTMASK, 0, 0);
+    if (d->host) E(d, WM_SETREDRAW, 0, 0);
+}
+/* keepSel = 0 puts the user's selection back; 1 leaves the new one and scrolls to it */
+static void quiet_off(WDOC* d, QUIET* q, int keepSel) {
+    if (!keepSel) { E(d, EM_EXSETSEL, 0, (unsigned long)&q->sel); E(d, EM_SETSCROLLPOS, 0, (unsigned long)&q->scroll); }
+    E(d, EM_SETEVENTMASK, 0, (unsigned long)q->mask);
+    if (d->host) {
+        E(d, WM_SETREDRAW, 1, 0);
+        if (keepSel) E(d, EM_SCROLLCARET, 0, 0);
+        p_InvalidateRect(d->edit, 0, 1);
+        d->selseq++;
+        refresh_state(d);
+    }
+}
+static long doc_len(WDOC* d) {
+    GETTEXTLENGTHEX g; g.flags = GTL_PRECISE | GTL_NUMCHARS; g.codepage = 1200;
+    return E(d, EM_GETTEXTLENGTHEX, (unsigned long)&g, 0);
+}
+/* the whole text as UTF-16: paragraphs end in CR, so index == character position */
+static WCHAR* wtext(WDOC* d, long* pn) {
+    GETTEXTEX gt; long n = doc_len(d); WCHAR* w = (WCHAR*)mem_alloc((n + 2) * 2);
+    *pn = 0;
+    if (!w) return 0;
+    zero(&gt, sizeof(gt)); gt.cb = (DWORD)((n + 1) * 2); gt.flags = 4 /*GT_RAWTEXT: table marks + U+FFFC kept*/; gt.codepage = 1200;
+    n = E(d, EM_GETTEXTEX, (unsigned long)&gt, (unsigned long)w);
+    if (n < 0) n = 0;
+    w[n] = 0; *pn = n;
+    return w;
+}
+static WCHAR* to_w(const char* s, long* pn) {
+    int n; WCHAR* w;
+    *pn = 0;
+    if (!s) return 0;
+    n = p_MultiByteToWideChar(0, 0, s, -1, 0, 0);
+    if (n <= 0) return 0;
+    w = (WCHAR*)mem_alloc(n * 2 + 2);
+    if (!w) return 0;
+    p_MultiByteToWideChar(0, 0, s, -1, w, n);
+    *pn = n - 1;
+    return w;
+}
+
+/* ========================================================================== */
+/*  Search                                                                     */
+/* ========================================================================== */
+/* flags: 1 forward (else backward), 2 whole word, 4 match case.
+   Forward searches from..to (to -1 = the end); backward searches from down to 'to'. */
+static long find_w(WDOC* d, const WCHAR* w, long from, long to, int flags, long* end) {
+    FINDTEXTEXW ft; DWORD fl = 0; long r;
+    if (flags & 1) fl |= FR_DOWN;
+    if (flags & 2) fl |= FR_WHOLEWORD;
+    if (flags & 4) fl |= FR_MATCHCASE;
+    ft.chrg.cpMin = from; ft.chrg.cpMax = to; ft.lpstrText = w;
+    ft.chrgText.cpMin = ft.chrgText.cpMax = -1;
+    r = E(d, EM_FINDTEXTEXW, fl, (unsigned long)&ft);
+    if (end) *end = r >= 0 ? ft.chrgText.cpMax : -1;
+    return r;
+}
+/* returns the hit's start or -1 - nothing is selected; wdoc_found_end gives its end */
+int wdoc_find_at(int h, const char* text, int from, int to, int flags) {
+    WDOC* d = D(h); WCHAR* w; long n, r, end = -1;
+    if (!d || !text || !text[0]) return -1;
+    w = to_w(text, &n);
+    if (!w || n <= 0) { mem_free(w); return -1; }
+    r = find_w(d, w, from, to, flags, &end);
+    mem_free(w);
+    d->fEnd = r >= 0 ? end : -1;
+    return (int)r;
+}
+int wdoc_found_end(int h) { WDOC* d = D(h); return d ? (int)d->fEnd : -1; }
+void wdoc_show_range(int h, int from, int to) {     /* select and scroll into view */
+    WDOC* d = D(h);
+    if (!d) return;
+    sel2(d, from, to);
+    E(d, EM_SCROLLCARET, 0, 0);
+}
+int wdoc_count(int h, const char* text, int flags) {
+    WDOC* d = D(h); WCHAR* w; long n, pos = 0, r, end, c = 0;
+    if (!d || !text || !text[0]) return 0;
+    w = to_w(text, &n);
+    if (!w || n <= 0) { mem_free(w); return 0; }
+    for (;;) {
+        r = find_w(d, w, pos, -1, flags | 1, &end);
+        if (r < 0) break;
+        c++;
+        pos = end > r ? end : r + 1;
+    }
+    mem_free(w);
+    return (int)c;
+}
+/* replaces from..to with text, keeping the formatting of the first character
+   replaced; returns where the new text ends */
+static void replace_w(WDOC* d, long a, long b, const WCHAR* w) {
+    sel2(d, a, b);
+    if (p_SendMessageW) p_SendMessageW(d->edit, EM_REPLACESEL, 1, (unsigned long)w);
+}
+int wdoc_replace_range(int h, int from, int to, const char* text) {
+    WDOC* d = D(h); WCHAR* w; long n; WCHAR none = 0;
+    if (!d) return -1;
+    w = to_w(text ? text : "", &n);
+    replace_w(d, from, to, w ? w : &none);
+    mem_free(w);
+    d->seq++;
+    return (int)(from + n);
+}
+/* every hit of find becomes repl; returns how many */
+int wdoc_replace_all(int h, const char* find, const char* repl, int flags) {
+    WDOC* d = D(h); WCHAR* wf; WCHAR* wr; long nf, nr, pos = 0, r, end, c = 0; QUIET q; WCHAR none = 0;
+    if (!d || !find || !find[0]) return 0;
+    wf = to_w(find, &nf);
+    if (!wf || nf <= 0) { mem_free(wf); return 0; }
+    wr = to_w(repl ? repl : "", &nr);
+    quiet_on(d, &q);
+    for (;;) {
+        r = find_w(d, wf, pos, -1, flags | 1, &end);
+        if (r < 0 || end <= r) break;
+        replace_w(d, r, end, wr ? wr : &none);
+        c++;
+        pos = r + nr;
+    }
+    quiet_off(d, &q, 0);
+    mem_free(wf); mem_free(wr);
+    if (c) d->seq++;
+    return (int)c;
+}
+/* paints every hit with a highlight colour (-1 takes the highlight off) */
+int wdoc_mark_all(int h, const char* text, int flags, int color) {
+    WDOC* d = D(h); WCHAR* w; long n, pos = 0, r, end, c = 0; QUIET q;
+    if (!d || !text || !text[0]) return 0;
+    w = to_w(text, &n);
+    if (!w || n <= 0) { mem_free(w); return 0; }
+    quiet_on(d, &q);
+    for (;;) {
+        r = find_w(d, w, pos, -1, flags | 1, &end);
+        if (r < 0 || end <= r) break;
+        sel2(d, r, end);
+        set_color(d, (DWORD)color, 1);
+        c++;
+        pos = end;
+    }
+    quiet_off(d, &q, 0);
+    mem_free(w);
+    if (c) d->seq++;
+    return (int)c;
+}
+/* plain text of from..to (ANSI, paragraph breaks as spaces) - for "...context..." */
+int wdoc_text_range(int h, int from, int to) {
+    WDOC* d = D(h); WCHAR* w; long n, i; WBUF b;
+    if (!d) return 0;
+    zero(&b, sizeof(b));
+    w = wtext(d, &n);
+    if (!w) return 0;
+    if (from < 0) from = 0;
+    if (to < 0 || to > n) to = n;
+    for (i = from; i < to; i++) {
+        WCHAR c = w[i];
+        if (c == 13 || c == 10 || c == 11 || c == 7) c = ' ';
+        else if (c >= 0xFFF9 && c <= 0xFFFC) continue;
+        wb_ch(&b, c);
+    }
+    mem_free(w);
+    return wb_publish(d, &b, 0);
+}
+
+/* ========================================================================== */
+/*  Character runs: stretches of text with one look                            */
+/* ========================================================================== */
+#define RUNMASK (CFM_BOLD | CFM_ITALIC | CFM_UNDERLINE | CFM_STRIKEOUT | CFM_SIZE | CFM_COLOR | CFM_FACE | CFM_BACKCOLOR | CFM_SUBSCRIPT)
+
+static int face_index(WDOC* d, const char* name) {
+    int i;
+    for (i = 0; i < d->nfaces; i++) if (seq_ci(d->faces + i * 32, name)) return i;
+    if (d->nfaces >= d->fcap) {
+        int nc = d->fcap ? d->fcap * 2 : 16;
+        char* f = (char*)mem_grow(d->faces, nc * 32);
+        long* k = (long*)mem_grow(d->fchars, nc * 4);
+        if (!f || !k) return 0;
+        d->faces = f; d->fchars = k; d->fcap = nc;
+    }
+    scpy(d->faces + d->nfaces * 32, name, 32);
+    d->fchars[d->nfaces] = 0;
+    return d->nfaces++;
+}
+static int same_look(WDOC* d, long a, long b) {
+    CF2A cf;
+    sel2(d, a, b);
+    zero(&cf, sizeof(cf)); cf.cbSize = sizeof(cf);
+    E(d, EM_GETCHARFORMAT, SCF_SELECTION, (unsigned long)&cf);
+    return (cf.dwMask & RUNMASK) == RUNMASK;
+}
+/* Walks the document once. A run is found by doubling its length while the
+   selection still reports one look, then halving back to the exact edge, so a
+   long run costs a handful of messages, not one per character. */
+static int build_runs(WDOC* d) {
+    long total = doc_len(d), s = 0, wn = 0, i;
+    QUIET q; WCHAR* w; int k, m;
+    d->nruns = 0; d->nfaces = 0;
+    if (total <= 0) return 0;
+    w = wtext(d, &wn);
+    quiet_on(d, &q);
+    while (s < total) {
+        CF2A cf; long good, bad = -1, step = 1, t, mid; RUNX* r;
+        sel2(d, s, s + 1);
+        zero(&cf, sizeof(cf)); cf.cbSize = sizeof(cf);
+        E(d, EM_GETCHARFORMAT, SCF_SELECTION, (unsigned long)&cf);
+        good = s + 1;
+        while (good < total) {
+            t = good + step;
+            if (t > total) t = total;
+            if (same_look(d, s, t)) { good = t; step *= 2; } else { bad = t; break; }
+        }
+        if (bad > 0) while (bad - good > 1) {
+            mid = good + (bad - good) / 2;
+            if (same_look(d, s, mid)) good = mid; else bad = mid;
+        }
+        if (d->nruns >= d->rcap) {
+            int nc = d->rcap ? d->rcap * 2 : 256;
+            RUNX* nr = (RUNX*)mem_grow(d->runs, nc * (long)sizeof(RUNX));
+            if (!nr) break;
+            d->runs = nr; d->rcap = nc;
+        }
+        r = &d->runs[d->nruns++];
+        r->cp = s; r->end = good; r->size = cf.yHeight; r->eff = cf.dwEffects;
+        r->col = cf.crTextColor; r->back = cf.crBackColor;
+        r->face = face_index(d, cf.szFaceName);
+        /* only characters you can see count: paragraph and table marks keep a
+           font of their own that formatting the text never changes */
+        for (i = s; i < good && i < wn; i++) {
+            WCHAR c = w[i];
+            if (c != 13 && c != 7 && c != 0xFFF9 && c != 0xFFFB) d->fchars[r->face]++;
+        }
+        s = good;
+    }
+    quiet_off(d, &q, 0);
+    mem_free(w);
+    /* drop the fonts that only marks use; their runs get face -1 */
+    for (k = 0, m = 0; k < d->nfaces; k++) {
+        int j;
+        if (d->fchars[k] == 0) { for (j = 0; j < d->nruns; j++) if (d->runs[j].face == k) d->runs[j].face = -1; continue; }
+        if (m != k) {
+            scpy(d->faces + m * 32, d->faces + k * 32, 32); d->fchars[m] = d->fchars[k];
+            for (j = 0; j < d->nruns; j++) if (d->runs[j].face == k) d->runs[j].face = m;
+        }
+        m++;
+    }
+    d->nfaces = m;
+    return d->nruns;
+}
+int wdoc_runs(int h) { WDOC* d = D(h); return d ? build_runs(d) : 0; }
+/* which: 1 start 2 end 3 size (pt*10) 4 bold 5 italic 6 underline 7 strike
+          8 colour (-1 automatic) 9 highlight (-1 none) 10 font number (1-based)
+          11 1 superscript / 2 subscript */
+int wdoc_run_info(int h, int n, int which) {
+    WDOC* d = D(h); RUNX* r;
+    if (!d || n < 1 || n > d->nruns) return 0;
+    r = &d->runs[n - 1];
+    switch (which) {
+    case 1: return (int)r->cp;
+    case 2: return (int)r->end;
+    case 3: return (int)(r->size / 2);
+    case 4: return (r->eff & CFM_BOLD) ? 1 : 0;
+    case 5: return (r->eff & CFM_ITALIC) ? 1 : 0;
+    case 6: return (r->eff & CFM_UNDERLINE) ? 1 : 0;
+    case 7: return (r->eff & CFM_STRIKEOUT) ? 1 : 0;
+    case 8: return (r->eff & CFE_AUTOCOLOR) ? -1 : (int)r->col;
+    case 9: return (r->eff & CFE_AUTOBACKCOLOR) ? -1 : (int)r->back;
+    case 10: return r->face + 1;
+    case 11: return (r->eff & CFE_SUPERSCRIPT) ? 1 : (r->eff & CFE_SUBSCRIPT) ? 2 : 0;
+    }
+    return 0;
+}
+int wdoc_face_count(int h) { WDOC* d = D(h); return d ? d->nfaces : 0; }
+int wdoc_face_name(int h, int n, char* dst, int cap) {
+    WDOC* d = D(h);
+    if (cap > 0) dst[0] = 0;
+    if (!d || n < 1 || n > d->nfaces || cap <= 0) return 0;
+    scpy(dst, d->faces + (n - 1) * 32, cap);
+    return slen(dst);
+}
+int wdoc_face_chars(int h, int n) { WDOC* d = D(h); return d && n >= 1 && n <= d->nfaces ? (int)d->fchars[n - 1] : 0; }
+
+/* every run set in oldFace is set in newFace; returns how many runs changed */
+int wdoc_replace_face(int h, const char* oldFace, const char* newFace) {
+    WDOC* d = D(h); int i, c = 0, k = -1; QUIET q;
+    if (!d || !oldFace || !newFace || !newFace[0]) return 0;
+    build_runs(d);
+    for (i = 0; i < d->nfaces; i++) if (seq_ci(d->faces + i * 32, oldFace)) k = i;
+    if (k < 0) return 0;
+    quiet_on(d, &q);
+    for (i = 0; i < d->nruns; i++) if (d->runs[i].face == k) { sel2(d, d->runs[i].cp, d->runs[i].end); set_face(d, newFace); c++; }
+    quiet_off(d, &q, 0);
+    if (c) d->seq++;
+    return c;
+}
+/* every size times pct/100 (never under 4 pt); returns how many runs changed */
+int wdoc_scale_sizes(int h, int pct) {
+    WDOC* d = D(h); int i, c = 0; QUIET q;
+    if (!d || pct <= 0) return 0;
+    build_runs(d);
+    quiet_on(d, &q);
+    for (i = 0; i < d->nruns; i++) {
+        long tw = d->runs[i].size * pct / 100;
+        CF2A cf;
+        if (tw < 80) tw = 80;
+        sel2(d, d->runs[i].cp, d->runs[i].end);
+        zero(&cf, sizeof(cf)); cf.cbSize = sizeof(cf); cf.dwMask = CFM_SIZE; cf.yHeight = tw;
+        E(d, EM_SETCHARFORMAT, SCF_SELECTION, (unsigned long)&cf);
+        c++;
+    }
+    quiet_off(d, &q, 0);
+    if (c) d->seq++;
+    return c;
+}
+/* face ("" = leave) and/or size (pt*10, 0 = leave) over from..to (to -1 = the end) */
+void wdoc_set_font_range(int h, int from, int to, const char* face, int pt10) {
+    WDOC* d = D(h); QUIET q;
+    if (!d) return;
+    quiet_on(d, &q);
+    sel2(d, from, to);
+    if (face && face[0]) set_face(d, face);
+    if (pt10 > 0) set_size(d, pt10);
+    quiet_off(d, &q, 0);
+    d->seq++;
+}
+/* the look at a position (pos -1 = the selection as it is).
+   which: 1 bold 2 italic 3 underline 4 strike (1/0, -1 mixed) 5 size pt*10 (0 mixed)
+          6 colour (-1 automatic, -2 mixed) 7 highlight (-1 none, -2 mixed)
+          8 alignment (-1 mixed) 9 list style (-1 mixed) 10 super/subscript 1/2 (-1 mixed) */
+int wdoc_look(int h, int pos, int which) {
+    WDOC* d = D(h); CF2A cf; PF2 pf; QUIET q; int r = 0;
+    if (!d) return 0;
+    if (pos >= 0) { quiet_on(d, &q); sel2(d, pos, pos + 1); }
+    zero(&cf, sizeof(cf)); cf.cbSize = sizeof(cf);
+    E(d, EM_GETCHARFORMAT, SCF_SELECTION, (unsigned long)&cf);
+    zero(&pf, sizeof(pf)); pf.cbSize = sizeof(pf);
+    E(d, EM_GETPARAFORMAT, 0, (unsigned long)&pf);
+    switch (which) {
+    case 1: r = (cf.dwMask & CFM_BOLD) ? ((cf.dwEffects & CFM_BOLD) ? 1 : 0) : -1; break;
+    case 2: r = (cf.dwMask & CFM_ITALIC) ? ((cf.dwEffects & CFM_ITALIC) ? 1 : 0) : -1; break;
+    case 3: r = (cf.dwMask & CFM_UNDERLINE) ? ((cf.dwEffects & CFM_UNDERLINE) ? 1 : 0) : -1; break;
+    case 4: r = (cf.dwMask & CFM_STRIKEOUT) ? ((cf.dwEffects & CFM_STRIKEOUT) ? 1 : 0) : -1; break;
+    case 5: r = (cf.dwMask & CFM_SIZE) ? (int)(cf.yHeight / 2) : 0; break;
+    case 6: r = !(cf.dwMask & CFM_COLOR) ? -2 : (cf.dwEffects & CFE_AUTOCOLOR) ? -1 : (int)cf.crTextColor; break;
+    case 7: r = !(cf.dwMask & CFM_BACKCOLOR) ? -2 : (cf.dwEffects & CFE_AUTOBACKCOLOR) ? -1 : (int)cf.crBackColor; break;
+    case 8: r = (pf.dwMask & PFM_ALIGNMENT) ? (pf.wAlignment ? pf.wAlignment : 1) : -1; break;
+    case 9: r = (pf.dwMask & PFM_NUMBERING) ? pf.wNumbering : -1; break;
+    case 10: r = (cf.dwMask & CFM_SUBSCRIPT) != CFM_SUBSCRIPT ? -1 : (cf.dwEffects & CFE_SUPERSCRIPT) ? 1 : (cf.dwEffects & CFE_SUBSCRIPT) ? 2 : 0; break;
+    }
+    if (pos >= 0) quiet_off(d, &q, 0);
+    return r;
+}
+int wdoc_face_at(int h, int pos, char* dst, int cap) {
+    WDOC* d = D(h); CF2A cf; QUIET q;
+    if (cap > 0) dst[0] = 0;
+    if (!d || cap <= 0) return 0;
+    if (pos >= 0) { quiet_on(d, &q); sel2(d, pos, pos + 1); }
+    zero(&cf, sizeof(cf)); cf.cbSize = sizeof(cf);
+    E(d, EM_GETCHARFORMAT, SCF_SELECTION, (unsigned long)&cf);
+    if (cf.dwMask & CFM_FACE) scpy(dst, cf.szFaceName, cap);
+    if (pos >= 0) quiet_off(d, &q, 0);
+    return slen(dst);
+}
+
+/* ========================================================================== */
+/*  Paragraph helpers shared by text, HTML and Markdown                        */
+/* ========================================================================== */
+#define CH_CELL   0x0007     /* ends a table cell                     */
+#define CH_LINE   0x000B     /* Shift+Enter: a line break, same paragraph */
+#define CH_ROW    0xFFF9     /* starts a table row (followed by CR)   */
+#define CH_ROWEND 0xFFFB     /* ends a table row (followed by CR)     */
+#define CH_OBJ    0xFFFC     /* a picture                             */
+
+static void para_at(WDOC* d, long cp, PF2* pf) {
+    sel2(d, cp, cp);
+    zero(pf, sizeof(PF2)); pf->cbSize = sizeof(PF2);
+    E(d, EM_GETPARAFORMAT, 0, (unsigned long)pf);
+}
+/* "1." "b." "IV." ... for list style 2..6 and item number n */
+static void list_label(WBUF* b, int style, int n) {
+    if (n < 1) n = 1;
+    if (style == 3 || style == 4) {
+        char t[8]; int k = 0, m = n;
+        while (m > 0 && k < 7) { t[k++] = (char)((style == 3 ? 'a' : 'A') + (m - 1) % 26); m = (m - 1) / 26; }
+        while (k) wb_ch(b, (WCHAR)t[--k]);
+    } else if (style == 5 || style == 6) {
+        static const int val[] = { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
+        static const char* sym[] = { "m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i" };
+        int i, m = n;
+        for (i = 0; i < 13; i++) while (m >= val[i]) {
+            const char* s = sym[i];
+            while (*s) { wb_ch(b, (WCHAR)(style == 6 ? *s - 32 : *s)); s++; }
+            m -= val[i];
+        }
+    } else wb_num(b, n);
+    wb_ch(b, '.');
+}
+static int is_sep(WCHAR c) { return c <= 32 || c == 0xA0 || (c >= 0x2000 && c <= 0x200B) || c == 0x3000 || (c >= 0xFFF9 && c <= 0xFFFC); }
+
+/* ========================================================================== */
+/*  Plain text                                                                 */
+/* ========================================================================== */
+/* opts: 1 UTF-8 (else ANSI)  2 list prefixes ("- " / "1.")  4 tab between table
+         cells (else " | ")  8 "[picture]" where a picture was */
+int wdoc_to_text(int h, int opts, const char* bullet) {
+    WDOC* d = D(h); WCHAR* w; long n, i = 0, cellMark = -1; int paraStart = 1, inRow = 0;
+    int lastList = 0, counter = 0; WBUF b; QUIET q; PF2 pf;
+    if (!d) return 0;
+    zero(&b, sizeof(b));
+    w = wtext(d, &n);
+    if (!w) return 0;
+    quiet_on(d, &q);
+    while (i < n) {
+        WCHAR c = w[i];
+        if (paraStart) {
+            paraStart = 0;
+            if (c == CH_ROW) { inRow = 1; i++; if (i < n && w[i] == 13) i++; paraStart = 1; lastList = 0; continue; }
+            if (!inRow && (opts & 2)) {
+                para_at(d, i, &pf);
+                if ((pf.dwMask & PFM_NUMBERING) && pf.wNumbering) {
+                    if (pf.wNumbering == 1) wb_ansi(&b, bullet && bullet[0] ? bullet : "- ");
+                    else {
+                        counter = lastList == pf.wNumbering ? counter + 1 : (pf.wNumberingStart ? pf.wNumberingStart : 1);
+                        list_label(&b, pf.wNumbering, counter); wb_ch(&b, ' ');
+                    }
+                    lastList = pf.wNumbering;
+                } else lastList = 0;
+            }
+        }
+        if (c == 13) { wb_ch(&b, 13); wb_ch(&b, 10); paraStart = 1; i++; continue; }
+        if (c == CH_LINE) { wb_ch(&b, 13); wb_ch(&b, 10); i++; continue; }
+        if (c == CH_CELL) {
+            cellMark = b.len;
+            if (opts & 4) wb_ch(&b, 9); else wb_str(&b, " | ");
+            paraStart = 1; i++; continue;
+        }
+        if (c == CH_ROWEND) {
+            if (cellMark >= 0 && cellMark <= b.len) b.len = cellMark;     /* no separator after the last cell */
+            cellMark = -1; inRow = 0;
+            wb_ch(&b, 13); wb_ch(&b, 10);
+            i++; if (i < n && w[i] == 13) i++;
+            paraStart = 1; continue;
+        }
+        if (c == CH_ROW) { i++; continue; }
+        if (c == CH_OBJ) { if (opts & 8) wb_str(&b, "[picture]"); i++; continue; }
+        wb_ch(&b, c);
+        i++;
+    }
+    quiet_off(d, &q, 0);
+    mem_free(w);
+    while (b.len >= 2 && b.p[b.len - 1] == 10 && b.p[b.len - 2] == 13) b.len -= 2;   /* no trailing blank lines */
+    return wb_publish(d, &b, (opts & 1) ? 65001 : 0);
+}
+/* which: 1 words 2 characters 3 characters without spaces 4 paragraphs with text
+          5 pictures 6 tables 7 table rows */
+int wdoc_stats(int h, int which) {
+    WDOC* d = D(h); WCHAR* w; long n, i, r = 0; int inWord = 0, paraHas = 0;
+    if (!d) return 0;
+    w = wtext(d, &n);
+    if (!w) return 0;
+    for (i = 0; i < n; i++) {
+        WCHAR c = w[i];
+        switch (which) {
+        case 1: if (is_sep(c) || c == CH_CELL) inWord = 0; else if (!inWord) { inWord = 1; r++; } break;
+        case 2: if (c != 13 && c != 10 && c != CH_CELL && c != CH_LINE && !(c >= 0xFFF9 && c <= 0xFFFC)) r++; break;
+        case 3: if (!is_sep(c) && c != CH_CELL) r++; break;
+        case 4:
+            if (c == 13 || c == CH_CELL) { if (paraHas) r++; paraHas = 0; }
+            else if (!is_sep(c) || c == CH_OBJ) paraHas = 1;
+            if (i == n - 1 && paraHas) r++;
+            break;
+        case 5: if (c == CH_OBJ) r++; break;
+        case 6: if (c == CH_ROW && (i < 2 || w[i - 2] != CH_ROWEND)) r++; break;
+        case 7: if (c == CH_ROW) r++; break;
+        }
+    }
+    mem_free(w);
+    return (int)r;
+}
+
+/* ========================================================================== */
+/*  Pictures for HTML / Markdown                                               */
+/* ========================================================================== */
+typedef struct { int kind; BYTE* data; long n; long goalW, goalH, picw, pich, sx, sy; } PICT;   /* kind 1 png 2 jpeg 3 emf 4 wmf 5 dib */
+
+static int hexv(char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; }
+static int word_is(const char* w, int n, const char* k) { int i; for (i = 0; i < n; i++) if (!k[i] || w[i] != k[i]) return 0; return k[n] == 0; }
+/* reads one {\pict ...} group that starts just after "\pict" at s; data stays hex-decoded in pk */
+static void pict_parse(const char* s, const char* end, PICT* pk) {
+    int depth = 0, hi = -1; long cap = (long)(end - s) / 2 + 4;
+    pk->data = (BYTE*)mem_alloc(cap); pk->n = 0; pk->kind = 0;
+    pk->goalW = pk->goalH = pk->picw = pk->pich = 0; pk->sx = pk->sy = 100;
+    if (!pk->data) return;
+    while (s < end) {
+        char c = *s;
+        if (c == '{') { depth++; s++; continue; }
+        if (c == '}') { if (depth == 0) break; depth--; s++; continue; }
+        if (depth > 0) { s++; continue; }               /* {\*\blipuid ...} and the like */
+        if (c == '\\') {
+            const char* w = ++s; int wn = 0; long v = 0, neg = 0, hasv = 0;
+            while (s < end && ((*s >= 'a' && *s <= 'z') || (*s >= 'A' && *s <= 'Z'))) { s++; wn++; }
+            if (wn == 0) { s++; continue; }
+            if (s < end && *s == '-') { neg = 1; s++; }
+            while (s < end && *s >= '0' && *s <= '9') { v = v * 10 + (*s - '0'); s++; hasv = 1; }
+            if (neg) v = -v;
+            if (s < end && *s == ' ') s++;
+            if (word_is(w, wn, "pngblip")) pk->kind = 1;
+            else if (word_is(w, wn, "jpegblip")) pk->kind = 2;
+            else if (word_is(w, wn, "emfblip")) pk->kind = 3;
+            else if (word_is(w, wn, "wmetafile")) pk->kind = 4;
+            else if (word_is(w, wn, "dibitmap")) pk->kind = 5;
+            else if (word_is(w, wn, "picwgoal") && hasv) pk->goalW = v;
+            else if (word_is(w, wn, "pichgoal") && hasv) pk->goalH = v;
+            else if (word_is(w, wn, "picw") && hasv) pk->picw = v;
+            else if (word_is(w, wn, "pich") && hasv) pk->pich = v;
+            else if (word_is(w, wn, "picscalex") && hasv) pk->sx = v;
+            else if (word_is(w, wn, "picscaley") && hasv) pk->sy = v;
+            continue;
+        }
+        {   int x = hexv(c);
+            if (x >= 0 && pk->n < cap) {
+                if (hi < 0) hi = x; else { pk->data[pk->n++] = (BYTE)(hi * 16 + x); hi = -1; }
+            }
+        }
+        s++;
+    }
+}
+static int pict_rank(int kind) { return kind == 1 || kind == 2 ? 3 : kind == 3 ? 2 : kind ? 1 : 0; }
+/* the picture at cp, as RichEdit writes it out (the best of its \pict groups) */
+static int pict_at(WDOC* d, long cp, PICT* best) {
+    OBUF o; EDITSTREAM es; char* s; char* end;
+    zero(best, sizeof(PICT)); zero(&o, sizeof(o));
+    sel2(d, cp, cp + 1);
+    es.dwCookie = (DWORD)&o; es.dwError = 0; es.pfnCallback = cb_obuf;
+    E(d, EM_STREAMOUT, SF_RTF | SFF_SELECTION, (unsigned long)&es);
+    if (!o.p) return 0;
+    s = o.p; end = o.p + o.len;
+    while (s + 5 < end) {
+        if (s[0] == '\\' && s[1] == 'p' && s[2] == 'i' && s[3] == 'c' && s[4] == 't' &&
+            !((s[5] >= 'a' && s[5] <= 'z') || (s[5] >= 'A' && s[5] <= 'Z'))) {
+            PICT pk;
+            pict_parse(s + 5, end, &pk);
+            if (pk.n > 0 && pict_rank(pk.kind) > pict_rank(best->kind)) { mem_free(best->data); *best = pk; }
+            else mem_free(pk.data);
+        }
+        s++;
+    }
+    mem_free(o.p);
+    return best->kind != 0 && best->n > 0;
+}
+
+/* GDI+ - only to encode a rendered picture as PNG */
+typedef struct { UINT GdiplusVersion; void* DebugEventCallback; BOOL SuppressBackgroundThread; BOOL SuppressExternalCodecs; } GPINPUT;
+typedef struct { DWORD d1; WORD d2, d3; BYTE d4[8]; } WCLSID;
+typedef struct { DWORD biSize; long biWidth; long biHeight; WORD biPlanes; WORD biBitCount; DWORD biCompression;
+                 DWORD biSizeImage; long biXPelsPerMeter; long biYPelsPerMeter; DWORD biClrUsed; DWORD biClrImportant; } BIHDR;
+typedef struct { long mm; long xExt; long yExt; void* hMF; } METAPICT;
+FN(int,   GdiplusStartup, (unsigned long*, const GPINPUT*, void*))
+FN(int,   GdipCreateBitmapFromHBITMAP, (void*, void*, void**))
+FN(int,   GdipSaveImageToFile, (void*, const WCHAR*, const WCLSID*, const void*))
+FN(int,   GdipDisposeImage, (void*))
+FN(int,   GdipCreateBitmapFromFile, (const WCHAR*, void**))
+static int g_gp = 0;     /* 0 not tried, 1 ready, -1 unavailable */
+static int gp_ready(void) {
+    if (!g_gp) {
+        HMODULE m = LoadLibraryA("gdiplus.dll"); unsigned long tok = 0; GPINPUT in;
+        g_gp = -1;
+        if (m) {
+            BIND(m, GdiplusStartup); BIND(m, GdipCreateBitmapFromHBITMAP); BIND(m, GdipSaveImageToFile); BIND(m, GdipDisposeImage); BIND(m, GdipCreateBitmapFromFile);
+            zero(&in, sizeof(in)); in.GdiplusVersion = 1;
+            if (p_GdiplusStartup && p_GdipCreateBitmapFromHBITMAP && p_GdipSaveImageToFile && p_GdipDisposeImage &&
+                p_GdiplusStartup(&tok, &in, 0) == 0) g_gp = 1;
+        }
+    }
+    return g_gp == 1;
+}
+static BYTE* read_all(const char* path, long* n) {
+    void* f = p_CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    DWORD sz, got = 0; BYTE* p;
+    *n = 0;
+    if (!f || f == (void*)-1) return 0;
+    sz = p_GetFileSize(f, 0);
+    p = (BYTE*)mem_alloc((long)sz + 1);
+    if (p) { p_ReadFile(f, p, sz, &got, 0); *n = (long)got; }
+    p_CloseHandle(f);
+    return p;
+}
+static int write_all(const char* path, const BYTE* p, long n) {
+    void* f = p_CreateFileA(path, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    DWORD put = 0;
+    if (!f || f == (void*)-1) return 0;
+    p_WriteFile(f, p, (DWORD)n, &put, 0);
+    p_CloseHandle(f);
+    return (long)put == n;
+}
+/* draws a metafile / DIB picture at wpx x hpx and returns it as PNG bytes */
+static BYTE* pict_png(WDOC* d, PICT* pk, int wpx, int hpx, long* outN) {
+    static const WCLSID png = { 0x557CF406, 0x1A04, 0x11D3, { 0x9A, 0x73, 0x00, 0x00, 0xF8, 0x1E, 0xF3, 0x2E } };
+    void* dc; void* bm; void* old; void* bits = 0; void* img = 0; BIHDR bi; RECT rc; BYTE* out = 0;
+    char tmp[300]; WCHAR wtmp[300]; char* o; DWORD tn;
+    *outN = 0;
+    if (!gp_ready() || !p_CreateDIBSection || wpx <= 0 || hpx <= 0 || wpx > 6000 || hpx > 6000) return 0;
+    dc = p_CreateCompatibleDC(g_scrDC);
+    zero(&bi, sizeof(bi)); bi.biSize = 40; bi.biWidth = wpx; bi.biHeight = hpx; bi.biPlanes = 1; bi.biBitCount = 24;
+    bm = p_CreateDIBSection(dc, &bi, 0, &bits, 0, 0);
+    if (!bm) { p_DeleteDC(dc); return 0; }
+    old = p_SelectObject(dc, bm);
+    p_PatBlt(dc, 0, 0, wpx, hpx, 0x00FF0062 /*WHITENESS*/);
+    rc.left = 0; rc.top = 0; rc.right = wpx; rc.bottom = hpx;
+    if (pk->kind == 3 && p_SetEnhMetaFileBits && p_PlayEnhMetaFile) {
+        void* emf = p_SetEnhMetaFileBits((UINT)pk->n, pk->data);
+        if (emf) { p_PlayEnhMetaFile(dc, emf, &rc); p_DeleteEnhMetaFile(emf); }
+    } else if (pk->kind == 4 && p_SetWinMetaFileBits && p_PlayEnhMetaFile) {
+        METAPICT mp; void* emf;
+        mp.mm = 8 /*MM_ANISOTROPIC*/; mp.xExt = pk->picw; mp.yExt = pk->pich; mp.hMF = 0;
+        emf = p_SetWinMetaFileBits((UINT)pk->n, pk->data, 0, &mp);
+        if (emf) { p_PlayEnhMetaFile(dc, emf, &rc); p_DeleteEnhMetaFile(emf); }
+    } else if (pk->kind == 5 && p_StretchDIBits && pk->n > 40) {
+        BIHDR* h2 = (BIHDR*)pk->data; long pal = 0, off;
+        if (h2->biBitCount <= 8) pal = h2->biClrUsed ? (long)h2->biClrUsed : (1L << h2->biBitCount);
+        off = (long)h2->biSize + pal * 4 + (h2->biCompression == 3 ? 12 : 0);
+        if (off < pk->n) {
+            if (p_SetStretchBltMode) p_SetStretchBltMode(dc, 4 /*HALFTONE*/);
+            p_StretchDIBits(dc, 0, 0, wpx, hpx, 0, 0, h2->biWidth, h2->biHeight < 0 ? -h2->biHeight : h2->biHeight,
+                            pk->data + off, pk->data, 0, 0x00CC0020 /*SRCCOPY*/);
+        }
+    }
+    p_SelectObject(dc, old);
+    tn = p_GetTempPathA(260, tmp);
+    if (tn == 0 || tn > 259) { tmp[0] = '.'; tmp[1] = 92; tn = 2; }
+    o = tmp + tn; o = put(o, "wdoc_"); o = putn(o, (long)p_GetCurrentProcessId()); o = put(o, "_pict.png"); *o = 0;
+    p_MultiByteToWideChar(0, 0, tmp, -1, wtmp, 300);
+    if (p_GdipCreateBitmapFromHBITMAP(bm, 0, &img) == 0 && img) {
+        if (p_GdipSaveImageToFile(img, wtmp, &png, 0) == 0) out = read_all(tmp, outN);
+        p_GdipDisposeImage(img);
+        p_DeleteFileA(tmp);
+    }
+    p_DeleteObject(bm);
+    p_DeleteDC(dc);
+    return out;
+}
+/* a .bmp file as PNG bytes (GDI+), or 0 */
+static BYTE* bmp_to_png(const char* path, long* outN) {
+    static const WCLSID png = { 0x557CF406, 0x1A04, 0x11D3, { 0x9A, 0x73, 0x00, 0x00, 0xF8, 0x1E, 0xF3, 0x2E } };
+    WCHAR wsrc[300], wtmp[300]; char tmp[300]; char* o; DWORD tn; void* img = 0; BYTE* out = 0;
+    *outN = 0;
+    if (!gp_ready() || !p_GdipCreateBitmapFromFile) return 0;
+    if (!p_MultiByteToWideChar(0, 0, path, -1, wsrc, 300)) return 0;
+    tn = p_GetTempPathA(260, tmp);
+    if (tn == 0 || tn > 259) { tmp[0] = '.'; tmp[1] = 92; tn = 2; }
+    o = tmp + tn; o = put(o, "wdoc_"); o = putn(o, (long)p_GetCurrentProcessId()); o = put(o, "_bmp.png"); *o = 0;
+    p_MultiByteToWideChar(0, 0, tmp, -1, wtmp, 300);
+    if (p_GdipCreateBitmapFromFile(wsrc, &img) == 0 && img) {
+        if (p_GdipSaveImageToFile(img, wtmp, &png, 0) == 0) out = read_all(tmp, outN);
+        p_GdipDisposeImage(img);
+        p_DeleteFileA(tmp);
+    }
+    return out;
+}
+static void wb_base64(WBUF* b, const BYTE* p, long n) {
+    static const char t[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    long i;
+    if (!wb_room(b, (n + 2) / 3 * 4 + 4)) return;
+    for (i = 0; i + 2 < n; i += 3) {
+        unsigned long v = ((unsigned long)p[i] << 16) | ((unsigned long)p[i + 1] << 8) | p[i + 2];
+        b->p[b->len++] = (WCHAR)t[v >> 18]; b->p[b->len++] = (WCHAR)t[(v >> 12) & 63];
+        b->p[b->len++] = (WCHAR)t[(v >> 6) & 63]; b->p[b->len++] = (WCHAR)t[v & 63];
+    }
+    if (i < n) {
+        unsigned long v = (unsigned long)p[i] << 16; int two = i + 1 < n;
+        if (two) v |= (unsigned long)p[i + 1] << 8;
+        b->p[b->len++] = (WCHAR)t[v >> 18]; b->p[b->len++] = (WCHAR)t[(v >> 12) & 63];
+        b->p[b->len++] = two ? (WCHAR)t[(v >> 6) & 63] : '='; b->p[b->len++] = '=';
+    }
+    b->p[b->len] = 0;
+}
+
+/* ========================================================================== */
+/*  HTML and Markdown                                                          */
+/* ========================================================================== */
+typedef struct {
+    WDOC* d; WBUF* o; int md; int frag; int noPics;
+    const char* imgDir; const char* imgUrl; int nimg; int pics;
+    int baseFace; long baseSize;
+    /* the look that is open right now */
+    int open; int oFace; long oSize; DWORD oCol, oBack, oEff;
+    /* markdown inline state */
+    int mdOn; int mdHold; WCHAR held[64]; int heading;
+    int rowCells, rowNo;
+} XP;
+
+#define XE_B 1
+#define XE_I 2
+#define XE_U 4
+#define XE_S 8
+#define XE_SUP 16
+#define XE_SUB 32
+static DWORD xeff(RUNX* r) {
+    return ((r->eff & CFM_BOLD) ? XE_B : 0) | ((r->eff & CFM_ITALIC) ? XE_I : 0) | ((r->eff & CFM_UNDERLINE) ? XE_U : 0) |
+           ((r->eff & CFM_STRIKEOUT) ? XE_S : 0) | ((r->eff & CFE_SUPERSCRIPT) ? XE_SUP : 0) | ((r->eff & CFE_SUBSCRIPT) ? XE_SUB : 0);
+}
+static void x_esc(XP* x, WCHAR c) {
+    WBUF* o = x->o;
+    if (!x->md) {
+        if (c == '&') wb_str(o, "&amp;"); else if (c == '<') wb_str(o, "&lt;"); else if (c == '>') wb_str(o, "&gt;");
+        else if (c == '"') wb_str(o, "&quot;"); else if (c == 0xA0) wb_str(o, "&nbsp;"); else wb_ch(o, c);
+        return;
+    }
+    if (c == '\\' || c == '*' || c == '_' || c == '`' || c == '[' || c == ']' || c == '<' || c == '>' || c == '|' || c == '#' || c == '~')
+        wb_ch(o, '\\');
+    wb_ch(o, c);
+}
+/* ---- HTML spans ---- */
+static void h_close(XP* x) {
+    if (!x->open) return;
+    if (x->oEff & XE_SUB) wb_str(x->o, "</sub>");
+    if (x->oEff & XE_SUP) wb_str(x->o, "</sup>");
+    if (x->oEff & XE_S) wb_str(x->o, "</s>");
+    if (x->oEff & XE_U) wb_str(x->o, "</u>");
+    if (x->oEff & XE_I) wb_str(x->o, "</i>");
+    if (x->oEff & XE_B) wb_str(x->o, "</b>");
+    if (x->open == 2) wb_str(x->o, "</span>");
+    x->open = 0;
+}
+static void h_open(XP* x, RUNX* r) {
+    int face = r->face < 0 ? x->baseFace : r->face; long size = r->size; DWORD eff = xeff(r);
+    int col = !(r->eff & CFE_AUTOCOLOR) && r->col != 0, back = !(r->eff & CFE_AUTOBACKCOLOR);
+    if (x->open && x->oFace == face && x->oSize == size && x->oEff == eff &&
+        x->oCol == (col ? r->col : 0xFFFFFFFF) && x->oBack == (back ? r->back : 0xFFFFFFFF)) return;
+    h_close(x);
+    x->open = 1;
+    if (face != x->baseFace || size != x->baseSize || col || back) {
+        x->open = 2;
+        wb_str(x->o, "<span style=\"");
+        if (face != x->baseFace) { wb_str(x->o, "font-family:'"); wb_ansi(x->o, x->d->faces + face * 32); wb_str(x->o, "';"); }
+        if (size != x->baseSize) { wb_str(x->o, "font-size:"); wb_pt(x->o, size); wb_ch(x->o, ';'); }
+        if (col) { wb_str(x->o, "color:"); wb_color(x->o, r->col); wb_ch(x->o, ';'); }
+        if (back) { wb_str(x->o, "background-color:"); wb_color(x->o, r->back); wb_ch(x->o, ';'); }
+        wb_str(x->o, "\">");
+    }
+    if (eff & XE_B) wb_str(x->o, "<b>");
+    if (eff & XE_I) wb_str(x->o, "<i>");
+    if (eff & XE_U) wb_str(x->o, "<u>");
+    if (eff & XE_S) wb_str(x->o, "<s>");
+    if (eff & XE_SUP) wb_str(x->o, "<sup>");
+    if (eff & XE_SUB) wb_str(x->o, "<sub>");
+    x->oFace = face; x->oSize = size; x->oEff = eff;
+    x->oCol = col ? r->col : 0xFFFFFFFF; x->oBack = back ? r->back : 0xFFFFFFFF;
+}
+/* ---- Markdown emphasis: markers hug the words, spaces stay outside ---- */
+static void m_marks(XP* x, int on, int closing) {
+    if (closing) {
+        if (on & XE_S) wb_str(x->o, "~~");
+        if (on & XE_I) wb_ch(x->o, '*');
+        if (on & XE_B) wb_str(x->o, "**");
+    } else {
+        if (on & XE_B) wb_str(x->o, "**");
+        if (on & XE_I) wb_ch(x->o, '*');
+        if (on & XE_S) wb_str(x->o, "~~");
+    }
+}
+static void m_flush_held(XP* x) { int i; for (i = 0; i < x->mdHold; i++) wb_ch(x->o, x->held[i]); x->mdHold = 0; }
+static void m_char(XP* x, WCHAR c, int want) {
+    if (x->heading) want &= ~XE_B;
+    if (c == ' ' || c == 9 || c == 0xA0) {
+        if (x->mdOn && x->mdHold < 64) { x->held[x->mdHold++] = c; return; }
+        m_flush_held(x); wb_ch(x->o, c); return;
+    }
+    if (want != x->mdOn) { m_marks(x, x->mdOn, 1); m_flush_held(x); m_marks(x, want, 0); x->mdOn = want; }
+    else m_flush_held(x);
+    x_esc(x, c);
+}
+static void m_end(XP* x) { m_marks(x, x->mdOn, 1); x->mdOn = 0; x->mdHold = 0; }
+static void x_endlook(XP* x) { if (x->md) m_end(x); else h_close(x); }
+
+/* a picture: data: URI or a file next to the page */
+static void x_picture(XP* x, long cp) {
+    PICT pk; BYTE* bytes; long nb; int wpx, hpx; const char* mime; const char* ext;
+    if (x->noPics || !pict_at(x->d, cp, &pk)) return;
+    wpx = (int)((pk.goalW ? pk.goalW : pk.picw * 15) * pk.sx / 100 / 15);
+    hpx = (int)((pk.goalH ? pk.goalH : pk.pich * 15) * pk.sy / 100 / 15);
+    if (wpx <= 0) wpx = 100;
+    if (hpx <= 0) hpx = 100;
+    if (pk.kind == 1 || pk.kind == 2) { bytes = pk.data; nb = pk.n; pk.data = 0; }
+    else bytes = pict_png(x->d, &pk, wpx * 2, hpx * 2, &nb);     /* twice the size: sharp on high-dpi screens */
+    mem_free(pk.data);
+    if (!bytes || nb <= 0) { mem_free(bytes); return; }
+    mime = pk.kind == 2 ? "image/jpeg" : "image/png";
+    ext = pk.kind == 2 ? ".jpg" : ".png";
+    x->nimg++;
+    x_endlook(x);
+    if (x->md) wb_str(x->o, "![picture "); else wb_str(x->o, "<img alt=\"picture ");
+    wb_num(x->o, x->nimg);
+    wb_str(x->o, x->md ? "](" : "\" src=\"");
+    if (x->imgDir && x->imgDir[0]) {
+        char path[400]; char name[40]; char* o = name; int k;
+        o = put(o, "image"); o = putn(o, x->nimg); o = put(o, ext); *o = 0;
+        scpy(path, x->imgDir, 360); k = slen(path);
+        if (k && path[k - 1] != 92 && path[k - 1] != '/') { path[k++] = 92; path[k] = 0; }
+        scpy(path + k, name, 40);
+        write_all(path, bytes, nb);
+        wb_ansi(x->o, x->imgUrl); wb_str(x->o, name);
+    } else {
+        wb_str(x->o, "data:"); wb_str(x->o, mime); wb_str(x->o, ";base64,");
+        wb_base64(x->o, bytes, nb);
+    }
+    if (x->md) wb_ch(x->o, ')');
+    else { wb_str(x->o, "\" width=\""); wb_num(x->o, wpx); wb_str(x->o, "\" height=\""); wb_num(x->o, hpx); wb_str(x->o, "\">"); }
+    mem_free(bytes);
+}
+/* paragraph style for <p>/<li> */
+static void h_pstyle(XP* x, PF2* pf, int li) {
+    long start = (pf->dwMask & PFM_STARTINDENT) ? pf->dxStartIndent : 0;
+    long off = (pf->dwMask & PFM_OFFSET) ? pf->dxOffset : 0;
+    wb_str(x->o, " style=\"white-space:pre-wrap;margin:");
+    wb_pt(x->o, pf->dySpaceBefore); wb_ch(x->o, ' ');
+    wb_str(x->o, "0 "); wb_pt(x->o, pf->dySpaceAfter); wb_ch(x->o, ' ');
+    if (li) wb_str(x->o, "0"); else wb_pt(x->o, start + off);
+    wb_ch(x->o, ';');
+    if (!li && off) { wb_str(x->o, "text-indent:"); wb_pt(x->o, -off); wb_ch(x->o, ';'); }
+    if (pf->wAlignment == 2) wb_str(x->o, "text-align:right;");
+    else if (pf->wAlignment == 3) wb_str(x->o, "text-align:center;");
+    else if (pf->wAlignment == 4) wb_str(x->o, "text-align:justify;");
+    if (pf->bLineSpacingRule == 1) wb_str(x->o, "line-height:1.5;");
+    else if (pf->bLineSpacingRule == 2) wb_str(x->o, "line-height:2;");
+    else if (pf->bLineSpacingRule == 5 && pf->dyLineSpacing > 0) {
+        long t = pf->dyLineSpacing * 100 / 20;
+        wb_str(x->o, "line-height:"); wb_num(x->o, t / 100); wb_ch(x->o, '.'); wb_num(x->o, (t % 100) / 10); wb_num(x->o, t % 10); wb_ch(x->o, ';');
+    }
+    wb_ch(x->o, '"');
+}
+/* markdown heading level from the paragraph's biggest text: 0 none */
+static int m_heading(XP* x, long a, long b, int ri) {
+    long big = 0, chars = 0, boldChars = 0; int i;
+    for (i = ri; i < x->d->nruns && x->d->runs[i].cp < b; i++) {
+        RUNX* r = &x->d->runs[i]; long s = r->cp < a ? a : r->cp, e = r->end > b ? b : r->end;
+        if (e <= s) continue;
+        if (r->size > big) big = r->size;
+        chars += e - s;
+        if (r->eff & CFM_BOLD) boldChars += e - s;
+    }
+    if (chars == 0 || chars > 200 || x->baseSize <= 0) return 0;
+    if (big * 100 >= x->baseSize * 160) return 1;
+    if (big * 100 >= x->baseSize * 130) return 2;
+    if (big * 100 >= x->baseSize * 112 && boldChars == chars) return 3;
+    return 0;
+}
+
+/* mode: 0 HTML page, 1 HTML fragment (inline styles only), 2 Markdown
+   opts: 1 leave pictures out
+   imgDir: "" embeds pictures as data: URIs; a folder writes image1.png... there
+           and links them as imgUrl + name. Result: UTF-8, in the slot buffer. */
+int wdoc_export(int h, int mode, int opts, const char* title, const char* imgDir, const char* imgUrl) {
+    WDOC* d = D(h); WCHAR* w; long n, i = 0; int ri = 0, k;
+    int paraStart = 1, paraOpen = 0, paraChars = 0, inTable = 0, inCell = 0, list = 0, counter = 0, cellFirstPara = 0;
+    WBUF b; XP x; QUIET q; PF2 pf;
+    if (!d) return 0;
+    zero(&b, sizeof(b)); zero(&x, sizeof(x));
+    x.d = d; x.o = &b; x.md = mode == 2; x.frag = mode == 1; x.noPics = opts & 1;
+    x.imgDir = imgDir; x.imgUrl = imgUrl ? imgUrl : "";
+    build_runs(d);
+    /* the body font: the face and the size most of the text uses */
+    x.baseFace = 0; x.baseSize = 220;
+    for (k = 0; k < d->nfaces; k++) if (d->fchars[k] > d->fchars[x.baseFace]) x.baseFace = k;
+    {   long bestN = -1; int a, c;
+        for (a = 0; a < d->nruns; a++) {
+            long sz = d->runs[a].size, tot = 0;
+            for (c = 0; c < d->nruns; c++) if (d->runs[c].size == sz) tot += d->runs[c].end - d->runs[c].cp;
+            if (tot > bestN) { bestN = tot; x.baseSize = sz; }
+            if (a > 400) break;        /* plenty to decide on */
+        }
+    }
+    w = wtext(d, &n);
+    if (!w) return 0;
+    quiet_on(d, &q);
+
+    if (!x.md) {
+        if (!x.frag) {
+            wb_str(&b, "<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<meta charset=\"utf-8\">\r\n<title>");
+            if (title) { const char* t = title; WBUF tb; zero(&tb, sizeof(tb)); wb_ansi(&tb, t);
+                for (k = 0; k < tb.len; k++) x_esc(&x, tb.p[k]); mem_free(tb.p); }
+            wb_str(&b, "</title>\r\n<style>\r\nbody{margin:2em auto;max-width:52em;padding:0 1em;}\r\n</style>\r\n</head>\r\n<body>\r\n");
+        }
+        wb_str(&b, "<div style=\"font-family:'");
+        if (d->nfaces) wb_ansi(&b, d->faces + x.baseFace * 32); else wb_str(&b, "Segoe UI");
+        wb_str(&b, "',sans-serif;font-size:"); wb_pt(&b, x.baseSize);
+        wb_str(&b, ";\">\r\n");
+    }
+
+    while (i < n) {
+        WCHAR c = w[i];
+        while (ri < d->nruns && d->runs[ri].end <= i) ri++;
+        if (paraStart) {
+            paraStart = 0;
+            if (c == CH_ROW) {                                   /* a table row starts */
+                if (list) { wb_str(&b, x.md ? "\r\n" : (list == 1 ? "</ul>\r\n" : "</ol>\r\n")); list = 0; }
+                if (!inTable) {
+                    inTable = 1; x.rowNo = 0;
+                    wb_str(&b, x.md ? "\r\n" : "<table style=\"border-collapse:collapse;margin:4pt 0;\">\r\n");
+                }
+                x.rowNo++; x.rowCells = 0;
+                wb_str(&b, x.md ? "|" : "<tr>");
+                i++; if (i < n && w[i] == 13) i++;
+                inCell = 1; cellFirstPara = 1; paraStart = 1;
+                if (!x.md) wb_str(&b, "<td style=\"border:1px solid #9CA3AF;padding:2pt 6pt;vertical-align:top;white-space:pre-wrap;\">");
+                else wb_ch(&b, ' ');
+                continue;
+            }
+            if (inCell) {
+                if (!cellFirstPara && c != CH_ROWEND) { x_endlook(&x); wb_str(&b, "<br>"); }
+                cellFirstPara = 0;
+            } else {
+                long pe = i; int num;
+                while (pe < n && w[pe] != 13) pe++;
+                para_at(d, i, &pf);
+                num = (pf.dwMask & PFM_NUMBERING) ? pf.wNumbering : 0;
+                if (num != list) {
+                    if (list) { wb_str(&b, x.md ? "\r\n" : (list == 1 ? "</ul>\r\n" : "</ol>\r\n")); }
+                    list = 0;
+                    if (num) {
+                        list = num;
+                        counter = pf.wNumberingStart ? pf.wNumberingStart : 1;
+                        if (!x.md) {
+                            if (num == 1) wb_str(&b, "<ul style=\"margin:0;\">\r\n");
+                            else {
+                                wb_str(&b, "<ol style=\"margin:0;\" type=\"");
+                                wb_str(&b, num == 3 ? "a" : num == 4 ? "A" : num == 5 ? "i" : num == 6 ? "I" : "1");
+                                wb_str(&b, "\" start=\""); wb_num(&b, counter); wb_str(&b, "\">\r\n");
+                            }
+                        }
+                    }
+                } else if (num) counter++;
+                if (x.md) {
+                    if (list == 1) wb_str(&b, "- ");
+                    else if (list) { wb_num(&b, counter); wb_str(&b, ". "); }
+                    else {
+                        x.heading = m_heading(&x, i, pe, ri);
+                        if (x.heading) { int t; for (t = 0; t < x.heading; t++) wb_ch(&b, '#'); wb_ch(&b, ' '); }
+                        else if (c == '-' || c == '+' || (c >= '0' && c <= '9')) wb_ch(&b, '\\');
+                    }
+                } else {
+                    wb_str(&b, list ? "<li" : "<p");
+                    h_pstyle(&x, &pf, list != 0);
+                    wb_ch(&b, '>');
+                }
+                paraOpen = 1; paraChars = 0;
+            }
+        }
+        if (c == 13) {                                          /* end of a paragraph */
+            if (inCell) { paraStart = 1; i++; continue; }
+            x_endlook(&x);
+            if (x.md) { if (paraChars || list) wb_str(&b, list ? "\r\n" : "\r\n\r\n"); x.heading = 0; }
+            else { if (!paraChars && !list) wb_str(&b, "&nbsp;"); wb_str(&b, list ? "</li>\r\n" : "</p>\r\n"); }
+            paraOpen = 0; paraStart = 1; i++;
+            continue;
+        }
+        if (c == CH_CELL) {                                     /* end of a cell */
+            x_endlook(&x);
+            x.rowCells++;
+            wb_str(&b, x.md ? " |" : "</td>");
+            i++;
+            if (i < n && w[i] != CH_ROWEND) {
+                wb_str(&b, x.md ? " " : "<td style=\"border:1px solid #9CA3AF;padding:2pt 6pt;vertical-align:top;white-space:pre-wrap;\">");
+                cellFirstPara = 1;
+            }
+            paraStart = 1;
+            continue;
+        }
+        if (c == CH_ROWEND) {                                   /* end of a row */
+            int t;
+            wb_str(&b, x.md ? "\r\n" : "</tr>\r\n");
+            if (x.md && x.rowNo == 1) { wb_ch(&b, '|'); for (t = 0; t < x.rowCells; t++) wb_str(&b, " --- |"); wb_str(&b, "\r\n"); }
+            i++; if (i < n && w[i] == 13) i++;
+            inCell = 0; paraStart = 1;
+            if (i >= n || w[i] != CH_ROW) { inTable = 0; wb_str(&b, x.md ? "\r\n" : "</table>\r\n"); }
+            continue;
+        }
+        if (c == CH_OBJ) { x_picture(&x, i); paraChars++; i++; continue; }
+        if (c == CH_LINE) { x_endlook(&x); wb_str(&b, x.md ? (inCell ? "<br>" : "  \r\n") : "<br>"); i++; continue; }
+        if (c == CH_ROW) { i++; continue; }
+        paraChars++;
+        if (ri < d->nruns) {
+            if (x.md) m_char(&x, c, (int)(xeff(&d->runs[ri]) & (XE_B | XE_I | XE_S)));
+            else { h_open(&x, &d->runs[ri]); x_esc(&x, c); }
+        } else x_esc(&x, c);
+        i++;
+    }
+    x_endlook(&x);
+    if (paraOpen && !x.md) wb_str(&b, list ? "</li>\r\n" : "</p>\r\n");
+    if (list && !x.md) wb_str(&b, list == 1 ? "</ul>\r\n" : "</ol>\r\n");
+    if (inTable && !x.md) wb_str(&b, "</table>\r\n");
+    if (!x.md) {
+        wb_str(&b, "</div>\r\n");
+        if (!x.frag) wb_str(&b, "</body>\r\n</html>\r\n");
+    }
+    quiet_off(d, &q, 0);
+    mem_free(w);
+    return wb_publish(d, &b, 65001);
+}
+
+/* a raw dump of the text's character codes - for the tests */
+int wdoc_debug_codes(int h) {
+    WDOC* d = D(h); WCHAR* w; long n, i; WBUF b;
+    if (!d) return 0;
+    zero(&b, sizeof(b));
+    w = wtext(d, &n);
+    if (!w) return 0;
+    for (i = 0; i < n; i++) {
+        WCHAR c = w[i];
+        if (c < 32 || c >= 0xFFF0) { wb_ch(&b, '<'); wb_num(&b, c); wb_ch(&b, '>'); if (c == 13) { wb_ch(&b, 13); wb_ch(&b, 10); } }
+        else wb_ch(&b, c);
+    }
+    mem_free(w);
+    return wb_publish(d, &b, 0);
+}
 
 }   /* extern "C" */

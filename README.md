@@ -1487,8 +1487,17 @@ Text is measured on the default printer, so the lines break exactly where they w
 - **myWordDocPrintBlob** (code template): the same print loop in any embed.
 - `WordDocClass` gives the same features to hand code: `LoadBlob`/`SaveBlob`, formatting, `InsertImage`,
   `InsertTable`, `Find`, `PaginateForReport`/`PreparePage`.
+- **RTF tool classes** (`WordDocTools`), each working on an editor or on a BLOB:
+  `RtfSearchClass` (find, next/previous, count, replace, replace all, highlight every hit),
+  `RtfFontClass` (the font under the caret, the fonts a document uses, replace a font, scale every size),
+  `RtfTextClass` (RTF to readable plain text, word and character counts, excerpts, text to RTF),
+  `RtfHtmlClass` (RTF to an HTML page or e-mail fragment, pictures embedded or as files),
+  `RtfMarkdownClass` (headings, lists, tables, pictures) and `RtfMergeClass` (fills `[[Name]]`
+  placeholders from your values or from `BIND`ed file fields, keeping their formatting).
 
-Install: `myWordDoc.tpl` to `accessory\template\win`; `WordDocClass.inc`, `WordDocClass.clw` and `wdoc.c` to
+![RTF tool classes on a live editor](docs/myWordDoc-tools-window.png)
+
+Install: `myWordDoc.tpl` to `accessory\template\win`; `WordDocClass.inc`/`.clw`, `WordDocTools.inc`/`.clw` and `wdoc.c` to
 `accessory\libsrc\win`; register the template. Details, limits and the test harness are in
 [`templates/myWordDoc/README.md`](templates/myWordDoc/README.md).
 

@@ -119,6 +119,7 @@ TakeEvent            PROCEDURE(),BYTE,PROC     ! call for EVERY event; true when
 Reposition           PROCEDURE()               ! follow the placeholder (done by TakeEvent)
 Alive                PROCEDURE(),BYTE
 Hwnd                 PROCEDURE(),LONG
+Slot                 PROCEDURE(),LONG          ! the document's number inside wdoc.c (WordDocTools uses it)
 StructSizes          PROCEDURE(),LONG          ! diagnostic: 84188 when the C structs match Win32
 
 ! ---- content ---------------------------------------------------------------------

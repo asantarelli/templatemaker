@@ -144,6 +144,10 @@ WordDocClass.Alive PROCEDURE()
   CODE
   RETURN CHOOSE(SELF.H <> 0 AND wd_alive(SELF.H) <> 0)
 
+WordDocClass.Slot PROCEDURE()
+  CODE
+  RETURN SELF.H
+
 WordDocClass.StructSizes PROCEDURE()
   CODE
   RETURN wd_struct_sizes()
