@@ -57,6 +57,9 @@ SaveBlob             PROCEDURE(*BLOB pBlob)
 SaveFile             PROCEDURE(STRING pFileName),BYTE,PROC  ! the RTF
 GetRtf               PROCEDURE(),STRING
 Ready                PROCEDURE(),BYTE          ! a document is there to work on
+Undo                 PROCEDURE()               ! takes back the last change - a whole ReplaceAll,
+Redo                 PROCEDURE()               ! SetFontAll or Merge is one step
+CanUndo              PROCEDURE(),BYTE
 Kill                 PROCEDURE()
 Destruct             PROCEDURE()
 

@@ -111,6 +111,9 @@ typedef int (WINAPI *FARPROC)();
 #define EM_SETCHARFORMAT  (WM_USER + 68)
 #define EM_SETEVENTMASK   (WM_USER + 69)
 #define EM_SETOLECALLBACK (WM_USER + 70)
+#define EM_GETOLEINTERFACE (WM_USER + 60)
+#define EM_SETUNDOLIMIT   (WM_USER + 82)
+#define EM_EMPTYUNDOBUFFER 0x00CD
 #define EM_SETPARAFORMAT  (WM_USER + 71)
 #define EM_SETTARGETDEVICE (WM_USER + 72)
 #define EM_STREAMIN       (WM_USER + 73)
@@ -442,6 +445,8 @@ typedef struct {
     long  fEnd;
     RUNX* runs; int nruns, rcap;
     char* faces; long* fchars; int nfaces, fcap;
+    /* undo grouping: TOM's ITextDocument, and how deep the groups are nested */
+    void* tom; int tomTried; int group;
 } WDOC;
 
 static WDOC  g_d[WD_MAX + 1];
@@ -1328,6 +1333,7 @@ void wdoc_destroy(int h) {
     else p_DestroyWindow(d->edit);
     mem_free(d->buf); mem_free(d->pstart); mem_free(d->pused);
     mem_free(d->runs); mem_free(d->faces); mem_free(d->fchars);
+    if (d->tom) ((unsigned long (WINAPI*)(void*))((*(void***)d->tom)[2]))(d->tom);
     zero(d, sizeof(WDOC));
 }
 
@@ -1363,6 +1369,7 @@ int wdoc_load(int h, const char* buf, int len) {
     if (len <= 0) { E(d, EM_SETSEL, 0, (unsigned long)-1); E(d, EM_REPLACESEL, 0, (unsigned long)""); ok = 1; }
     else ok = stream_in(d, buf, len, 0);
     E(d, EM_SETSEL, 0, 0);
+    E(d, EM_EMPTYUNDOBUFFER, 0, 0);         /* Undo never goes back past a load */
     E(d, EM_SETMODIFY, 0, 0);
     d->seq++;
     refresh_state(d);
@@ -1836,6 +1843,41 @@ int wdoc_delete_file(const char* path) { return p_DeleteFileA ? p_DeleteFileA(pa
 /*  wdoc_copy, exactly like wdoc_save.                                         */
 /* ========================================================================== */
 
+/* ---- undo groups ------------------------------------------------------------
+   RichEdit records every replace and every format change as its own undo step,
+   so a Replace All of 19 words took 19 presses of Ctrl+Z. Between
+   BeginEditCollection and EndEditCollection (TOM, RichEdit 8 = Windows 8 and
+   later) everything collapses into ONE step for Ctrl+Z, the toolbar and
+   WordDocClass.Undo. Groups nest; only the outermost pair talks to RichEdit.
+   Where TOM is missing the edits simply stay separate steps. */
+static void* tom_doc(WDOC* d) {
+    static const DWORD iid[4] = { 0x8CC497C0, 0x11CEA1DF, 0xAA009880, 0x5DBE4700 };   /* ITextDocument */
+    void* ole = 0;
+    if (d->tom || d->tomTried) return d->tom;
+    d->tomTried = 1;
+    E(d, EM_GETOLEINTERFACE, 0, (unsigned long)&ole);
+    if (!ole) return 0;
+    ((long (WINAPI*)(void*, const DWORD*, void**))((*(void***)ole)[0]))(ole, iid, &d->tom);
+    ((unsigned long (WINAPI*)(void*))((*(void***)ole)[2]))(ole);
+    return d->tom;
+}
+static long tom_call(WDOC* d, int slot) {          /* 20 BeginEditCollection, 21 EndEditCollection */
+    void* t = tom_doc(d);
+    if (!t) return E_NOTIMPL_;
+    return ((long (WINAPI*)(void*))((*(void***)t)[slot]))(t);
+}
+static void group_on(WDOC* d)  { if (d->group++ == 0) tom_call(d, 20); }
+static void group_off(WDOC* d) { if (d->group > 0 && --d->group == 0) { tom_call(d, 21); if (d->host) p_InvalidateRect(d->host, 0, 0); } }
+/* on: 1 opens a group, 0 closes it. Returns 1 when RichEdit groups undo here. */
+int wdoc_undo_group(int h, int on) {
+    WDOC* d = D(h);
+    if (!d) return 0;
+    if (on) group_on(d); else group_off(d);
+    return tom_doc(d) ? 1 : 0;
+}
+void wdoc_undo_clear(int h) { WDOC* d = D(h); if (d) { E(d, EM_EMPTYUNDOBUFFER, 0, 0); if (d->host) p_InvalidateRect(d->host, 0, 0); } }
+void wdoc_undo_limit(int h, int n) { WDOC* d = D(h); if (d) E(d, EM_SETUNDOLIMIT, (unsigned long)(n < 0 ? 0 : n), 0); }
+
 /* ---- output buffer of UTF-16, converted once at the end ------------------ */
 typedef struct { WCHAR* p; long len, cap; } WBUF;
 static int wb_room(WBUF* b, long n) {
@@ -2029,7 +2071,7 @@ int wdoc_replace_all(int h, const char* find, const char* repl, int flags) {
     wf = to_w(find, &nf);
     if (!wf || nf <= 0) { mem_free(wf); return 0; }
     wr = to_w(repl ? repl : "", &nr);
-    quiet_on(d, &q);
+    quiet_on(d, &q); group_on(d);
     for (;;) {
         r = find_w(d, wf, pos, -1, flags | 1, &end);
         if (r < 0 || end <= r) break;
@@ -2037,7 +2079,7 @@ int wdoc_replace_all(int h, const char* find, const char* repl, int flags) {
         c++;
         pos = r + nr;
     }
-    quiet_off(d, &q, 0);
+    group_off(d); quiet_off(d, &q, 0);
     mem_free(wf); mem_free(wr);
     if (c) d->seq++;
     return (int)c;
@@ -2048,7 +2090,7 @@ int wdoc_mark_all(int h, const char* text, int flags, int color) {
     if (!d || !text || !text[0]) return 0;
     w = to_w(text, &n);
     if (!w || n <= 0) { mem_free(w); return 0; }
-    quiet_on(d, &q);
+    quiet_on(d, &q); group_on(d);
     for (;;) {
         r = find_w(d, w, pos, -1, flags | 1, &end);
         if (r < 0 || end <= r) break;
@@ -2057,7 +2099,7 @@ int wdoc_mark_all(int h, const char* text, int flags, int color) {
         c++;
         pos = end;
     }
-    quiet_off(d, &q, 0);
+    group_off(d); quiet_off(d, &q, 0);
     mem_free(w);
     if (c) d->seq++;
     return (int)c;
@@ -2205,9 +2247,9 @@ int wdoc_replace_face(int h, const char* oldFace, const char* newFace) {
     build_runs(d);
     for (i = 0; i < d->nfaces; i++) if (seq_ci(d->faces + i * 32, oldFace)) k = i;
     if (k < 0) return 0;
-    quiet_on(d, &q);
+    quiet_on(d, &q); group_on(d);
     for (i = 0; i < d->nruns; i++) if (d->runs[i].face == k) { sel2(d, d->runs[i].cp, d->runs[i].end); set_face(d, newFace); c++; }
-    quiet_off(d, &q, 0);
+    group_off(d); quiet_off(d, &q, 0);
     if (c) d->seq++;
     return c;
 }
@@ -2216,7 +2258,7 @@ int wdoc_scale_sizes(int h, int pct) {
     WDOC* d = D(h); int i, c = 0; QUIET q;
     if (!d || pct <= 0) return 0;
     build_runs(d);
-    quiet_on(d, &q);
+    quiet_on(d, &q); group_on(d);
     for (i = 0; i < d->nruns; i++) {
         long tw = d->runs[i].size * pct / 100;
         CF2A cf;
@@ -2226,7 +2268,7 @@ int wdoc_scale_sizes(int h, int pct) {
         E(d, EM_SETCHARFORMAT, SCF_SELECTION, (unsigned long)&cf);
         c++;
     }
-    quiet_off(d, &q, 0);
+    group_off(d); quiet_off(d, &q, 0);
     if (c) d->seq++;
     return c;
 }
@@ -2234,11 +2276,11 @@ int wdoc_scale_sizes(int h, int pct) {
 void wdoc_set_font_range(int h, int from, int to, const char* face, int pt10) {
     WDOC* d = D(h); QUIET q;
     if (!d) return;
-    quiet_on(d, &q);
+    quiet_on(d, &q); group_on(d);
     sel2(d, from, to);
     if (face && face[0]) set_face(d, face);
     if (pt10 > 0) set_size(d, pt10);
-    quiet_off(d, &q, 0);
+    group_off(d); quiet_off(d, &q, 0);
     d->seq++;
 }
 /* the look at a position (pos -1 = the selection as it is).

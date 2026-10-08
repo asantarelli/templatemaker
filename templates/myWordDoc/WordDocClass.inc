@@ -158,8 +158,14 @@ GetFont              PROCEDURE(),STRING        ! blank when the selection mixes 
 GetFormat            PROCEDURE(LONG pWhich),LONG ! 1 bold..4 strike, 5 size*10, 6 colour, 7 highlight, 8 align, 9 list; -1 mixed
 
 ! ---- editing ---------------------------------------------------------------------------
-Undo                 PROCEDURE()
+Undo                 PROCEDURE()               ! Ctrl+Z; a tool operation (Replace All, a merge...) is one step
 Redo                 PROCEDURE()
+CanUndo              PROCEDURE(),BYTE
+CanRedo              PROCEDURE(),BYTE
+ClearUndo            PROCEDURE()               ! forget the history (LoadBlob/LoadString/LoadFile do it)
+SetUndoLimit         PROCEDURE(LONG pSteps)    ! how many steps are kept (RichEdit's default is 100)
+BeginUndoGroup       PROCEDURE()               ! everything until EndUndoGroup undoes as ONE step;
+EndUndoGroup         PROCEDURE()               ! pairs nest
 CutText              PROCEDURE()
 CopyText             PROCEDURE()
 PasteText            PROCEDURE()

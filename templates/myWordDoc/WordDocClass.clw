@@ -52,6 +52,10 @@ wd_indent          PROCEDURE(LONG,LONG),NAME('_wdoc_indent')
 wd_get_format      PROCEDURE(LONG,LONG),LONG,NAME('_wdoc_get_format')
 wd_get_face        PROCEDURE(LONG,*CSTRING,LONG),LONG,RAW,PROC,NAME('_wdoc_get_face')
 wd_command         PROCEDURE(LONG,LONG),NAME('_wdoc_command')
+wd_can             PROCEDURE(LONG,LONG),LONG,NAME('_wdoc_can')
+wd_undo_group      PROCEDURE(LONG,LONG),LONG,PROC,NAME('_wdoc_undo_group')
+wd_undo_clear      PROCEDURE(LONG),NAME('_wdoc_undo_clear')
+wd_undo_limit      PROCEDURE(LONG,LONG),NAME('_wdoc_undo_limit')
 wd_set_readonly    PROCEDURE(LONG,LONG),NAME('_wdoc_set_readonly')
 wd_set_zoom        PROCEDURE(LONG,LONG),NAME('_wdoc_set_zoom')
 wd_set_paper       PROCEDURE(LONG,LONG),NAME('_wdoc_set_paper')
@@ -455,6 +459,25 @@ WordDocClass.Undo      PROCEDURE()
 WordDocClass.Redo      PROCEDURE()
   CODE
   IF SELF.H THEN wd_command(SELF.H, 2).
+WordDocClass.CanUndo PROCEDURE()
+  CODE
+  RETURN CHOOSE(SELF.H <> 0 AND wd_can(SELF.H, 1) <> 0)
+WordDocClass.CanRedo PROCEDURE()
+  CODE
+  RETURN CHOOSE(SELF.H <> 0 AND wd_can(SELF.H, 2) <> 0)
+WordDocClass.ClearUndo PROCEDURE()
+  CODE
+  IF SELF.H THEN wd_undo_clear(SELF.H).
+WordDocClass.SetUndoLimit PROCEDURE(LONG pSteps)
+  CODE
+  IF SELF.H THEN wd_undo_limit(SELF.H, pSteps).
+! Several edits from code (inserts, formatting, tool calls) as one Ctrl+Z.
+WordDocClass.BeginUndoGroup PROCEDURE()
+  CODE
+  IF SELF.H THEN wd_undo_group(SELF.H, 1).
+WordDocClass.EndUndoGroup PROCEDURE()
+  CODE
+  IF SELF.H THEN wd_undo_group(SELF.H, 0).
 WordDocClass.CutText   PROCEDURE()
   CODE
   IF SELF.H THEN wd_command(SELF.H, 3).

@@ -283,6 +283,34 @@ Add the **myWordDocGlobal** extension to an application to make the classes
 available in every procedure. A hand-coded program needs only
 `INCLUDE('WordDocTools.INC'),ONCE`.
 
+### Undo
+
+The editor has always had undo and redo: Ctrl+Z / Ctrl+Y, the toolbar's two
+arrows, and `Doc1.Undo()` / `Doc1.Redo()`. The tools work with it, and **each
+tool operation is one step**. A `ReplaceAll` of 19 words, `SetFontAll`,
+`ScaleSizes`, `ReplaceFont`, `HighlightAll` or a whole `Merge` comes back with
+one Ctrl+Z, and Redo puts it back.
+
+```clarion
+Search.ReplaceAll('Acme Ltd', 'Acme Limited')
+Search.Undo()                     ! all of them back (the same as Ctrl+Z or Doc1.Undo())
+IF Doc1.CanUndo() THEN ENABLE(?UndoButton) ELSE DISABLE(?UndoButton).
+
+Doc1.BeginUndoGroup()             ! your own edits as one step, too
+Doc1.InsertText('Dear ' & CLIP(CUS:Name) & ',')
+Doc1.SelectText(0, 4)
+Doc1.Bold(WD:On)
+Doc1.EndUndoGroup()               ! pairs nest
+
+Doc1.ClearUndo()                  ! forget the history
+Doc1.SetUndoLimit(500)            ! keep more steps than RichEdit's default of 100
+```
+
+Loading a document (`LoadBlob`, `LoadString`, `LoadFile`) clears the history,
+so Undo never goes back to the previous record. The grouping uses the text
+engine's own undo (TOM `BeginEditCollection`, Windows 8 and later). On older
+Windows, undo still works, one change at a time.
+
 ### RtfSearchClass: find and replace
 
 ```clarion
@@ -488,7 +516,7 @@ fresh copy of the template for each record: `LoadBlob`, `Merge`, `SaveBlob`.
 
 `Tools.clw` (built the same way from `Tools.cwproj`) proves the tool classes:
 
-- `Tools.exe AUTO`: 51 headless checks into `tools_result.ini`, with every
+- `Tools.exe AUTO`: 60 headless checks into `tools_result.ini`, with every
   export written to `tools_out\`. They cover find, next, previous, whole word,
   match case, replace, replace all, highlight on and off, the font at a
   position, the fonts in use, replace/scale/set fonts, plain text with
@@ -497,7 +525,8 @@ fresh copy of the template for each record: `LoadBlob`, `Merge`, `SaveBlob`.
   tables, lists, colours and pictures (embedded and as files), BMP/EMF/WMF
   pictures converted to PNG, Markdown headings, lists, tables and pictures, and
   a merge from `SetField` values and a `BIND`ed variable that keeps the
-  placeholder's bold.
+  placeholder's bold, and undo: nothing to undo after a load, one Undo for
+  each tool operation and for a merge, Redo, and grouped edits of your own.
 - `Tools.exe` opens the window in the screenshot above: the editor with find,
   replace and highlight, the font under the caret, and the exports.
 

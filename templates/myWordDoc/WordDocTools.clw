@@ -96,6 +96,19 @@ RtfToolBase.Ready PROCEDURE()
   IF SELF.Doc &= NULL THEN RETURN FALSE.
   RETURN CHOOSE(SELF.Doc.Slot() <> 0)
 
+RtfToolBase.Undo PROCEDURE()
+  CODE
+  IF SELF.Ready() THEN SELF.Doc.Undo().
+
+RtfToolBase.Redo PROCEDURE()
+  CODE
+  IF SELF.Ready() THEN SELF.Doc.Redo().
+
+RtfToolBase.CanUndo PROCEDURE()
+  CODE
+  IF NOT SELF.Ready() THEN RETURN FALSE.
+  RETURN SELF.Doc.CanUndo()
+
 RtfToolBase.Kill PROCEDURE()
   CODE
   IF SELF.Own AND NOT SELF.Doc &= NULL
@@ -667,6 +680,7 @@ L:V      ANY
   CODE
   SELF.Scan()
   IF NOT SELF.Ready() THEN RETURN 0.
+  SELF.Doc.BeginUndoGroup()                       ! the whole merge is one Undo
   LOOP L:I = 1 TO RECORDS(SELF.Found)
     GET(SELF.Found, L:I)
     L:V = SELF.ValueOf(SELF.Found.Name, L:Known)
@@ -679,6 +693,7 @@ L:V      ANY
     DISPOSE(L:F)
     DISPOSE(L:W)
   END
+  SELF.Doc.EndUndoGroup()
   RETURN L:Count
 
 RtfMergeClass.FieldCount PROCEDURE()

@@ -1493,7 +1493,8 @@ Text is measured on the default printer, so the lines break exactly where they w
   `RtfTextClass` (RTF to readable plain text, word and character counts, excerpts, text to RTF),
   `RtfHtmlClass` (RTF to an HTML page or e-mail fragment, pictures embedded or as files),
   `RtfMarkdownClass` (headings, lists, tables, pictures) and `RtfMergeClass` (fills `[[Name]]`
-  placeholders from your values or from `BIND`ed file fields, keeping their formatting).
+  placeholders from your values or from `BIND`ed file fields, keeping their formatting). Each tool
+  operation undoes as one step (Ctrl+Z), and `BeginUndoGroup`/`EndUndoGroup` group your own edits.
 
 ![RTF tool classes on a live editor](docs/myWordDoc-tools-window.png)
 
