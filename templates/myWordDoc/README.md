@@ -35,6 +35,8 @@ to install: `msftedit.dll` ships with every Windows since XP SP1.
 Copy the five source files to `accessory\libsrc\win` and the `.tpl` to
 `accessory\template\win`, then register it.
 
+Every class member, with an example of each: [Class reference](#class-reference).
+
 ## Storage: one BLOB, plain RTF
 
 ```clarion
@@ -486,6 +488,819 @@ placeholders a template uses. `FieldOpen` and `FieldClose` change the `[[ ]]`
 markers. `UseBound = FALSE` turns off the `BIND` lookup, and
 `BlankUnknown = TRUE` empties the placeholders nothing filled. Merge into a
 fresh copy of the template for each record: `LoadBlob`, `Merge`, `SaveBlob`.
+
+## Class reference
+
+Every public property and method, in the order the `.inc` files declare them,
+each with a line of Clarion that uses it. The examples assume these
+declarations:
+
+```clarion
+  INCLUDE('WordDocClass.INC'),ONCE
+  INCLUDE('WordDocTools.INC'),ONCE
+Doc1     WordDocClass            ! an editor on a window (or a hidden document)
+Search   RtfSearchClass
+Font     RtfFontClass
+Text     RtfTextClass
+Html     RtfHtmlClass
+Md       RtfMarkdownClass
+Merge    RtfMergeClass
+```
+
+Positions are 0-based character positions; a paragraph break counts as one.
+Sizes in twips are 1/1440 inch (720 = half an inch, 1440 = an inch).
+
+**Contents:** [Equates](#equates) ·
+[WordDocClass](#worddocclass) ·
+[RtfToolBase (every tool)](#rtftoolbase-shared-by-every-tool) ·
+[RtfSearchClass](#rtfsearchclass) ·
+[RtfFontClass](#rtffontclass) ·
+[RtfTextClass](#rtftextclass) ·
+[RtfHtmlClass](#rtfhtmlclass) ·
+[RtfMarkdownClass](#rtfmarkdownclass) ·
+[RtfMergeClass](#rtfmergeclass)
+
+### Equates
+
+| Equate | Value | Used with |
+|---|---|---|
+| `WD:Toolbar` | 1 | `Init` flags: the formatting toolbar |
+| `WD:ReadOnly` | 2 | `Init` flags: view only |
+| `WD:PageView` | 4 | `Init` flags: the printed width on a grey desk |
+| `WD:NoBorder` | 8 | `Init` flags: no frame |
+| `WD:Left` `WD:Right` `WD:Center` `WD:Justify` | 1-4 | `SetAlign`, `GetFormat(8)`, `RtfFontClass.Align` |
+| `WD:NoList` `WD:Bullets` `WD:Numbers` | 0-2 | `SetList`, `GetFormat(9)`, `RtfFontClass.List` |
+| `WD:LowerLetters` `WD:UpperLetters` | 3-4 | `SetList`: a. b. c. / A. B. C. |
+| `WD:LowerRoman` `WD:UpperRoman` | 5-6 | `SetList`: i. ii. iii. / I. II. III. |
+| `WD:Off` `WD:On` `WD:Toggle` | 0-2 | `Bold`, `Italic`, `Underline`, `Strike` |
+| `WD:LetterWidth` | 9360 | the line width of Letter paper with 1-inch margins, in twips |
+| `WD:A4Width` | 9026 | the same for A4 |
+| `WD:Pages` | 0 | `PaginateForReport`: pieces the size of the IMAGE |
+| `WD:Flow` | 1 | `PaginateForReport`: line by line, filling the room left on each page |
+
+```clarion
+Doc1.Init(0{PROP:Handle}, ?DocRegion, WD:Toolbar + WD:PageView)
+Doc1.SetAlign(WD:Justify)
+Doc1.SetList(WD:UpperRoman)
+Doc1.Bold(WD:On)
+Doc1.SetPageWidth(WD:A4Width)
+```
+
+### WordDocClass
+
+#### Properties (set before `Init`)
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `ShowToolbar` | BYTE(1) | show the formatting toolbar | `Doc1.ShowToolbar = FALSE` |
+| `ReadOnly` | BYTE | view only | `Doc1.ReadOnly = TRUE` |
+| `PageView` | BYTE | show the document at its printed width on a grey desk (needs `PageWidth`) | `Doc1.PageView = TRUE` |
+| `PageWidth` | LONG | printed line width in twips; 0 wraps at the window edge | `Doc1.PageWidth = WD:LetterWidth` |
+| `DefaultFont` | CSTRING(32) | the font of a new document; blank = Segoe UI | `Doc1.DefaultFont = 'Calibri'` |
+| `DefaultSize` | REAL | its size in points; 0 = 11 | `Doc1.DefaultSize = 12` |
+
+#### Properties (read only)
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `Err` | LONG | not 0 when `Init`/`InitHidden` failed: the step that failed | `IF Doc1.Err THEN MESSAGE('Editor failed: ' & Doc1.Err).` |
+| `Pages` | LONG | pieces made by the last `Paginate` | `LOOP P# = 1 TO Doc1.Pages` |
+
+#### Life cycle
+
+**`Init(LONG pWinHandle, LONG pFeq, LONG pFlags=-1),BYTE,PROC`**: creates the
+editor over a REGION placed in the window formatter. With `pFlags = -1` the
+flags come from `ShowToolbar`, `ReadOnly` and `PageView`. Returns FALSE (and
+sets `Err`) on failure.
+```clarion
+OPEN(Window)
+Doc1.PageWidth = WD:LetterWidth
+IF NOT Doc1.Init(0{PROP:Handle}, ?DocRegion) THEN MESSAGE('No editor: ' & Doc1.Err).
+```
+
+**`InitHidden(),BYTE,PROC`**: an invisible document with no window, for reports,
+exports and batch work.
+```clarion
+Doc1.InitHidden()
+Doc1.LoadBlob(DOC:Body)
+```
+
+**`Kill()`**: destroys the editor and deletes the page files it wrote. Call it
+before `CLOSE(Window)`; it runs again harmlessly from the destructor.
+```clarion
+Doc1.Kill()
+CLOSE(Window)
+```
+
+**`TakeEvent(),BYTE,PROC`**: call it for every event in the ACCEPT loop. It
+keeps the editor over its REGION when the window is resized or a TAB changes.
+It returns TRUE while the document has unsaved changes.
+```clarion
+ACCEPT
+  IF Doc1.TakeEvent() THEN ENABLE(?SaveButton) ELSE DISABLE(?SaveButton).
+  ...
+END
+```
+
+**`Reposition()`**: moves the editor to its REGION now. `TakeEvent` does this for
+you; call it after moving or hiding the REGION from code.
+```clarion
+?DocRegion{PROP:Height} = ?DocRegion{PROP:Height} + 50
+Doc1.Reposition()
+```
+
+**`Alive(),BYTE`**: TRUE while the editor exists.
+```clarion
+IF Doc1.Alive() THEN Doc1.SaveBlob(DOC:Body).
+```
+
+**`Hwnd(),LONG`**: the Windows handle of the editor (its host window), for API
+calls of your own.
+```clarion
+SetFocus(Doc1.Hwnd())                 ! SetFocus prototyped in your MAP
+```
+
+**`Slot(),LONG`**: the document's number inside `wdoc.c`. The tool classes use
+it; you seldom need it.
+```clarion
+IF Doc1.Slot() = 0 THEN MESSAGE('Not initialised').
+```
+
+**`StructSizes(),LONG`**: a self-test. It returns 84188 when the C structures
+match Win32 (CHARFORMAT2 84 bytes, PARAFORMAT2 188).
+```clarion
+IF Doc1.StructSizes() <> 84188 THEN MESSAGE('wdoc.c compiled with the wrong packing').
+```
+
+#### Content
+
+**`LoadBlob(*BLOB pBlob)`**: loads RTF, or plain text, from a BLOB. Clears the
+undo history and the modified flag.
+```clarion
+Doc1.LoadBlob(DOC:Body)
+```
+
+**`SaveBlob(*BLOB pBlob)`**: writes the document into the BLOB as RTF and clears
+the modified flag. Then write the record as usual.
+```clarion
+Doc1.SaveBlob(DOC:Body)
+Access:Docs.Update()
+```
+
+**`LoadString(STRING pRtfOrText)`**: loads from a string. A string that starts
+with `{\rtf` is RTF, anything else is plain text.
+```clarion
+Doc1.LoadString('Dear customer,<13,10>Thank you for your order.')
+```
+
+**`GetRtf(),STRING`**: the whole document as RTF.
+```clarion
+L:Rtf = Doc1.GetRtf()
+```
+
+**`GetText(),STRING`**: the document as plain text. `RtfTextClass` gives more
+control over lists and tables.
+```clarion
+DOC:Words = Doc1.GetText()
+```
+
+**`LoadFile(STRING pFileName),BYTE,PROC`**: loads an .rtf (or .txt) file.
+```clarion
+IF NOT Doc1.LoadFile('C:\Letters\welcome.rtf') THEN MESSAGE('Cannot open the file').
+```
+
+**`SaveFile(STRING pFileName),BYTE,PROC`**: saves the document as an .rtf file
+that Word and WordPad open.
+```clarion
+Doc1.SaveFile('C:\Letters\' & CLIP(CUS:Code) & '.rtf')
+```
+
+**`ClearAll()`**: empties the document.
+```clarion
+Doc1.ClearAll()
+```
+
+**`Length(),LONG`**: the number of characters.
+```clarion
+?Count{PROP:Text} = Doc1.Length() & ' characters'
+```
+
+**`Modified(),BYTE`**: TRUE when the user changed the document since it was
+loaded or saved.
+```clarion
+IF Doc1.Modified() THEN Doc1.SaveBlob(DOC:Body).
+```
+
+**`SetModified(BYTE pOn)`**: sets or clears the modified flag.
+```clarion
+Doc1.SetModified(FALSE)              ! after saving it somewhere yourself
+```
+
+#### Inserting at the caret
+
+**`InsertText(STRING pText)`**: types text at the caret, replacing the selection.
+```clarion
+Doc1.InsertText('Kind regards,<13,10>' & CLIP(USE:Name))
+```
+
+**`InsertRtf(STRING pRtf)`**: inserts formatted RTF at the caret.
+```clarion
+Doc1.InsertRtf('{{\rtf1{{\b Important:} read before signing.}')
+```
+
+**`InsertImage(STRING pFileName, LONG pMaxWidthTw=0),LONG,PROC`**: inserts a
+PNG, JPEG, BMP, EMF or WMF picture, scaled down to `pMaxWidthTw` (0 = the page
+width). Returns 1 when it worked, -1 when the file cannot be read, -2 for
+another format, and -3 when out of memory.
+```clarion
+IF Doc1.InsertImage(CUS:LogoFile, 2880) <> 1 THEN MESSAGE('Not a picture I can use').
+```
+
+**`InsertTable(LONG pRows, LONG pCols, LONG pWidthTw=0),BYTE,PROC`**: inserts a
+table with thin borders, spread over `pWidthTw` (0 = the page width).
+```clarion
+Doc1.InsertTable(4, 3)                ! 4 rows, 3 columns
+```
+
+#### Formatting the selection
+
+**`Bold(BYTE pHow=WD:Toggle)`**, **`Italic(...)`**, **`Underline(...)`**,
+**`Strike(...)`**: switch the style on, off or over.
+```clarion
+Doc1.SelectText(0, 12)
+Doc1.Bold(WD:On)
+Doc1.Italic()                         ! toggles
+Doc1.Underline(WD:Off)
+Doc1.Strike(WD:Toggle)
+```
+
+**`SetFont(STRING pFace)`**: the font of the selection.
+```clarion
+Doc1.SetFont('Georgia')
+```
+
+**`SetFontSize(REAL pPoints)`**: the size of the selection.
+```clarion
+Doc1.SetFontSize(14)
+```
+
+**`SetColor(LONG pColor)`**: the text colour; `COLOR:None` = automatic.
+```clarion
+Doc1.SetColor(COLOR:Red)
+```
+
+**`SetHighlight(LONG pColor)`**: the highlighter colour behind the text;
+`COLOR:None` takes it off.
+```clarion
+Doc1.SetHighlight(COLOR:Yellow)
+```
+
+**`SetAlign(BYTE pAlign)`**: aligns the paragraphs in the selection.
+```clarion
+Doc1.SetAlign(WD:Center)
+```
+
+**`SetList(BYTE pStyle)`**: bullets or numbering for the paragraphs in the
+selection; `WD:NoList` removes it.
+```clarion
+Doc1.SetList(WD:Numbers)
+```
+
+**`Indent(LONG pTwips=360)`** / **`Outdent(LONG pTwips=360)`**: move the
+paragraphs right or left.
+```clarion
+Doc1.Indent()                         ! a quarter of an inch
+Doc1.Outdent(720)                     ! half an inch back
+```
+
+**`GetFont(),STRING`**: the font of the selection; blank when it mixes fonts.
+```clarion
+?FontName{PROP:Text} = Doc1.GetFont()
+```
+
+**`GetFormat(LONG pWhich),LONG`**: one detail of the selection. `pWhich` is
+1 bold, 2 italic, 3 underline or 4 strike (1/0), 5 size in points × 10,
+6 text colour (0 = automatic), 7 highlight (0FFFFFFh = none), 8 alignment or
+9 list style. Returns -1 when the selection is mixed. `RtfFontClass.Read` gives
+all of these at once.
+```clarion
+IF Doc1.GetFormat(1) = 1 THEN ?BoldBtn{PROP:Icon} = 'boldon.ico'.
+L:Points = Doc1.GetFormat(5) / 10
+```
+
+#### Editing
+
+**`Undo()`** / **`Redo()`**: the same as Ctrl+Z / Ctrl+Y. A whole tool
+operation (Replace All, a merge, Set Font) is one step.
+```clarion
+Doc1.Undo()
+Doc1.Redo()
+```
+
+**`CanUndo(),BYTE`** / **`CanRedo(),BYTE`**: whether there is something to undo
+or redo.
+```clarion
+IF Doc1.CanUndo() THEN ENABLE(?UndoBtn) ELSE DISABLE(?UndoBtn).
+```
+
+**`ClearUndo()`**: forgets the undo history. The `Load` methods do this for you.
+```clarion
+Doc1.ClearUndo()
+```
+
+**`SetUndoLimit(LONG pSteps)`**: how many steps are kept (100 by default).
+```clarion
+Doc1.SetUndoLimit(500)
+```
+
+**`BeginUndoGroup()`** / **`EndUndoGroup()`**: everything in between undoes as
+one step. Pairs can nest.
+```clarion
+Doc1.BeginUndoGroup()
+Doc1.InsertText('Re: ' & CLIP(ORD:Number))
+Doc1.SelectText(0, 3)
+Doc1.Bold(WD:On)
+Doc1.EndUndoGroup()
+```
+
+**`CutText()`**, **`CopyText()`**, **`PasteText()`**: the clipboard, like
+Ctrl+X / Ctrl+C / Ctrl+V.
+```clarion
+Doc1.SelectAll()
+Doc1.CopyText()
+```
+
+**`SelectAll()`**: selects the whole document.
+```clarion
+Doc1.SelectAll()
+Doc1.SetFont('Arial')
+```
+
+**`SelectText(LONG pFrom, LONG pTo)`**: selects a range; `pTo = -1` means the
+end. `SelectText(N, N)` puts the caret at N.
+```clarion
+Doc1.SelectText(0, 0)                 ! caret at the top
+Doc1.SelectText(Doc1.Length(), Doc1.Length())   ! caret at the end
+```
+
+**`Find(STRING pText, BYTE pMatchCase=0, BYTE pWholeWord=0),LONG,PROC`**:
+selects the next match after the caret, going round to the top. Returns its
+position or -1. `RtfSearchClass` does more.
+```clarion
+IF Doc1.Find('total', FALSE, TRUE) < 0 THEN MESSAGE('Not found').
+```
+
+**`Focus()`**: puts the keyboard focus in the editor.
+```clarion
+Doc1.Focus()
+```
+
+**`SetReadOnly(BYTE pOn)`**: locks or unlocks the document while it is open.
+```clarion
+Doc1.SetReadOnly(CHOOSE(DOC:Signed = TRUE))
+```
+
+**`SetToolbar(BYTE pOn)`**: shows or hides the toolbar while it is open.
+```clarion
+Doc1.SetToolbar(FALSE)
+```
+
+**`SetZoom(LONG pPercent)`**: zooms the view; 0 = 100%.
+```clarion
+Doc1.SetZoom(150)
+```
+
+**`SetPaperColor(LONG pColor)`**: the colour behind the text on screen;
+`COLOR:None` = the window colour.
+```clarion
+Doc1.SetPaperColor(0F0FFFFh)          ! pale cream
+```
+
+**`SetPageWidth(LONG pTwips)`**: wraps the lines at the printed width, so they
+break where they will on paper; 0 wraps at the window edge.
+```clarion
+Doc1.SetPageWidth(WD:A4Width)
+```
+
+#### Printing
+
+**`Paginate(LONG pWidthTw, LONG pHeightTw),LONG,PROC`**: splits the document
+into pages of that size and returns how many.
+```clarion
+Pages# = Doc1.Paginate(WD:LetterWidth, 12960)     ! 6.5 x 9 inches
+```
+
+**`RenderPage(LONG pPage),STRING`**: writes page N into the temp folder as a WMF
+and returns the file name. `Kill` deletes those files.
+```clarion
+?Preview{PROP:Text} = Doc1.RenderPage(1)          ! show page 1 on an IMAGE
+```
+
+**`RenderPageTo(LONG pPage, STRING pFileName),BYTE,PROC`**: writes page N to a
+file you name: an EMF for `.emf`, a placeable WMF for `.wmf`.
+```clarion
+Doc1.RenderPageTo(1, 'C:\Out\page1.emf')
+```
+
+**`PageUsedHeight(LONG pPage),LONG`**: how many twips of page N the text
+really fills.
+```clarion
+IF Doc1.PageUsedHeight(Doc1.Pages) < 1440 THEN MESSAGE('The last page is almost empty').
+```
+
+**`PaginateForReport(*REPORT pReport, LONG pImageFeq, BYTE pMode=0),LONG`**:
+measures the report IMAGE and cuts the document to fit it. `WD:Pages` makes
+pieces the size of the IMAGE; `WD:Flow` cuts one line per band, so the
+document starts in whatever room is left on the page. Returns the number of
+pieces.
+```clarion
+LOOP P# = 1 TO Doc1.PaginateForReport(Report, ?DocImage, WD:Flow)
+  Doc1.PreparePage(Report, ?DocImage, P#)
+  PRINT(RPT:DocBand)
+END
+```
+
+**`PreparePage(*REPORT pReport, LONG pImageFeq, LONG pPage, BYTE pShrinkLast=1)`**:
+points the IMAGE at piece N and sizes it and its band. With `WD:Pages`,
+`pShrinkLast` shrinks the last piece to the text, so what follows comes
+straight after it.
+```clarion
+Doc1.PreparePage(Report, ?DocImage, P#, FALSE)    ! keep the full IMAGE height
+PRINT(RPT:DocBand)
+```
+
+### RtfToolBase: shared by every tool
+
+Every tool class inherits these.
+
+**`Doc`** (`&WordDocClass`): the document the tool works on.
+```clarion
+Search.LoadBlob(DOC:Body)
+Search.Doc.SetFont('Arial')          ! any WordDocClass method on the tool's document
+```
+
+**`Attach(*WordDocClass pDoc)`**: works on an existing document: an editor on a
+window, or a report's hidden document.
+```clarion
+Search.Attach(Doc1)
+```
+
+**`LoadString(STRING pRtfOrText),BYTE,PROC`**, **`LoadBlob(*BLOB pBlob),BYTE,PROC`**,
+**`LoadFile(STRING pFileName),BYTE,PROC`**: load into the tool's own hidden
+document (or into the attached one).
+```clarion
+Text.LoadBlob(DOC:Body)
+Html.LoadFile('C:\Letters\welcome.rtf')
+Md.LoadString(L:Rtf)
+```
+
+**`SaveBlob(*BLOB pBlob)`**, **`SaveFile(STRING pFileName),BYTE,PROC`**: keep
+the changed document.
+```clarion
+Search.ReplaceAll('2025', '2026')
+Search.SaveBlob(DOC:Body)
+Font.SaveFile('C:\Out\restyled.rtf')
+```
+
+**`GetRtf(),STRING`**: the document as RTF.
+```clarion
+LET:Body = Merge.GetRtf()
+```
+
+**`Ready(),BYTE`**: TRUE when there is a document to work on.
+```clarion
+IF NOT Text.Ready() THEN Text.LoadBlob(DOC:Body).
+```
+
+**`Undo()`**, **`Redo()`**, **`CanUndo(),BYTE`**: the document's undo; each tool
+operation is one step.
+```clarion
+Search.ReplaceAll('Mr', 'Ms')
+IF Search.CanUndo() THEN Search.Undo().
+```
+
+**`Kill()`**: lets go of the document; a hidden one the tool made is destroyed.
+The destructor does the same.
+```clarion
+Search.Kill()
+```
+
+### RtfSearchClass
+
+#### Properties
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `MatchCase` | BYTE | "Smith" does not find "smith" | `Search.MatchCase = TRUE` |
+| `WholeWord` | BYTE | "art" does not find "party" | `Search.WholeWord = TRUE` |
+| `Wrap` | BYTE(1) | `FindNext`/`FindPrevious` go round the end | `Search.Wrap = FALSE` |
+| `SelectHits` | BYTE(1) | select and scroll to each hit | `Search.SelectHits = FALSE` |
+| `FoundAt` | LONG | where the last hit starts; -1 = none | `IF Search.FoundAt >= 0 THEN ...` |
+| `FoundEnd` | LONG | where it ends | `L:Len = Search.FoundEnd - Search.FoundAt` |
+| `What` | CSTRING(1024) | what the last `Find` looked for | `Search.What = L:Find; Search.FindNext()` |
+
+#### Methods
+
+**`Find(STRING pText),LONG,PROC`**: the first hit from the top; returns its
+position or -1.
+```clarion
+IF Search.Find('overdue') < 0 THEN MESSAGE('No overdue items').
+```
+
+**`FindNext(),LONG,PROC`** / **`FindPrevious(),LONG,PROC`**: the next or
+previous hit of `What`.
+```clarion
+Search.Wrap = FALSE                   ! stop at the end instead of going round
+IF Search.Find('total') >= 0
+  LOOP
+    ResultQ:Pos = Search.FoundAt
+    ADD(ResultQ)
+    IF Search.FindNext() < 0 THEN BREAK.
+  END
+END
+Search.FindPrevious()
+```
+
+**`Count(STRING pText),LONG`**: how many hits there are.
+```clarion
+?Info{PROP:Text} = Search.Count('Clarion') & ' mentions'
+```
+
+**`Replace(STRING pFind, STRING pWith),BYTE,PROC`**: like Word's Replace button.
+The first call finds; each later call replaces the hit showing and finds the
+next. Returns TRUE when it replaced one.
+```clarion
+OF ?ReplaceBtn
+  Search.Replace(L:Find, L:With)
+```
+
+**`ReplaceAll(STRING pFind, STRING pWith),LONG,PROC`**: replaces every hit,
+keeping each one's formatting, and returns how many. One Undo takes them all
+back.
+```clarion
+MESSAGE(Search.ReplaceAll('Acme Ltd', 'Acme Limited') & ' replaced')
+```
+
+**`HighlightAll(STRING pText, LONG pColor=COLOR:Yellow),LONG,PROC`**: paints
+every hit with a highlight colour; `COLOR:None` takes it off again.
+```clarion
+Search.HighlightAll(L:Find)
+Search.HighlightAll(L:Find, COLOR:None)
+```
+
+**`Context(LONG pChars=40),STRING`**: the plain text around the last hit, with
+`...` where it was cut. Good for a list of search results.
+```clarion
+IF Search.Find(L:Find) >= 0 THEN ResultQ:Line = Search.Context(30); ADD(ResultQ).
+```
+
+**`TextAt(LONG pFrom, LONG pTo),STRING`**: the plain text of a range.
+```clarion
+L:Word = Search.TextAt(Search.FoundAt, Search.FoundEnd)
+```
+
+### RtfFontClass
+
+#### Properties (filled by `Read`)
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `Face` | CSTRING(32) | the font; '' = mixed | `?Font{PROP:Text} = Font.Face` |
+| `Size` | REAL | points; 0 = mixed | `IF Font.Size > 14 THEN ...` |
+| `Bold` `Italic` `Underline` `Strike` | LONG | 1 on, 0 off, -1 mixed | `L:IsBold = CHOOSE(Font.Bold = 1)` |
+| `Script` | LONG | 0 normal, 1 superscript, 2 subscript, -1 mixed | `IF Font.Script = 1 THEN ...` |
+| `Color` | LONG | text colour; `COLOR:None` automatic, -2 mixed | `?Swatch{PROP:Fill} = Font.Color` |
+| `Highlight` | LONG | highlight; `COLOR:None` none, -2 mixed | `IF Font.Highlight <> COLOR:None THEN ...` |
+| `Align` | LONG | `WD:Left`..`WD:Justify`, -1 mixed | `IF Font.Align = WD:Center THEN ...` |
+| `List` | LONG | `WD:NoList`..`WD:UpperRoman`, -1 mixed | `IF Font.List = WD:Bullets THEN ...` |
+
+#### Methods
+
+**`Read(LONG pPos=-1),BYTE,PROC`**: fills the properties from the selection
+(-1) or from the character at `pPos`.
+```clarion
+OF EVENT:Timer
+  Font.Read()                         ! what font am I on?
+  ?Status{PROP:Text} = Font.Describe()
+```
+
+**`Describe(),STRING`**: the last `Read` in words.
+```clarion
+MESSAGE(Font.Describe())              ! 'Georgia 12pt, bold, italic'
+```
+
+**`FontCount(),LONG`**: scans the document and returns how many fonts it uses.
+Call it before `FontName` and `FontChars`.
+```clarion
+IF Font.FontCount() > 3 THEN MESSAGE('This letter uses too many fonts').
+```
+
+**`FontName(LONG pN),STRING`** / **`FontChars(LONG pN),LONG`**: font N, and
+how many characters are set in it.
+```clarion
+LOOP I# = 1 TO Font.FontCount()
+  FontQ:Name = Font.FontName(I#)
+  FontQ:Chars = Font.FontChars(I#)
+  ADD(FontQ)
+END
+```
+
+**`FontList(<STRING pSep>),STRING`**: every font in one string, separated by
+`pSep` (default `', '`).
+```clarion
+?Fonts{PROP:Text} = Font.FontList()
+L:Lines = Font.FontList('<13,10>')
+```
+
+**`MainFont(),STRING`**: the font most of the text uses.
+```clarion
+IF Font.MainFont() <> 'Segoe UI' THEN Font.SetFontAll('Segoe UI').
+```
+
+**`ReplaceFont(STRING pOld, STRING pNew),LONG,PROC`**: everything in one font
+goes into another; returns how many stretches changed.
+```clarion
+Font.ReplaceFont('Times New Roman', 'Georgia')
+```
+
+**`SetFontAll(STRING pFace, REAL pPoints=0)`**: the whole document in one font
+and/or size; '' or 0 leaves that part alone.
+```clarion
+Font.SetFontAll('Calibri', 11)
+Font.SetFontAll('', 12)               ! size only
+```
+
+**`SetFontRange(LONG pFrom, LONG pTo, STRING pFace, REAL pPoints=0)`**: the same
+for a range; `pTo = -1` is the end.
+```clarion
+Font.SetFontRange(0, 15, 'Georgia', 20)    ! the title
+```
+
+**`ScaleSizes(LONG pPercent),LONG,PROC`**: every size times a percentage, the
+headings with it, never under 4 pt.
+```clarion
+Font.ScaleSizes(120)                  ! 20% bigger for a large-print copy
+Font.ScaleSizes(90)
+```
+
+### RtfTextClass
+
+#### Properties
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `ListPrefixes` | BYTE(1) | `- ` before bullets, `1.` `b.` `iv.` before numbered items | `Text.ListPrefixes = FALSE` |
+| `Bullet` | CSTRING(16) | what a bullet becomes; '' = `- ` | `Text.Bullet = '* '` |
+| `TabCells` | BYTE(1) | table cells separated by TAB; off = ` \| ` | `Text.TabCells = FALSE` |
+| `PictureMarks` | BYTE | write `[picture]` where a picture was | `Text.PictureMarks = TRUE` |
+| `Utf8` | BYTE | UTF-8 instead of the ANSI code page | `Text.Utf8 = TRUE` |
+
+#### Methods
+
+**`ToText(),STRING,PROC`**: the document as plain text.
+```clarion
+Text.LoadBlob(DOC:Body)
+DOC:PlainText = Text.ToText()
+```
+
+**`SaveText(STRING pFileName),BYTE,PROC`**: writes it to a file.
+```clarion
+Text.SaveText('C:\Out\letter.txt')
+```
+
+**`WordCount(),LONG`**: the number of words.
+```clarion
+?Words{PROP:Text} = Text.WordCount() & ' words'
+```
+
+**`CharCount(BYTE pWithSpaces=1),LONG`**: the number of characters, with or
+without spaces.
+```clarion
+IF Text.CharCount(FALSE) > 1600 THEN MESSAGE('Too long for the form').
+```
+
+**`ParagraphCount(),LONG`**, **`PictureCount(),LONG`**, **`TableCount(),LONG`**:
+paragraphs with text, pictures and tables.
+```clarion
+?Stats{PROP:Text} = Text.ParagraphCount() & ' paragraphs, ' & Text.PictureCount() & ' pictures, ' & Text.TableCount() & ' tables'
+```
+
+**`Excerpt(LONG pMaxChars=200),STRING`**: the start of the text on one line,
+cut at a word, with `...`.
+```clarion
+DOC:Summary = Text.Excerpt(120)       ! a preview column for a browse
+```
+
+**`IsRtf(STRING pText),BYTE`**: TRUE when the string starts with `{\rtf`.
+```clarion
+IF NOT Text.IsRtf(L:Imported) THEN L:Imported = Text.TextToRtf(L:Imported).
+```
+
+**`TextToRtf(STRING pText, <STRING pFace>, REAL pPoints=0),STRING`**: plain text
+as an RTF document. It escapes `\ { }`, turns line breaks into paragraphs and
+accented letters into `\'e9`.
+```clarion
+Doc1.LoadString(Text.TextToRtf(NOTE:Memo, 'Georgia', 12))
+```
+
+### RtfHtmlClass
+
+#### Properties
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `FullPage` | BYTE(1) | a complete page; 0 = a `<div>` fragment | `Html.FullPage = FALSE` |
+| `Title` | CSTRING(256) | the page's `<title>` | `Html.Title = DOC:Title` |
+| `SkipPictures` | BYTE | leave pictures out | `Html.SkipPictures = TRUE` |
+| `ImageFolder` | CSTRING(261) | '' = pictures embedded as `data:` URIs; a folder = written there as image1.png... | `Html.ImageFolder = 'C:\Site\img'` |
+| `ImageUrl` | CSTRING(261) | how the page links those files | `Html.ImageUrl = 'img/'` |
+
+#### Methods
+
+**`ToHtml(),STRING,PROC`**: the document as UTF-8 HTML.
+```clarion
+Html.LoadBlob(DOC:Body)
+Html.FullPage = FALSE
+L:Body = Html.ToHtml()                ! for the body of an e-mail
+```
+
+**`SaveHtml(STRING pFileName),BYTE,PROC`**: writes it to a file.
+```clarion
+Html.Title = 'Welcome letter'
+IF Html.SaveHtml('C:\Out\welcome.html') THEN RUN('explorer C:\Out\welcome.html').
+```
+
+### RtfMarkdownClass
+
+#### Properties
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `SkipPictures` | BYTE | leave pictures out | `Md.SkipPictures = TRUE` |
+| `ImageFolder` | CSTRING(261) | as `RtfHtmlClass` | `Md.ImageFolder = 'C:\Wiki\media'` |
+| `ImageUrl` | CSTRING(261) | as `RtfHtmlClass` | `Md.ImageUrl = 'media/'` |
+
+#### Methods
+
+**`ToMarkdown(),STRING,PROC`**: the document as UTF-8 Markdown.
+```clarion
+Md.LoadBlob(DOC:Body)
+L:Markdown = Md.ToMarkdown()
+```
+
+**`SaveMarkdown(STRING pFileName),BYTE,PROC`**: writes it to a file.
+```clarion
+Md.SaveMarkdown('C:\Wiki\' & CLIP(DOC:Code) & '.md')
+```
+
+### RtfMergeClass
+
+#### Properties
+
+| Property | Type | Meaning | Example |
+|---|---|---|---|
+| `FieldOpen` | CSTRING(9) | the opening marker; '' = `[[` | `Merge.FieldOpen = '<<<<'` |
+| `FieldClose` | CSTRING(9) | the closing marker; '' = `]]` | `Merge.FieldClose = '>>'` |
+| `UseBound` | BYTE(1) | a field you did not `SetField` is looked up with `EVALUATE`, so `BIND()`ed fields fill themselves | `Merge.UseBound = FALSE` |
+| `BlankUnknown` | BYTE | a placeholder nothing filled becomes '' | `Merge.BlankUnknown = TRUE` |
+
+#### Methods
+
+**`SetField(STRING pName, STRING pValue)`**: a value for `[[pName]]`. The name
+is not case-sensitive, and setting it again replaces the value.
+```clarion
+Merge.SetField('When', FORMAT(ORD:ShipDate, @D17))
+Merge.SetField('Total', LEFT(FORMAT(ORD:Total, @N$13.2)))
+```
+
+**`ClearFields()`**: forgets every `SetField` value.
+```clarion
+Merge.ClearFields()
+```
+
+**`Merge(),LONG,PROC`**: fills the placeholders and returns how many were
+replaced. Each value takes its placeholder's formatting, and one Undo takes
+the whole merge back.
+```clarion
+Merge.LoadBlob(TPL:Body)
+BIND(CUS:Record)
+Merge.Merge()
+Merge.SaveBlob(LET:Body)
+```
+
+**`FieldCount(),LONG`** / **`FieldName(LONG pN),STRING`**: the distinct
+placeholders in the document.
+```clarion
+LOOP I# = 1 TO Merge.FieldCount()
+  FieldQ:Name = Merge.FieldName(I#)
+  ADD(FieldQ)
+END
+```
+
+**`Missing(),STRING`**: the placeholders nothing will fill, comma-separated.
+```clarion
+IF Merge.Missing() <> '' THEN MESSAGE('No value for: ' & Merge.Missing()); RETURN.
+```
 
 ## Known limits
 
