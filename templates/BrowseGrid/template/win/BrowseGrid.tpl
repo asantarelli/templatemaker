@@ -616,7 +616,7 @@ c LONG,AUTO
       #DISPLAY('el CASE se renumera solo, asi que sacar una no descoloca al resto.')
       #DISPLAY('Sin ninguna, no se abre menu.')
       #PROMPT('Take these from the &global extension',CHECK),%bgGlobMenu,DEFAULT(0),AT(10)
-      #DISPLAY('Todo lo de esta solapa - y el boton desplegable - sale de la')
+      #DISPLAY('Todo lo de estas solapas - y el boton desplegable - sale de la')
       #DISPLAY('extension global, para no repetirlo browse por browse. Si la')
       #DISPLAY('extension global no esta, se usa lo de aca abajo.')
       #DISPLAY('')
@@ -636,8 +636,10 @@ c LONG,AUTO
       #ENDENABLE
       #DISPLAY('')
       #DISPLAY('Columns... sale del tilde de la solapa Columns, Filter by value y')
-      #DISPLAY('Find text de los de aca abajo, y Auto-fit del de su recuadro.')
+      #DISPLAY('Find text de los de la solapa Filtering, y Auto-fit de la suya.')
     #ENDBOXED
+  #ENDTAB
+  #TAB('Filtering')
     #BOXED('Filtering')
       #PROMPT('&Excel-style drop-down button on every heading',CHECK),%bgFilterBtn,DEFAULT(0),AT(10)
       #ENABLE(%bgFilterBtn)
@@ -656,6 +658,8 @@ c LONG,AUTO
         #DISPLAY('  the object<39>s own SetFilter, so range limits keep working.')
       #ENDENABLE
     #ENDBOXED
+  #ENDTAB
+  #TAB('Auto-fit')
     #BOXED('Auto-fit')
       #ENABLE(%bgFilterBtn)
         #PROMPT('A&uto-fit column widths on the heading menu',CHECK),%bgAutoFit,DEFAULT(1),AT(10)
@@ -682,8 +686,8 @@ c LONG,AUTO
     #BOXED('Type')
       #PROMPT('Take all of this from the &global extension',CHECK),%bgGlobLook,DEFAULT(0),AT(10)
       #DISPLAY('Tipografia, colores y variables salen de la extension global, para')
-      #DISPLAY('no repetirlos browse por browse. Las tres solapas juntas, porque')
-      #DISPLAY('Variables pisa a Look y a Colours: heredar una sola dejaria mitad')
+      #DISPLAY('no repetirlos browse por browse. Las cuatro solapas juntas, porque')
+      #DISPLAY('Variables pisa a Look, Text y Colours: heredar una sola dejaria mitad')
       #DISPLAY('de un tema y mitad de otro. Sin extension global, se usa lo de aca.')
       #PROMPT('Take the typeface from SD &Aspecto',CHECK),%bgSDAsp,DEFAULT(0),AT(10)
       #DISPLAY('Font and size come from that application<39>s SDAspecto extension, so')
@@ -696,6 +700,12 @@ c LONG,AUTO
         #PROMPT('&Font:',@s32),%bgFont,DEFAULT('Segoe UI')
         #PROMPT('&Size (points):',SPIN(@n3,6,24,1)),%bgSize,DEFAULT(9)
       #ENDENABLE
+    #ENDBOXED
+    #ENDENABLE
+  #ENDTAB
+  #TAB('Text')
+    #ENABLE(%bgGlobLook = 0)
+    #BOXED('Text and rows')
       #PROMPT('Draw the text the way the LIST does (&GDI)',CHECK),%bgGdiText,DEFAULT(1),AT(10)
       #PROMPT('Font wei&ght:',DROP('As the name says[0]|Light[300]|Regular[400]|Medium[500]|SemiBold[600]|Bold[700]')),%bgWeight,DEFAULT('0')
       #DISPLAY('A family name can carry the weight in it. <39>Roboto Medium<39> is a')
