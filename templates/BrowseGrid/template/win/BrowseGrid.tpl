@@ -2152,6 +2152,7 @@ raw   CSTRING(261)                                            ! icon name/path, 
       IF ~ex THEN BREAK.
       fld = %bgList{PROPLIST:FieldNo,c}
       IF ~fld THEN CYCLE.
+      IF c <= BG:MaxCols AND ~%bgObject:W0[c] THEN CYCLE.         ! designed hidden: stays hidden
       head = CLIP(INIMgr.TryFetch('BrowseGrid:%Procedure:%bgObject','h' & c))
       %bgList{PROPLIST:Width,c} = CHOOSE(head <> '' AND head <> '0', head, 40)
       INIMgr.Update('BrowseGrid:%Procedure:%bgObject','w' & c,'')
@@ -4005,6 +4006,12 @@ ok   LONG,AUTO
     IF ~ex THEN BREAK.
     fld = %bgList{PROPLIST:FieldNo,c}
     IF ~fld THEN CYCLE.                                       ! a decoration, not a column
+!  A column drawn at width 0 in the formatter is DATA, not a column: it is there
+!  for a filter or an action to read, and the user was never meant to see it. It
+!  is not offered here at all - listing it let a tick, or All, put it on screen
+!  at 40 wide. A column the USER hid is another matter: it had a width when the
+!  window opened (W0), so it stays on the list and can be brought back.
+    IF c <= BG:MaxCols AND ~%bgObject:W0[c] THEN CYCLE.
     wid = %bgList{PROPLIST:Width,c}
     head = CLIP(%bgList{PROPLIST:Header,c})
     IF ~head
