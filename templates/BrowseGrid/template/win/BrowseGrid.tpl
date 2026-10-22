@@ -1633,6 +1633,12 @@ BG:ClrHit:%bgObject  EQUATE(EVENT:User + 40 + %ActiveTemplateInstance)
 #ENDAT
 #!
 #AT(%WindowManagerMethodCodeSection,'TakeFieldEvent','(),BYTE'),PRIORITY(2000),WHERE(%bgDisable=0 AND %bgList)
+  IF FIELD() = %bgList AND EVENT() = EVENT:AlertKey AND %bgObject:G
+    CASE KEYCODE()
+    OF LeftKey OROF RightKey
+      DO BG:Step:%bgObject
+    END
+  END
   IF FIELD() = %bgObject:Rgn AND %bgObject:G
     CASE EVENT()
     OF EVENT:MouseDown
@@ -1840,6 +1846,12 @@ h  SIGNED,AUTO
 #IF(%bgDoubleU)
   %bgObject:Rgn{PROP:Alrt,251} = MouseLeft2                   ! and the double click, likewise
 #ENDIF
+!  THE ARROWS, on the LIST - which is what holds the keyboard, the grid being a
+!  region over it. A LIST scrolls its own columns sideways on Left and Right;
+!  this one is invisible, so it did that to nobody and the grid never heard. Slots
+!  246 and 247: ABC keeps 249 to 255 for itself (the mouse, Insert, Delete).
+  %bgList{PROP:Alrt,246} = LeftKey
+  %bgList{PROP:Alrt,247} = RightKey
 #IF(%bgGdiTextU)
 !  Antes de dibujar nada. El modo vive en la superficie, y si esta se rehace -
 !  un cambio de tamano la rehace - el motor lo vuelve a aplicar solo.
@@ -4930,6 +4942,61 @@ sp LONG,AUTO
 #ELSE
   EXIT
 #ENDIF
+
+BG:Step:%bgObject ROUTINE
+!  Left and Right scroll the columns sideways by ONE column, as a LIST does: the
+!  next column that starts beyond where the view is now, or the last one that
+!  starts before it. Frozen columns are not stepped over - they stay put - so a
+!  column is brought to sit right beside them, which is where scrolling by the
+!  bar leaves it too. Grouped formats step by GROUP, the unit the grid lays out.
+  DATA
+i    LONG,AUTO
+x    LONG,AUTO
+w    LONG,AUTO
+fz   LONG,AUTO
+pos  LONG,AUTO
+cur  LONG,AUTO
+tgt  LONG,AUTO
+tot  LONG,AUTO
+view LONG,AUTO
+grp  LONG,AUTO
+goRight LONG,AUTO
+  CODE
+  IF ~%bgObject:G THEN EXIT.
+  tot  = d2g_TotalWidth(%bgObject:G)
+  view = d2g_ViewWidth(%bgObject:G)
+  IF tot <= view THEN EXIT.                                   ! it all fits: nothing to scroll
+  grp   = CHOOSE(d2g_GrpWidth(%bgObject:G,0) > 0,1,0)
+  goRight = CHOOSE(KEYCODE() = RightKey,1,0)
+  cur = %bgObject:ScrollX
+  tgt = CHOOSE(goRight,tot,0)                                   ! no column found: the far end
+  x   = 0
+  fz  = 0
+  LOOP i = 0 TO BG:MaxCols - 1
+    w = CHOOSE(grp,d2g_GrpWidth(%bgObject:G,i),d2g_ColWidth(%bgObject:G,i))
+    IF w < 1 THEN BREAK.
+    IF i < %bgFrozen
+      fz += w                                                 ! frozen: not stepped to
+    ELSE
+      pos = x - fz                                            ! the scroll that puts this one beside them
+      IF goRight
+        IF pos > cur
+          tgt = pos
+          BREAK
+        END
+      ELSE
+        IF pos >= cur THEN BREAK.
+        tgt = pos
+      END
+    END
+    x += w
+  END
+  IF tgt > tot - view THEN tgt = tot - view.
+  IF tgt < 0 THEN tgt = 0.
+  %bgObject:ScrollX = tgt
+  d2g_ScrollX(%bgObject:G,tgt)
+  DO BG:Bars:%bgObject
+  d2g_PaintNow(%bgObject:G)
 
 BG:Bars:%bgObject ROUTINE
 !  Size both scrollbars from what is actually showing. Windows hides a bar
